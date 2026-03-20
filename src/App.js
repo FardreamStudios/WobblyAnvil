@@ -599,23 +599,7 @@ function Toast({msg,icon,color,onDone,duration,locked}){
 function ForgeScene({phase}){
   var fi=(phase===PHASES.HEAT||phase===PHASES.HAMMER)?1.0:0.18;
   return(<div style={{width:320,height:180,margin:"0 auto",filter:"brightness("+(0.3+fi*0.7)+")",transition:"filter 0.4s"}}>
-    <svg viewBox="0 0 320 180" width="320" height="180" style={{display:"block",imageRendering:"pixelated"}}>
-      <rect x="0" y="164" width="320" height="8" fill="#2a1a0a"/><rect x="0" y="172" width="320" height="8" fill="#1a0e05"/>
-      <rect x="48" y="16" width="48" height="8" fill="#444"/><rect x="60" y="24" width="24" height="56" fill="#555"/>
-      <rect x="16" y="80" width="112" height="84" fill="#555"/><rect x="16" y="80" width="112" height="8" fill="#777"/>
-      <rect x="32" y="96" width="80" height="64" fill="#111"/>
-      <rect x="32" y="136" width="80" height="24" fill={fi>0.5?"#ff1100":"#991100"}/>
-      <rect x="40" y="120" width="64" height="24" fill={fi>0.5?"#ff4400":"#cc2200"}/>
-      <rect x="48" y="108" width="48" height="20" fill={fi>0.5?"#ff7700":"#ff3300"}/>
-      <rect x="56" y="100" width="32" height="16" fill={fi>0.5?"#ffaa00":"#ff6600"}/>
-      <rect x="64" y="96" width="16" height="12" fill={fi>0.5?"#ffee00":"#ffaa00"}/>
-      <rect x="24" y="156" width="16" height="8" fill="#444"/><rect x="104" y="156" width="16" height="8" fill="#444"/>
-      <rect x="168" y="88" width="8" height="8" fill="#999"/><rect x="176" y="84" width="8" height="16" fill="#999"/><rect x="184" y="80" width="8" height="24" fill="#999"/>
-      <rect x="192" y="80" width="96" height="8" fill="#ccc"/><rect x="192" y="88" width="96" height="16" fill="#999"/>
-      <rect x="216" y="104" width="48" height="16" fill="#888"/>
-      <rect x="200" y="122" width="80" height="8" fill="#aaa"/><rect x="200" y="130" width="80" height="24" fill="#888"/><rect x="200" y="154" width="80" height="8" fill="#666"/>
-      <rect x="280" y="122" width="4" height="8" fill="#bbb"/><rect x="280" y="130" width="4" height="24" fill="#999"/><rect x="280" y="154" width="4" height="8" fill="#777"/>
-    </svg>
+    <img src={process.env.PUBLIC_URL + "/images/wobblyanvil.png"} width="320" height="180" style={{display:"block",imageRendering:"pixelated"}} />
   </div>);
 }
 function StatPanel({stats,points,onAllocate,sfx,locked}){
