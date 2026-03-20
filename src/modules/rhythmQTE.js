@@ -51,7 +51,7 @@ function RhythmQTE({ onClose, sfx }) {
 
     var buttons = oneButton
         ? [["\u2692\uFE0F", "hammer", "#60a5fa"]]
-        : [["\uD83D\uDD28", "hammer", "#60a5fa"], ["\uD83D\uDD25", "bellows", "#f97316"]];
+        : [["\uD83D\uDD28", "hammer", "#60a5fa"], ["\uD83D\uDD25", "fire", "#f97316"]];
 
     function getLiveElapsed() { if (!startRef.current) return 0; return performance.now() - startRef.current; }
     function noteX(n, el) { return HITX + (n.spawnMs - el) * scrollSpeed; }
@@ -337,6 +337,8 @@ function RhythmQTE({ onClose, sfx }) {
                         })}
                     </div>
                     <div style={{ position: "relative", width: "100%", height: 80, background: "#050402", border: "1px solid #2a1f0a", borderRadius: 8, overflow: "hidden" }}>
+                        {/* Hit guide line */}
+                        <div style={{ position: "absolute", left: HITX, top: 0, bottom: 0, width: 2, background: "#f59e0b", opacity: 0.6, zIndex: 10, pointerEvents: "none" }} />
                         {[150, 300, 450, 600, 750].map(function(x) { return <div key={x} style={{ position: "absolute", left: x, top: 0, bottom: 0, width: 1, background: "rgba(255,255,255,0.04)", zIndex: 1 }} />; })}
 
                         {phase === "countdown" && (

@@ -91,7 +91,7 @@ function StatPanel({ stats, points, onAllocate, sfx, locked }) {
 
 function ForgeInfoPanel({ upgrades }) {
     return (
-        <Panel>
+        <Panel style={{ flex: 1 }}>
             <SectionLabel color="#f59e0b" style={{ marginBottom: 8 }}>FORGE</SectionLabel>
             {[["anvil", "Anvil"], ["hammer", "Hammer"], ["forge", "Forge"], ["quench", "Quench"], ["furnace", "Furnace"]].map(function(pair) {
                 var key = pair[0], label = pair[1];

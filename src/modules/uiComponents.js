@@ -231,7 +231,7 @@ function Tooltip({ title, text, below, children }) {
         : { position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)" };
     return (
         <div
-            style={{ position: "relative", display: "flex", flexDirection: "column", flex: 1 }}
+            style={{ position: "relative", display: "flex", flexDirection: "column", flex: "none" }}
             onMouseEnter={function() { setShow(true); }}
             onMouseLeave={function() { setShow(false); }}
         >
@@ -314,7 +314,7 @@ function ForgeScene({ phase }) {
             transition: "filter 0.4s",
         }}>
             <img
-                src={process.env.PUBLIC_URL + "/images/wobblyanvil.png"}
+                src={process.env.PUBLIC_URL + "/images/waForgeScene.png"}
                 width="320" height="180"
                 style={{ display: "block", imageRendering: "pixelated" }}
             />
