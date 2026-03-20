@@ -27,13 +27,13 @@ var SCENES = {
             src: "/images/waForgeScene.png",
             imageRendering: "auto",
             brightness: {
-                default: 0.25,
+                default: 0.5,
                 HEAT: 1.0,
                 HAMMER: 1.0,
-                QUENCH: 0.5,
-                SESS_RESULT: 0.4,
-                SELECT: 0.25,
-                SELECT_MAT: 0.25,
+                QUENCH: 0.7,
+                SESS_RESULT: 0.6,
+                SELECT: 0.5,
+                SELECT_MAT: 0.5,
             },
         },
         props: [
@@ -328,8 +328,7 @@ function anchorTransform(anchor) {
 
 function resolvePublicUrl(path) {
     if (!path) return null;
-    var base = (typeof process !== "undefined" && process.env && process.env.PUBLIC_URL) ? process.env.PUBLIC_URL : "";
-    return base + path;
+    return process.env.PUBLIC_URL + path;
 }
 
 function resolveBrightness(brightnessConfig, phase) {
