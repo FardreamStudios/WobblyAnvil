@@ -951,7 +951,11 @@ function RhythmQTE({onClose, sfx}) {
   var lastPressMsRef = useRef(0);
   var lastReleaseMsRef = useRef(0);
   var scrollSpeed = RHYTHM_SCROLL_PX_PER_MS * speed;
-  var scrollSpeed = RHYTHM_SCROLL_PX_PER_MS * speed;
+
+  var buttons = oneButton
+      ? [["⚒️", "hammer", "#60a5fa"]]
+      : [["🔨", "hammer", "#60a5fa"], ["🔥", "bellows", "#f97316"]];
+
   function getLiveElapsed() { if (!startRef.current) return 0; return performance.now() - startRef.current; }
   function noteX(n, el) { return HITX + (n.spawnMs - el) * scrollSpeed; }
   function holdEndX(n, el) { return HITX + ((n.spawnMs + n.holdMs) - el) * scrollSpeed; }
@@ -969,7 +973,8 @@ function RhythmQTE({onClose, sfx}) {
 
   function playHitTone(dur, vol, note) {
     var resolvedVol = vol;
-    if (note && note.dynamic) {      var baseVol = getDynVol(note.dynamic);
+    if (note && note.dynamic) {
+      var baseVol = getDynVol(note.dynamic);
       if (note.dynamicEnd) {
         var endVol = getDynVol(note.dynamicEnd);
         var noteDurMs = note.holdMs > 0 ? note.holdMs : dur * 1000;
@@ -1134,6 +1139,18 @@ function RhythmQTE({onClose, sfx}) {
   var el = elapsed;
   var HIT_ANIM_DURATION = 300;
   var canRender = phase === "done" || (phase === "playing" && rafStarted);
+
+  var beatMarkers = [];
+  if (canRender) {
+    var beatInterval = 60000 / (120 * speed);
+    for (var b = 0; b * beatInterval < RHYTHM_DURATION; b++) {
+      var bx = HITX + (b * beatInterval - el) * scrollSpeed;
+      if (bx > -10 && bx < RHYTHM_TRACK_W + 10) {
+        beatMarkers.push({ key: b, x: bx, isBar: b % 4 === 0 });
+      }
+    }
+  }
+
   var vis = canRender ? notes.filter(function (n) {
     if (n.hit && n.holdMs === 0) {
       var age = el - (n.hitAtMs || 0);
