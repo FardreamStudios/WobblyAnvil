@@ -736,7 +736,7 @@ export default function App() {
               reputation={reputation}
               repColor={reputation >= 7 ? "#4ade80" : reputation >= 4 ? "#fb923c" : "#ef4444"}
               rankName={smithRank.name}
-              finishedCount={finished.length}
+              finished={finished}
 
               /* Action strip callbacks — forging (sess_result) */
               onForge={function() { sfx.click(); attemptForge(); }}
@@ -764,6 +764,14 @@ export default function App() {
 
               /* Options button */
               onOptions={function() { sfx.click(); setShowOptions(true); }}
+
+              /* Begin forge / WIP props */
+              hasWip={!!wipWeapon}
+              onBeginForge={function() { sfx.click(); setPhase(PHASES.SELECT); }}
+              beginForgeDisabled={isLocked || (!canAffordTime(hour, sessCost) && !(stamina <= 0 && canAffordTime(hour, 2)))}
+              onResumeWip={function() { resumeWip(); }}
+              resumeWipDisabled={isLocked || !canAffordTime(hour, sessCost)}
+              onScrapWip={function() { scrapWip(); }}
 
               /* Center zone content */
               scene={mobileScene}

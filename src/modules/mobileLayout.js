@@ -1,6 +1,6 @@
 // ============================================================
 // mobileLayout.js — Wobbly Anvil Mobile Layout
-// Landscape-oriented mobile shell (850×390 design size).
+// Full-viewport mobile shell (100vw × 100vh, no scaling).
 // Mirrorable 3-column layout: data | center | buttons.
 // Handedness prop flips the columns via flex-direction.
 // Phase-aware: buttons swap based on game phase.
@@ -9,12 +9,8 @@
 
 import { useState, useEffect, useRef } from "react";
 
-// --- Mobile design dimensions ---
-var MOBILE_WIDTH = 850;
-var MOBILE_HEIGHT = 390;
-
 // --- Mobile CSS ---
-var MOBILE_CSS = "\n  .mobile-shell-outer {\n    width: 100vw;\n    height: 100vh;\n    overflow: hidden;\n    background: #0a0704;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n  }\n  .mobile-shell {\n    width: " + MOBILE_WIDTH + "px;\n    height: " + MOBILE_HEIGHT + "px;\n    display: flex;\n    flex-direction: column;\n    background: #1a1209;\n    font-family: monospace;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n    transform-origin: center center;\n    flex-shrink: 0;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #0f0b06;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-data-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n  }\n  .mobile-action-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-bottom-bar {\n    height: 36px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    gap: 12px;\n    padding: 0 12px;\n    background: #0f0b06;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-data-strip::-webkit-scrollbar,\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-data-strip::-webkit-scrollbar-thumb,\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n";
+var MOBILE_CSS = "\n  .mobile-shell {\n    width: 100vw;\n    height: 100vh;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: monospace;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-data-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n  }\n  .mobile-action-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n  }\n  .mobile-data-strip::-webkit-scrollbar,\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-data-strip::-webkit-scrollbar-thumb,\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n";
 
 // --- Fullscreen helpers ---
 
@@ -34,6 +30,24 @@ function exitFullscreen() {
     if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
     if (document.mozCancelFullScreen) return document.mozCancelFullScreen();
     if (document.msExitFullscreen) return document.msExitFullscreen();
+}
+
+// --- Weapon emoji picker (by weapon key) ---
+var WEAPON_ICONS = {
+    dagger: "\uD83D\uDDE1",
+    shortsword: "\u2694",
+    axe: "\uD83E\uDE93",
+    longsword: "\u2694",
+    mace: "\uD83D\uDD28",
+    warhammer: "\uD83D\uDD28",
+    greatsword: "\u2694",
+    halberd: "\uD83D\uDD31",
+    katana: "\uD83D\uDDE1",
+    claymore: "\u2694",
+};
+
+function weaponIcon(wKey) {
+    return WEAPON_ICONS[wKey] || "\u2694";
 }
 
 // --- Mobile Action Button ---
@@ -68,46 +82,39 @@ function MobileBtn({ icon, label, onClick, disabled, color, danger }) {
     );
 }
 
-// --- Mobile Shell ---
+// --- Shelf Icon with popup ---
 
-function MobileShell({ className, children }) {
-    var [scale, setScale] = useState(1);
-    var outerRef = useRef(null);
-
-    useEffect(function() {
-        var outer = outerRef.current;
-        if (!outer) return;
-
-        function recalc() {
-            var vw = outer.clientWidth;
-            var vh = outer.clientHeight;
-            var scaleX = vw / MOBILE_WIDTH;
-            var scaleY = vh / MOBILE_HEIGHT;
-            setScale(Math.min(scaleX, scaleY));
-        }
-
-        recalc();
-        var observer = new ResizeObserver(recalc);
-        observer.observe(outer);
-        return function() { observer.disconnect(); };
-    }, []);
+function ShelfItem({ item, index }) {
+    var [showPopup, setShowPopup] = useState(false);
 
     return (
-        <div ref={outerRef} className="mobile-shell-outer">
+        <div className="mobile-shelf-icon" onClick={function(e) { e.stopPropagation(); setShowPopup(function(s) { return !s; }); }}>
+            <span>{weaponIcon(item.wKey)}</span>
+            {showPopup && (
+                <div className="mobile-shelf-popup" onClick={function(e) { e.stopPropagation(); }} style={{ left: "50%", transform: "translateX(-50%)" }}>
+                    <div style={{ fontSize: 10, color: item.color || "#f59e0b", letterSpacing: 1, fontWeight: "bold", marginBottom: 3 }}>{item.label}</div>
+                    <div style={{ fontSize: 9, color: "#c8b89a", marginBottom: 2 }}>{item.wName}</div>
+                    <div style={{ fontSize: 9, color: "#8a7a64", marginBottom: 3 }}>{item.matName || ""}</div>
+                    <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: "bold" }}>~{item.val}g</div>
+                    <div style={{ fontSize: 7, color: "#4a3c2c", marginTop: 4, letterSpacing: 1 }}>TAP OUTSIDE TO CLOSE</div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// --- Mobile Shell (full viewport, no scaling) ---
+
+function MobileShell({ className, children }) {
+    return (
+        <div className={"mobile-shell" + (className ? " " + className : "")}>
             <style>{MOBILE_CSS}</style>
-            <div
-                className={"mobile-shell" + (className ? " " + className : "")}
-                style={{ transform: "scale(" + scale + ")" }}
-            >
-                {children}
-            </div>
+            {children}
         </div>
     );
 }
 
 // --- Mobile Layout ---
-// Receives all game state and renders the mobile-specific arrangement.
-// handedness: "right" (default) or "left" — flips data/action strips.
 
 function MobileLayout(props) {
     var handedness = props.handedness || "right";
@@ -116,17 +123,21 @@ function MobileLayout(props) {
     var isForging = phase !== "idle" && phase !== "select" && phase !== "select_mat";
     var isQTEActive = phase === "heat" || phase === "hammer" || phase === "quench";
     var isFull = isFullscreenActive();
+    var finished = props.finished || [];
 
-    // --- Banner content (yellow zone + blue corners) ---
+    // Close shelf popups when tapping outside
+    function handleShellClick() {
+        // popups close themselves via their own state
+    }
+
+    // --- Banner content ---
     var banner = (
         <div className="mobile-banner">
-            {/* Blue L — Level/Rank */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, width: 80, flexShrink: 0 }}>
                 <span style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1 }}>LV</span>
                 <span style={{ fontSize: 14, color: "#f59e0b", fontWeight: "bold" }}>{props.level || 1}</span>
             </div>
 
-            {/* Yellow — Gold + contextual info */}
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
                 <span style={{ fontSize: 13, color: "#f59e0b", fontWeight: "bold" }}>{props.gold || 0}g</span>
                 {props.royalQuest && !props.royalQuest.fulfilled && (
@@ -134,7 +145,6 @@ function MobileLayout(props) {
                 )}
             </div>
 
-            {/* Blue R — Day + fullscreen toggle */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 <span style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1 }}>DAY</span>
                 <span style={{ fontSize: 14, color: "#f0e6c8", fontWeight: "bold" }}>{props.day || 1}</span>
@@ -147,12 +157,11 @@ function MobileLayout(props) {
         </div>
     );
 
-    // --- Data strip content (green L / green R depending on hand) ---
+    // --- Data strip ---
     var dataStrip = (
         <div className="mobile-data-strip">
             {isForging ? (
                 <>
-                    {/* Forge data readouts */}
                     <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>QUALITY</div>
                     <div style={{ fontSize: 14, color: props.qualityColor || "#f59e0b", fontWeight: "bold" }}>{props.qualScore || 0}</div>
                     <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, marginTop: 4 }}>STRESS</div>
@@ -164,28 +173,25 @@ function MobileLayout(props) {
                 </>
             ) : (
                 <>
-                    {/* Idle data — rep, rank, shelf count */}
                     <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>REP</div>
                     <div style={{ fontSize: 14, color: props.repColor || "#fb923c", fontWeight: "bold" }}>{props.reputation || 0}/10</div>
                     <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, marginTop: 4 }}>RANK</div>
                     <div style={{ fontSize: 9, color: "#fbbf24", fontWeight: "bold" }}>{props.rankName || ""}</div>
                     <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, marginTop: 4 }}>SHELF</div>
-                    <div style={{ fontSize: 14, color: "#f0e6c8", fontWeight: "bold" }}>{props.finishedCount || 0}</div>
+                    <div style={{ fontSize: 14, color: "#f0e6c8", fontWeight: "bold" }}>{finished.length}</div>
                 </>
             )}
-            {/* Purple L — bottom of data strip */}
             <div style={{ marginTop: "auto" }}>
                 <MobileBtn icon={"\u2699"} label="OPT" onClick={props.onOptions} />
             </div>
         </div>
     );
 
-    // --- Action strip content (phase-aware buttons) ---
+    // --- Action strip ---
     var actionStrip = (
         <div className="mobile-action-strip">
             {isForging && phase === "sess_result" ? (
                 <>
-                    {/* Session result actions */}
                     <MobileBtn icon={"\uD83D\uDD25"} label="FORGE" onClick={props.onForge} disabled={props.forgeDisabled} />
                     <MobileBtn icon={"\u2696"} label="NORM" onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" />
                     <MobileBtn icon={"\uD83D\uDCA7"} label="QUENCH" onClick={props.onQuench} disabled={props.quenchDisabled} />
@@ -194,18 +200,15 @@ function MobileLayout(props) {
                 </>
             ) : isQTEActive ? (
                 <>
-                    {/* During QTE — minimal, maybe just leave */}
                     <div style={{ flex: 1 }} />
                     <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, textAlign: "center", padding: 4 }}>TAP CENTER TO STRIKE</div>
                 </>
             ) : (
                 <>
-                    {/* Idle actions */}
                     <MobileBtn icon={"\uD83D\uDCA4"} label="SLEEP" onClick={props.onSleep} disabled={props.sleepDisabled} />
                     <MobileBtn icon={"\u23F3"} label="REST" onClick={props.onRest} disabled={props.restDisabled} />
                     <MobileBtn icon={"\uD83D\uDCE3"} label="PROMO" onClick={props.onPromote} disabled={props.promoteDisabled} />
                     <MobileBtn icon={"\uD83D\uDDD1"} label="SCAV" onClick={props.onScavenge} disabled={props.scavengeDisabled} />
-                    {/* Purple R — bottom of action strip */}
                     <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
                         <MobileBtn icon={"\uD83D\uDED2"} label="SHOP" onClick={props.onShop} disabled={props.shopDisabled} />
                         <MobileBtn icon={"\u2697"} label="MATS" onClick={props.onMats} disabled={props.matsDisabled} />
@@ -215,44 +218,118 @@ function MobileLayout(props) {
         </div>
     );
 
-    // --- Center content (red zone — scene + QTE + overlays) ---
+    // --- Center content ---
     var center = (
         <div className="mobile-center" onClick={isQTEActive ? props.onForgeClick : null} style={{ cursor: isQTEActive ? "pointer" : "default" }}>
-            {/* Orange overlay zone — toasts, customer, etc rendered by App.js */}
             {props.overlay}
-
-            {/* Scene background */}
             {props.scene}
-
-            {/* QTE + forge UI rendered by App.js */}
             {props.forgeUI}
+
+            {/* Begin Forge button — idle, no WIP, centered at bottom */}
+            {phase === "idle" && !props.hasWip && (
+                <button onClick={props.onBeginForge} disabled={props.beginForgeDisabled} style={{
+                    position: "absolute",
+                    bottom: 12,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 20,
+                    background: props.beginForgeDisabled ? "#0a0704" : "#2a1f0a",
+                    border: "2px solid " + (props.beginForgeDisabled ? "#1a1209" : "#f59e0b"),
+                    borderRadius: 8,
+                    color: props.beginForgeDisabled ? "#2a1f0a" : "#f59e0b",
+                    padding: "10px 28px",
+                    fontSize: 14,
+                    cursor: props.beginForgeDisabled ? "not-allowed" : "pointer",
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    fontFamily: "monospace",
+                    fontWeight: "bold",
+                    whiteSpace: "nowrap",
+                }}>BEGIN FORGING</button>
+            )}
+
+            {/* Resume WIP button — idle with WIP */}
+            {phase === "idle" && props.hasWip && (
+                <div style={{
+                    position: "absolute",
+                    bottom: 12,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 20,
+                    display: "flex",
+                    gap: 8,
+                }}>
+                    <button onClick={props.onResumeWip} disabled={props.resumeWipDisabled} style={{
+                        background: props.resumeWipDisabled ? "#0a0704" : "#0a1a2a",
+                        border: "2px solid " + (props.resumeWipDisabled ? "#1a1209" : "#60a5fa"),
+                        borderRadius: 8,
+                        color: props.resumeWipDisabled ? "#2a1f0a" : "#60a5fa",
+                        padding: "10px 20px",
+                        fontSize: 13,
+                        cursor: props.resumeWipDisabled ? "not-allowed" : "pointer",
+                        letterSpacing: 2,
+                        textTransform: "uppercase",
+                        fontFamily: "monospace",
+                        fontWeight: "bold",
+                    }}>RESUME</button>
+                    <button onClick={props.onScrapWip} style={{
+                        background: "#141009",
+                        border: "2px solid #3d2e0f",
+                        borderRadius: 8,
+                        color: "#8a7a64",
+                        padding: "10px 16px",
+                        fontSize: 13,
+                        cursor: "pointer",
+                        letterSpacing: 2,
+                        textTransform: "uppercase",
+                        fontFamily: "monospace",
+                        fontWeight: "bold",
+                    }}>SCRAP</button>
+                </div>
+            )}
         </div>
     );
 
-    // --- Bottom bar (time + stamina, pinned near viewport bottom) ---
+    // --- Bottom bar ---
     var bottomBar = (
         <div className="mobile-bottom-bar">
-            <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>TIME</span>
-            <span style={{ fontSize: 13, color: props.timeColor || "#4ade80", fontWeight: "bold" }}>{props.timeLabel || "8:00AM"}</span>
-            <div style={{ width: 80, height: 6, background: "#0a0704", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
-                <div style={{ height: "100%", width: (props.timePct || 100) + "%", background: props.timeColor || "#4ade80", borderRadius: 3 }} />
+            {/* Time panel */}
+            <div className="mobile-bottom-panel">
+                <span style={{ fontSize: 11, color: props.timeColor || "#4ade80", fontWeight: "bold" }}>{props.timeLabel || "8:00AM"}</span>
+                <div style={{ width: 60, height: 5, background: "#0a0704", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
+                    <div style={{ height: "100%", width: (props.timePct || 100) + "%", background: props.timeColor || "#4ade80", borderRadius: 3 }} />
+                </div>
             </div>
-            <div style={{ width: 1, height: 16, background: "#2a1f0a" }} />
-            <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>STAM</span>
-            <span style={{ fontSize: 13, color: props.staminaColor || "#f59e0b", fontWeight: "bold" }}>{props.stamina || 0}/{props.maxStam || 5}</span>
-            <div style={{ width: 80, height: 6, background: "#0a0704", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
-                <div style={{ height: "100%", width: (props.staminaPct || 100) + "%", background: props.staminaColor || "#f59e0b", borderRadius: 3 }} />
+
+            {/* Stamina panel */}
+            <div className="mobile-bottom-panel">
+                <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>STAM</span>
+                <span style={{ fontSize: 11, color: props.staminaColor || "#f59e0b", fontWeight: "bold" }}>{props.stamina || 0}/{props.maxStam || 5}</span>
+                <div style={{ width: 50, height: 5, background: "#0a0704", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
+                    <div style={{ height: "100%", width: (props.staminaPct || 100) + "%", background: props.staminaColor || "#f59e0b", borderRadius: 3 }} />
+                </div>
             </div>
-            {/* Handedness swap button */}
+
+            {/* Shelf icons panel */}
+            <div className="mobile-bottom-panel" style={{ flex: 1, minWidth: 0, overflowX: "auto", overflowY: "hidden", gap: 4 }}>
+                {finished.length === 0 && (
+                    <span style={{ fontSize: 8, color: "#3d2e0f", letterSpacing: 1 }}>SHELF EMPTY</span>
+                )}
+                {finished.map(function(w, i) {
+                    return <ShelfItem key={w.id} item={w} index={i} />;
+                })}
+            </div>
+
+            {/* Handedness swap */}
             <button onClick={props.onToggleHand} style={{
                 background: "none", border: "1px solid #3d2e0f", borderRadius: 4,
                 color: "#8a7a64", fontSize: 10, padding: "2px 5px", cursor: "pointer",
-                fontFamily: "monospace", marginLeft: "auto",
+                fontFamily: "monospace", flexShrink: 0,
             }}>{isLeftHanded ? "\u21C0" : "\u21BC"}</button>
         </div>
     );
 
-    // --- Assemble with handedness flip ---
+    // --- Assemble ---
     var middleDirection = isLeftHanded ? "row-reverse" : "row";
 
     return (
@@ -272,8 +349,6 @@ function MobileLayout(props) {
 // Plugin-style API
 // ============================================================
 var MobileLayoutModule = {
-    MOBILE_WIDTH: MOBILE_WIDTH,
-    MOBILE_HEIGHT: MOBILE_HEIGHT,
     MobileLayout: MobileLayout,
     MobileShell: MobileShell,
     MobileBtn: MobileBtn,
