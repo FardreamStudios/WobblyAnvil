@@ -261,7 +261,9 @@ function MaterialsModal({ inv, onClose, onSell, sfx }) {
 
 function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult, royalQuest, onBuy, onUpgrade, onBuyBP, onClose, sfx }) {
     var [tab, setTab] = useState("materials");
+    var [upgradeCategory, setUpgradeCategory] = useState("forge");
     var [amounts, setAmounts] = useState(Object.fromEntries(Object.keys(MATS).map(function(k) { return [k, 1]; })));
+    var UPGRADE_CATS = [["forge", "Forge", "Heat QTE Speed"], ["anvil", "Anvil", "Hammer QTE Speed"], ["hammer", "Hammer", "Strike Power"], ["quench", "Quench", "Quench QTE Speed"], ["furnace", "Furnace", "Normalize Penalty"]];
     var matPrices = Object.fromEntries(Object.entries(MATS).map(function(entry) {
         var key = entry[0], basePrice = MATS[key].price;
         var price = matDiscount && matDiscount.key === key ? Math.round(basePrice * matDiscount.mult) : basePrice;
@@ -350,13 +352,31 @@ function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult
                     )}
                     {tab === "upgrades" && (
                         <div>
-                            {[["forge", "Forge - Heat QTE Speed"], ["anvil", "Anvil - Hammer QTE Speed"], ["hammer", "Hammer - Strike Multiplier"], ["quench", "Quench - Quench QTE Speed"], ["furnace", "Furnace - Normalize Penalty"]].map(function(pair) {
-                                var category = pair[0], label = pair[1];
+                            {/* Category sub-tabs */}
+                            <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
+                                {UPGRADE_CATS.map(function(cat) {
+                                    var key = cat[0], label = cat[1];
+                                    var isSel = upgradeCategory === key;
+                                    var lvl = upgrades[key];
+                                    var maxed = lvl >= UPGRADES[key].length - 1;
+                                    return (
+                                        <button key={key} onClick={function() { if (sfx) sfx.click(); setUpgradeCategory(key); }} style={{ background: isSel ? "#2a1f0a" : "#0a0704", border: "2px solid " + (isSel ? "#f59e0b" : "#2a1f0a"), borderRadius: 6, padding: "6px 12px", cursor: "pointer", fontFamily: "monospace", fontSize: 11, fontWeight: "bold", letterSpacing: 1, color: isSel ? "#f59e0b" : maxed ? "#4ade80" : "#8a7a64" }}>
+                                            {label.toUpperCase()}
+                                            {maxed && <span style={{ marginLeft: 4, fontSize: 9, color: "#4ade80" }}>{"\u2713"}</span>}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {/* Active category description */}
+                            {(function() {
+                                var activeCat = UPGRADE_CATS.find(function(c) { return c[0] === upgradeCategory; });
+                                if (!activeCat) return null;
+                                var category = activeCat[0], desc = activeCat[2];
                                 var currentLevel = upgrades[category];
                                 var chain = UPGRADES[category];
                                 return (
-                                    <div key={category} style={{ marginBottom: 16 }}>
-                                        <div style={{ fontSize: 12, color: "#f59e0b", letterSpacing: 2, marginBottom: 8, borderBottom: "1px solid #2a1f0a", paddingBottom: 6 }}>{label.toUpperCase()}</div>
+                                    <div>
+                                        <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 2, marginBottom: 10 }}>{desc.toUpperCase()}</div>
                                         {chain.map(function(upgrade, index) {
                                             var owned = index <= currentLevel;
                                             var next = index === currentLevel + 1;
@@ -378,7 +398,7 @@ function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult
                                         })}
                                     </div>
                                 );
-                            })}
+                            })()}
                         </div>
                     )}
                 </div>

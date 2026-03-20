@@ -203,7 +203,7 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
                 : "#fbbf24";
 
     return (
-        <div style={{ width: QTE_W, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ width: "100%", maxWidth: QTE_W, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ height: 22, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {phase === PHASES.HAMMER ? (
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>

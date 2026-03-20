@@ -272,6 +272,40 @@ var FTUE_TOASTS = [
     { title: "OPTIONS & SOUND",  msg: "The Options button lets you toggle background music and adjust volume for SFX and music separately.\n\nIf the music is not your thing, turn it off in there." },
 ];
 
+// --- Centralized Balance Table ---
+var BALANCE = {
+    // Forge session time costs
+    sessCostNormal: 2,
+    sessCostExhausted: 4,
+
+    // Heat QTE win zone (position %)
+    heatWinLo: 80,
+    heatWinHi: 88,
+
+    // Base hammer strikes per session (before heat bonus)
+    baseStrikes: 3,
+
+    // Finish weapon XP formula: (finishXpBase + weapon.difficulty * finishXpPerDiff) * tier.xpMultiplier
+    finishXpBase: 15,
+    finishXpPerDiff: 5,
+
+    // Quench zone multipliers (applied to QUENCH_WIN)
+    quenchPerfect: 0.15,
+    quenchGood: 0.45,
+    quenchPoorExtra: 1.2,
+
+    // Normalize quality loss per furnace level [index = upgrades.furnace]
+    normalizeLossLo: [0.18, 0.16, 0.14, 0.12, 0.11, 0.10, 0.09, 0.08, 0.07],
+    normalizeLossHi: [0.28, 0.25, 0.22, 0.19, 0.17, 0.15, 0.13, 0.11, 0.09],
+
+    // Stress shatter chances
+    shatterChanceMax: 0.50,
+    shatterChanceHigh: 0.33,
+
+    // Max promote actions per day
+    maxPromoteUses: 3,
+};
+
 // ============================================================
 // Plugin-style API — single export, one entry point
 // ============================================================
@@ -327,6 +361,9 @@ var GameConstants = {
     TIER_FINE_MIN: TIER_FINE_MIN,
     TIER_POOR_MIN: TIER_POOR_MIN,
     TIER_REFINED_MIN: TIER_REFINED_MIN,
+
+    // Balance
+    BALANCE: BALANCE,
 };
 
 export default GameConstants;

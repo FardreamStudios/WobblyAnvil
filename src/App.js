@@ -11,7 +11,6 @@ import GameConstants from "./modules/constants.js";
 import GameUtils from "./modules/utilities.js";
 import GameEvents from "./modules/events.js";
 import AudioSystem from "./modules/audio.js";
-import GameMusicData from "./modules/musicData.js";
 import UIComponents from "./modules/uiComponents.js";
 import ForgeComponents from "./modules/forgeComponents.js";
 import GamePanels from "./modules/gamePanels.js";
@@ -19,12 +18,12 @@ import Screens from "./modules/screens.js";
 import RhythmQTEModule from "./modules/rhythmQTE.js";
 import GameLayout from "./modules/gameLayout.js";
 import SceneSystem from "./modules/sceneSystem.js";
+import MobileLayoutModule from "./modules/mobileLayout.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
-var TIERS = GameConstants.TIERS;
 var UPGRADES = GameConstants.UPGRADES;
 var HEAT_TIERS = GameConstants.HEAT_TIERS;
 var CUST_TYPES = GameConstants.CUST_TYPES;
@@ -39,9 +38,9 @@ var BASE_STAMINA = GameConstants.BASE_STAMINA;
 var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
 var WAKE_HOUR = GameConstants.WAKE_HOUR;
 var REST_HOUR_LIMIT = GameConstants.REST_HOUR_LIMIT;
-var MAX_HOUR = GameConstants.MAX_HOUR;
 var MAT_DESTROY_RECOVERY = GameConstants.MAT_DESTROY_RECOVERY;
 var MAT_SCRAP_RECOVERY = GameConstants.MAT_SCRAP_RECOVERY;
+var BALANCE = GameConstants.BALANCE;
 
 // --- Destructure Utilities ---
 var rand = GameUtils.rand;
@@ -117,6 +116,10 @@ var GameLeft = GameLayout.GameLeft;
 var GameCenter = GameLayout.GameCenter;
 var GameRight = GameLayout.GameRight;
 var GameFooter = GameLayout.GameFooter;
+var useLayoutMode = GameLayout.useLayoutMode;
+
+// --- Destructure Mobile Layout ---
+var MobileLayout = MobileLayoutModule.MobileLayout;
 
 // ============================================================
 // Main App Component
@@ -124,6 +127,7 @@ var GameFooter = GameLayout.GameFooter;
 
 export default function App() {
   var sfx = useAudio();
+  var isMobile = useLayoutMode();
 
   // --- UI State ---
   var [screen, setScreen] = useState("splash");
@@ -132,6 +136,7 @@ export default function App() {
   var [showGiveUp, setShowGiveUp] = useState(false);
   var [showOptions, setShowOptions] = useState(false);
   var [showRhythmTest, setShowRhythmTest] = useState(false);
+  var [handedness, setHandedness] = useState("right");
 
   // --- Toast State ---
   var [toasts, setToasts] = useState([]);
@@ -150,7 +155,6 @@ export default function App() {
   var [hour, setHour] = useState(WAKE_HOUR);
   var [stamina, setStamina] = useState(BASE_STAMINA);
   var [forcedExhaustion, setForcedExhaustion] = useState(false);
-  var [lastSleepHour, setLastSleepHour] = useState(0);
   var [lateToastShown, setLateToastShown] = useState(false);
 
   // --- Market State ---
@@ -245,9 +249,9 @@ export default function App() {
   var matDiffMod = matData.difficultyModifier;
   var effDiff = weapon.difficulty + matDiffMod;
   var isExhausted = stamina <= 0 || forcedExhaustion;
-  var sessCost = isExhausted ? 4 : 2;
+  var sessCost = isExhausted ? BALANCE.sessCostExhausted : BALANCE.sessCostNormal;
   var maxStam = BASE_STAMINA + stats.brawn;
-  var heatWinLo = 80, heatWinHi = 88;
+  var heatWinLo = BALANCE.heatWinLo, heatWinHi = BALANCE.heatWinHi;
   var heatSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.forge, effDiff);
   var hammerSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.anvil, effDiff);
   var quenchSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.quench, effDiff);
@@ -382,10 +386,11 @@ export default function App() {
     if (phaseRef.current !== PHASES.IDLE && phaseRef.current !== PHASES.SESS_RESULT) return;
     if (!guaranteedCustomersRef.current && Math.random() > 0.42) return;
     var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
-    for (var i = 0; i < shuffled.length; i++) {
-      var ct = shuffled[i], match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
-      if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); sfx.doorbell(); return; }
-    }
+    shuffled.some(function(ct) {
+      var match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
+      if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); sfx.doorbell(); return true; }
+      return false;
+    });
   }, [sfx]);
 
   function handleSell(price, weaponId) {
@@ -407,10 +412,11 @@ export default function App() {
     sfx.click(); advanceTime(1, undefined, true); setPromoteUses(function(p) { return p + 1; });
     var items = finishedRef.current;
     var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
-    for (var i = 0; i < shuffled.length; i++) {
-      var ct = shuffled[i], match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
-      if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); sfx.doorbell(); return; }
-    }
+    shuffled.some(function(ct) {
+      var match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
+      if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); sfx.doorbell(); return true; }
+      return false;
+    });
   }
   function scavenge() {
     sfx.click(); advanceTime(1, undefined, true);
@@ -517,7 +523,7 @@ export default function App() {
   function handleHeatFire(pos, isAuto) {
     var tier = isAuto ? HEAT_TIERS[4] : calcHeatResult(pos, heatWinLo, heatWinHi);
     if (!isAuto) sfx.heat(tier.id); setQteFlash(tier.label);
-    var bs = tier.bonusStrikes, strikeTotal = 3 + bs;
+    var bs = tier.bonusStrikes, strikeTotal = BALANCE.baseStrikes + bs;
     showForgeBubbleFn("HEAT RESULT", [{ text: strikeTotal + " strikes", color: bs > 0 ? "#4ade80" : tier.id === "poor" ? "#f87171" : "#c8b89a", bold: true }], tier.color);
     setTimeout(function() { setQteFlash(null); qteProcessing.current = false; setBonusStrikes(bs); setStrikesLeft(strikeTotal); sessionStartQual.current = qualRef.current; setPhase(PHASES.HAMMER); }, QTE_FLASH_MS);
   }
@@ -548,15 +554,15 @@ export default function App() {
 
   function attemptForge() {
     if (stress >= STRESS_MAX - 1) {
-      var chance = stress >= STRESS_MAX ? 0.50 : 0.33;
+      var chance = stress >= STRESS_MAX ? BALANCE.shatterChanceMax : BALANCE.shatterChanceHigh;
       if (Math.random() < chance) { sfx.shatter(); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
     }
     setPhase(PHASES.HEAT);
   }
 
   function doNormalize() {
-    var loLoss = [0.18, 0.16, 0.14, 0.12, 0.11, 0.10, 0.09, 0.08, 0.07][upgrades.furnace];
-    var hiLoss = [0.28, 0.25, 0.22, 0.19, 0.17, 0.15, 0.13, 0.11, 0.09][upgrades.furnace];
+    var loLoss = BALANCE.normalizeLossLo[upgrades.furnace];
+    var hiLoss = BALANCE.normalizeLossHi[upgrades.furnace];
     var lossPct = rand(loLoss, hiLoss), oldQ = qualRef.current;
     var nq = Math.max(0, Math.floor(oldQ * (1 - lossPct))), ns = Math.max(0, stressRef.current - 1);
     stressRef.current = ns; qualRef.current = nq; setStress(ns); setQualScore(nq); advanceTime(2, undefined, false);
@@ -569,7 +575,7 @@ export default function App() {
   function finishWeapon(nq) {
     var q = getQualityTier(nq), val = qualityValue(wKey, matKey, nq, upgrades);
     var item = { wKey: wKey, wName: weapon.name, matKey: matKey, score: nq, id: Date.now(), label: q.label, val: val, color: q.weaponColor };
-    gainXp(Math.round((15 + weapon.difficulty * 5) * getQualityTier(nq).xpMultiplier));
+    gainXp(Math.round((BALANCE.finishXpBase + weapon.difficulty * BALANCE.finishXpPerDiff) * getQualityTier(nq).xpMultiplier));
     sfx.setMode("idle");
     var rq = royalQuestRef.current, isQuestDelivery = false, questComplete = false, deliveredSoFar = 0, questQty = 1;
     if (rq && !rq.fulfilled) {
@@ -591,7 +597,7 @@ export default function App() {
 
   function handleQuenchFire(pos) {
     var dist = Math.abs(columnToPosition(positionToColumn(pos)) - 50);
-    var perfect = dist <= GameConstants.QUENCH_WIN * 0.15, good = !perfect && dist <= GameConstants.QUENCH_WIN * 0.45, poor = !perfect && !good && dist <= GameConstants.QUENCH_WIN + 1.2;
+    var perfect = dist <= GameConstants.QUENCH_WIN * BALANCE.quenchPerfect, good = !perfect && dist <= GameConstants.QUENCH_WIN * BALANCE.quenchGood, poor = !perfect && !good && dist <= GameConstants.QUENCH_WIN + BALANCE.quenchPoorExtra;
     sfx.click(); if (perfect || good || poor) sfx.quench(); else sfx.quenchFail();
     var flashLabel = perfect ? "PERFECT! +5" : good ? "SOLID \u2014 NO CHANGE" : poor ? "ROUGH \u2014 QUALITY LOSS" : "MISS - DESTROYED";
     setQteFlash(flashLabel);
@@ -623,7 +629,7 @@ export default function App() {
     setScreen("splash"); setShowShop(false); setShowMaterials(false); setShowGiveUp(false); setShowOptions(false);
     setToasts([]); setToastQueue([]); setActiveToast(null); setGameOver(false); setActiveCustomer(null);
     setGold(STARTING_GOLD); setTotalGoldEarned(0); setInv({ bronze: 10, iron: 4, steel: 0, damascus: 0, titanium: 0, iridium: 0, tungsten: 0, mithril: 0, orichalcum: 0 });
-    setFinished([]); setDay(1); setHour(WAKE_HOUR); setStamina(BASE_STAMINA); setForcedExhaustion(false); setLastSleepHour(0); setLateToastShown(false);
+    setFinished([]); setDay(1); setHour(WAKE_HOUR); setStamina(BASE_STAMINA); setForcedExhaustion(false); setLateToastShown(false);
     setPriceBonus(1.0); setPriceDebuff(1.0); setMatDiscount(null); setGlobalMatMult(1.0); setGuaranteedCustomers(false); setCustVisitsToday(0); setMaxCustToday(BASE_DAILY_CUSTOMERS); setReputation(4);
     setLevel(1); setXp(0); setStatPoints(0); setStats(Object.assign({}, STATS_DEF)); setUpgrades({ anvil: 0, hammer: 0, forge: 0, quench: 0, furnace: 0 }); setUnlockedBP(["dagger", "shortsword", "axe"]);
     setRoyalQuest(null); setQuestNum(0); setMEvent(null); setHasSoldWeapon(false); setPromoteUses(0);
@@ -649,6 +655,152 @@ export default function App() {
   if (gameOver) return <ScaleWrapper><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScaleWrapper>;
   if (screen === "splash") return <ScaleWrapper><SplashScreen onEnter={function() { sfx.warmup(); setTimeout(function() { sfx.fanfare(); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
   if (screen === "menu") return <ScaleWrapper><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
+
+  // ============================================================
+  // MOBILE RENDER BRANCH
+  // ============================================================
+  if (isMobile) {
+    // --- Build scene for center zone ---
+    var mobileScene = (function() {
+      var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides });
+      return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} />;
+    })();
+
+    // --- Build QTE + forge UI for center zone ---
+    var mobileForgeUI = (
+        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, width: "100%", flex: 1 }}>
+          {/* Forge bubble */}
+          {forgeBubble && (
+              <div onClick={function(e) { e.stopPropagation(); setForgeBubble(null); }} style={{ position: "absolute", top: 4, right: 4, zIndex: 60, background: "#0c0905", border: "2px solid " + forgeBubble.color, borderRadius: 10, padding: "10px 12px", width: 120, boxShadow: "0 4px 16px rgba(0,0,0,0.97)", cursor: "pointer", fontSize: 9 }}>
+                <div style={{ fontSize: 9, color: forgeBubble.color, letterSpacing: 1, fontWeight: "bold", marginBottom: 4 }}>{forgeBubble.title}</div>
+                {forgeBubble.lines.map(function(l, i) { return <div key={i} style={{ fontSize: 10, color: l.color || "#c8b89a", lineHeight: 1.6, fontWeight: l.bold ? "bold" : "normal" }}>{l.text}</div>; })}
+              </div>
+          )}
+
+          {/* Quality + Stress bars (compact) */}
+          {showBars && (
+              <div style={{ width: "100%", maxWidth: 260, display: "flex", flexDirection: "column", gap: 3 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>QUALITY</span>
+                  <span style={{ fontSize: 10, color: getQualityTier(qualScore).weaponColor, fontWeight: "bold" }}>{getQualityTier(qualScore).label} ({qualScore})</span>
+                </div>
+                <Bar value={qualScore} max={100} color={getQualityTier(qualScore).weaponColor} h={8} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+                  <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>STRESS</span>
+                  <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                    <Pips count={STRESS_MAX} filled={stress} filledColor={stressColor} size={12} />
+                    <span style={{ color: stressColor, fontWeight: "bold", fontSize: 9 }}>{stressLabel2}</span>
+                  </div>
+                </div>
+              </div>
+          )}
+
+          {/* QTE bars */}
+          <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
+        </div>
+    );
+
+    // --- Build overlay (toasts, customer) ---
+    var mobileOverlay = (
+        <>
+          {toasts.map(function(t) { return <Toast key={t.id} msg={t.msg} icon={t.icon} color={t.color} duration={t.duration} locked={t.locked} onDone={function() { removeToast(t.id); }} />; })}
+          {activeToast && <Toast key={activeToast.id} msg={activeToast.msg} icon={activeToast.icon} color={activeToast.color} duration={activeToast.duration} locked={activeToast.locked} onDone={onActiveToastDone} />}
+          {activeCustomer && <CustomerPanel customer={activeCustomer} weapon={activeCustomer.weapon} onSell={function(price) { handleSell(price, activeCustomer.weapon.id); }} onRefuse={handleRefuse} silverTongue={stats.silverTongue} priceBonus={priceBonus} priceDebuff={priceDebuff} sfx={sfx} />}
+        </>
+    );
+
+    return (
+        <>
+          {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={function(mat, qty, price) { sfx.click(); var c = price * qty; if (gold < c) return; sfx.coin(); spendGold(c); setInv(function(i) { var n = Object.assign({}, i); n[mat] = (n[mat] || 0) + qty; return n; }); }} onUpgrade={function(cat) { sfx.click(); var nl = upgrades[cat] + 1, u = UPGRADES[cat][nl]; if (!u || gold < u.cost) return; spendGold(u.cost); setUpgrades(function(u2) { var n = Object.assign({}, u2); n[cat] = nl; return n; }); }} onBuyBP={function(k, cost) { sfx.click(); if (gold < cost) return; spendGold(cost); setUnlockedBP(function(u) { return u.concat([k]); }); }} />}
+          {showMaterials && <MaterialsModal inv={inv} sfx={sfx} onClose={function() { sfx.click(); setShowMaterials(false); }} onSell={function(mat, qty) { sfx.coin(); var price = Math.floor(MATS[mat].price / 2) * qty; setInv(function(i) { var n = Object.assign({}, i); n[mat] = Math.max(0, (n[mat] || 0) - qty); return n; }); earnGold(price); }} />}
+          <MobileLayout
+              handedness={handedness}
+              phase={phase}
+
+              /* Banner props */
+              level={level}
+              gold={gold}
+              day={day}
+              royalQuest={royalQuest}
+
+              /* Data strip props — forging */
+              qualScore={qualScore}
+              qualityColor={getQualityTier(qualScore).weaponColor}
+              stressColor={stressColor}
+              stressLabel={stressLabel2}
+              weaponName={weapon.name}
+              matName={matData.name}
+              matColor={matData.color}
+
+              /* Data strip props — idle */
+              reputation={reputation}
+              repColor={reputation >= 7 ? "#4ade80" : reputation >= 4 ? "#fb923c" : "#ef4444"}
+              rankName={smithRank.name}
+              finishedCount={finished.length}
+
+              /* Action strip callbacks — forging (sess_result) */
+              onForge={function() { sfx.click(); attemptForge(); }}
+              forgeDisabled={isLocked || stamina <= 0 || !canAffordTime(hour, sessCost)}
+              onNormalize={function() { sfx.click(); doNormalize(); }}
+              normalizeDisabled={stress <= 0 || !canAffordTime(hour, 2)}
+              onQuench={function() { sfx.click(); setPhase(PHASES.QUENCH); }}
+              quenchDisabled={(stamina <= 0 && !canAffordTime(hour, 2)) || (!canAffordTime(hour, sessCost) && stamina > 0)}
+              onScrap={function() { sfx.click(); scrapWeapon(); }}
+              onLeave={function() { sfx.click(); takeBreak(); }}
+
+              /* Action strip callbacks — idle */
+              onSleep={function() { sfx.click(); sleep(); }}
+              sleepDisabled={isLocked}
+              onRest={waitHour}
+              restDisabled={isLocked || hour >= REST_HOUR_LIMIT || !canAffordTime(hour, 2)}
+              onPromote={promote}
+              promoteDisabled={isLocked || hour >= 24 || finished.length === 0 || promoteUses >= BALANCE.maxPromoteUses || !canAffordTime(hour, 1)}
+              onScavenge={scavenge}
+              scavengeDisabled={isLocked || hour >= 24 || !canAffordTime(hour, 1) || stamina <= 0}
+              onShop={function() { sfx.click(); setShowShop(true); }}
+              shopDisabled={isLocked}
+              onMats={function() { sfx.click(); setShowMaterials(true); }}
+              matsDisabled={isLocked}
+
+              /* Options button */
+              onOptions={function() { sfx.click(); setShowOptions(true); }}
+
+              /* Center zone content */
+              scene={mobileScene}
+              forgeUI={mobileForgeUI}
+              overlay={mobileOverlay}
+              onForgeClick={onForgeClick}
+
+              /* Bottom bar props */
+              timeLabel={formatTime(hour)}
+              timeColor={timeColor}
+              timePct={timeBarPct}
+              stamina={stamina}
+              maxStam={maxStam}
+              staminaColor={isExhausted ? "#ef4444" : "#f59e0b"}
+              staminaPct={Math.round((stamina / maxStam) * 100)}
+              onToggleHand={function() { setHandedness(function(h) { return h === "right" ? "left" : "right"; }); }}
+          />
+          {showOptions && (<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={function(e) { if (e.target === e.currentTarget) setShowOptions(false); }}>
+            <Panel style={{ padding: "24px 28px", width: 300, maxHeight: "60vh", overflowY: "auto" }}>
+              <Row style={{ marginBottom: 16 }}><div style={{ fontSize: 14, color: "#f59e0b", letterSpacing: 3 }}>OPTIONS</div><button onClick={function() { setShowOptions(false); }} style={{ background: "#2a1f0a", border: "1px solid #3d2e0f", borderRadius: 5, color: "#f59e0b", padding: "4px 10px", cursor: "pointer", fontFamily: "monospace", fontSize: 13 }}>X</button></Row>
+              <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+                <SectionLabel>AUDIO</SectionLabel>
+                {[["Shop Music", true, function(e) { sfx.idleMuted = !e.target.checked; }], ["Forge Music", true, function(e) { sfx.forgeMuted = !e.target.checked; }]].map(function(r) { return (<label key={r[0]} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>{r[0]}<input type="checkbox" defaultChecked={r[1]} onChange={r[2]} style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }} /></label>); })}
+              </div>
+              <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                <SectionLabel style={{ marginBottom: 4 }}>DANGER ZONE</SectionLabel>
+                <DangerBtn onClick={function() { setShowOptions(false); setShowGiveUp(true); }}>Give Up</DangerBtn>
+              </div>
+            </Panel>
+          </div>)}
+        </>
+    );
+  }
+
+  // ============================================================
+  // DESKTOP RENDER (unchanged below this line)
+  // ============================================================
 
   return (
       <>
@@ -812,20 +964,20 @@ export default function App() {
                           <div style={{ width: "100%", maxHeight: 160, overflowY: "auto", display: "flex", flexDirection: "column", gap: 5 }}>
                             {Object.entries(MATS).map(function(e) { var k = e[0], m = e[1], have = (inv[k] || 0), enough = have >= weapon.materialCost; var isQ = !!(royalQuest && !royalQuest.fulfilled && royalQuest.materialRequired === k); var isSel = matKey === k, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[k].price * needed, canBuy = needed > 0 && gold >= buyPrice; var canSelect = enough || canBuy; return (<div key={k} onClick={canSelect ? function(e) { e.stopPropagation(); sfx.click(); setMatKey(k); } : null} style={{ border: "2px solid " + (isSel ? "#f59e0b" : canSelect ? "#3d2e0f" : "#2a1f0a"), borderRadius: 6, padding: "8px 10px", cursor: canSelect ? "pointer" : "not-allowed", background: isSel ? "#2a1f0a" : "#0a0704", display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ fontSize: 13, color: isSel ? m.color : canSelect ? m.color : "#3d2e0f", letterSpacing: 1, fontWeight: "bold" }}>{m.name.toUpperCase()}</div>{isQ && <span style={{ fontSize: 11, background: "#f59e0b", color: "#0a0704", borderRadius: 4, padding: "1px 6px", fontWeight: "bold" }}>QUEST</span>}</div>{needed > 0 && <span className={!canBuy ? "blink-slow" : ""} style={{ fontSize: 10, color: canBuy ? (isSel ? "#fbbf24" : "#f59e0b") : "#ef4444", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", whiteSpace: "nowrap" }}>{canBuy ? "COSTS " + buyPrice + "g" : "CAN'T AFFORD"}</span>}</div>); })}
                           </div>
-                          <div style={{ display: "flex", gap: 5 }}><ActionBtn onClick={function() { sfx.click(); confirmSelect(); }} disabled={(inv[matKey] || 0) < weapon.materialCost && gold < MATS[matKey].price * Math.max(0, weapon.materialCost - (inv[matKey] || 0)) || stamina <= 0 || !canAffordTime(hour, sessCost)} small={true}>Confirm</ActionBtn><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} color="#8a7a64" bg="#141009" small={true}>Back</ActionBtn></div>
+                          <div style={{ display: "flex", gap: 5 }}><ActionBtn onClick={function() { sfx.click(); confirmSelect(); }} disabled={((inv[matKey] || 0) < weapon.materialCost && gold < MATS[matKey].price * Math.max(0, weapon.materialCost - (inv[matKey] || 0))) || stamina <= 0 || !canAffordTime(hour, sessCost)} small={true}>Confirm</ActionBtn><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} color="#8a7a64" bg="#141009" small={true}>Back</ActionBtn></div>
                         </div>
                       </div>)}
 
                       {/* QTE */}
-                      <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={3 + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
+                      <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
 
                       {/* SESSION RESULT */}
                       {phase === PHASES.SESS_RESULT && sessResult && (
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }}>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, width: "80%", marginTop: 4 }}>
-                              {(function() { var noStam = stamina <= 0, noTime = !canAffordTime(hour, sessCost), s = sessResult.ns; var needRest = noStam && canAffordTime(hour, 2); var dis = isLocked || (noStam && !canAffordTime(hour, 2)) || noTime; var borderCol = dis ? "#2a1f0a" : s >= STRESS_MAX ? "#ef4444" : s >= STRESS_MAX - 1 ? "#fb923c" : "#f59e0b"; var textCol = dis ? "#4a3c2c" : s >= STRESS_MAX ? "#ef4444" : s >= STRESS_MAX - 1 ? "#fb923c" : "#f59e0b"; var bg = dis ? "#0a0704" : s >= STRESS_MAX ? "#1a0505" : s >= STRESS_MAX - 1 ? "#1a0e05" : "#2a1f0a"; return <button onClick={dis ? null : needRest ? waitHour : function(e) { e.stopPropagation(); sfx.click(); attemptForge(); }} disabled={dis} style={{ background: bg, border: "2px solid " + borderCol, borderRadius: 8, color: textCol, padding: "8px", fontSize: 11, cursor: dis ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}><span style={{ opacity: needRest ? 0.65 : 1 }}>FORGE</span>{needRest && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}{!needRest && s >= STRESS_MAX - 1 && <span className="blink-fast" style={{ fontSize: 10, color: s >= STRESS_MAX ? "#ef4444" : "#fb923c", position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}>{s >= STRESS_MAX ? "50%" : "33%"} BREAK</span>}</button>; })()}
+                              {(function() { var noStam = stamina <= 0, noTime = !canAffordTime(hour, sessCost), s = sessResult.ns; var needRest = noStam && canAffordTime(hour, 2); var dis = isLocked || (noStam && !canAffordTime(hour, 2)) || noTime; var borderCol = dis ? "#2a1f0a" : s >= STRESS_MAX ? "#ef4444" : s >= STRESS_MAX - 1 ? "#fb923c" : "#f59e0b"; var textCol = dis ? "#4a3c2c" : s >= STRESS_MAX ? "#ef4444" : s >= STRESS_MAX - 1 ? "#fb923c" : "#f59e0b"; var bg = dis ? "#0a0704" : s >= STRESS_MAX ? "#1a0505" : s >= STRESS_MAX - 1 ? "#1a0e05" : "#2a1f0a"; return <button onClick={dis ? null : needRest ? waitHour : function(e) { e.stopPropagation(); sfx.click(); attemptForge(); }} disabled={dis} style={{ background: bg, border: "2px solid " + borderCol, borderRadius: 8, color: textCol, padding: "8px", fontSize: 11, cursor: dis ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}><span style={{ opacity: needRest ? 0.65 : 1 }}>FORGE</span>{needRest && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}{!needRest && s >= STRESS_MAX - 1 && <span className="blink-fast" style={{ fontSize: 10, color: s >= STRESS_MAX ? "#ef4444" : "#fb923c", position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}>{s >= STRESS_MAX ? Math.round(BALANCE.shatterChanceMax * 100) + "%" : Math.round(BALANCE.shatterChanceHigh * 100) + "%"} BREAK</span>}</button>; })()}
                               <button disabled={stress <= 0 || !canAffordTime(hour, 2)} onClick={function(e) { e.stopPropagation(); sfx.click(); doNormalize(); }} style={{ background: stress <= 0 || !canAffordTime(hour, 2) ? "#0a0704" : "#0a1a2a", border: "2px solid " + (stress <= 0 || !canAffordTime(hour, 2) ? "#2a1f0a" : "#60a5fa"), borderRadius: 8, color: stress <= 0 || !canAffordTime(hour, 2) ? "#4a3c2c" : "#60a5fa", padding: "8px 4px", fontSize: 11, cursor: stress <= 0 || !canAffordTime(hour, 2) ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Normalize</button>
-                              <button onClick={stamina <= 0 && canAffordTime(hour, 2) ? waitHour : (stamina <= 0 || !canAffordTime(hour, sessCost)) ? null : function(e) { e.stopPropagation(); sfx.click(); setPhase(PHASES.QUENCH); }} disabled={stamina <= 0 && !canAffordTime(hour, 2) || !canAffordTime(hour, sessCost) && stamina > 0} style={{ background: stamina <= 0 && !canAffordTime(hour, 2) || !canAffordTime(hour, sessCost) ? "#0a0704" : "#2a1f0a", border: "2px solid " + (stamina <= 0 && !canAffordTime(hour, 2) || !canAffordTime(hour, sessCost) ? "#2a1f0a" : "#f59e0b"), borderRadius: 8, color: stamina <= 0 && !canAffordTime(hour, 2) || !canAffordTime(hour, sessCost) ? "#4a3c2c" : "#f59e0b", padding: "8px 4px", fontSize: 11, cursor: stamina <= 0 && !canAffordTime(hour, 2) || !canAffordTime(hour, sessCost) ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}>
+                              <button onClick={stamina <= 0 && canAffordTime(hour, 2) ? waitHour : (stamina <= 0 || !canAffordTime(hour, sessCost)) ? null : function(e) { e.stopPropagation(); sfx.click(); setPhase(PHASES.QUENCH); }} disabled={(stamina <= 0 && !canAffordTime(hour, 2)) || (!canAffordTime(hour, sessCost) && stamina > 0)} style={{ background: (stamina <= 0 && !canAffordTime(hour, 2)) || !canAffordTime(hour, sessCost) ? "#0a0704" : "#2a1f0a", border: "2px solid " + ((stamina <= 0 && !canAffordTime(hour, 2)) || !canAffordTime(hour, sessCost) ? "#2a1f0a" : "#f59e0b"), borderRadius: 8, color: (stamina <= 0 && !canAffordTime(hour, 2)) || !canAffordTime(hour, sessCost) ? "#4a3c2c" : "#f59e0b", padding: "8px 4px", fontSize: 11, cursor: (stamina <= 0 && !canAffordTime(hour, 2)) || !canAffordTime(hour, sessCost) ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}>
                                 <span style={{ opacity: stamina <= 0 && canAffordTime(hour, 2) ? 0.65 : 1 }}>Quench</span>
                                 {stamina <= 0 && canAffordTime(hour, 2) && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}
                               </button>
@@ -854,7 +1006,7 @@ export default function App() {
           {/* BOTTOM BAR */}
           <GameFooter>
             <div style={{ display: "flex", gap: 5, flexShrink: 0, height: 80 }}>
-              {[["\uD83D\uDCA4", "Sleep", function() { sfx.click(); sleep(); }, isLocked, false], ["\u23F3", "Rest", waitHour, isLocked || hour >= REST_HOUR_LIMIT || !canAffordTime(hour, 2), false], ["\uD83D\uDCE3", "Promote", promote, isLocked || hour >= 24 || finished.length === 0 || promoteUses >= 3 || !canAffordTime(hour, 1), true], ["\uD83D\uDDD1", "Scavenge", scavenge, isLocked || hour >= 24 || !canAffordTime(hour, 1), true]].map(function(b) {
+              {[["\uD83D\uDCA4", "Sleep", function() { sfx.click(); sleep(); }, isLocked, false], ["\u23F3", "Rest", waitHour, isLocked || hour >= REST_HOUR_LIMIT || !canAffordTime(hour, 2), false], ["\uD83D\uDCE3", "Promote", promote, isLocked || hour >= 24 || finished.length === 0 || promoteUses >= BALANCE.maxPromoteUses || !canAffordTime(hour, 1), true], ["\uD83D\uDDD1", "Scavenge", scavenge, isLocked || hour >= 24 || !canAffordTime(hour, 1), true]].map(function(b) {
                 var icon = b[0], label = b[1], fn = b[2], dis = b[3], usesStam = b[4];
                 var needRest = usesStam && stamina <= 0 && canAffordTime(hour, 2);
                 var finalDis = dis || (usesStam && stamina <= 0 && !canAffordTime(hour, 2));
