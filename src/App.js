@@ -18,6 +18,7 @@ import GamePanels from "./modules/gamePanels.js";
 import Screens from "./modules/screens.js";
 import RhythmQTEModule from "./modules/rhythmQTE.js";
 import GameLayout from "./modules/gameLayout.js";
+import SceneSystem from "./modules/sceneSystem.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -84,8 +85,11 @@ var DangerBtn = UIComponents.DangerBtn;
 var Tooltip = UIComponents.Tooltip;
 var Toast = UIComponents.Toast;
 var GoldPop = UIComponents.GoldPop;
-var ForgeScene = UIComponents.ForgeScene;
 var ScaleWrapper = UIComponents.ScaleWrapper;
+
+// --- Destructure Scene System ---
+var SceneStage = SceneSystem.SceneStage;
+var resolveSceneState = SceneSystem.resolveSceneState;
 
 // --- Destructure Forge Components ---
 var QTEPanel = ForgeComponents.QTEPanel;
@@ -196,6 +200,12 @@ export default function App() {
   var [weaponShake, setWeaponShake] = useState(false);
   var [mysteryVignette, setMysteryVignette] = useState(null);
   var [mysteryVignetteOpacity, setMysteryVignetteOpacity] = useState(1);
+
+  // --- Scene State ---
+  var [activeScene, setActiveScene] = useState("forge");
+  var [sceneActionOverride, setSceneActionOverride] = useState(null);
+  var [propOverrides, setPropOverrides] = useState({});
+  var fxRef = useRef(null);
 
   // --- Late Night Toast ---
   useEffect(function() {
@@ -620,6 +630,7 @@ export default function App() {
     setWipWeapon(null); setWKey("dagger"); setMatKey(Object.keys(MATS)[0]); setPhase(PHASES.IDLE);
     setQualScore(0); setStress(0); setForgeSess(0); setBonusStrikes(0); setSessResult(null); setForgeBubble(null); setQteFlash(null); setStrikesLeft(0);
     setPendingMystery(null); setGoodEventUsed(false); setMysteryPending(false); setMysteryShake(false); setWeaponShake(false); setMysteryVignette(null); setMysteryVignetteOpacity(1); setGoldPops([]);
+    setActiveScene("forge"); setSceneActionOverride(null); setPropOverrides({});
   }
 
   // --- Derived Display Values ---
@@ -740,7 +751,8 @@ export default function App() {
                       </Panel>
                   )}
 
-                  {phase !== PHASES.IDLE && <ForgeScene phase={phase} />}
+                  {/* SCENE */}
+                  {(function() { var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides }); return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} />; })()}
 
                   {showBars && (<div style={{ width: "100%", maxWidth: 300, display: "flex", flexDirection: "column", gap: 5 }}>
                     <Row><SectionLabel>QUALITY</SectionLabel><span style={{ fontSize: 12, color: getQualityTier(qualScore).weaponColor, fontWeight: "bold" }}>{getQualityTier(qualScore).label} ({qualScore})</span></Row>
