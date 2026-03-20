@@ -1,89 +1,151 @@
 // ============================================================
 // sceneSystem.js — Wobbly Anvil Scene System
-// Layered scene renderer with sprite animation, character
-// positioning, and canvas FX overlay.
-// Data-driven — add/remove/reorder layers via config arrays.
+// Data-driven layered scene renderer.
+//
+// ARCHITECTURE:
+//   Scene = 1 background + N props (static or animated)
+//   Character = independent entity with action state machine
+//   FX = canvas overlay for particles
+//
+// All visuals configured via data. No code changes to add
+// scenes, props, characters, or effects.
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
 // ============================================================
-// SCENE LAYER CONFIG
-// Each layer is an object in this array. Add layers freely.
-// Layers render in z order (lowest first).
+// SCENES CONFIG
+// Each scene has a background and an array of props.
+// Props have a rootPosition (home) and can be moved at runtime.
+// Switch scenes by changing one string.
 // ============================================================
 
-var SCENE_LAYERS = [
-    {
-        id: "background",
-        type: "static",              // "static" | "spritesheet" | "canvas"
-        src: "/images/waForgeScene.png",
-        z: 0,
-        size: "cover",               // "cover" | "contain" | { width, height }
-        position: { x: "50%", y: "50%" },
-        anchor: "center",            // "center" | "bottom-center" | "top-left" etc.
-        opacity: 1.0,
-        imageRendering: "auto",      // "auto" | "pixelated"
-        // Phase-based brightness: { phaseKey: brightness }
-        // Unlisted phases default to "default"
-        brightness: {
-            default: 0.25,
-            HEAT: 1.0,
-            HAMMER: 1.0,
-            QUENCH: 0.5,
-            SESS_RESULT: 0.4,
-            SELECT: 0.25,
-            SELECT_MAT: 0.25,
+var SCENES = {
+    forge: {
+        id: "forge",
+        background: {
+            src: "/images/waForgeScene.png",
+            imageRendering: "auto",
+            brightness: {
+                default: 0.25,
+                HEAT: 1.0,
+                HAMMER: 1.0,
+                QUENCH: 0.5,
+                SESS_RESULT: 0.4,
+                SELECT: 0.25,
+                SELECT_MAT: 0.25,
+            },
         },
+        props: [
+            // -- EXAMPLE: Anvil (static prop) --
+            // {
+            //     id: "anvil",
+            //     type: "static",
+            //     src: "/images/waAnvil.png",
+            //     z: 2,
+            //     rootPosition: { x: "50%", y: "75%" },
+            //     size: { width: 120, height: 100 },
+            //     anchor: "bottom-center",
+            //     opacity: 1.0,
+            //     imageRendering: "pixelated",
+            //     brightness: { default: 0.8, HEAT: 1.0, HAMMER: 1.0 },
+            // },
+            // -- EXAMPLE: Weapon on anvil (static, swapped dynamically) --
+            // {
+            //     id: "weapon",
+            //     type: "static",
+            //     src: null,
+            //     z: 3,
+            //     rootPosition: { x: "50%", y: "68%" },
+            //     size: { width: 64, height: 32 },
+            //     anchor: "center",
+            //     opacity: 1.0,
+            //     imageRendering: "pixelated",
+            //     brightness: { default: 1.0 },
+            // },
+            // -- EXAMPLE: Furnace fire (animated spritesheet prop) --
+            // {
+            //     id: "furnace",
+            //     type: "spritesheet",
+            //     sheet: "/images/waFurnaceFire.png",
+            //     frames: 6,
+            //     fps: 10,
+            //     frameWidth: 48,
+            //     frameHeight: 64,
+            //     loop: true,
+            //     z: 1,
+            //     rootPosition: { x: "30%", y: "70%" },
+            //     size: { width: 48, height: 64 },
+            //     anchor: "bottom-center",
+            //     opacity: 1.0,
+            //     imageRendering: "pixelated",
+            //     brightness: { default: 0.6, HEAT: 1.0, HAMMER: 0.8 },
+            // },
+        ],
     },
-    // -- EXAMPLE: Anvil layer (uncomment when asset ready) --
-    // {
-    //     id: "anvil",
-    //     type: "static",
-    //     src: "/images/waAnvil.png",
-    //     z: 2,
-    //     size: { width: 120, height: 100 },
-    //     position: { x: "50%", y: "75%" },
-    //     anchor: "bottom-center",
-    //     opacity: 1.0,
-    //     imageRendering: "pixelated",
-    //     brightness: { default: 0.8, HEAT: 1.0, HAMMER: 1.0 },
+    // -- EXAMPLE: Shop scene --
+    // shop: {
+    //     id: "shop",
+    //     background: {
+    //         src: "/images/waShopDistrict.png",
+    //         imageRendering: "auto",
+    //         brightness: { default: 0.8 },
+    //     },
+    //     props: [
+    //         {
+    //             id: "stall",
+    //             type: "static",
+    //             src: "/images/waStall.png",
+    //             z: 1,
+    //             rootPosition: { x: "60%", y: "80%" },
+    //             size: { width: 140, height: 100 },
+    //             anchor: "bottom-center",
+    //             opacity: 1.0,
+    //             brightness: { default: 1.0 },
+    //         },
+    //     ],
     // },
-    // -- EXAMPLE: Weapon on anvil (uncomment when asset ready) --
-    // {
-    //     id: "weapon",
-    //     type: "static",
-    //     src: null,  // set dynamically via overrides based on wKey
-    //     z: 3,
-    //     size: { width: 64, height: 32 },
-    //     position: { x: "50%", y: "68%" },
-    //     anchor: "center",
-    //     opacity: 1.0,
-    //     imageRendering: "pixelated",
-    //     brightness: { default: 1.0 },
-    // },
-    // -- EXAMPLE: Canvas FX overlay (uncomment when ready) --
-    // {
-    //     id: "fx",
-    //     type: "canvas",
-    //     z: 10,
-    // },
-];
+};
+
+// ============================================================
+// PHASE → CHARACTER ACTION MAP
+// Maps game phase to character animation action.
+// Override from App.js with overrideAction for special cases.
+// ============================================================
+
+var PHASE_ACTION_MAP = {
+    IDLE: "idle",
+    SELECT: "idle",
+    SELECT_MAT: "idle",
+    HEAT: "hammering",
+    HAMMER: "hammering",
+    QUENCH: "quenching",
+    SESS_RESULT: "idle",
+};
+
+// ============================================================
+// PROP VISIBILITY CONFIG
+// Controls which props are visible per phase.
+// If a prop id is not listed, it's always visible.
+// ============================================================
+
+var PROP_VISIBILITY = {
+    // Example: hide weapon prop when idle
+    // weapon: { IDLE: false, SELECT: false, SELECT_MAT: false, default: true },
+};
 
 // ============================================================
 // CHARACTER CONFIG
-// Defines actions (animation states) and positions.
+// Action state machine for the smith character.
+// Each action: spritesheet config + position + movement mode.
 // ============================================================
 
 var CHARACTER_CONFIG = {
     id: "smith",
-    z: 1,
-    imageRendering: "auto",        // "auto" | "pixelated"
-
-    // Default state
+    z: 5,
+    imageRendering: "auto",
     defaultAction: "idle",
 
-    // Action definitions — one per animation state
     actions: {
         idle: {
             sheet: "/images/smithIdle.png",
@@ -92,7 +154,7 @@ var CHARACTER_CONFIG = {
             frameWidth: 64,
             frameHeight: 96,
             loop: true,
-            movement: "none",           // "none" | "translate" | "authored"
+            movement: "none",
             position: { x: "50%", y: "80%" },
             scale: 1.0,
             anchor: "bottom-center",
@@ -128,13 +190,13 @@ var CHARACTER_CONFIG = {
             frameWidth: 64,
             frameHeight: 96,
             loop: true,
-            movement: "translate",      // CSS moves the root
+            movement: "translate",
             position: { x: "80%", y: "75%" },
             scale: 0.9,
             anchor: "bottom-center",
-            transitionDuration: 0.8,    // seconds
+            transitionDuration: 0.8,
             transitionEasing: "ease-in-out",
-            onComplete: "idleCounter",  // action to switch to on arrival
+            onComplete: "idleCounter",
         },
         walkToForge: {
             sheet: "/images/smithWalk.png",
@@ -195,10 +257,10 @@ var CHARACTER_CONFIG = {
         //     sheet: "/images/smithStumble.png",
         //     frames: 12,
         //     fps: 12,
-        //     frameWidth: 128,   // wider frames contain positional movement
+        //     frameWidth: 128,
         //     frameHeight: 96,
         //     loop: false,
-        //     movement: "authored",  // root stays put, sheet has the motion
+        //     movement: "authored",
         //     position: { x: "50%", y: "80%" },
         //     scale: 1.0,
         //     anchor: "bottom-center",
@@ -208,8 +270,47 @@ var CHARACTER_CONFIG = {
 };
 
 // ============================================================
-// ANCHOR HELPER
-// Converts anchor name to CSS transform-origin + translate
+// SCENE STATE RESOLVER
+// Single function — takes game state, returns everything the
+// scene component needs. Call from App.js, pass result as props.
+// ============================================================
+
+function resolveSceneState(options) {
+    var phase = options.phase || "IDLE";
+    var sceneName = options.scene || "forge";
+    var overrideAction = options.overrideAction || null;
+    var propOverrides = options.propOverrides || {};
+
+    // Resolve scene
+    var scene = SCENES[sceneName] || SCENES.forge;
+
+    // Resolve character action
+    var characterAction = overrideAction || PHASE_ACTION_MAP[phase] || "idle";
+
+    // Resolve prop visibility per phase
+    var resolvedPropOverrides = {};
+    var propIds = Object.keys(PROP_VISIBILITY);
+    for (var i = 0; i < propIds.length; i++) {
+        var pid = propIds[i];
+        var vis = PROP_VISIBILITY[pid];
+        var phaseVis = vis[phase] !== undefined ? vis[phase] : (vis.default !== undefined ? vis.default : true);
+        if (!phaseVis) {
+            resolvedPropOverrides[pid] = Object.assign({}, propOverrides[pid] || {}, { visible: false });
+        }
+    }
+
+    var finalPropOverrides = Object.assign({}, propOverrides, resolvedPropOverrides);
+
+    return {
+        scene: sceneName,
+        phase: phase,
+        characterAction: characterAction,
+        propOverrides: finalPropOverrides,
+    };
+}
+
+// ============================================================
+// HELPERS
 // ============================================================
 
 function anchorTransform(anchor) {
@@ -225,86 +326,47 @@ function anchorTransform(anchor) {
     }
 }
 
+function resolvePublicUrl(path) {
+    if (!path) return null;
+    var base = (typeof process !== "undefined" && process.env && process.env.PUBLIC_URL) ? process.env.PUBLIC_URL : "";
+    return base + path;
+}
+
+function resolveBrightness(brightnessConfig, phase) {
+    if (!brightnessConfig) return 1.0;
+    return brightnessConfig[phase] !== undefined ? brightnessConfig[phase] : (brightnessConfig.default !== undefined ? brightnessConfig.default : 1.0);
+}
+
 // ============================================================
-// STATIC LAYER COMPONENT
-// Renders a single image layer (background, anvil, etc.)
+// BACKGROUND COMPONENT
+// Renders the scene background as a cover image.
 // ============================================================
 
-function StaticLayer({ layer, phase, overrides }) {
-    var config = Object.assign({}, layer, overrides || {});
-    if (!config.src) return null;
+function Background({ config, phase }) {
+    if (!config || !config.src) return null;
+    var brightness = resolveBrightness(config.brightness, phase);
 
-    // Resolve brightness for current phase
-    var br = config.brightness || {};
-    var brightness = br[phase] !== undefined ? br[phase] : (br.default !== undefined ? br.default : 1.0);
-
-    // Resolve size
-    var isCover = config.size === "cover";
-    var isContain = config.size === "contain";
-    var sizeStyle = {};
-    if (isCover || isContain) {
-        sizeStyle = {
-            width: "100%",
-            height: "100%",
-            objectFit: isCover ? "cover" : "contain",
-            objectPosition: "center",
-        };
-    } else if (config.size && typeof config.size === "object") {
-        sizeStyle = {
-            width: config.size.width,
-            height: config.size.height,
-        };
-    }
-
-    // Resolve position
-    var pos = config.position || { x: "50%", y: "50%" };
-    var anchorXform = anchorTransform(config.anchor || "center");
-
-    // Cover mode: fill entire container
-    if (isCover || isContain) {
-        return (
-            <div style={{
-                position: "absolute",
-                inset: 0,
-                zIndex: config.z || 0,
-                opacity: config.opacity !== undefined ? config.opacity : 1,
-                filter: "brightness(" + brightness + ")",
-                transition: "filter 0.4s, opacity 0.4s",
-                overflow: "hidden",
-                pointerEvents: "none",
-            }}>
-                <img
-                    src={(typeof process !== "undefined" && process.env && process.env.PUBLIC_URL ? process.env.PUBLIC_URL : "") + config.src}
-                    alt=""
-                    style={Object.assign({}, sizeStyle, {
-                        display: "block",
-                        imageRendering: config.imageRendering || "auto",
-                    })}
-                />
-            </div>
-        );
-    }
-
-    // Positioned mode: placed at x/y with anchor
     return (
         <div style={{
             position: "absolute",
-            left: pos.x,
-            top: pos.y,
-            transform: anchorXform + (config.scale ? " scale(" + config.scale + ")" : ""),
-            zIndex: config.z || 0,
-            opacity: config.opacity !== undefined ? config.opacity : 1,
+            inset: 0,
+            zIndex: 0,
             filter: "brightness(" + brightness + ")",
-            transition: "filter 0.4s, opacity 0.4s",
+            transition: "filter 0.4s",
+            overflow: "hidden",
             pointerEvents: "none",
         }}>
             <img
-                src={(typeof process !== "undefined" && process.env && process.env.PUBLIC_URL ? process.env.PUBLIC_URL : "") + config.src}
+                src={resolvePublicUrl(config.src)}
                 alt=""
-                style={Object.assign({}, sizeStyle, {
+                style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    objectPosition: "center",
                     display: "block",
                     imageRendering: config.imageRendering || "auto",
-                })}
+                }}
             />
         </div>
     );
@@ -313,7 +375,7 @@ function StaticLayer({ layer, phase, overrides }) {
 // ============================================================
 // SPRITESHEET COMPONENT
 // CSS background-position stepping animation.
-// Supports loop and one-shot. Calls onComplete for one-shots.
+// Supports loop and one-shot modes.
 // ============================================================
 
 function SpriteSheet({ sheet, frames, fps, frameWidth, frameHeight, loop, imageRendering, onComplete }) {
@@ -346,13 +408,12 @@ function SpriteSheet({ sheet, frames, fps, frameWidth, frameHeight, loop, imageR
     }, [sheet, frames, fps, loop]);
 
     var bgX = -(frame * frameWidth);
-    var publicUrl = (typeof process !== "undefined" && process.env && process.env.PUBLIC_URL ? process.env.PUBLIC_URL : "");
 
     return (
         <div style={{
             width: frameWidth,
             height: frameHeight,
-            backgroundImage: "url(" + publicUrl + sheet + ")",
+            backgroundImage: "url(" + resolvePublicUrl(sheet) + ")",
             backgroundPosition: bgX + "px 0px",
             backgroundRepeat: "no-repeat",
             backgroundSize: (frameWidth * frames) + "px " + frameHeight + "px",
@@ -362,9 +423,69 @@ function SpriteSheet({ sheet, frames, fps, frameWidth, frameHeight, loop, imageR
 }
 
 // ============================================================
+// PROP COMPONENT
+// Renders a single prop — static image or spritesheet.
+// Positioned at rootPosition by default, overridable.
+// ============================================================
+
+function Prop({ config, phase, override }) {
+    var merged = Object.assign({}, config, override || {});
+    if (merged.visible === false) return null;
+    if (merged.type === "static" && !merged.src) return null;
+    if (merged.type === "spritesheet" && !merged.sheet) return null;
+
+    var pos = merged.position || merged.rootPosition || { x: "50%", y: "50%" };
+    var brightness = resolveBrightness(merged.brightness, phase);
+    var anchorXform = anchorTransform(merged.anchor || "center");
+    var scale = merged.scale !== undefined ? merged.scale : 1.0;
+
+    // Resolve size for static images
+    var sizeStyle = {};
+    if (merged.size && typeof merged.size === "object") {
+        sizeStyle = { width: merged.size.width, height: merged.size.height };
+    }
+
+    return (
+        <div style={{
+            position: "absolute",
+            left: pos.x,
+            top: pos.y,
+            transform: anchorXform + " scale(" + scale + ")",
+            zIndex: merged.z || 1,
+            opacity: merged.opacity !== undefined ? merged.opacity : 1,
+            filter: "brightness(" + brightness + ")",
+            transition: "filter 0.4s, opacity 0.4s, left 0.4s, top 0.4s, transform 0.4s",
+            pointerEvents: "none",
+        }}>
+            {merged.type === "static" && (
+                <img
+                    src={resolvePublicUrl(merged.src)}
+                    alt=""
+                    style={Object.assign({}, sizeStyle, {
+                        display: "block",
+                        imageRendering: merged.imageRendering || "auto",
+                    })}
+                />
+            )}
+            {merged.type === "spritesheet" && (
+                <SpriteSheet
+                    sheet={merged.sheet}
+                    frames={merged.frames || 1}
+                    fps={merged.fps || 8}
+                    frameWidth={merged.frameWidth || 64}
+                    frameHeight={merged.frameHeight || 64}
+                    loop={merged.loop !== false}
+                    imageRendering={merged.imageRendering || "auto"}
+                />
+            )}
+        </div>
+    );
+}
+
+// ============================================================
 // CHARACTER COMPONENT
-// Manages action state, position transitions, sprite playback.
-// Controlled via "action" prop from parent.
+// Action-driven: plays spritesheet in place, moves via CSS
+// transition or authored spritesheet.
 // ============================================================
 
 function Character({ config, action, onActionComplete }) {
@@ -373,7 +494,7 @@ function Character({ config, action, onActionComplete }) {
     var prevActionRef = useRef(action);
     var [transitioning, setTransitioning] = useState(false);
 
-    // Detect action change for translate movement
+    // Handle translate movement on action change
     useEffect(function() {
         if (action === prevActionRef.current) return;
         prevActionRef.current = action;
@@ -390,7 +511,7 @@ function Character({ config, action, onActionComplete }) {
         }
     }, [action]);
 
-    // Handle one-shot sprite completion (for "authored" movement)
+    // Handle authored spritesheet completion
     function handleSpriteComplete() {
         if (currentAction.onComplete && onActionComplete) {
             onActionComplete(currentAction.onComplete);
@@ -413,7 +534,7 @@ function Character({ config, action, onActionComplete }) {
             left: pos.x,
             top: pos.y,
             transform: anchorXform + " scale(" + scale + ")",
-            zIndex: config.z || 1,
+            zIndex: config.z || 5,
             transition: transitionStr,
             pointerEvents: "none",
         }}>
@@ -435,8 +556,8 @@ function Character({ config, action, onActionComplete }) {
 
 // ============================================================
 // CANVAS FX LAYER
-// Transparent overlay for particle effects, sparks, glow.
-// Exposes triggerEffect via ref callback.
+// Transparent overlay for particle effects.
+// Trigger effects from game code via fxRef.current.trigger().
 // ============================================================
 
 function CanvasFXLayer({ z, fxRef }) {
@@ -445,7 +566,6 @@ function CanvasFXLayer({ z, fxRef }) {
     var animRef = useRef(null);
     var activeRef = useRef(false);
 
-    // Particle loop
     function startLoop() {
         if (activeRef.current) return;
         activeRef.current = true;
@@ -484,7 +604,6 @@ function CanvasFXLayer({ z, fxRef }) {
         animRef.current = requestAnimationFrame(loop);
     }
 
-    // Trigger an effect — called from game code via ref
     var triggerEffect = useCallback(function(effectType, options) {
         var canvas = canvasRef.current;
         if (!canvas) return;
@@ -506,25 +625,20 @@ function CanvasFXLayer({ z, fxRef }) {
                     gravity: 0.08,
                     size: 1 + Math.random() * 2.5,
                     color: opts.color || "#f59e0b",
-                    life: life,
-                    maxLife: life,
-                    opacity: 1,
+                    life: life, maxLife: life, opacity: 1,
                 });
             }
         } else if (effectType === "smoke") {
             for (var j = 0; j < count; j++) {
                 var sLife = 0.8 + Math.random() * 1.2;
                 newParticles.push({
-                    x: cx + (Math.random() - 0.5) * 20,
-                    y: cy,
+                    x: cx + (Math.random() - 0.5) * 20, y: cy,
                     vx: (Math.random() - 0.5) * 0.5,
                     vy: -0.5 - Math.random() * 1,
                     gravity: -0.01,
                     size: 3 + Math.random() * 4,
                     color: opts.color || "#666",
-                    life: sLife,
-                    maxLife: sLife,
-                    opacity: 0.4,
+                    life: sLife, maxLife: sLife, opacity: 0.4,
                 });
             }
         } else if (effectType === "glow") {
@@ -538,9 +652,7 @@ function CanvasFXLayer({ z, fxRef }) {
                     gravity: 0,
                     size: 2 + Math.random() * 3,
                     color: opts.color || "#fbbf24",
-                    life: gLife,
-                    maxLife: gLife,
-                    opacity: 0.6,
+                    life: gLife, maxLife: gLife, opacity: 0.6,
                 });
             }
         }
@@ -549,12 +661,10 @@ function CanvasFXLayer({ z, fxRef }) {
         startLoop();
     }, []);
 
-    // Expose trigger to parent via ref
     useEffect(function() {
         if (fxRef) fxRef.current = { trigger: triggerEffect };
     }, [triggerEffect]);
 
-    // Resize canvas to container
     useEffect(function() {
         var canvas = canvasRef.current;
         if (!canvas) return;
@@ -585,18 +695,23 @@ function CanvasFXLayer({ z, fxRef }) {
 }
 
 // ============================================================
-// FORGE SCENE (Main Stage Component)
-// Renders all layers, character, and FX canvas.
+// SCENE STAGE (Main Component)
+// Renders: background → props (sorted by z) → character → FX
 // Drop-in replacement for old ForgeScene.
 // ============================================================
 
-function ForgeSceneLayered({ phase, characterAction, onCharacterActionComplete, layerOverrides, fxRef, visible }) {
-    if (visible === false) return null;
+function SceneStage({ scene, phase, characterAction, onCharacterActionComplete, propOverrides, fxRef }) {
+    var sceneConfig = SCENES[scene] || SCENES.forge;
 
-    // Merge layer overrides
-    var layers = SCENE_LAYERS.map(function(layer) {
-        var override = layerOverrides && layerOverrides[layer.id];
-        return override ? Object.assign({}, layer, override) : layer;
+    // Build sorted props with overrides
+    var props = (sceneConfig.props || []).map(function(prop) {
+        var override = propOverrides && propOverrides[prop.id];
+        var merged = override ? Object.assign({}, prop, override) : prop;
+        // Default position to rootPosition if no override
+        if (!override || !override.position) {
+            merged.position = merged.position || merged.rootPosition;
+        }
+        return merged;
     }).sort(function(a, b) { return (a.z || 0) - (b.z || 0); });
 
     return (
@@ -607,29 +722,42 @@ function ForgeSceneLayered({ phase, characterAction, onCharacterActionComplete, 
             borderRadius: "inherit",
             pointerEvents: "none",
         }}>
-            {/* Render layers */}
-            {layers.map(function(layer) {
-                if (layer.type === "canvas") {
-                    return <CanvasFXLayer key={layer.id} z={layer.z} fxRef={fxRef} />;
-                }
-                if (layer.type === "static") {
-                    return <StaticLayer key={layer.id} layer={layer} phase={phase} />;
-                }
-                // Spritesheet layers (non-character) could go here
-                return null;
+            {/* Background */}
+            <Background config={sceneConfig.background} phase={phase} />
+
+            {/* Props */}
+            {props.map(function(prop) {
+                return <Prop key={prop.id} config={prop} phase={phase} />;
             })}
 
-            {/* Character layer */}
+            {/* Character */}
             <Character
                 config={CHARACTER_CONFIG}
                 action={characterAction || CHARACTER_CONFIG.defaultAction}
                 onActionComplete={onCharacterActionComplete}
             />
 
-            {/* FX canvas (always present, renders on top) */}
+            {/* FX Canvas (always top) */}
             <CanvasFXLayer z={100} fxRef={fxRef} />
         </div>
     );
+}
+
+// ============================================================
+// PROP HELPERS
+// Use from App.js to move props or reset them to root.
+// ============================================================
+
+function getPropRootPosition(sceneName, propId) {
+    var scene = SCENES[sceneName] || SCENES.forge;
+    var prop = (scene.props || []).find(function(p) { return p.id === propId; });
+    return prop ? prop.rootPosition : null;
+}
+
+function buildPropOverride(propId, overrides) {
+    var result = {};
+    result[propId] = overrides;
+    return result;
 }
 
 // ============================================================
@@ -637,18 +765,26 @@ function ForgeSceneLayered({ phase, characterAction, onCharacterActionComplete, 
 // ============================================================
 var SceneSystem = {
     // Config (editable)
-    SCENE_LAYERS: SCENE_LAYERS,
+    SCENES: SCENES,
     CHARACTER_CONFIG: CHARACTER_CONFIG,
+    PHASE_ACTION_MAP: PHASE_ACTION_MAP,
+    PROP_VISIBILITY: PROP_VISIBILITY,
+
+    // Resolver
+    resolveSceneState: resolveSceneState,
 
     // Components
-    StaticLayer: StaticLayer,
+    SceneStage: SceneStage,
+    Background: Background,
+    Prop: Prop,
     SpriteSheet: SpriteSheet,
     Character: Character,
     CanvasFXLayer: CanvasFXLayer,
-    ForgeSceneLayered: ForgeSceneLayered,
 
     // Helpers
     anchorTransform: anchorTransform,
+    getPropRootPosition: getPropRootPosition,
+    buildPropOverride: buildPropOverride,
 };
 
 export default SceneSystem;
