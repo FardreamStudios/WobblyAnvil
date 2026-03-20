@@ -5,10 +5,8 @@
 // ============================================================
 
 import { useState, useEffect, useRef } from "react";
-import GameConstants from "./constants.js";
 import GameUtils from "./utilities.js";
 
-var PHASES = GameConstants.PHASES;
 var clamp = GameUtils.clamp;
 
 // --- Toast Visibility Context (shared between Tooltip and Toast) ---
@@ -303,25 +301,6 @@ function Toast({ msg, icon, color, onDone, duration, locked }) {
     );
 }
 
-// --- Forge Scene (anvil image with brightness based on phase) ---
-
-function ForgeScene({ phase }) {
-    var forgeIntensity = (phase === PHASES.HEAT || phase === PHASES.HAMMER) ? 1.0 : 0.18;
-    return (
-        <div style={{
-            width: 320, height: 180, margin: "0 auto",
-            filter: "brightness(" + (0.3 + forgeIntensity * 0.7) + ")",
-            transition: "filter 0.4s",
-        }}>
-            <img
-                src={process.env.PUBLIC_URL + "/images/waForgeScene.png"}
-                width="320" height="180"
-                style={{ display: "block", imageRendering: "pixelated" }}
-            />
-        </div>
-    );
-}
-
 // --- Scale Wrapper (responsive scaling container) ---
 
 function ScaleWrapper({ children }) {
@@ -392,7 +371,6 @@ var UIComponents = {
     Toast: Toast,
 
     // Scene
-    ForgeScene: ForgeScene,
     ScaleWrapper: ScaleWrapper,
 };
 
