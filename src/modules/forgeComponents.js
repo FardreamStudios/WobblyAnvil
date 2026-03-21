@@ -2,10 +2,6 @@
 // forgeComponents.js — Wobbly Anvil Forge Components Module
 // QTE visual bars and the QTE panel controller.
 // Handles needle animation, phase rendering, strike display.
-//
-// CHANGE LOG (mobile fixes):
-// - QTE needle animations now use delta-time instead of /60
-//   so speed is consistent on 60Hz, 120Hz, 144Hz displays.
 // ============================================================
 
 import { useState, useEffect, useRef } from "react";
@@ -19,9 +15,13 @@ var QUENCH_WIN = GameConstants.QUENCH_WIN;
 var PHASES = GameConstants.PHASES;
 var positionToColumn = GameUtils.positionToColumn;
 
-// --- Target frame rate for speed calibration ---
-var TARGET_FPS = 60;
-var TARGET_FRAME_MS = 1000 / TARGET_FPS;
+// --- QTE Speed Constants (tune these to adjust feel) ---
+var HEAT_SPEED_BASE = 36;
+var HEAT_SPEED_RANGE = 8;
+var HAMMER_SPEED_BASE = 160;
+var HAMMER_SPEED_RANGE = 40;
+var QUENCH_SPEED_BASE = 120;
+var QUENCH_SPEED_RANGE = 30;
 
 // --- QTE Gradient Color Helper ---
 
@@ -137,20 +137,21 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
     useEffect(function() {
         if (phase !== PHASES.HEAT) return;
         processingRef.current = false;
-        heatNeedle.current = { pos: 0, speed: (18 + Math.random() * 4) * heatSpeedMult };
+        heatNeedle.current = { pos: 0, speed: (HEAT_SPEED_BASE + Math.random() * HEAT_SPEED_RANGE) * heatSpeedMult };
         setHeatPos(0); posRef.current = 0;
         lastFrameTime.current = 0;
         var done = false;
         var timer = setTimeout(function() {
             function loop(timestamp) {
                 if (done) return;
-                if (!lastFrameTime.current) lastFrameTime.current = timestamp;
-                var delta = Math.min(timestamp - lastFrameTime.current, 50);
+                if (lastFrameTime.current === 0) lastFrameTime.current = timestamp;
+                var dt = (timestamp - lastFrameTime.current) / 1000;
                 lastFrameTime.current = timestamp;
-                var dtScale = delta / TARGET_FRAME_MS;
+                // Clamp delta to avoid huge jumps on tab refocus
+                if (dt > 0.1) dt = 0.1;
                 if (!processingRef.current) {
                     var n = heatNeedle.current;
-                    n.pos = Math.min(100, n.pos + n.speed * Math.pow(1 + n.pos / 100, 1.8) * dtScale / TARGET_FPS);
+                    n.pos = Math.min(100, n.pos + n.speed * Math.pow(1 + n.pos / 100, 1.8) * dt);
                     posRef.current = n.pos;
                     setHeatPos(n.pos);
                     if (n.pos >= 100) { done = true; onAutoFire(n.pos); return; }
@@ -166,19 +167,19 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
     useEffect(function() {
         if (phase !== PHASES.HAMMER) return;
         processingRef.current = false;
-        hammerNeedle.current = { pos: 50, dir: 1, speed: (80 + Math.random() * 20) * hammerSpeedMult };
+        hammerNeedle.current = { pos: 50, dir: 1, speed: (HAMMER_SPEED_BASE + Math.random() * HAMMER_SPEED_RANGE) * hammerSpeedMult };
         setNeedlePos(50); posRef.current = 50;
         lastFrameTime.current = 0;
         var done = false;
         function loop(timestamp) {
             if (done) return;
-            if (!lastFrameTime.current) lastFrameTime.current = timestamp;
-            var delta = Math.min(timestamp - lastFrameTime.current, 50);
+            if (lastFrameTime.current === 0) lastFrameTime.current = timestamp;
+            var dt = (timestamp - lastFrameTime.current) / 1000;
             lastFrameTime.current = timestamp;
-            var dtScale = delta / TARGET_FRAME_MS;
+            if (dt > 0.1) dt = 0.1;
             if (!processingRef.current) {
                 var n = hammerNeedle.current;
-                n.pos += n.dir * (n.speed * dtScale / TARGET_FPS);
+                n.pos += n.dir * n.speed * dt;
                 if (n.pos >= 100 || n.pos <= 0) n.dir *= -1;
                 posRef.current = n.pos;
                 setNeedlePos(n.pos);
@@ -193,19 +194,19 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
     useEffect(function() {
         if (phase !== PHASES.QUENCH) return;
         processingRef.current = false;
-        quenchNeedle.current = { pos: 50, dir: 1, speed: (60 + Math.random() * 15) * quenchSpeedMult };
+        quenchNeedle.current = { pos: 50, dir: 1, speed: (QUENCH_SPEED_BASE + Math.random() * QUENCH_SPEED_RANGE) * quenchSpeedMult };
         setQuenchPos(50); posRef.current = 50;
         lastFrameTime.current = 0;
         var done = false;
         function loop(timestamp) {
             if (done) return;
-            if (!lastFrameTime.current) lastFrameTime.current = timestamp;
-            var delta = Math.min(timestamp - lastFrameTime.current, 50);
+            if (lastFrameTime.current === 0) lastFrameTime.current = timestamp;
+            var dt = (timestamp - lastFrameTime.current) / 1000;
             lastFrameTime.current = timestamp;
-            var dtScale = delta / TARGET_FRAME_MS;
+            if (dt > 0.1) dt = 0.1;
             if (!processingRef.current) {
                 var n = quenchNeedle.current;
-                n.pos += n.dir * (n.speed * dtScale / TARGET_FPS);
+                n.pos += n.dir * n.speed * dt;
                 if (n.pos >= 100 || n.pos <= 0) n.dir *= -1;
                 posRef.current = n.pos;
                 setQuenchPos(n.pos);
