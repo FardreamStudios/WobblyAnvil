@@ -4,7 +4,7 @@
 // All data, utilities, components, and systems imported from modules.
 // ============================================================
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 // --- Module Imports ---
 import GameConstants from "./modules/constants.js";
@@ -20,6 +20,15 @@ import GameLayout from "./modules/gameLayout.js";
 import SceneSystem from "./modules/sceneSystem.js";
 import MobileLayoutModule from "./modules/mobileLayout.js";
 import DevBanner from "./components/DevBanner.js";
+
+// --- State Hooks ---
+import useUIState from "./hooks/useUIState.js";
+import useEconomyState from "./hooks/useEconomyState.js";
+import useDayState from "./hooks/useDayState.js";
+import usePlayerState from "./hooks/usePlayerState.js";
+import useForgeState from "./hooks/useForgeState.js";
+import useQuestState from "./hooks/useQuestState.js";
+import useMysteryState from "./hooks/useMysteryState.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -130,89 +139,102 @@ export default function App() {
   var sfx = useAudio();
   var isMobile = useLayoutMode();
 
-  // --- UI State ---
-  var [screen, setScreen] = useState("splash");
-  var [showShop, setShowShop] = useState(false);
-  var [showMaterials, setShowMaterials] = useState(false);
-  var [showGiveUp, setShowGiveUp] = useState(false);
-  var [showOptions, setShowOptions] = useState(false);
-  var [showRhythmTest, setShowRhythmTest] = useState(false);
-  var [handedness, setHandedness] = useState("right");
-  var [sfxVol, setSfxVol] = useState(0.25);
-  var [musicVol, setMusicVol] = useState(0.25);
+  // --- State Hooks ---
+  var ui = useUIState();
+  var economy = useEconomyState();
+  var dayState = useDayState();
+  var player = usePlayerState();
+  var forge = useForgeState();
+  var quest = useQuestState();
+  var mystery = useMysteryState();
 
-  // --- Toast State ---
-  var [toasts, setToasts] = useState([]);
-  var [toastQueue, setToastQueue] = useState([]);
-  var [activeToast, setActiveToast] = useState(null);
+  // --- UI State (from useUIState) ---
+  var screen = ui.screen, setScreen = ui.setScreen;
+  var showShop = ui.showShop, setShowShop = ui.setShowShop;
+  var showMaterials = ui.showMaterials, setShowMaterials = ui.setShowMaterials;
+  var showGiveUp = ui.showGiveUp, setShowGiveUp = ui.setShowGiveUp;
+  var showOptions = ui.showOptions, setShowOptions = ui.setShowOptions;
+  var showRhythmTest = ui.showRhythmTest, setShowRhythmTest = ui.setShowRhythmTest;
+  var handedness = ui.handedness, setHandedness = ui.setHandedness;
+  var sfxVol = ui.sfxVol, setSfxVol = ui.setSfxVol;
+  var musicVol = ui.musicVol, setMusicVol = ui.setMusicVol;
 
-  // --- Game State ---
-  var [gameOver, setGameOver] = useState(false);
-  var [activeCustomer, setActiveCustomer] = useState(null);
-  var [gold, setGold] = useState(STARTING_GOLD);
-  var [totalGoldEarned, setTotalGoldEarned] = useState(0);
-  var [goldPops, setGoldPops] = useState([]);
-  var [inv, setInv] = useState({ bronze: 10, iron: 4, steel: 0, damascus: 0, titanium: 0, iridium: 0, tungsten: 0, mithril: 0, orichalcum: 0 });
-  var [finished, setFinished] = useState([]);
-  var [day, setDay] = useState(1);
-  var [hour, setHour] = useState(WAKE_HOUR);
-  var [stamina, setStamina] = useState(BASE_STAMINA);
-  var [forcedExhaustion, setForcedExhaustion] = useState(false);
-  var [lateToastShown, setLateToastShown] = useState(false);
+  // --- Toast State (from useUIState) ---
+  var toasts = ui.toasts, setToasts = ui.setToasts;
+  var toastQueue = ui.toastQueue, setToastQueue = ui.setToastQueue;
+  var activeToast = ui.activeToast, setActiveToast = ui.setActiveToast;
 
-  // --- Market State ---
-  var [priceBonus, setPriceBonus] = useState(1.0);
-  var [priceDebuff, setPriceDebuff] = useState(1.0);
-  var [matDiscount, setMatDiscount] = useState(null);
-  var [globalMatMult, setGlobalMatMult] = useState(1.0);
-  var [guaranteedCustomers, setGuaranteedCustomers] = useState(false);
-  var [custVisitsToday, setCustVisitsToday] = useState(0);
-  var [maxCustToday, setMaxCustToday] = useState(BASE_DAILY_CUSTOMERS);
+  // --- Economy State (from useEconomyState) ---
+  var gold = economy.gold, setGold = economy.setGold;
+  var totalGoldEarned = economy.totalGoldEarned, setTotalGoldEarned = economy.setTotalGoldEarned;
+  var goldPops = economy.goldPops, setGoldPops = economy.setGoldPops;
+  var inv = economy.inv, setInv = economy.setInv;
+  var finished = economy.finished, setFinished = economy.setFinished;
+  var priceBonus = economy.priceBonus, setPriceBonus = economy.setPriceBonus;
+  var priceDebuff = economy.priceDebuff, setPriceDebuff = economy.setPriceDebuff;
+  var matDiscount = economy.matDiscount, setMatDiscount = economy.setMatDiscount;
+  var globalMatMult = economy.globalMatMult, setGlobalMatMult = economy.setGlobalMatMult;
+  var guaranteedCustomers = economy.guaranteedCustomers, setGuaranteedCustomers = economy.setGuaranteedCustomers;
+  var custVisitsToday = economy.custVisitsToday, setCustVisitsToday = economy.setCustVisitsToday;
+  var maxCustToday = economy.maxCustToday, setMaxCustToday = economy.setMaxCustToday;
 
-  // --- Player State ---
-  var [reputation, setReputation] = useState(4);
-  var [level, setLevel] = useState(1);
-  var [xp, setXp] = useState(0);
-  var [statPoints, setStatPoints] = useState(0);
-  var [stats, setStats] = useState(Object.assign({}, STATS_DEF));
-  var [upgrades, setUpgrades] = useState({ anvil: 0, hammer: 0, forge: 0, quench: 0, furnace: 0 });
-  var [unlockedBP, setUnlockedBP] = useState(["dagger", "shortsword", "axe"]);
+  // --- Day State (from useDayState) ---
+  var day = dayState.day, setDay = dayState.setDay;
+  var hour = dayState.hour, setHour = dayState.setHour;
+  var stamina = dayState.stamina, setStamina = dayState.setStamina;
+  var forcedExhaustion = dayState.forcedExhaustion, setForcedExhaustion = dayState.setForcedExhaustion;
+  var lateToastShown = dayState.lateToastShown, setLateToastShown = dayState.setLateToastShown;
+  var gameOver = dayState.gameOver, setGameOver = dayState.setGameOver;
 
-  // --- Quest State ---
-  var [royalQuest, setRoyalQuest] = useState(null);
-  var [questNum, setQuestNum] = useState(0);
-  var [mEvent, setMEvent] = useState(null);
-  var [hasSoldWeapon, setHasSoldWeapon] = useState(false);
-  var [promoteUses, setPromoteUses] = useState(0);
+  // --- Quest State (from useQuestState) ---
+  var activeCustomer = quest.activeCustomer, setActiveCustomer = quest.setActiveCustomer;
+  var hasSoldWeapon = quest.hasSoldWeapon, setHasSoldWeapon = quest.setHasSoldWeapon;
 
-  // --- Forge State ---
-  var [wipWeapon, setWipWeapon] = useState(null);
-  var [wKey, setWKey] = useState("dagger");
-  var [matKey, setMatKey] = useState(Object.keys(MATS)[0]);
-  var [phase, setPhase] = useState(PHASES.IDLE);
-  var [qualScore, setQualScore] = useState(0);
-  var [stress, setStress] = useState(0);
-  var [forgeSess, setForgeSess] = useState(0);
-  var [bonusStrikes, setBonusStrikes] = useState(0);
-  var [sessResult, setSessResult] = useState(null);
-  var [forgeBubble, setForgeBubble] = useState(null);
-  var [qteFlash, setQteFlash] = useState(null);
-  var [strikesLeft, setStrikesLeft] = useState(0);
+  // --- Market State (already destructured above from useEconomyState) ---
 
-  // --- Mystery Event State ---
-  var [pendingMystery, setPendingMystery] = useState(null);
-  var [goodEventUsed, setGoodEventUsed] = useState(false);
-  var [mysteryPending, setMysteryPending] = useState(false);
-  var [mysteryShake, setMysteryShake] = useState(false);
-  var [weaponShake, setWeaponShake] = useState(false);
-  var [mysteryVignette, setMysteryVignette] = useState(null);
-  var [mysteryVignetteOpacity, setMysteryVignetteOpacity] = useState(1);
+  // --- Player State (from usePlayerState) ---
+  var reputation = player.reputation, setReputation = player.setReputation;
+  var level = player.level, setLevel = player.setLevel;
+  var xp = player.xp, setXp = player.setXp;
+  var statPoints = player.statPoints, setStatPoints = player.setStatPoints;
+  var stats = player.stats, setStats = player.setStats;
+  var upgrades = player.upgrades, setUpgrades = player.setUpgrades;
+  var unlockedBP = player.unlockedBP, setUnlockedBP = player.setUnlockedBP;
 
-  // --- Scene State ---
-  var [activeScene, setActiveScene] = useState("forge");
-  var [sceneActionOverride, setSceneActionOverride] = useState(null);
-  var [propOverrides, setPropOverrides] = useState({});
-  var fxRef = useRef(null);
+  // --- Quest State (from useQuestState) ---
+  var royalQuest = quest.royalQuest, setRoyalQuest = quest.setRoyalQuest;
+  var questNum = quest.questNum, setQuestNum = quest.setQuestNum;
+  var mEvent = quest.mEvent, setMEvent = quest.setMEvent;
+  var promoteUses = quest.promoteUses, setPromoteUses = quest.setPromoteUses;
+
+  // --- Forge State (from useForgeState) ---
+  var wipWeapon = forge.wipWeapon, setWipWeapon = forge.setWipWeapon;
+  var wKey = forge.wKey, setWKey = forge.setWKey;
+  var matKey = forge.matKey, setMatKey = forge.setMatKey;
+  var phase = forge.phase, setPhase = forge.setPhase;
+  var qualScore = forge.qualScore, setQualScore = forge.setQualScore;
+  var stress = forge.stress, setStress = forge.setStress;
+  var forgeSess = forge.forgeSess, setForgeSess = forge.setForgeSess;
+  var bonusStrikes = forge.bonusStrikes, setBonusStrikes = forge.setBonusStrikes;
+  var sessResult = forge.sessResult, setSessResult = forge.setSessResult;
+  var forgeBubble = forge.forgeBubble, setForgeBubble = forge.setForgeBubble;
+  var qteFlash = forge.qteFlash, setQteFlash = forge.setQteFlash;
+  var strikesLeft = forge.strikesLeft, setStrikesLeft = forge.setStrikesLeft;
+
+  // --- Mystery State (from useMysteryState) ---
+  var pendingMystery = mystery.pendingMystery, setPendingMystery = mystery.setPendingMystery;
+  var goodEventUsed = mystery.goodEventUsed, setGoodEventUsed = mystery.setGoodEventUsed;
+  var mysteryPending = mystery.mysteryPending, setMysteryPending = mystery.setMysteryPending;
+  var mysteryShake = mystery.mysteryShake, setMysteryShake = mystery.setMysteryShake;
+  var weaponShake = mystery.weaponShake, setWeaponShake = mystery.setWeaponShake;
+  var mysteryVignette = mystery.mysteryVignette, setMysteryVignette = mystery.setMysteryVignette;
+  var mysteryVignetteOpacity = mystery.mysteryVignetteOpacity, setMysteryVignetteOpacity = mystery.setMysteryVignetteOpacity;
+
+  // --- Scene State (from useMysteryState) ---
+  var activeScene = mystery.activeScene, setActiveScene = mystery.setActiveScene;
+  var sceneActionOverride = mystery.sceneActionOverride, setSceneActionOverride = mystery.setSceneActionOverride;
+  var propOverrides = mystery.propOverrides, setPropOverrides = mystery.setPropOverrides;
+  var fxRef = mystery.fxRef;
 
   // --- Late Night Toast ---
   useEffect(function() {
