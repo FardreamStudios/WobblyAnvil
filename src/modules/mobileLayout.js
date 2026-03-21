@@ -363,6 +363,8 @@ function MobileLayout(props) {
     var phase = props.phase || "idle";
     var isForging = phase !== "idle" && phase !== "select" && phase !== "select_mat";
     var isQTEActive = phase === "heat" || phase === "hammer" || phase === "quench";
+    // True for ANY non-idle phase — used for drawer auto-open and content switching
+    var isInForgeFlow = phase !== "idle";
     var isFull = useFullscreenState();
     var finished = props.finished || [];
 
@@ -396,20 +398,20 @@ function MobileLayout(props) {
     // --- Drawer state ---
     var [drawerOpen, setDrawerOpen] = useState(false);
 
-    // Auto-open during QTE, auto-close when leaving QTE
-    var prevQTE = useRef(false);
+    // Auto-open when entering any forge phase, auto-close when returning to idle
+    var prevInForgeFlow = useRef(false);
     useEffect(function() {
-        if (isQTEActive && !prevQTE.current) {
+        if (isInForgeFlow && !prevInForgeFlow.current) {
             setDrawerOpen(true);
         }
-        if (!isQTEActive && prevQTE.current) {
+        if (!isInForgeFlow && prevInForgeFlow.current) {
             setDrawerOpen(false);
         }
-        prevQTE.current = isQTEActive;
-    }, [isQTEActive]);
+        prevInForgeFlow.current = isInForgeFlow;
+    }, [isInForgeFlow]);
 
-    // Drawer content
-    var drawerContent = isForging ? (
+    // Drawer content — switches based on forge flow vs idle
+    var drawerContent = isInForgeFlow ? (
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "4px 0" }}>
             {/* Quality — big and prominent at top */}
             <div style={{ textAlign: "center" }}>
@@ -489,14 +491,14 @@ function MobileLayout(props) {
     // Drawer + tab + backdrop assembly
     var drawer = (
         <>
-            {/* Tab — hidden during QTE (drawer is forced open) */}
-            {!isQTEActive && (
+            {/* Tab — hidden during any forge flow (drawer is forced open) */}
+            {!isInForgeFlow && (
                 <div className={tabSideClass} onClick={function() { setDrawerOpen(function(o) { return !o; }); }}>
                     {tabArrow}
                 </div>
             )}
-            {/* Backdrop — tap to close (not during QTE) */}
-            {drawerOpen && !isQTEActive && (
+            {/* Backdrop — tap to close (only in idle when manually opened) */}
+            {drawerOpen && !isInForgeFlow && (
                 <div className="mobile-drawer-backdrop" onClick={function() { setDrawerOpen(false); }} />
             )}
             {/* Drawer panel */}
@@ -545,7 +547,7 @@ function MobileLayout(props) {
             {phase === "idle" && !props.hasWip && (
                 <button onClick={props.onBeginForge} disabled={props.beginForgeDisabled} style={{
                     position: "absolute",
-                    bottom: 12,
+                    bottom: "33%",
                     left: "50%",
                     transform: "translateX(-50%)",
                     zIndex: 20,
@@ -568,7 +570,7 @@ function MobileLayout(props) {
             {phase === "idle" && props.hasWip && (
                 <div style={{
                     position: "absolute",
-                    bottom: 12,
+                    bottom: "33%",
                     left: "50%",
                     transform: "translateX(-50%)",
                     zIndex: 20,

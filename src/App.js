@@ -673,7 +673,7 @@ export default function App() {
 
     // --- Build QTE + forge UI for center zone ---
     var mobileForgeUI = (
-        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, width: "100%", flex: 1 }}>
+        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: "5%", gap: 4, width: "100%", flex: 1, paddingLeft: handedness === "left" ? 0 : 160, paddingRight: handedness === "left" ? 160 : 0, boxSizing: "border-box" }}>
           {/* Forge bubble */}
           {forgeBubble && (
               <div onClick={function(e) { e.stopPropagation(); setForgeBubble(null); }} style={{ position: "absolute", top: 4, right: 4, zIndex: 60, background: "#0c0905", border: "2px solid " + forgeBubble.color, borderRadius: 10, padding: "10px 12px", width: 120, boxShadow: "0 4px 16px rgba(0,0,0,0.97)", cursor: "pointer", fontSize: 9 }}>
@@ -684,7 +684,7 @@ export default function App() {
 
           {/* QTE dark box — quality/stress bars + QTE needle */}
           {(showBars || isQTEActive) && (
-              <div style={{ width: "100%", maxWidth: 280, background: "rgba(8,5,2,0.88)", border: "1px solid #2a1f0a", borderRadius: 10, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ width: "100%", maxWidth: 400, background: "rgba(8,5,2,0.88)", border: "1px solid #2a1f0a", borderRadius: 10, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
                 {showBars && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -712,7 +712,7 @@ export default function App() {
 
           {/* MOBILE WEAPON SELECT */}
           {phase === PHASES.SELECT && (
-              <div style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, bottom: 0, right: handedness === "left" ? 160 : 0, left: handedness === "left" ? 0 : 160, zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
                 <div style={{ fontSize: 12, letterSpacing: 2, color: "#f59e0b", fontWeight: "bold", marginBottom: 6 }}>CHOOSE WEAPON</div>
                 {/* Selected weapon info */}
                 <div style={{ display: "flex", gap: 10, marginBottom: 8, width: "100%", maxWidth: 400 }}>
@@ -751,7 +751,7 @@ export default function App() {
 
           {/* MOBILE MATERIAL SELECT */}
           {phase === PHASES.SELECT_MAT && (
-              <div style={{ position: "absolute", inset: 0, zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: 0, bottom: 0, right: handedness === "left" ? 160 : 0, left: handedness === "left" ? 0 : 160, zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
                 <div style={{ fontSize: 12, letterSpacing: 2, color: "#f59e0b", fontWeight: "bold", marginBottom: 4 }}>CHOOSE MATERIAL</div>
                 <div style={{ fontSize: 9, color: "#8a7a64", marginBottom: 6 }}>{weapon.name} needs {weapon.materialCost} units</div>
                 {/* Selected material info */}
