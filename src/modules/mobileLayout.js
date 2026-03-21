@@ -23,14 +23,16 @@ import { useState, useEffect, useRef } from "react";
 var LANDSCAPE_MIN_RATIO = 1.3; // width/height — below this we're in portrait territory
 
 // --- Mobile Button Icon Paths ---
+var PUB = process.env.PUBLIC_URL || "";
 var IC = {
-    sleep: "/images/icons/waIconBed.png",
-    rest: "/images/icons/waIconHourglass.png",
-    promote: "/images/icons/waIconHorn.png",
-    scavenge: "/images/icons/waIconTrashcan.png",
-    shop: "/images/icons/waIconShop.png",
-    forge: "/images/icons/waIconHammer.png",
-    scrap: "/images/icons/waIconTrashcan.png",
+    sleep: PUB + "/images/icons/waIconBed.png",
+    rest: PUB + "/images/icons/waIconHourglass.png",
+    promote: PUB + "/images/icons/waIconHorn.png",
+    scavenge: PUB + "/images/icons/waIconTrashcan.png",
+    shop: PUB + "/images/icons/waIconShop.png",
+    forge: PUB + "/images/icons/waIconHammer.png",
+    scrap: PUB + "/images/icons/waIconTrashcan.png",
+    bag: PUB + "/images/icons/waIconBag.png",
 };
 
 // --- Mobile CSS ---
@@ -220,7 +222,7 @@ function weaponIcon(wKey) {
 
 // --- Mobile Action Button ---
 
-function MobileBtn({ icon, imgSrc, label, onClick, disabled, color, danger }) {
+function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, danger }) {
     var textColor = disabled ? "#2a1f0a" : danger ? "#ef4444" : color || "#f59e0b";
     var borderColor = disabled ? "#1a1209" : danger ? "#ef4444" : color || "#f59e0b";
     var bg = disabled ? "#0a0704" : danger ? "#1a0505" : "#141009";
@@ -246,7 +248,7 @@ function MobileBtn({ icon, imgSrc, label, onClick, disabled, color, danger }) {
             height: "100%",
             flex: 1,
         }}>
-            {imgSrc && <img src={imgSrc} alt={label || ""} style={{ width: 28, height: 28, objectFit: "contain", opacity: disabled ? 0.3 : 1 }} />}
+            {imgSrc && <img src={imgSrc} alt={label || ""} style={{ width: imgSize || 40, height: imgSize || 40, objectFit: "contain", opacity: disabled ? 0.3 : 1 }} />}
             {!imgSrc && icon && <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>}
             {!imgSrc && label && <span>{label}</span>}
         </button>
@@ -485,7 +487,7 @@ function MobileLayout(props) {
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.promote} onClick={props.onPromote} disabled={props.promoteDisabled} /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u2697"} label="MATS" onClick={props.onMats} disabled={props.matsDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} /></div>
                 </>
             )}
         </div>
