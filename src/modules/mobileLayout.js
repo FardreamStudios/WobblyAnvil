@@ -224,8 +224,12 @@ function weaponIcon(wKey) {
 
 function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, danger }) {
     var textColor = disabled ? "#2a1f0a" : danger ? "#ef4444" : color || "#f59e0b";
-    var borderColor = disabled ? "#1a1209" : danger ? "#ef4444" : color || "#f59e0b";
-    var bg = disabled ? "#0a0704" : danger ? "#1a0505" : "#141009";
+    var hasImg = !!imgSrc;
+    // Icon buttons: transparent/ghost. Emoji/label buttons: keep box style.
+    var borderColor = hasImg ? "transparent" : (disabled ? "#1a1209" : danger ? "#ef4444" : color || "#f59e0b");
+    var bg = hasImg ? "transparent" : (disabled ? "#0a0704" : danger ? "#1a0505" : "#141009");
+    // Dark outline silhouette via stacked drop-shadows
+    var iconFilter = disabled ? "brightness(0.3)" : "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 2px rgba(0,0,0,0.6))";
     return (
         <button onClick={disabled ? null : onClick} disabled={disabled} style={{
             background: bg,
@@ -248,7 +252,7 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
             height: "100%",
             flex: 1,
         }}>
-            {imgSrc && <img src={imgSrc} alt={label || ""} style={{ width: imgSize || 40, height: imgSize || 40, objectFit: "contain", opacity: disabled ? 0.3 : 1 }} />}
+            {imgSrc && <img src={imgSrc} alt={label || ""} style={{ width: imgSize || 40, height: imgSize || 40, objectFit: "contain", filter: iconFilter }} />}
             {!imgSrc && icon && <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>}
             {!imgSrc && label && <span>{label}</span>}
         </button>
@@ -522,7 +526,6 @@ function MobileLayout(props) {
                 <>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.promote} onClick={props.onPromote} disabled={props.promoteDisabled} /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} /></div>
