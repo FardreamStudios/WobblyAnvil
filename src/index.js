@@ -4,14 +4,21 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// --- Dev tool routing (dev-only, stripped in prod) ---
+var basePath = process.env.PUBLIC_URL || "";
+var isDevRoute = window.location.pathname.replace(basePath, "").indexOf("/dev") === 0;
+var RootComponent = App;
+
+if (isDevRoute) {
+    var DevRouter = require('./dev/DevRouter.js').default;
+    RootComponent = DevRouter;
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
+    <React.StrictMode>
+        <RootComponent />
+    </React.StrictMode>
 );
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
