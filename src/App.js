@@ -826,6 +826,8 @@ export default function App() {
               repColor={reputation >= 7 ? "#4ade80" : reputation >= 4 ? "#fb923c" : "#ef4444"}
               rankName={smithRank.name}
               finished={finished}
+              stats={stats}
+              statPoints={statPoints}
 
               /* Action strip callbacks — forging (sess_result) */
               onForge={function() { sfx.click(); attemptForge(); }}
