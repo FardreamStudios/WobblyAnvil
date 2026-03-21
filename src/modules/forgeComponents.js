@@ -16,11 +16,11 @@ var PHASES = GameConstants.PHASES;
 var positionToColumn = GameUtils.positionToColumn;
 
 // --- QTE Speed Constants (tune these to adjust feel) ---
-var HEAT_SPEED_BASE = 36;
+var HEAT_SPEED_BASE = 50;
 var HEAT_SPEED_RANGE = 8;
-var HAMMER_SPEED_BASE = 160;
+var HAMMER_SPEED_BASE = 185;
 var HAMMER_SPEED_RANGE = 40;
-var QUENCH_SPEED_BASE = 120;
+var QUENCH_SPEED_BASE = 150;
 var QUENCH_SPEED_RANGE = 30;
 
 // --- QTE Gradient Color Helper ---
