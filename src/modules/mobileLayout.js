@@ -11,6 +11,10 @@
 //   - Fullscreen persistence on rotation
 //   - Wake lock to prevent screen sleep
 //   - Delta-time aware (QTE fix is in forgeComponents)
+//
+// Fonts:
+//   - Cinzel: banner, headers, section labels
+//   - Josefin Sans: body text, data values, buttons
 // ============================================================
 
 import { useState, useEffect, useRef } from "react";
@@ -18,8 +22,19 @@ import { useState, useEffect, useRef } from "react";
 // --- Design aspect ratio for portrait scale-to-fit ---
 var LANDSCAPE_MIN_RATIO = 1.3; // width/height — below this we're in portrait territory
 
+// --- Mobile Button Icon Paths ---
+var IC = {
+    sleep: "/images/icons/waIconBed.png",
+    rest: "/images/icons/waIconHourglass.png",
+    promote: "/images/icons/waIconHorn.png",
+    scavenge: "/images/icons/waIconTrashcan.png",
+    shop: "/images/icons/waIconShop.png",
+    forge: "/images/icons/waIconHammer.png",
+    scrap: "/images/icons/waIconTrashcan.png",
+};
+
 // --- Mobile CSS ---
-var MOBILE_CSS = "\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; } .mobile-shell {\n    width: 100vw;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: monospace;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-data-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n  }\n  .mobile-action-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n  }\n  .mobile-data-strip::-webkit-scrollbar,\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-data-strip::-webkit-scrollbar-thumb,\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-portrait-overlay {\n    position: fixed;\n    inset: 0;\n    z-index: 9999;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    background: rgba(10, 7, 4, 0.92);\n    pointer-events: none;\n  }\n  @keyframes rotateHint {\n    0%, 100% { transform: rotate(0deg); }\n    25% { transform: rotate(-20deg); }\n    75% { transform: rotate(20deg); }\n  }\n  .rotate-hint-icon {\n    font-size: 48px;\n    animation: rotateHint 2s ease-in-out infinite;\n    margin-bottom: 16px;\n  }\n";
+var MOBILE_CSS = "\n @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Josefin+Sans:wght@400;600;700&display=swap');\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; } .mobile-shell {\n    width: 100vw;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: 'Josefin Sans', sans-serif;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Cinzel', serif;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-data-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n    transition: background 0.2s ease;\n  }\n  .mobile-data-strip-qte {\n    background: rgba(5, 3, 1, 0.7);\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n  }\n  .mobile-action-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n    transition: background 0.2s ease;\n  }\n  .mobile-action-strip-qte {\n    background: rgba(5, 3, 1, 0.7);\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-data-strip::-webkit-scrollbar,\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-data-strip::-webkit-scrollbar-thumb,\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-portrait-overlay {\n    position: fixed;\n    inset: 0;\n    z-index: 9999;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    background: rgba(10, 7, 4, 0.92);\n    pointer-events: none;\n    font-family: 'Cinzel', serif;\n  }\n  @keyframes rotateHint {\n    0%, 100% { transform: rotate(0deg); }\n    25% { transform: rotate(-20deg); }\n    75% { transform: rotate(20deg); }\n  }\n  .rotate-hint-icon {\n    font-size: 48px;\n    animation: rotateHint 2s ease-in-out infinite;\n    margin-bottom: 16px;\n  }\n";
 
 // --- Fullscreen helpers ---
 
@@ -33,13 +48,10 @@ function requestFullscreen(el) {
     else if (el.webkitRequestFullscreen) promise = el.webkitRequestFullscreen();
     else if (el.mozRequestFullScreen) promise = el.mozRequestFullScreen();
     else if (el.msRequestFullscreen) promise = el.msRequestFullscreen();
-    // Try to lock orientation to landscape after entering fullscreen
     if (promise && promise.then) {
         promise.then(function() {
             try {
-                // eslint-disable-next-line no-restricted-globals
                 if (window.screen.orientation && window.screen.orientation.lock) {
-                    // eslint-disable-next-line no-restricted-globals
                     window.screen.orientation.lock("landscape").catch(function() {});
                 }
             } catch (e) {}
@@ -50,9 +62,7 @@ function requestFullscreen(el) {
 
 function exitFullscreen() {
     try {
-        // eslint-disable-next-line no-restricted-globals
         if (window.screen.orientation && window.screen.orientation.unlock) {
-            // eslint-disable-next-line no-restricted-globals
             window.screen.orientation.unlock();
         }
     } catch (e) {}
@@ -76,7 +86,6 @@ function useWakeLock() {
             navigator.wakeLock.request("screen").then(function(lock) {
                 if (released) { lock.release(); return; }
                 wakeLockRef.current = lock;
-                // Re-acquire on visibility change (Chrome releases wake lock on tab switch)
                 lock.addEventListener("release", function() {
                     wakeLockRef.current = null;
                     if (!released && document.visibilityState === "visible") {
@@ -144,7 +153,6 @@ function useViewportInfo() {
 
         window.addEventListener("resize", update);
         window.addEventListener("orientationchange", function() {
-            // Delay to let browser finish rotation layout
             setTimeout(update, 150);
             setTimeout(update, 400);
         });
@@ -170,7 +178,6 @@ function useFullscreenPersistence(isFull) {
             userExitedFullscreen.current = false;
         }
         if (!isFull && wasFull.current && !userExitedFullscreen.current) {
-            // Lost fullscreen unexpectedly (rotation). Try to re-enter.
             var timer = setTimeout(function() {
                 if (!isFullscreenActive() && !userExitedFullscreen.current) {
                     requestFullscreen(document.documentElement);
@@ -180,7 +187,6 @@ function useFullscreenPersistence(isFull) {
         }
     }, [isFull]);
 
-    // Also listen for orientation change directly
     useEffect(function() {
         function onOrientationChange() {
             if (wasFull.current && !isFullscreenActive() && !userExitedFullscreen.current) {
@@ -214,7 +220,7 @@ function weaponIcon(wKey) {
 
 // --- Mobile Action Button ---
 
-function MobileBtn({ icon, label, onClick, disabled, color, danger }) {
+function MobileBtn({ icon, imgSrc, label, onClick, disabled, color, danger }) {
     var textColor = disabled ? "#2a1f0a" : danger ? "#ef4444" : color || "#f59e0b";
     var borderColor = disabled ? "#1a1209" : danger ? "#ef4444" : color || "#f59e0b";
     var bg = disabled ? "#0a0704" : danger ? "#1a0505" : "#141009";
@@ -225,7 +231,7 @@ function MobileBtn({ icon, label, onClick, disabled, color, danger }) {
             borderRadius: 6,
             color: textColor,
             cursor: disabled ? "not-allowed" : "pointer",
-            fontFamily: "monospace",
+            fontFamily: "'Josefin Sans', sans-serif",
             fontWeight: "bold",
             fontSize: 9,
             letterSpacing: 1,
@@ -240,8 +246,9 @@ function MobileBtn({ icon, label, onClick, disabled, color, danger }) {
             height: "100%",
             flex: 1,
         }}>
-            {icon && <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>}
-            <span>{label}</span>
+            {imgSrc && <img src={imgSrc} alt={label || ""} style={{ width: 28, height: 28, objectFit: "contain", opacity: disabled ? 0.3 : 1 }} />}
+            {!imgSrc && icon && <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>}
+            {!imgSrc && label && <span>{label}</span>}
         </button>
     );
 }
@@ -252,7 +259,6 @@ function ShelfItem({ item, index }) {
     var [showPopup, setShowPopup] = useState(false);
     var ref = useRef(null);
 
-    // Close popup when tapping anywhere outside
     useEffect(function() {
         if (!showPopup) return;
         function handleTap(e) {
@@ -290,8 +296,8 @@ function PortraitOverlay() {
     return (
         <div className="mobile-portrait-overlay">
             <div className="rotate-hint-icon">{"\uD83D\uDCF1"}</div>
-            <div style={{ fontSize: 14, color: "#f59e0b", letterSpacing: 2, fontWeight: "bold", textAlign: "center", fontFamily: "monospace" }}>ROTATE YOUR DEVICE</div>
-            <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, marginTop: 8, textAlign: "center", fontFamily: "monospace", maxWidth: 220, lineHeight: 1.6 }}>Wobbly Anvil is designed for landscape mode</div>
+            <div style={{ fontSize: 14, color: "#f59e0b", letterSpacing: 2, fontWeight: "bold", textAlign: "center" }}>ROTATE YOUR DEVICE</div>
+            <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, marginTop: 8, textAlign: "center", maxWidth: 220, lineHeight: 1.6 }}>Wobbly Anvil is designed for landscape mode</div>
         </div>
     );
 }
@@ -302,26 +308,19 @@ function MobileShell({ className, children }) {
     var viewport = useViewportInfo();
     var isFull = useFullscreenState();
 
-    // Activate wake lock
     useWakeLock();
-
-    // Re-enter fullscreen after rotation
     useFullscreenPersistence(isFull);
 
-    // In portrait: we render at the landscape dimensions scaled to fit
     var isPortrait = viewport.isPortrait;
     var shellHeight = viewport.height;
     var shellWidth = viewport.width;
 
-    // For portrait: compute scale to fit landscape layout into portrait viewport
     var portraitScale = 1;
     var portraitWidth = shellWidth;
     var portraitHeight = shellHeight;
     if (isPortrait) {
-        // Pretend we're landscape: swap effective dimensions
         var effectiveW = Math.max(shellWidth, shellHeight);
         var effectiveH = Math.min(shellWidth, shellHeight);
-        // Scale to fit within the actual portrait viewport
         var scaleX = shellWidth / effectiveW;
         var scaleY = shellHeight / effectiveH;
         portraitScale = Math.min(scaleX, scaleY);
@@ -382,31 +381,51 @@ function MobileLayout(props) {
                 <button onClick={function() { if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); } else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); } }} style={{
                     background: "none", border: "1px solid #3d2e0f", borderRadius: 4,
                     color: "#8a7a64", fontSize: 12, padding: "2px 5px", cursor: "pointer",
-                    fontFamily: "monospace", marginLeft: 4,
+                    fontFamily: "'Cinzel', serif", marginLeft: 4,
                 }}>{isFull ? "\u2716" : "\u26F6"}</button>
             </div>
         </div>
     );
 
     // --- Data strip ---
+    var dataStripClass = "mobile-data-strip" + (isQTEActive ? " mobile-data-strip-qte" : "");
     var dataStrip = (
-        <div className="mobile-data-strip">
+        <div className={dataStripClass}>
             {isForging ? (
-                <>
-                    <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>QUALITY</div>
-                    <div style={{ fontSize: 14, color: props.qualityColor || "#f59e0b", fontWeight: "bold" }}>{props.qualScore || 0}</div>
-                    <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, marginTop: 4 }}>STRESS</div>
-                    <div style={{ fontSize: 14, color: props.stressColor || "#4ade80", fontWeight: "bold" }}>{props.stressLabel || "CALM"}</div>
-                    <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, marginTop: 4 }}>WEAPON</div>
-                    <div style={{ fontSize: 10, color: "#f0e6c8", fontWeight: "bold" }}>{props.weaponName || ""}</div>
-                    <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, marginTop: 4 }}>MATERIAL</div>
-                    <div style={{ fontSize: 10, color: props.matColor || "#a0a0a0", fontWeight: "bold" }}>{props.matName || ""}</div>
-                </>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "4px 0" }}>
+                    {/* Quality — big and prominent at top */}
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>QUALITY</div>
+                        <div style={{ fontSize: 22, color: props.qualityColor || "#f59e0b", fontWeight: "bold" }}>{props.qualScore || 0}</div>
+                    </div>
+                    <div style={{ width: "80%", height: 1, background: "#2a1f0a" }} />
+                    {/* Stress */}
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>STRESS</div>
+                        <div style={{ fontSize: 13, color: props.stressColor || "#4ade80", fontWeight: "bold" }}>{props.stressLabel || "CALM"}</div>
+                    </div>
+                    <div style={{ width: "80%", height: 1, background: "#2a1f0a" }} />
+                    {/* Material */}
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>MATERIAL</div>
+                        <div style={{ fontSize: 11, color: props.matColor || "#a0a0a0", fontWeight: "bold" }}>{props.matName || ""}</div>
+                    </div>
+                    {/* Weapon */}
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>WEAPON</div>
+                        <div style={{ fontSize: 11, color: "#f0e6c8", fontWeight: "bold" }}>{props.weaponName || ""}</div>
+                    </div>
+                    {/* Difficulty */}
+                    <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>DIFFICULTY</div>
+                        <div style={{ fontSize: 16, color: props.diffColor || "#fbbf24", fontWeight: "bold" }}>{props.effDiff || 0}</div>
+                    </div>
+                </div>
             ) : (
                 <>
-                    <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, textAlign: "center" }}>REP</div>
+                    <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, textAlign: "center", fontFamily: "'Cinzel', serif" }}>REP</div>
                     <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 1, marginTop: 2 }}>
-                        {Array.from({ length: 10 }).map(function(_, i) {
+                        {Array.from({ length: 8 }).map(function(_, i) {
                             var filled = i < (props.reputation || 0);
                             return <div key={i} style={{
                                 width: 7, height: 7, borderRadius: 1,
@@ -416,17 +435,17 @@ function MobileLayout(props) {
                         })}
                     </div>
                     {props.stats && (
-                        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 3 }}>
+                        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4, borderTop: "1px solid #2a1f0a", paddingTop: 6 }}>
                             {[["BRN", "brawn", "#f59e0b"], ["PRC", "precision", "#60a5fa"], ["TEC", "technique", "#4ade80"], ["SLV", "silverTongue", "#c084fc"]].map(function(s) {
                                 var val = props.stats[s[1]] || 0;
                                 return (
-                                    <div key={s[0]} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                                        <span style={{ fontSize: 7, color: "#8a7a64", letterSpacing: 1 }}>{s[0]}</span>
-                                        <div style={{ display: "flex", gap: 1 }}>
-                                            {Array.from({ length: Math.max(val, 1) }).map(function(_, i) {
+                                    <div key={s[0]}>
+                                        <div style={{ fontSize: 8, color: s[2], letterSpacing: 1, fontWeight: "bold", marginBottom: 1, fontFamily: "'Cinzel', serif" }}>{s[0]}</div>
+                                        <div style={{ display: "flex", flexDirection: "row", gap: 1 }}>
+                                            {Array.from({ length: 8 }).map(function(_, i) {
                                                 var filled = i < val;
                                                 return <div key={i} style={{
-                                                    width: 5, height: 5, borderRadius: 1,
+                                                    width: 7, height: 7, borderRadius: 1,
                                                     background: filled ? s[2] : "#2a1f0a",
                                                     border: "1px solid " + (filled ? s[2] : "#3d2e0f"),
                                                 }} />;
@@ -436,7 +455,7 @@ function MobileLayout(props) {
                                 );
                             })}
                             {(props.statPoints || 0) > 0 && (
-                                <div style={{ fontSize: 7, color: "#f59e0b", textAlign: "center", letterSpacing: 1, marginTop: 2 }}>+{props.statPoints} PTS</div>
+                                <div style={{ fontSize: 8, color: "#f59e0b", textAlign: "center", letterSpacing: 1, marginTop: 2, fontWeight: "bold" }}>+{props.statPoints} PTS</div>
                             )}
                         </div>
                     )}
@@ -446,28 +465,26 @@ function MobileLayout(props) {
     );
 
     // --- Action strip ---
+    var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
     var actionStrip = (
-        <div className="mobile-action-strip" style={{ justifyContent: "stretch" }}>
+        <div className={actionStripClass} style={{ justifyContent: "stretch" }}>
             {isForging && phase === "sess_result" ? (
                 <>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDD25"} label="FORGE" onClick={props.onForge} disabled={props.forgeDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u2696"} label="NORM" onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDCA7"} label="QUENCH" onClick={props.onQuench} disabled={props.quenchDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDDD1"} label="SCRAP" onClick={props.onScrap} color="#8a7a64" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scrap} onClick={props.onScrap} color="#8a7a64" /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u23F8"} label="LEAVE" onClick={props.onLeave} color="#60a5fa" /></div>
                 </>
             ) : isQTEActive ? (
-                <>
-                    <div style={{ flex: 1 }} />
-                    <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, textAlign: "center", padding: 4 }}>TAP CENTER TO STRIKE</div>
-                </>
+                <div style={{ flex: 1 }} />
             ) : (
                 <>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDCA4"} label="SLEEP" onClick={props.onSleep} disabled={props.sleepDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u23F3"} label="REST" onClick={props.onRest} disabled={props.restDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDCE3"} label="PROMO" onClick={props.onPromote} disabled={props.promoteDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDDD1"} label="SCAV" onClick={props.onScavenge} disabled={props.scavengeDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDED2"} label="SHOP" onClick={props.onShop} disabled={props.shopDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.promote} onClick={props.onPromote} disabled={props.promoteDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u2697"} label="MATS" onClick={props.onMats} disabled={props.matsDisabled} /></div>
                 </>
             )}
@@ -498,7 +515,7 @@ function MobileLayout(props) {
                     cursor: props.beginForgeDisabled ? "not-allowed" : "pointer",
                     letterSpacing: 2,
                     textTransform: "uppercase",
-                    fontFamily: "monospace",
+                    fontFamily: "'Cinzel', serif",
                     fontWeight: "bold",
                     whiteSpace: "nowrap",
                 }}>BEGIN FORGING</button>
@@ -525,7 +542,7 @@ function MobileLayout(props) {
                         cursor: props.resumeWipDisabled ? "not-allowed" : "pointer",
                         letterSpacing: 2,
                         textTransform: "uppercase",
-                        fontFamily: "monospace",
+                        fontFamily: "'Cinzel', serif",
                         fontWeight: "bold",
                     }}>RESUME</button>
                     <button onClick={props.onScrapWip} style={{
@@ -538,7 +555,7 @@ function MobileLayout(props) {
                         cursor: "pointer",
                         letterSpacing: 2,
                         textTransform: "uppercase",
-                        fontFamily: "monospace",
+                        fontFamily: "'Cinzel', serif",
                         fontWeight: "bold",
                     }}>SCRAP</button>
                 </div>
@@ -549,7 +566,6 @@ function MobileLayout(props) {
     // --- Bottom bar ---
     var bottomBar = (
         <div className="mobile-bottom-bar">
-            {/* Time panel */}
             <div className="mobile-bottom-panel">
                 <span style={{ fontSize: 11, color: props.timeColor || "#4ade80", fontWeight: "bold" }}>{props.timeLabel || "8:00AM"}</span>
                 <div style={{ width: 60, height: 5, background: "#0a0704", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
@@ -557,16 +573,14 @@ function MobileLayout(props) {
                 </div>
             </div>
 
-            {/* Stamina panel */}
             <div className="mobile-bottom-panel">
-                <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>STAM</span>
+                <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>STAM</span>
                 <span style={{ fontSize: 11, color: props.staminaColor || "#f59e0b", fontWeight: "bold" }}>{props.stamina || 0}/{props.maxStam || 5}</span>
                 <div style={{ width: 50, height: 5, background: "#0a0704", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
                     <div style={{ height: "100%", width: (props.staminaPct || 100) + "%", background: props.staminaColor || "#f59e0b", borderRadius: 3 }} />
                 </div>
             </div>
 
-            {/* Shelf icons panel */}
             <div className="mobile-bottom-panel" style={{ flex: 1, minWidth: 0, overflowX: "auto", overflowY: "hidden", gap: 4 }}>
                 {finished.length === 0 && (
                     <span style={{ fontSize: 8, color: "#3d2e0f", letterSpacing: 1 }}>SHELF EMPTY</span>
@@ -576,10 +590,8 @@ function MobileLayout(props) {
                 })}
             </div>
 
-            {/* Gold */}
-            <span style={{ fontSize: 21, color: "#f59e0b", fontWeight: "bold", flexShrink: 0 }}>{props.gold || 0}g</span>
+            <span style={{ fontSize: 21, color: "#f59e0b", fontWeight: "bold", flexShrink: 0, fontFamily: "'Cinzel', serif" }}>{props.gold || 0}g</span>
 
-            {/* Options button — icon only, square */}
             <button onClick={props.onOptions} style={{
                 background: "#141009", border: "1px solid #3d2e0f", borderRadius: 6,
                 color: "#8a7a64", fontSize: 20, cursor: "pointer",

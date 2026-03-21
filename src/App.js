@@ -268,6 +268,9 @@ export default function App() {
   var isForging = phase !== PHASES.IDLE && phase !== PHASES.SELECT && phase !== PHASES.SELECT_MAT;
   var isLocked = isQTEActive || !!activeCustomer || toastQueue.length > 0 || !!activeToast || mysteryPending;
 
+  // --- Difficulty color for mobile data strip ---
+  var diffColor = effDiff <= 3 ? "#4ade80" : effDiff <= 6 ? "#fbbf24" : effDiff <= 8 ? "#fb923c" : "#ef4444";
+
   // --- Gold Pop Helpers ---
   function popGold(amount) { setGoldPops(function(p) { return p.concat([{ id: Date.now() + Math.random(), amount: amount }]); }); }
   function removeGoldPop(id) { setGoldPops(function(p) { return p.filter(function(x) { return x.id !== id; }); }); }
@@ -677,26 +680,33 @@ export default function App() {
               </div>
           )}
 
-          {/* Quality + Stress bars (compact) */}
-          {showBars && (
-              <div style={{ width: "100%", maxWidth: 260, display: "flex", flexDirection: "column", gap: 3 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>QUALITY</span>
-                  <span style={{ fontSize: 10, color: getQualityTier(qualScore).weaponColor, fontWeight: "bold" }}>{getQualityTier(qualScore).label} ({qualScore})</span>
-                </div>
-                <Bar value={qualScore} max={100} color={getQualityTier(qualScore).weaponColor} h={8} />
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
-                  <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>STRESS</span>
-                  <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
-                    <Pips count={STRESS_MAX} filled={stress} filledColor={stressColor} size={12} />
-                    <span style={{ color: stressColor, fontWeight: "bold", fontSize: 9 }}>{stressLabel2}</span>
-                  </div>
-                </div>
+          {/* QTE dark box — quality/stress bars + QTE needle */}
+          {(showBars || isQTEActive) && (
+              <div style={{ width: "100%", maxWidth: 280, background: "rgba(8,5,2,0.88)", border: "1px solid #2a1f0a", borderRadius: 10, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
+                {showBars && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>QUALITY</span>
+                        <span style={{ fontSize: 10, color: getQualityTier(qualScore).weaponColor, fontWeight: "bold" }}>{getQualityTier(qualScore).label} ({qualScore})</span>
+                      </div>
+                      <Bar value={qualScore} max={100} color={getQualityTier(qualScore).weaponColor} h={8} />
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+                        <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>STRESS</span>
+                        <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                          <Pips count={STRESS_MAX} filled={stress} filledColor={stressColor} size={12} />
+                          <span style={{ color: stressColor, fontWeight: "bold", fontSize: 9 }}>{stressLabel2}</span>
+                        </div>
+                      </div>
+                    </div>
+                )}
+                <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
               </div>
           )}
 
-          {/* QTE bars */}
-          <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
+          {/* QTEPanel when NOT in dark box (non-QTE forge phases that still need it) */}
+          {!showBars && !isQTEActive && (
+              <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
+          )}
 
           {/* MOBILE WEAPON SELECT */}
           {phase === PHASES.SELECT && (
@@ -820,6 +830,8 @@ export default function App() {
               weaponName={weapon.name}
               matName={matData.name}
               matColor={matData.color}
+              effDiff={effDiff}
+              diffColor={diffColor}
 
               /* Data strip props — idle */
               reputation={reputation}
@@ -994,10 +1006,10 @@ export default function App() {
             {/* FORGE AREA */}
             {!activeCustomer && (
                 <div onClick={onForgeClick} style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 10, padding: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative", cursor: isQTEActive ? "pointer" : "default", flex: 1, minHeight: 280, overflow: "hidden" }}>
-                  {/* SCENE (background, props, character, FX — always visible) */}
+                  {/* SCENE */}
                   {(function() { var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides }); return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} />; })()}
 
-                  {/* UI LAYER — sits on top of scene */}
+                  {/* UI LAYER */}
                   <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, width: "100%", flex: 1 }}>
                     {forgeBubble && (<div onClick={function(e) { e.stopPropagation(); setForgeBubble(null); }} style={{ position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)", zIndex: 60, background: "#0c0905", border: "3px solid " + forgeBubble.color, borderRadius: 14, padding: "20px 22px", width: 180, boxShadow: "0 8px 28px rgba(0,0,0,0.97)", cursor: "pointer" }}><div style={{ fontSize: 13, color: forgeBubble.color, letterSpacing: 2, fontWeight: "bold", marginBottom: 10 }}>{forgeBubble.title}</div>{forgeBubble.lines.map(function(l, i) { return <div key={i} style={{ fontSize: 14, color: l.color || "#c8b89a", lineHeight: 1.8, fontWeight: l.bold ? "bold" : "normal" }}>{l.text}</div>; })}<div style={{ fontSize: 8, color: "#4a3c2c", marginTop: 8, letterSpacing: 1 }}>CLICK TO DISMISS</div></div>)}
 
@@ -1087,12 +1099,12 @@ export default function App() {
                           </div>
                       )}
                     </div>
-                  </div>{/* end UI LAYER */}
+                  </div>
                 </div>
             )}
           </GameCenter>
 
-          {/* RIGHT SIDEBAR - FOR SALE */}
+          {/* RIGHT SIDEBAR */}
           <GameRight>
             <Panel style={{ border: "1px solid #2a1f0a", display: "flex", flexDirection: "column", height: "100%" }}>
               <SectionLabel style={{ marginBottom: 8 }}>FOR SALE</SectionLabel>
