@@ -893,7 +893,7 @@ export default function App() {
               onToggleHand={function() { setHandedness(function(h) { return h === "right" ? "left" : "right"; }); }}
           />
           {showOptions && (<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Josefin Sans', sans-serif" }} onClick={function(e) { if (e.target === e.currentTarget) setShowOptions(false); }}>
-            <Panel style={{ padding: "24px 28px", width: 300, maxHeight: "80vh", overflowY: "auto" }}>
+            <div style={{ padding: "24px 28px", width: 300, maxHeight: "80vh", overflowY: "auto", background: "#0f0b06", border: "2px solid #2a1f0a", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.9)" }}>
               <Row style={{ marginBottom: 16 }}><div style={{ fontSize: 14, color: "#f59e0b", letterSpacing: 3, fontFamily: "'Cinzel', serif" }}>OPTIONS</div><button onClick={function() { setShowOptions(false); }} style={{ background: "#2a1f0a", border: "1px solid #3d2e0f", borderRadius: 5, color: "#f59e0b", padding: "4px 10px", cursor: "pointer", fontFamily: "'Josefin Sans', sans-serif", fontSize: 13 }}>X</button></Row>
               <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
                 <SectionLabel>LAYOUT</SectionLabel><label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>Left-Handed Mode<input type="checkbox" checked={handedness === "left"} onChange={function() { setHandedness(function(h) { return h === "right" ? "left" : "right"; }); }} style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }} /></label><div style={{ borderTop: "1px solid #2a1f0a", marginTop: 12, paddingTop: 12 }} />
@@ -904,7 +904,7 @@ export default function App() {
                 <SectionLabel style={{ marginBottom: 4 }}>DANGER ZONE</SectionLabel>
                 <DangerBtn onClick={function() { setShowOptions(false); setShowGiveUp(true); }}>Give Up</DangerBtn>
               </div>
-            </Panel>
+            </div>
           </div>)}
         </>
     );
