@@ -36,7 +36,7 @@ var IC = {
 };
 
 // --- Mobile CSS ---
-var MOBILE_CSS = "\n @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Josefin+Sans:wght@400;600;700&display=swap');\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; } .mobile-shell {\n    width: 100vw;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: 'Josefin Sans', sans-serif;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Cinzel', serif;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-data-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n    transition: background 0.2s ease;\n  }\n  .mobile-data-strip-qte {\n    background: rgba(5, 3, 1, 0.7);\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n  }\n  .mobile-action-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n    transition: background 0.2s ease;\n  }\n  .mobile-action-strip-qte {\n    background: rgba(5, 3, 1, 0.7);\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-data-strip::-webkit-scrollbar,\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-data-strip::-webkit-scrollbar-thumb,\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-portrait-overlay {\n    position: fixed;\n    inset: 0;\n    z-index: 9999;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    background: rgba(10, 7, 4, 0.92);\n    pointer-events: none;\n    font-family: 'Cinzel', serif;\n  }\n  @keyframes rotateHint {\n    0%, 100% { transform: rotate(0deg); }\n    25% { transform: rotate(-20deg); }\n    75% { transform: rotate(20deg); }\n  }\n  .rotate-hint-icon {\n    font-size: 48px;\n    animation: rotateHint 2s ease-in-out infinite;\n    margin-bottom: 16px;\n  }\n";
+var MOBILE_CSS = "\n @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Josefin+Sans:wght@400;600;700&display=swap');\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; } .mobile-shell {\n    width: 100vw;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: 'Josefin Sans', sans-serif;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Cinzel', serif;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n  }\n  .mobile-action-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n    transition: background 0.2s ease;\n  }\n  .mobile-action-strip-qte {\n    background: rgba(5, 3, 1, 0.7);\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-backdrop {\n    position: absolute;\n    inset: 0;\n    z-index: 90;\n    background: rgba(0, 0, 0, 0.55);\n  }\n  .mobile-drawer {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    width: 160px;\n    z-index: 95;\n    background: #120e08;\n    border-right: 1px solid #3d2e0f;\n    display: flex;\n    flex-direction: column;\n    gap: 6px;\n    padding: 8px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    box-shadow: 4px 0 20px rgba(0,0,0,0.8);\n    transition: transform 0.2s ease;\n  }\n  .mobile-drawer-left {\n    left: 0;\n    border-right: 1px solid #3d2e0f;\n    border-left: none;\n  }\n  .mobile-drawer-right {\n    right: 0;\n    left: auto;\n    border-left: 1px solid #3d2e0f;\n    border-right: none;\n    box-shadow: -4px 0 20px rgba(0,0,0,0.8);\n  }\n  .mobile-drawer::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-drawer::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-tab {\n    position: absolute;\n    top: 50%;\n    transform: translateY(-50%);\n    z-index: 85;\n    width: 20px;\n    height: 48px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #16100a;\n    border: 1px solid #3d2e0f;\n    cursor: pointer;\n    font-size: 12px;\n    color: #8a7a64;\n  }\n  .mobile-drawer-tab-left {\n    left: 0;\n    border-radius: 0 6px 6px 0;\n    border-left: none;\n  }\n  .mobile-drawer-tab-right {\n    right: 0;\n    left: auto;\n    border-radius: 6px 0 0 6px;\n    border-right: none;\n  }\n  .mobile-drawer-tab:active {\n    background: #2a1f0a;\n  }\n  .mobile-portrait-overlay {\n    position: fixed;\n    inset: 0;\n    z-index: 9999;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    background: rgba(10, 7, 4, 0.92);\n    pointer-events: none;\n    font-family: 'Cinzel', serif;\n  }\n  @keyframes rotateHint {\n    0%, 100% { transform: rotate(0deg); }\n    25% { transform: rotate(-20deg); }\n    75% { transform: rotate(20deg); }\n  }\n  .rotate-hint-icon {\n    font-size: 48px;\n    animation: rotateHint 2s ease-in-out infinite;\n    margin-bottom: 16px;\n  }\n";
 
 // --- Fullscreen helpers ---
 
@@ -389,81 +389,119 @@ function MobileLayout(props) {
         </div>
     );
 
-    // --- Data strip ---
-    var dataStripClass = "mobile-data-strip" + (isQTEActive ? " mobile-data-strip-qte" : "");
-    var dataStrip = (
-        <div className={dataStripClass}>
-            {isForging ? (
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "4px 0" }}>
-                    {/* Quality — big and prominent at top */}
-                    <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>QUALITY</div>
-                        <div style={{ fontSize: 22, color: props.qualityColor || "#f59e0b", fontWeight: "bold" }}>{props.qualScore || 0}</div>
-                    </div>
-                    <div style={{ width: "80%", height: 1, background: "#2a1f0a" }} />
-                    {/* Stress */}
-                    <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>STRESS</div>
-                        <div style={{ fontSize: 13, color: props.stressColor || "#4ade80", fontWeight: "bold" }}>{props.stressLabel || "CALM"}</div>
-                    </div>
-                    <div style={{ width: "80%", height: 1, background: "#2a1f0a" }} />
-                    {/* Material */}
-                    <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>MATERIAL</div>
-                        <div style={{ fontSize: 11, color: props.matColor || "#a0a0a0", fontWeight: "bold" }}>{props.matName || ""}</div>
-                    </div>
-                    {/* Weapon */}
-                    <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>WEAPON</div>
-                        <div style={{ fontSize: 11, color: "#f0e6c8", fontWeight: "bold" }}>{props.weaponName || ""}</div>
-                    </div>
-                    {/* Difficulty */}
-                    <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>DIFFICULTY</div>
-                        <div style={{ fontSize: 16, color: props.diffColor || "#fbbf24", fontWeight: "bold" }}>{props.effDiff || 0}</div>
-                    </div>
-                </div>
-            ) : (
-                <>
-                    <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, textAlign: "center", fontFamily: "'Cinzel', serif" }}>REP</div>
-                    <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 1, marginTop: 2 }}>
-                        {Array.from({ length: 8 }).map(function(_, i) {
-                            var filled = i < (props.reputation || 0);
-                            return <div key={i} style={{
-                                width: 7, height: 7, borderRadius: 1,
-                                background: filled ? (props.repColor || "#fb923c") : "#2a1f0a",
-                                border: "1px solid " + (filled ? (props.repColor || "#fb923c") : "#3d2e0f"),
-                            }} />;
-                        })}
-                    </div>
-                    {props.stats && (
-                        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 4, borderTop: "1px solid #2a1f0a", paddingTop: 6 }}>
-                            {[["BRN", "brawn", "#f59e0b"], ["PRC", "precision", "#60a5fa"], ["TEC", "technique", "#4ade80"], ["SLV", "silverTongue", "#c084fc"]].map(function(s) {
-                                var val = props.stats[s[1]] || 0;
-                                return (
-                                    <div key={s[0]}>
-                                        <div style={{ fontSize: 8, color: s[2], letterSpacing: 1, fontWeight: "bold", marginBottom: 1, fontFamily: "'Cinzel', serif" }}>{s[0]}</div>
-                                        <div style={{ display: "flex", flexDirection: "row", gap: 1 }}>
-                                            {Array.from({ length: 8 }).map(function(_, i) {
-                                                var filled = i < val;
-                                                return <div key={i} style={{
-                                                    width: 7, height: 7, borderRadius: 1,
-                                                    background: filled ? s[2] : "#2a1f0a",
-                                                    border: "1px solid " + (filled ? s[2] : "#3d2e0f"),
-                                                }} />;
-                                            })}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                            {(props.statPoints || 0) > 0 && (
-                                <div style={{ fontSize: 8, color: "#f59e0b", textAlign: "center", letterSpacing: 1, marginTop: 2, fontWeight: "bold" }}>+{props.statPoints} PTS</div>
-                            )}
-                        </div>
+    // --- Drawer state ---
+    var [drawerOpen, setDrawerOpen] = useState(false);
+
+    // Auto-open during QTE, auto-close when leaving QTE
+    var prevQTE = useRef(false);
+    useEffect(function() {
+        if (isQTEActive && !prevQTE.current) {
+            setDrawerOpen(true);
+        }
+        if (!isQTEActive && prevQTE.current) {
+            setDrawerOpen(false);
+        }
+        prevQTE.current = isQTEActive;
+    }, [isQTEActive]);
+
+    // Drawer content
+    var drawerContent = isForging ? (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "4px 0" }}>
+            {/* Quality — big and prominent at top */}
+            <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>QUALITY</div>
+                <div style={{ fontSize: 26, color: props.qualityColor || "#f59e0b", fontWeight: "bold" }}>{props.qualScore || 0}</div>
+            </div>
+            <div style={{ width: "80%", height: 1, background: "#2a1f0a" }} />
+            {/* Stress */}
+            <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>STRESS</div>
+                <div style={{ fontSize: 14, color: props.stressColor || "#4ade80", fontWeight: "bold" }}>{props.stressLabel || "CALM"}</div>
+            </div>
+            <div style={{ width: "80%", height: 1, background: "#2a1f0a" }} />
+            {/* Material */}
+            <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>MATERIAL</div>
+                <div style={{ fontSize: 12, color: props.matColor || "#a0a0a0", fontWeight: "bold" }}>{props.matName || ""}</div>
+            </div>
+            {/* Weapon */}
+            <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>WEAPON</div>
+                <div style={{ fontSize: 12, color: "#f0e6c8", fontWeight: "bold" }}>{props.weaponName || ""}</div>
+            </div>
+            {/* Difficulty */}
+            <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>DIFFICULTY</div>
+                <div style={{ fontSize: 18, color: props.diffColor || "#fbbf24", fontWeight: "bold" }}>{props.effDiff || 0}</div>
+            </div>
+        </div>
+    ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "4px 0" }}>
+            <div style={{ fontSize: 11, color: "#8a7a64", letterSpacing: 1, textAlign: "center", fontFamily: "'Cinzel', serif" }}>REP</div>
+            <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 2, marginTop: 2 }}>
+                {Array.from({ length: 8 }).map(function(_, i) {
+                    var filled = i < (props.reputation || 0);
+                    return <div key={i} style={{
+                        width: 10, height: 10, borderRadius: 2,
+                        background: filled ? (props.repColor || "#fb923c") : "#2a1f0a",
+                        border: "1px solid " + (filled ? (props.repColor || "#fb923c") : "#3d2e0f"),
+                    }} />;
+                })}
+            </div>
+            {props.stats && (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6, borderTop: "1px solid #2a1f0a", paddingTop: 8 }}>
+                    {[["BRN", "brawn", "#f59e0b"], ["PRC", "precision", "#60a5fa"], ["TEC", "technique", "#4ade80"], ["SLV", "silverTongue", "#c084fc"]].map(function(s) {
+                        var val = props.stats[s[1]] || 0;
+                        return (
+                            <div key={s[0]}>
+                                <div style={{ fontSize: 9, color: s[2], letterSpacing: 1, fontWeight: "bold", marginBottom: 2, fontFamily: "'Cinzel', serif" }}>{s[0]}</div>
+                                <div style={{ display: "flex", flexDirection: "row", gap: 2 }}>
+                                    {Array.from({ length: 8 }).map(function(_, i) {
+                                        var filled = i < val;
+                                        return <div key={i} style={{
+                                            width: 10, height: 10, borderRadius: 2,
+                                            background: filled ? s[2] : "#2a1f0a",
+                                            border: "1px solid " + (filled ? s[2] : "#3d2e0f"),
+                                        }} />;
+                                    })}
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {(props.statPoints || 0) > 0 && (
+                        <div style={{ fontSize: 9, color: "#f59e0b", textAlign: "center", letterSpacing: 1, marginTop: 2, fontWeight: "bold" }}>+{props.statPoints} PTS</div>
                     )}
-                </>
+                </div>
             )}
         </div>
+    );
+
+    // Drawer side classes
+    var drawerSide = isLeftHanded ? "right" : "left";
+    var drawerSideClass = "mobile-drawer mobile-drawer-" + drawerSide;
+    var tabSideClass = "mobile-drawer-tab mobile-drawer-tab-" + drawerSide;
+    var tabArrow = isLeftHanded ? (drawerOpen ? "\u25B6" : "\u25C0") : (drawerOpen ? "\u25C0" : "\u25B6");
+
+    // Drawer + tab + backdrop assembly
+    var drawer = (
+        <>
+            {/* Tab — hidden during QTE (drawer is forced open) */}
+            {!isQTEActive && (
+                <div className={tabSideClass} onClick={function() { setDrawerOpen(function(o) { return !o; }); }}>
+                    {tabArrow}
+                </div>
+            )}
+            {/* Backdrop — tap to close (not during QTE) */}
+            {drawerOpen && !isQTEActive && (
+                <div className="mobile-drawer-backdrop" onClick={function() { setDrawerOpen(false); }} />
+            )}
+            {/* Drawer panel */}
+            {drawerOpen && (
+                <div className={drawerSideClass}>
+                    {drawerContent}
+                </div>
+            )}
+        </>
     );
 
     // --- Action strip ---
@@ -611,9 +649,9 @@ function MobileLayout(props) {
         <MobileShell className={props.className}>
             {banner}
             <div className="mobile-middle" style={{ flexDirection: middleDirection }}>
-                {dataStrip}
                 {center}
                 {actionStrip}
+                {drawer}
             </div>
             {bottomBar}
         </MobileShell>
