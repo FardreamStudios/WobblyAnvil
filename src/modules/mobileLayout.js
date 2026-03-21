@@ -18,6 +18,8 @@
 // ============================================================
 
 import { useState, useEffect, useRef } from "react";
+import THEME from "../config/theme.js";
+import W from "../components/widgets.js";
 
 // --- Design aspect ratio for portrait scale-to-fit ---
 var LANDSCAPE_MIN_RATIO = 1.3; // width/height — below this we're in portrait territory
@@ -352,6 +354,81 @@ function MobileShell({ className, children }) {
     );
 }
 
+function MobileBottomBar(props) {
+    var T = THEME;
+    var finished = props.finished || [];
+
+    return (
+        <W.Strip className="mobile-bottom-bar" gap="sm" pad="md" h={T.layout.bottomBarH}
+                 bg="bgPanel" style={{ borderTop: T.borders.thin, flexShrink: 0, fontFamily: T.fonts.body }}>
+
+            {/* Time panel */}
+            <W.Strip className="mobile-bottom-panel" gap="md" pad="md" h={32}
+                     bg="bgMid" border="thinMid" radius="md">
+                <W.Label size="sm" color={props.timeColor || T.colors.green} bold>
+                    {props.timeLabel || "8:00AM"}
+                </W.Label>
+                <div style={{
+                    width: 60, height: T.layout.barHeightSm,
+                    background: T.colors.bgDeep, borderRadius: T.radius.sm,
+                    overflow: "hidden", border: T.borders.thinMid,
+                }}>
+                    <div style={{
+                        height: "100%",
+                        width: (props.timePct || 100) + "%",
+                        background: props.timeColor || T.colors.green,
+                        borderRadius: T.radius.sm,
+                    }} />
+                </div>
+            </W.Strip>
+
+            {/* Stamina panel */}
+            <W.Strip className="mobile-bottom-panel" gap="md" pad="md" h={32}
+                     bg="bgMid" border="thinMid" radius="md">
+                <W.Label size="xxs" color="textLabel" spacing="tight" font="heading">STAM</W.Label>
+                <W.Label size="sm" color={props.staminaColor || T.colors.gold} bold>
+                    {props.stamina || 0}/{props.maxStam || 5}
+                </W.Label>
+                <div style={{
+                    width: 50, height: T.layout.barHeightSm,
+                    background: T.colors.bgDeep, borderRadius: T.radius.sm,
+                    overflow: "hidden", border: T.borders.thinMid,
+                }}>
+                    <div style={{
+                        height: "100%",
+                        width: (props.staminaPct || 100) + "%",
+                        background: props.staminaColor || T.colors.gold,
+                        borderRadius: T.radius.sm,
+                    }} />
+                </div>
+            </W.Strip>
+
+            {/* Shelf panel */}
+            <W.Strip className="mobile-bottom-panel" gap="xs"
+                     style={{ flex: 1, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}
+                     bg="bgMid" border="thinMid" radius="md" pad="md" h={32}>
+                {finished.length === 0 && (
+                    <W.Label size="xxs" color="borderLight" spacing="tight">SHELF EMPTY</W.Label>
+                )}
+                {finished.map(function(w, i) {
+                    return <ShelfItem key={w.id} item={w} index={i} />;
+                })}
+            </W.Strip>
+
+            {/* Gold display */}
+            <W.Label size={21} color="gold" bold font="heading" style={{ flexShrink: 0 }}>
+                {props.gold || 0}g
+            </W.Label>
+
+            {/* Options gear button */}
+            <W.Btn onClick={props.onOptions} icon={"\u2699"}
+                   color="textLabel" bg="bgWarm" size={20} radius="md"
+                   w={32} h={32} bold={false} upper={false}
+                   style={{ padding: 0, flexShrink: 0, border: T.borders.thin }} />
+        </W.Strip>
+    );
+}
+
 // --- Mobile Layout ---
 
 function MobileLayout(props) {
@@ -606,43 +683,12 @@ function MobileLayout(props) {
     );
 
     // --- Bottom bar ---
-    var bottomBar = (
-        <div className="mobile-bottom-bar">
-            <div className="mobile-bottom-panel">
-                <span style={{ fontSize: 11, color: props.timeColor || "#4ade80", fontWeight: "bold" }}>{props.timeLabel || "8:00AM"}</span>
-                <div style={{ width: 60, height: 5, background: "#0a0704", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
-                    <div style={{ height: "100%", width: (props.timePct || 100) + "%", background: props.timeColor || "#4ade80", borderRadius: 3 }} />
-                </div>
-            </div>
-
-            <div className="mobile-bottom-panel">
-                <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>STAM</span>
-                <span style={{ fontSize: 11, color: props.staminaColor || "#f59e0b", fontWeight: "bold" }}>{props.stamina || 0}/{props.maxStam || 5}</span>
-                <div style={{ width: 50, height: 5, background: "#0a0704", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
-                    <div style={{ height: "100%", width: (props.staminaPct || 100) + "%", background: props.staminaColor || "#f59e0b", borderRadius: 3 }} />
-                </div>
-            </div>
-
-            <div className="mobile-bottom-panel" style={{ flex: 1, minWidth: 0, overflowX: "auto", overflowY: "hidden", gap: 4 }}>
-                {finished.length === 0 && (
-                    <span style={{ fontSize: 8, color: "#3d2e0f", letterSpacing: 1 }}>SHELF EMPTY</span>
-                )}
-                {finished.map(function(w, i) {
-                    return <ShelfItem key={w.id} item={w} index={i} />;
-                })}
-            </div>
-
-            <span style={{ fontSize: 21, color: "#f59e0b", fontWeight: "bold", flexShrink: 0, fontFamily: "'Cinzel', serif" }}>{props.gold || 0}g</span>
-
-            <button onClick={props.onOptions} style={{
-                background: "#141009", border: "1px solid #3d2e0f", borderRadius: 6,
-                color: "#8a7a64", fontSize: 20, cursor: "pointer",
-                flexShrink: 0, width: 32, height: 32,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                padding: 0,
-            }}>{"\u2699"}</button>
-        </div>
-    );
+    var bottomBar = <MobileBottomBar
+        timeLabel={props.timeLabel} timeColor={props.timeColor} timePct={props.timePct}
+        stamina={props.stamina} maxStam={props.maxStam}
+        staminaColor={props.staminaColor} staminaPct={props.staminaPct}
+        finished={finished} gold={props.gold} onOptions={props.onOptions}
+    />;
 
     // --- Assemble ---
     var middleDirection = isLeftHanded ? "row-reverse" : "row";

@@ -15,7 +15,7 @@
 // PORTABLE: Only depends on React + theme.js.
 // ============================================================
 
-import THEME from "./theme.js";
+import THEME from "../config/theme.js";
 
 // ============================================================
 // HELPERS
