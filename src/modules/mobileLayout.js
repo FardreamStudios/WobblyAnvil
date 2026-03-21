@@ -5,12 +5,21 @@
 // Handedness prop flips the columns via flex-direction.
 // Phase-aware: buttons swap based on game phase.
 // Non-destructive: desktop layout is unaffected.
+//
+// Mobile infrastructure:
+//   - Portrait mode: scale-to-fit at landscape aspect ratio
+//   - Fullscreen persistence on rotation
+//   - Wake lock to prevent screen sleep
+//   - Delta-time aware (QTE fix is in forgeComponents)
 // ============================================================
 
 import { useState, useEffect, useRef } from "react";
 
+// --- Design aspect ratio for portrait scale-to-fit ---
+var LANDSCAPE_MIN_RATIO = 1.3; // width/height — below this we're in portrait territory
+
 // --- Mobile CSS ---
-var MOBILE_CSS = "\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; } .mobile-shell {\n    width: 100vw;\n    height: 100vh;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: monospace;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-data-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n  }\n  .mobile-action-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n  }\n  .mobile-data-strip::-webkit-scrollbar,\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-data-strip::-webkit-scrollbar-thumb,\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n";
+var MOBILE_CSS = "\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; } .mobile-shell {\n    width: 100vw;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: monospace;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-data-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n  }\n  .mobile-action-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n  }\n  .mobile-data-strip::-webkit-scrollbar,\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-data-strip::-webkit-scrollbar-thumb,\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-portrait-overlay {\n    position: fixed;\n    inset: 0;\n    z-index: 9999;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    background: rgba(10, 7, 4, 0.92);\n    pointer-events: none;\n  }\n  @keyframes rotateHint {\n    0%, 100% { transform: rotate(0deg); }\n    25% { transform: rotate(-20deg); }\n    75% { transform: rotate(20deg); }\n  }\n  .rotate-hint-icon {\n    font-size: 48px;\n    animation: rotateHint 2s ease-in-out infinite;\n    margin-bottom: 16px;\n  }\n";
 
 // --- Fullscreen helpers ---
 
@@ -19,17 +28,162 @@ function isFullscreenActive() {
 }
 
 function requestFullscreen(el) {
-    if (el.requestFullscreen) return el.requestFullscreen();
-    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
-    if (el.mozRequestFullScreen) return el.mozRequestFullScreen();
-    if (el.msRequestFullscreen) return el.msRequestFullscreen();
+    var promise = null;
+    if (el.requestFullscreen) promise = el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) promise = el.webkitRequestFullscreen();
+    else if (el.mozRequestFullScreen) promise = el.mozRequestFullScreen();
+    else if (el.msRequestFullscreen) promise = el.msRequestFullscreen();
+    // Try to lock orientation to landscape after entering fullscreen
+    if (promise && promise.then) {
+        promise.then(function() {
+            try {
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock("landscape").catch(function() {});
+                }
+            } catch (e) {}
+        }).catch(function() {});
+    }
+    return promise;
 }
 
 function exitFullscreen() {
+    try {
+        if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+        }
+    } catch (e) {}
     if (document.exitFullscreen) return document.exitFullscreen();
     if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
     if (document.mozCancelFullScreen) return document.mozCancelFullScreen();
     if (document.msExitFullscreen) return document.msExitFullscreen();
+}
+
+// --- Wake Lock helper ---
+
+function useWakeLock() {
+    var wakeLockRef = useRef(null);
+
+    useEffect(function() {
+        var released = false;
+
+        function acquireLock() {
+            if (released) return;
+            if (!navigator.wakeLock) return;
+            navigator.wakeLock.request("screen").then(function(lock) {
+                if (released) { lock.release(); return; }
+                wakeLockRef.current = lock;
+                // Re-acquire on visibility change (Chrome releases wake lock on tab switch)
+                lock.addEventListener("release", function() {
+                    wakeLockRef.current = null;
+                    if (!released && document.visibilityState === "visible") {
+                        setTimeout(acquireLock, 100);
+                    }
+                });
+            }).catch(function() {});
+        }
+
+        function onVisChange() {
+            if (document.visibilityState === "visible" && !wakeLockRef.current && !released) {
+                acquireLock();
+            }
+        }
+
+        acquireLock();
+        document.addEventListener("visibilitychange", onVisChange);
+
+        return function() {
+            released = true;
+            document.removeEventListener("visibilitychange", onVisChange);
+            if (wakeLockRef.current) {
+                wakeLockRef.current.release().catch(function() {});
+                wakeLockRef.current = null;
+            }
+        };
+    }, []);
+}
+
+// --- Fullscreen state hook ---
+
+function useFullscreenState() {
+    var [isFull, setIsFull] = useState(isFullscreenActive);
+
+    useEffect(function() {
+        function sync() { setIsFull(isFullscreenActive()); }
+        document.addEventListener("fullscreenchange", sync);
+        document.addEventListener("webkitfullscreenchange", sync);
+        document.addEventListener("mozfullscreenchange", sync);
+        document.addEventListener("MSFullscreenChange", sync);
+        return function() {
+            document.removeEventListener("fullscreenchange", sync);
+            document.removeEventListener("webkitfullscreenchange", sync);
+            document.removeEventListener("mozfullscreenchange", sync);
+            document.removeEventListener("MSFullscreenChange", sync);
+        };
+    }, []);
+
+    return isFull;
+}
+
+// --- Orientation / viewport hook ---
+
+function useViewportInfo() {
+    var [info, setInfo] = useState(function() {
+        var w = window.innerWidth, h = window.innerHeight;
+        return { width: w, height: h, isPortrait: w / h < LANDSCAPE_MIN_RATIO };
+    });
+
+    useEffect(function() {
+        function update() {
+            var w = window.innerWidth, h = window.innerHeight;
+            setInfo({ width: w, height: h, isPortrait: w / h < LANDSCAPE_MIN_RATIO });
+        }
+
+        window.addEventListener("resize", update);
+        window.addEventListener("orientationchange", function() {
+            // Delay to let browser finish rotation layout
+            setTimeout(update, 150);
+            setTimeout(update, 400);
+        });
+        update();
+        return function() {
+            window.removeEventListener("resize", update);
+        };
+    }, []);
+
+    return info;
+}
+
+// --- Fullscreen re-entry on rotation ---
+
+function useFullscreenPersistence(isFull) {
+    var wasFull = useRef(false);
+
+    useEffect(function() {
+        if (isFull) wasFull.current = true;
+        if (!isFull && wasFull.current) {
+            // We lost fullscreen (probably rotation). Try to re-enter.
+            // Small delay to let the browser settle after rotation
+            var timer = setTimeout(function() {
+                if (!isFullscreenActive()) {
+                    requestFullscreen(document.documentElement);
+                }
+            }, 300);
+            return function() { clearTimeout(timer); };
+        }
+    }, [isFull]);
+
+    // Also listen for orientation change directly
+    useEffect(function() {
+        function onOrientationChange() {
+            if (wasFull.current && !isFullscreenActive()) {
+                setTimeout(function() {
+                    requestFullscreen(document.documentElement);
+                }, 500);
+            }
+        }
+        window.addEventListener("orientationchange", onOrientationChange);
+        return function() { window.removeEventListener("orientationchange", onOrientationChange); };
+    }, []);
 }
 
 // --- Weapon emoji picker (by weapon key) ---
@@ -103,26 +257,68 @@ function ShelfItem({ item, index }) {
     );
 }
 
-// --- Mobile Shell (full viewport, no scaling) ---
+// --- Portrait overlay hint ---
+
+function PortraitOverlay() {
+    return (
+        <div className="mobile-portrait-overlay">
+            <div className="rotate-hint-icon">{"\uD83D\uDCF1"}</div>
+            <div style={{ fontSize: 14, color: "#f59e0b", letterSpacing: 2, fontWeight: "bold", textAlign: "center", fontFamily: "monospace" }}>ROTATE YOUR DEVICE</div>
+            <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, marginTop: 8, textAlign: "center", fontFamily: "monospace", maxWidth: 220, lineHeight: 1.6 }}>Wobbly Anvil is designed for landscape mode</div>
+        </div>
+    );
+}
+
+// --- Mobile Shell (full viewport, portrait-aware) ---
 
 function MobileShell({ className, children }) {
-    var [height, setHeight] = useState(window.innerHeight);
+    var viewport = useViewportInfo();
+    var isFull = useFullscreenState();
 
-    useEffect(function() {
-        function update() { setHeight(window.innerHeight); }
-        window.addEventListener("resize", update);
-        window.addEventListener("orientationchange", function() {
-            setTimeout(update, 100);
-        });
-        update();
-        return function() { window.removeEventListener("resize", update); };
-    }, []);
+    // Activate wake lock
+    useWakeLock();
+
+    // Re-enter fullscreen after rotation
+    useFullscreenPersistence(isFull);
+
+    // In portrait: we render at the landscape dimensions scaled to fit
+    var isPortrait = viewport.isPortrait;
+    var shellHeight = viewport.height;
+    var shellWidth = viewport.width;
+
+    // For portrait: compute scale to fit landscape layout into portrait viewport
+    var portraitScale = 1;
+    var portraitWidth = shellWidth;
+    var portraitHeight = shellHeight;
+    if (isPortrait) {
+        // Pretend we're landscape: swap effective dimensions
+        var effectiveW = Math.max(shellWidth, shellHeight);
+        var effectiveH = Math.min(shellWidth, shellHeight);
+        // Scale to fit within the actual portrait viewport
+        var scaleX = shellWidth / effectiveW;
+        var scaleY = shellHeight / effectiveH;
+        portraitScale = Math.min(scaleX, scaleY);
+        portraitWidth = effectiveW;
+        portraitHeight = effectiveH;
+    }
+
+    var shellStyle = isPortrait ? {
+        height: portraitHeight + "px",
+        width: portraitWidth + "px",
+        transform: "scale(" + portraitScale + ")",
+        transformOrigin: "top left",
+    } : {
+        height: shellHeight + "px",
+    };
 
     return (
-        <div className={"mobile-shell" + (className ? " " + className : "")}
-             style={{ height: height + "px" }}>
+        <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#0a0704", position: "relative" }}>
             <style>{MOBILE_CSS}</style>
-            {children}
+            <div className={"mobile-shell" + (className ? " " + className : "")}
+                 style={shellStyle}>
+                {children}
+            </div>
+            {isPortrait && <PortraitOverlay />}
         </div>
     );
 }
@@ -135,13 +331,8 @@ function MobileLayout(props) {
     var phase = props.phase || "idle";
     var isForging = phase !== "idle" && phase !== "select" && phase !== "select_mat";
     var isQTEActive = phase === "heat" || phase === "hammer" || phase === "quench";
-    var isFull = isFullscreenActive();
+    var isFull = useFullscreenState();
     var finished = props.finished || [];
-
-    // Close shelf popups when tapping outside
-    function handleShellClick() {
-        // popups close themselves via their own state
-    }
 
     // --- Banner content ---
     var banner = (
