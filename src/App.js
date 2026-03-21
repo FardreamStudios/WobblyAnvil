@@ -19,6 +19,7 @@ import RhythmQTEModule from "./modules/rhythmQTE.js";
 import GameLayout from "./modules/gameLayout.js";
 import SceneSystem from "./modules/sceneSystem.js";
 import MobileLayoutModule from "./modules/mobileLayout.js";
+import DevBanner from "./components/DevBanner.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -913,6 +914,7 @@ export default function App() {
               </div>
             </div>
           </div>)}
+          <DevBanner />
         </>
     );
   }
@@ -1178,6 +1180,7 @@ export default function App() {
             </div>
           </Panel>
         </div>)}
+        <DevBanner />
       </>
   );
 }

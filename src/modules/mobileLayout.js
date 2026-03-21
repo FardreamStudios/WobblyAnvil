@@ -18,8 +18,8 @@
 // ============================================================
 
 import { useState, useEffect, useRef } from "react";
-import THEME from "../config/theme.js";
 import W from "../components/widgets.js";
+import THEME from "../config/theme.js";
 
 // --- Design aspect ratio for portrait scale-to-fit ---
 var LANDSCAPE_MIN_RATIO = 1.3; // width/height — below this we're in portrait territory
@@ -222,37 +222,36 @@ function weaponIcon(wKey) {
 // --- Mobile Action Button ---
 
 function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, danger }) {
-    var textColor = disabled ? "#2a1f0a" : danger ? "#ef4444" : color || "#f59e0b";
+    var T = THEME;
+    var textColor = disabled ? T.colors.bgHighlight : danger ? T.colors.red : color || T.colors.gold;
     var hasImg = !!imgSrc;
-    // Icon buttons: transparent/ghost. Emoji/label buttons: keep box style.
-    var borderColor = hasImg ? "transparent" : (disabled ? "#1a1209" : danger ? "#ef4444" : color || "#f59e0b");
-    var bg = hasImg ? "transparent" : (disabled ? "#0a0704" : danger ? "#1a0505" : "#141009");
-    // Dark outline silhouette via stacked drop-shadows
+    var borderColor = hasImg ? "transparent" : (disabled ? T.colors.borderDark : danger ? T.colors.red : color || T.colors.gold);
+    var bg = hasImg ? "transparent" : (disabled ? T.colors.bgDeep : danger ? T.colors.bgDanger : T.colors.bgWarm);
     var iconFilter = disabled ? "brightness(0.3)" : "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 2px rgba(0,0,0,0.6))";
     return (
         <button onClick={disabled ? null : onClick} disabled={disabled} style={{
             background: bg,
             border: "1px solid " + borderColor,
-            borderRadius: 6,
+            borderRadius: T.radius.md,
             color: textColor,
             cursor: disabled ? "not-allowed" : "pointer",
-            fontFamily: "'Josefin Sans', sans-serif",
+            fontFamily: T.fonts.body,
             fontWeight: "bold",
-            fontSize: 9,
-            letterSpacing: 1,
+            fontSize: T.fontSize.xs,
+            letterSpacing: T.letterSpacing.tight,
             textTransform: "uppercase",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 2,
+            gap: T.spacing.xxs,
             padding: "4px 4px",
             width: "100%",
             height: "100%",
             flex: 1,
         }}>
             {imgSrc && <img src={imgSrc} alt={label || ""} style={{ width: imgSize || 40, height: imgSize || 40, objectFit: "contain", filter: iconFilter }} />}
-            {!imgSrc && icon && <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>}
+            {!imgSrc && icon && <span style={{ fontSize: T.fontSize.xxl, lineHeight: 1 }}>{icon}</span>}
             {!imgSrc && label && <span>{label}</span>}
         </button>
     );
@@ -355,9 +354,8 @@ function MobileShell({ className, children }) {
 }
 
 function MobileBottomBar(props) {
-    var T = THEME;
     var finished = props.finished || [];
-
+    var T = THEME;
     return (
         <W.Strip className="mobile-bottom-bar" gap="sm" pad="md" h={T.layout.bottomBarH}
                  bg="bgPanel" style={{ borderTop: T.borders.thin, flexShrink: 0, fontFamily: T.fonts.body }}>
@@ -432,6 +430,7 @@ function MobileBottomBar(props) {
 // --- Mobile Layout ---
 
 function MobileLayout(props) {
+    var T = THEME;
     var handedness = props.handedness || "right";
     var isLeftHanded = handedness === "left";
     var phase = props.phase || "idle";
@@ -444,29 +443,34 @@ function MobileLayout(props) {
 
     // --- Banner content ---
     var banner = (
-        <div className="mobile-banner">
-            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, paddingLeft: "4vw" }}>
-                <span style={{ fontSize: 15, color: "#8a7a64", letterSpacing: 1, fontWeight: "bold" }}>LV</span>
-                <span style={{ fontSize: 22, color: "#f59e0b", fontWeight: "bold" }}>{props.level || 1}</span>
-                <span style={{ fontSize: 16, color: "#fbbf24", fontWeight: "bold", marginLeft: "3vw" }}>{props.rankName || ""}</span>
-            </div>
+        <W.Strip className="mobile-banner" gap="xs" h={T.layout.bannerH}
+            bg="bgPanel" style={{ borderBottom: T.borders.thin, flexShrink: 0, fontFamily: T.fonts.heading, padding: "0 8px" }}>
 
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
+            {/* Left — Level + Rank */}
+            <W.Strip gap="xs" shrink={false} style={{ paddingLeft: "4vw" }}>
+                <W.Label size={15} color="textLabel" spacing="tight" bold>LV</W.Label>
+                <W.Label size="h2" color="gold" bold>{props.level || 1}</W.Label>
+                <W.Label size="xxl" color="goldBright" bold style={{ marginLeft: "3vw" }}>{props.rankName || ""}</W.Label>
+            </W.Strip>
+
+            {/* Center — Royal decree */}
+            <W.Strip flex={1} center gap="xl">
                 {props.royalQuest && !props.royalQuest.fulfilled && (
-                    <span style={{ fontSize: 17, color: "#f59e0b", letterSpacing: 1, fontWeight: "bold" }}>DECREE DUE DAY {props.royalQuest.deadline}</span>
+                    <W.Label size={17} color="gold" spacing="tight" bold>DECREE DUE DAY {props.royalQuest.deadline}</W.Label>
                 )}
-            </div>
+            </W.Strip>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, paddingRight: 4 }}>
-                <span style={{ fontSize: 15, color: "#8a7a64", letterSpacing: 1, fontWeight: "bold" }}>DAY</span>
-                <span style={{ fontSize: 22, color: "#f0e6c8", fontWeight: "bold" }}>{props.day || 1}</span>
+            {/* Right — Day + Fullscreen */}
+            <W.Strip gap="xs" shrink={false} style={{ paddingRight: 4 }}>
+                <W.Label size={15} color="textLabel" spacing="tight" bold>DAY</W.Label>
+                <W.Label size="h2" color="textLight" bold>{props.day || 1}</W.Label>
                 <button onClick={function() { if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); } else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); } }} style={{
-                    background: "none", border: "1px solid #3d2e0f", borderRadius: 4,
-                    color: "#8a7a64", fontSize: 12, padding: "2px 5px", cursor: "pointer",
-                    fontFamily: "'Cinzel', serif", marginLeft: 4,
+                    background: "none", border: T.borders.thin, borderRadius: T.radius.sm,
+                    color: T.colors.textLabel, fontSize: T.fontSize.md, padding: "2px 5px", cursor: "pointer",
+                    fontFamily: T.fonts.heading, marginLeft: 4,
                 }}>{isFull ? "\u2716" : "\u26F6"}</button>
-            </div>
-        </div>
+            </W.Strip>
+        </W.Strip>
     );
 
     // --- Drawer state ---
@@ -484,76 +488,37 @@ function MobileLayout(props) {
         prevInForgeFlow.current = isInForgeFlow;
     }, [isInForgeFlow]);
 
-    // Drawer content — switches based on forge flow vs idle
+// Drawer content — switches based on forge flow vs idle
     var drawerContent = isInForgeFlow ? (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "4px 0" }}>
-            {/* Quality — big and prominent at top */}
-            <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>QUALITY</div>
-                <div style={{ fontSize: 26, color: props.qualityColor || "#f59e0b", fontWeight: "bold" }}>{props.qualScore || 0}</div>
-            </div>
-            <div style={{ width: "80%", height: 1, background: "#2a1f0a" }} />
-            {/* Stress */}
-            <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>STRESS</div>
-                <div style={{ fontSize: 14, color: props.stressColor || "#4ade80", fontWeight: "bold" }}>{props.stressLabel || "CALM"}</div>
-            </div>
-            <div style={{ width: "80%", height: 1, background: "#2a1f0a" }} />
-            {/* Material */}
-            <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>MATERIAL</div>
-                <div style={{ fontSize: 12, color: props.matColor || "#a0a0a0", fontWeight: "bold" }}>{props.matName || ""}</div>
-            </div>
-            {/* Weapon */}
-            <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>WEAPON</div>
-                <div style={{ fontSize: 12, color: "#f0e6c8", fontWeight: "bold" }}>{props.weaponName || ""}</div>
-            </div>
-            {/* Difficulty */}
-            <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, fontFamily: "'Cinzel', serif" }}>DIFFICULTY</div>
-                <div style={{ fontSize: 18, color: props.diffColor || "#fbbf24", fontWeight: "bold" }}>{props.effDiff || 0}</div>
-            </div>
-        </div>
+        <W.Box gap="md" align="center" style={{ padding: "4px 0" }}>
+            <W.StatLabel label="QUALITY" value={props.qualScore || 0} color={props.qualityColor} size="hero" />
+            <W.Divider />
+            <W.StatLabel label="STRESS" value={props.stressLabel || "CALM"} color={props.stressColor || T.colors.green} size="xl" />
+            <W.Divider />
+            <W.StatLabel label="MATERIAL" value={props.matName || ""} color={props.matColor || "#a0a0a0"} />
+            <W.StatLabel label="WEAPON" value={props.weaponName || ""} color="textLight" />
+            <W.StatLabel label="DIFFICULTY" value={props.effDiff || 0} color={props.diffColor || T.colors.goldBright} size="h3" />
+        </W.Box>
     ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "4px 0" }}>
-            <div style={{ fontSize: 11, color: "#8a7a64", letterSpacing: 1, textAlign: "center", fontFamily: "'Cinzel', serif" }}>REP</div>
-            <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 2, marginTop: 2 }}>
-                {Array.from({ length: 8 }).map(function(_, i) {
-                    var filled = i < (props.reputation || 0);
-                    return <div key={i} style={{
-                        width: 10, height: 10, borderRadius: 2,
-                        background: filled ? (props.repColor || "#fb923c") : "#2a1f0a",
-                        border: "1px solid " + (filled ? (props.repColor || "#fb923c") : "#3d2e0f"),
-                    }} />;
-                })}
-            </div>
+        <W.Box gap="sm" style={{ padding: "4px 0" }}>
+            <W.Label size="sm" color="textLabel" spacing="tight" align="center" font="heading">REP</W.Label>
+            <W.PipRow count={8} filled={props.reputation || 0} color={props.repColor || T.colors.orange} wrap center style={{ marginTop: 2 }} />
             {props.stats && (
-                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6, borderTop: "1px solid #2a1f0a", paddingTop: 8 }}>
-                    {[["BRN", "brawn", "#f59e0b"], ["PRC", "precision", "#60a5fa"], ["TEC", "technique", "#4ade80"], ["SLV", "silverTongue", "#c084fc"]].map(function(s) {
-                        var val = props.stats[s[1]] || 0;
+                <W.Box gap="sm" style={{ marginTop: 8, borderTop: T.borders.thinMid, paddingTop: 8 }}>
+                    {[["BRN", "brawn", T.colors.gold], ["PRC", "precision", T.colors.blue], ["TEC", "technique", T.colors.green], ["SLV", "silverTongue", T.colors.purple]].map(function(s) {
                         return (
-                            <div key={s[0]}>
-                                <div style={{ fontSize: 9, color: s[2], letterSpacing: 1, fontWeight: "bold", marginBottom: 2, fontFamily: "'Cinzel', serif" }}>{s[0]}</div>
-                                <div style={{ display: "flex", flexDirection: "row", gap: 2 }}>
-                                    {Array.from({ length: 8 }).map(function(_, i) {
-                                        var filled = i < val;
-                                        return <div key={i} style={{
-                                            width: 10, height: 10, borderRadius: 2,
-                                            background: filled ? s[2] : "#2a1f0a",
-                                            border: "1px solid " + (filled ? s[2] : "#3d2e0f"),
-                                        }} />;
-                                    })}
-                                </div>
-                            </div>
+                            <W.Box key={s[0]}>
+                                <W.Label size="xs" color={s[2]} spacing="tight" bold font="heading" style={{ marginBottom: 2 }}>{s[0]}</W.Label>
+                                <W.PipRow count={8} filled={props.stats[s[1]] || 0} color={s[2]} />
+                            </W.Box>
                         );
                     })}
                     {(props.statPoints || 0) > 0 && (
-                        <div style={{ fontSize: 9, color: "#f59e0b", textAlign: "center", letterSpacing: 1, marginTop: 2, fontWeight: "bold" }}>+{props.statPoints} PTS</div>
+                        <W.Label size="xs" color="gold" align="center" spacing="tight" bold style={{ marginTop: 2 }}>+{props.statPoints} PTS</W.Label>
                     )}
-                </div>
+                </W.Box>
             )}
-        </div>
+        </W.Box>
     );
 
     // Drawer side classes
@@ -611,6 +576,7 @@ function MobileLayout(props) {
     );
 
     // --- Center content ---
+    var forgeBtnPos = { position: "absolute", bottom: "33%", left: "50%", transform: "translateX(-50%)", zIndex: T.z.ui };
     var center = (
         <div className="mobile-center" onClick={isQTEActive ? props.onForgeClick : null} style={{ cursor: isQTEActive ? "pointer" : "default" }}>
             {props.overlay}
@@ -619,65 +585,22 @@ function MobileLayout(props) {
 
             {/* Begin Forge button — idle, no WIP, centered at bottom */}
             {phase === "idle" && !props.hasWip && (
-                <button onClick={props.onBeginForge} disabled={props.beginForgeDisabled} style={{
-                    position: "absolute",
-                    bottom: "33%",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    zIndex: 20,
-                    background: props.beginForgeDisabled ? "#0a0704" : "#2a1f0a",
-                    border: "2px solid " + (props.beginForgeDisabled ? "#1a1209" : "#f59e0b"),
-                    borderRadius: 8,
-                    color: props.beginForgeDisabled ? "#2a1f0a" : "#f59e0b",
-                    padding: "10px 28px",
-                    fontSize: 14,
-                    cursor: props.beginForgeDisabled ? "not-allowed" : "pointer",
-                    letterSpacing: 2,
-                    textTransform: "uppercase",
-                    fontFamily: "'Cinzel', serif",
-                    fontWeight: "bold",
-                    whiteSpace: "nowrap",
-                }}>BEGIN FORGING</button>
+                <W.Btn label="BEGIN FORGING" onClick={props.onBeginForge} disabled={props.beginForgeDisabled}
+                       color="gold" font="heading" size="xl" radius="lg" spacing="normal"
+                       style={Object.assign({}, forgeBtnPos, { padding: "10px 28px", whiteSpace: "nowrap" })} />
             )}
 
             {/* Resume WIP button — idle with WIP */}
             {phase === "idle" && props.hasWip && (
-                <div style={{
-                    position: "absolute",
-                    bottom: "33%",
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    zIndex: 20,
-                    display: "flex",
-                    gap: 8,
-                }}>
-                    <button onClick={props.onResumeWip} disabled={props.resumeWipDisabled} style={{
-                        background: props.resumeWipDisabled ? "#0a0704" : "#0a1a2a",
-                        border: "2px solid " + (props.resumeWipDisabled ? "#1a1209" : "#60a5fa"),
-                        borderRadius: 8,
-                        color: props.resumeWipDisabled ? "#2a1f0a" : "#60a5fa",
-                        padding: "10px 20px",
-                        fontSize: 13,
-                        cursor: props.resumeWipDisabled ? "not-allowed" : "pointer",
-                        letterSpacing: 2,
-                        textTransform: "uppercase",
-                        fontFamily: "'Cinzel', serif",
-                        fontWeight: "bold",
-                    }}>RESUME</button>
-                    <button onClick={props.onScrapWip} style={{
-                        background: "#141009",
-                        border: "2px solid #3d2e0f",
-                        borderRadius: 8,
-                        color: "#8a7a64",
-                        padding: "10px 16px",
-                        fontSize: 13,
-                        cursor: "pointer",
-                        letterSpacing: 2,
-                        textTransform: "uppercase",
-                        fontFamily: "'Cinzel', serif",
-                        fontWeight: "bold",
-                    }}>SCRAP</button>
-                </div>
+                <W.Strip gap="md" style={forgeBtnPos}>
+                    <W.Btn label="RESUME" onClick={props.onResumeWip} disabled={props.resumeWipDisabled}
+                           color="blue" bg={props.resumeWipDisabled ? "bgDeep" : "#0a1a2a"}
+                           font="heading" size="lg" radius="lg" spacing="normal"
+                           style={{ padding: "10px 20px" }} />
+                    <W.Btn label="SCRAP" onClick={props.onScrapWip}
+                           color="textLabel" bg="bgWarm" font="heading" size="lg" radius="lg" spacing="normal"
+                           style={{ padding: "10px 16px", border: T.borders.heavy }} />
+                </W.Strip>
             )}
         </div>
     );

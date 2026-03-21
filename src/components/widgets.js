@@ -343,14 +343,100 @@ function Btn(props) {
 }
 
 // ============================================================
+// STATLABEL
+// Heading label + value stacked vertically. Centered.
+// The most common pattern in data panels and drawers.
+//
+// Props:
+//   label      — top label text (auto uppercase)
+//   value      — bottom value
+//   color      — value color (theme token or raw)
+//   labelColor — label color (default: textLabel)
+//   size       — value fontSize (theme token, default "md")
+//   labelSize  — label fontSize (default 10)
+// ============================================================
+
+function StatLabel(props) {
+    return (
+        <Box style={{ textAlign: "center" }}>
+            <Label size={props.labelSize || 10} color={props.labelColor || "textLabel"}
+                   spacing="tight" font="heading">{props.label}</Label>
+            <Label size={props.size || "md"} color={props.color || "gold"}
+                   bold>{props.value}</Label>
+        </Box>
+    );
+}
+
+// ============================================================
+// DIVIDER
+// Horizontal line separator.
+//
+// Props:
+//   w      — width (default "80%")
+//   color  — background color (theme token, default bgHighlight)
+// ============================================================
+
+function Divider(props) {
+    return (
+        <div style={{
+            width: props.w || "80%",
+            height: 1,
+            background: resolveColor(props.color) || THEME.colors.bgHighlight,
+            alignSelf: "center",
+        }} />
+    );
+}
+
+// ============================================================
+// PIPROW
+// Row of small filled/empty indicator squares.
+// Used for reputation, stats, upgrade levels.
+//
+// Props:
+//   count       — total pips
+//   filled      — number filled
+//   color       — filled color (theme token or raw)
+//   emptyColor  — empty pip bg (default bgHighlight)
+//   borderColor — empty pip border (default borderLight)
+//   size        — pip size in px (default 10)
+// ============================================================
+
+function PipRow(props) {
+    var size = props.size || 10;
+    var fc = resolveColor(props.color) || THEME.colors.gold;
+    var ec = resolveColor(props.emptyColor) || THEME.colors.bgHighlight;
+    var bc = resolveColor(props.borderColor) || THEME.colors.borderLight;
+
+    return (
+        <Strip gap="xxs" wrap={props.wrap} center={props.center}
+               justify={props.justify} style={props.style}>
+            {Array.from({ length: props.count }).map(function(_, i) {
+                var filled = i < props.filled;
+                return <div key={i} style={{
+                    width: size, height: size,
+                    borderRadius: THEME.radius.xs,
+                    background: filled ? fc : ec,
+                    border: "1px solid " + (filled ? fc : bc),
+                }} />;
+            })}
+        </Strip>
+    );
+}
+
+// ============================================================
 // Plugin-style API
 // ============================================================
 var Widgets = {
-    // Components
+    // Base components
     Box: Box,
     Label: Label,
     Strip: Strip,
     Btn: Btn,
+
+    // Compound components
+    StatLabel: StatLabel,
+    Divider: Divider,
+    PipRow: PipRow,
 
     // Resolvers (exposed for edge cases in views)
     resolveColor: resolveColor,
