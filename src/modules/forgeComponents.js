@@ -2,6 +2,10 @@
 // forgeComponents.js — Wobbly Anvil Forge Components Module
 // QTE visual bars and the QTE panel controller.
 // Handles needle animation, phase rendering, strike display.
+//
+// CHANGE LOG (mobile fixes):
+// - QTE needle animations now use delta-time instead of /60
+//   so speed is consistent on 60Hz, 120Hz, 144Hz displays.
 // ============================================================
 
 import { useState, useEffect, useRef } from "react";
@@ -14,6 +18,10 @@ var HAMMER_WIN = GameConstants.HAMMER_WIN;
 var QUENCH_WIN = GameConstants.QUENCH_WIN;
 var PHASES = GameConstants.PHASES;
 var positionToColumn = GameUtils.positionToColumn;
+
+// --- Target frame rate for speed calibration ---
+var TARGET_FPS = 60;
+var TARGET_FRAME_MS = 1000 / TARGET_FPS;
 
 // --- QTE Gradient Color Helper ---
 
@@ -123,20 +131,26 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
     var hammerNeedle = useRef({ pos: 50, dir: 1, speed: 76 });
     var quenchNeedle = useRef({ pos: 50, dir: 1, speed: 52 });
     var animId = useRef(null);
+    var lastFrameTime = useRef(0);
 
-    // Heat needle animation
+    // Heat needle animation — delta-time based
     useEffect(function() {
         if (phase !== PHASES.HEAT) return;
         processingRef.current = false;
         heatNeedle.current = { pos: 0, speed: (18 + Math.random() * 4) * heatSpeedMult };
         setHeatPos(0); posRef.current = 0;
+        lastFrameTime.current = 0;
         var done = false;
         var timer = setTimeout(function() {
-            function loop() {
+            function loop(timestamp) {
                 if (done) return;
+                if (!lastFrameTime.current) lastFrameTime.current = timestamp;
+                var delta = Math.min(timestamp - lastFrameTime.current, 50);
+                lastFrameTime.current = timestamp;
+                var dtScale = delta / TARGET_FRAME_MS;
                 if (!processingRef.current) {
                     var n = heatNeedle.current;
-                    n.pos = Math.min(100, n.pos + n.speed * Math.pow(1 + n.pos / 100, 1.8) / 60);
+                    n.pos = Math.min(100, n.pos + n.speed * Math.pow(1 + n.pos / 100, 1.8) * dtScale / TARGET_FPS);
                     posRef.current = n.pos;
                     setHeatPos(n.pos);
                     if (n.pos >= 100) { done = true; onAutoFire(n.pos); return; }
@@ -148,18 +162,23 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
         return function() { done = true; cancelAnimationFrame(animId.current); clearTimeout(timer); };
     }, [phase]);
 
-    // Hammer needle animation
+    // Hammer needle animation — delta-time based
     useEffect(function() {
         if (phase !== PHASES.HAMMER) return;
         processingRef.current = false;
         hammerNeedle.current = { pos: 50, dir: 1, speed: (80 + Math.random() * 20) * hammerSpeedMult };
         setNeedlePos(50); posRef.current = 50;
+        lastFrameTime.current = 0;
         var done = false;
-        function loop() {
+        function loop(timestamp) {
             if (done) return;
+            if (!lastFrameTime.current) lastFrameTime.current = timestamp;
+            var delta = Math.min(timestamp - lastFrameTime.current, 50);
+            lastFrameTime.current = timestamp;
+            var dtScale = delta / TARGET_FRAME_MS;
             if (!processingRef.current) {
                 var n = hammerNeedle.current;
-                n.pos += n.dir * (n.speed / 60);
+                n.pos += n.dir * (n.speed * dtScale / TARGET_FPS);
                 if (n.pos >= 100 || n.pos <= 0) n.dir *= -1;
                 posRef.current = n.pos;
                 setNeedlePos(n.pos);
@@ -170,18 +189,23 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
         return function() { done = true; cancelAnimationFrame(animId.current); };
     }, [phase]);
 
-    // Quench needle animation
+    // Quench needle animation — delta-time based
     useEffect(function() {
         if (phase !== PHASES.QUENCH) return;
         processingRef.current = false;
         quenchNeedle.current = { pos: 50, dir: 1, speed: (60 + Math.random() * 15) * quenchSpeedMult };
         setQuenchPos(50); posRef.current = 50;
+        lastFrameTime.current = 0;
         var done = false;
-        function loop() {
+        function loop(timestamp) {
             if (done) return;
+            if (!lastFrameTime.current) lastFrameTime.current = timestamp;
+            var delta = Math.min(timestamp - lastFrameTime.current, 50);
+            lastFrameTime.current = timestamp;
+            var dtScale = delta / TARGET_FRAME_MS;
             if (!processingRef.current) {
                 var n = quenchNeedle.current;
-                n.pos += n.dir * (n.speed / 60);
+                n.pos += n.dir * (n.speed * dtScale / TARGET_FPS);
                 if (n.pos >= 100 || n.pos <= 0) n.dir *= -1;
                 posRef.current = n.pos;
                 setQuenchPos(n.pos);
