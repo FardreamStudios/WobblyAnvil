@@ -231,13 +231,15 @@ function CustomerPanel({ customer, weapon, onSell, onRefuse, silverTongue, price
 }
 
 // --- Materials Modal ---
+// title prop: optional override (mobile passes "ITEMS", desktop defaults to "MATERIALS")
 
-function MaterialsModal({ inv, onClose, onSell, sfx }) {
+function MaterialsModal({ inv, onClose, onSell, sfx, title }) {
+    var displayTitle = title || "MATERIALS";
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
             <div style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 12, padding: "20px", width: "min(500px,90vw)" }}>
                 <Row style={{ marginBottom: 16 }}>
-                    <div style={{ fontSize: 16, color: "#f59e0b", letterSpacing: 3 }}>MATERIALS</div>
+                    <div style={{ fontSize: 16, color: "#f59e0b", letterSpacing: 3 }}>{displayTitle}</div>
                     <button onClick={onClose} style={{ background: "#2a1f0a", border: "1px solid #3d2e0f", borderRadius: 5, color: "#f59e0b", padding: "5px 12px", cursor: "pointer", fontFamily: "monospace", fontSize: 14 }}>X</button>
                 </Row>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -258,8 +260,9 @@ function MaterialsModal({ inv, onClose, onSell, sfx }) {
 }
 
 // --- Shop Modal ---
+// New props for Promote tab: onPromote, promoteDisabled, promoteUses, maxPromoteUses, finishedCount
 
-function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult, royalQuest, onBuy, onUpgrade, onBuyBP, onClose, sfx }) {
+function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult, royalQuest, onBuy, onUpgrade, onBuyBP, onClose, sfx, onPromote, promoteDisabled, promoteUses, maxPromoteUses, finishedCount }) {
     var [tab, setTab] = useState("materials");
     var [upgradeCategory, setUpgradeCategory] = useState("forge");
     var [amounts, setAmounts] = useState(Object.fromEntries(Object.keys(MATS).map(function(k) { return [k, 1]; })));
@@ -272,6 +275,11 @@ function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult
     }));
     var tierColors = ["#a0a0a0", "#60a5fa", "#4ade80", "#c084fc"];
 
+    // Promote tab availability
+    var hasPromote = typeof onPromote === "function";
+    var TABS = [["materials", "Materials"], ["blueprints", "Blueprints"], ["upgrades", "Upgrades"]];
+    if (hasPromote) TABS.push(["promote", "Promote"]);
+
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
             <div style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 12, width: "min(680px,95vw)", height: "min(560px,85vh)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -283,7 +291,7 @@ function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult
                     </Row>
                 </Row>
                 <div style={{ display: "flex", borderBottom: "1px solid #2a1f0a" }}>
-                    {[["materials", "Materials"], ["blueprints", "Blueprints"], ["upgrades", "Upgrades"]].map(function(pair) {
+                    {TABS.map(function(pair) {
                         var key = pair[0], label = pair[1];
                         return <div key={key} onClick={function() { if (sfx) sfx.click(); setTab(key); }} style={{ flex: 1, padding: "12px", textAlign: "center", fontSize: 13, letterSpacing: 2, cursor: "pointer", color: tab === key ? "#f59e0b" : "#8a7a64", borderBottom: tab === key ? "3px solid #f59e0b" : "3px solid transparent" }}>{label.toUpperCase()}</div>;
                     })}
@@ -399,6 +407,47 @@ function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult
                                     </div>
                                 );
                             })()}
+                        </div>
+                    )}
+                    {tab === "promote" && hasPromote && (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, padding: "20px 0" }}>
+                            <div style={{ fontSize: 48, lineHeight: 1 }}>{"\uD83D\uDCE3"}</div>
+                            <div style={{ textAlign: "center", maxWidth: 320 }}>
+                                <div style={{ fontSize: 14, color: "#f59e0b", letterSpacing: 2, fontWeight: "bold", marginBottom: 8 }}>PROMOTE WARES</div>
+                                <div style={{ fontSize: 11, color: "#c8b89a", lineHeight: 1.7, marginBottom: 4 }}>
+                                    Shout about your weapons to attract a customer. Costs 1 hour and 1 stamina.
+                                </div>
+                                <div style={{ fontSize: 10, color: "#8a7a64", lineHeight: 1.6 }}>
+                                    You need at least one weapon on the shelf. Limited to {maxPromoteUses || 2} uses per day.
+                                </div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                <div style={{ fontSize: 11, color: "#8a7a64", letterSpacing: 1 }}>
+                                    USED <span style={{ color: (promoteUses || 0) >= (maxPromoteUses || 2) ? "#ef4444" : "#f59e0b", fontWeight: "bold" }}>{promoteUses || 0}</span> / {maxPromoteUses || 2}
+                                </div>
+                                <div style={{ fontSize: 11, color: "#8a7a64", letterSpacing: 1 }}>
+                                    SHELF <span style={{ color: (finishedCount || 0) > 0 ? "#4ade80" : "#ef4444", fontWeight: "bold" }}>{finishedCount || 0}</span>
+                                </div>
+                            </div>
+                            <button onClick={promoteDisabled ? null : function() { if (sfx) sfx.click(); onPromote(); onClose(); }} disabled={promoteDisabled} style={{
+                                background: promoteDisabled ? "#0a0704" : "#2a1f0a",
+                                border: "2px solid " + (promoteDisabled ? "#1a1209" : "#f59e0b"),
+                                borderRadius: 8,
+                                color: promoteDisabled ? "#2a1f0a" : "#f59e0b",
+                                padding: "14px 40px",
+                                fontSize: 14,
+                                cursor: promoteDisabled ? "not-allowed" : "pointer",
+                                letterSpacing: 2,
+                                textTransform: "uppercase",
+                                fontFamily: "monospace",
+                                fontWeight: "bold",
+                            }}>PROMOTE</button>
+                            {promoteDisabled && (finishedCount || 0) === 0 && (
+                                <div style={{ fontSize: 10, color: "#ef4444", letterSpacing: 1 }}>NO WEAPONS ON SHELF</div>
+                            )}
+                            {promoteDisabled && (promoteUses || 0) >= (maxPromoteUses || 2) && (finishedCount || 0) > 0 && (
+                                <div style={{ fontSize: 10, color: "#ef4444", letterSpacing: 1 }}>MAX PROMOTES USED TODAY</div>
+                            )}
                         </div>
                     )}
                 </div>

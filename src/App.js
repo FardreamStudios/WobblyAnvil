@@ -137,6 +137,8 @@ export default function App() {
   var [showOptions, setShowOptions] = useState(false);
   var [showRhythmTest, setShowRhythmTest] = useState(false);
   var [handedness, setHandedness] = useState("right");
+  var [sfxVol, setSfxVol] = useState(0.25);
+  var [musicVol, setMusicVol] = useState(0.25);
 
   // --- Toast State ---
   var [toasts, setToasts] = useState([]);
@@ -810,7 +812,11 @@ export default function App() {
 
     return (
         <>
-          {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={function(mat, qty, price) { sfx.click(); var c = price * qty; if (gold < c) return; sfx.coin(); spendGold(c); setInv(function(i) { var n = Object.assign({}, i); n[mat] = (n[mat] || 0) + qty; return n; }); }} onUpgrade={function(cat) { sfx.click(); var nl = upgrades[cat] + 1, u = UPGRADES[cat][nl]; if (!u || gold < u.cost) return; spendGold(u.cost); setUpgrades(function(u2) { var n = Object.assign({}, u2); n[cat] = nl; return n; }); }} onBuyBP={function(k, cost) { sfx.click(); if (gold < cost) return; spendGold(cost); setUnlockedBP(function(u) { return u.concat([k]); }); }} />}
+          {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={function(mat, qty, price) { sfx.click(); var c = price * qty; if (gold < c) return; sfx.coin(); spendGold(c); setInv(function(i) { var n = Object.assign({}, i); n[mat] = (n[mat] || 0) + qty; return n; }); }} onUpgrade={function(cat) { sfx.click(); var nl = upgrades[cat] + 1, u = UPGRADES[cat][nl]; if (!u || gold < u.cost) return; spendGold(u.cost); setUpgrades(function(u2) { var n = Object.assign({}, u2); n[cat] = nl; return n; }); }} onBuyBP={function(k, cost) { sfx.click(); if (gold < cost) return; spendGold(cost); setUnlockedBP(function(u) { return u.concat([k]); }); }} onPromote={function() { promote(); }}
+                                  promoteDisabled={isLocked || hour >= 24 || finished.length === 0 || promoteUses >= BALANCE.maxPromoteUses || !canAffordTime(hour, 1) || stamina <= 0}
+                                  promoteUses={promoteUses}
+                                  maxPromoteUses={BALANCE.maxPromoteUses}
+                                  finishedCount={finished.length} />}
           {showMaterials && <MaterialsModal inv={inv} sfx={sfx} onClose={function() { sfx.click(); setShowMaterials(false); }} onSell={function(mat, qty) { sfx.coin(); var price = Math.floor(MATS[mat].price / 2) * qty; setInv(function(i) { var n = Object.assign({}, i); n[mat] = Math.max(0, (n[mat] || 0) - qty); return n; }); earnGold(price); }} />}
           <MobileLayout
               handedness={handedness}
@@ -898,7 +904,8 @@ export default function App() {
               <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
                 <SectionLabel>LAYOUT</SectionLabel><label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>Left-Handed Mode<input type="checkbox" checked={handedness === "left"} onChange={function() { setHandedness(function(h) { return h === "right" ? "left" : "right"; }); }} style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }} /></label><div style={{ borderTop: "1px solid #2a1f0a", marginTop: 12, paddingTop: 12 }} />
                 <SectionLabel>AUDIO</SectionLabel>
-                {[["Shop Music", true, function(e) { sfx.idleMuted = !e.target.checked; }], ["Forge Music", true, function(e) { sfx.forgeMuted = !e.target.checked; }]].map(function(r) { return (<label key={r[0]} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>{r[0]}<input type="checkbox" defaultChecked={r[1]} onChange={r[2]} style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }} /></label>); })}
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>SFX<input type="range" min="0" max="1" step="0.05" value={sfxVol} onChange={function(e) { var v = parseFloat(e.target.value); setSfxVol(v); sfx.setSfxVol(v); }} style={{ width: 120, accentColor: "#f59e0b", cursor: "pointer" }} /></label>
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>MUSIC<input type="range" min="0" max="1" step="0.05" value={musicVol} onChange={function(e) { var v = parseFloat(e.target.value); setMusicVol(v); sfx.setMusicVol(v); }} style={{ width: 120, accentColor: "#f59e0b", cursor: "pointer" }} /></label>
               </div>
               <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                 <SectionLabel style={{ marginBottom: 4 }}>DANGER ZONE</SectionLabel>
@@ -916,7 +923,11 @@ export default function App() {
 
   return (
       <>
-        {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={function(mat, qty, price) { sfx.click(); var c = price * qty; if (gold < c) return; sfx.coin(); spendGold(c); setInv(function(i) { var n = Object.assign({}, i); n[mat] = (n[mat] || 0) + qty; return n; }); }} onUpgrade={function(cat) { sfx.click(); var nl = upgrades[cat] + 1, u = UPGRADES[cat][nl]; if (!u || gold < u.cost) return; spendGold(u.cost); setUpgrades(function(u2) { var n = Object.assign({}, u2); n[cat] = nl; return n; }); }} onBuyBP={function(k, cost) { sfx.click(); if (gold < cost) return; spendGold(cost); setUnlockedBP(function(u) { return u.concat([k]); }); }} />}
+        {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={function(mat, qty, price) { sfx.click(); var c = price * qty; if (gold < c) return; sfx.coin(); spendGold(c); setInv(function(i) { var n = Object.assign({}, i); n[mat] = (n[mat] || 0) + qty; return n; }); }} onUpgrade={function(cat) { sfx.click(); var nl = upgrades[cat] + 1, u = UPGRADES[cat][nl]; if (!u || gold < u.cost) return; spendGold(u.cost); setUpgrades(function(u2) { var n = Object.assign({}, u2); n[cat] = nl; return n; }); }} onBuyBP={function(k, cost) { sfx.click(); if (gold < cost) return; spendGold(cost); setUnlockedBP(function(u) { return u.concat([k]); }); }} onPromote={function() { promote(); }}
+                                promoteDisabled={isLocked || hour >= 24 || finished.length === 0 || promoteUses >= BALANCE.maxPromoteUses || !canAffordTime(hour, 1) || stamina <= 0}
+                                promoteUses={promoteUses}
+                                maxPromoteUses={BALANCE.maxPromoteUses}
+                                finishedCount={finished.length} />}
         {showMaterials && <MaterialsModal inv={inv} sfx={sfx} onClose={function() { sfx.click(); setShowMaterials(false); }} onSell={function(mat, qty) { sfx.coin(); var price = Math.floor(MATS[mat].price / 2) * qty; setInv(function(i) { var n = Object.assign({}, i); n[mat] = Math.max(0, (n[mat] || 0) - qty); return n; }); earnGold(price); }} />}
         {showGiveUp && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center" }}><Panel color="#ef4444" style={{ padding: "24px", textAlign: "center", maxWidth: 280 }}><div style={{ fontSize: 13, color: "#ef4444", letterSpacing: 2, marginBottom: 8 }}>GIVE UP?</div><div style={{ fontSize: 10, color: "#c8b89a", marginBottom: 16, lineHeight: 1.7 }}>The king will not be pleased.</div><Row center={true} style={{ gap: 8 }}><DangerBtn onClick={function() { setShowGiveUp(false); setGameOver(true); }}>Yes, Give Up</DangerBtn><ActionBtn onClick={function() { setShowGiveUp(false); }} color="#8a7a64" bg="#141009">Cancel</ActionBtn></Row></Panel></div>}
         <GameShell className={(mysteryShake ? "mystery-shake" : "") + " " + (weaponShake ? "weapon-shake" : "")}>
@@ -1140,7 +1151,7 @@ export default function App() {
               </Panel>
             </div>
             <div style={{ display: "flex", flexDirection: "row", gap: 12, alignItems: "center", padding: "0 8px" }}>
-              {[["SFX", 0.25, function(e) { sfx.setSfxVol(parseFloat(e.target.value)); }], ["MUS", 0.25, function(e) { sfx.setMusicVol(parseFloat(e.target.value)); }]].map(function(r) { return (<label key={r[0]} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#f0e6c8", letterSpacing: 2, fontFamily: "monospace", fontWeight: "bold" }}>{r[0]}<input type="range" min="0" max="1" step="0.05" defaultValue={r[1]} onChange={r[2]} style={{ width: 72, accentColor: "#f59e0b", cursor: "pointer" }} /></label>); })}
+              {[["SFX", sfxVol, function(e) { var v = parseFloat(e.target.value); setSfxVol(v); sfx.setSfxVol(v); }], ["MUS", musicVol, function(e) { var v = parseFloat(e.target.value); setMusicVol(v); sfx.setMusicVol(v); }]].map(function(r) { return (<label key={r[0]} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#f0e6c8", letterSpacing: 2, fontFamily: "monospace", fontWeight: "bold" }}>{r[0]}<input type="range" min="0" max="1" step="0.05" value={r[1]} onChange={r[2]} style={{ width: 72, accentColor: "#f59e0b", cursor: "pointer" }} /></label>); })}
             </div>
             <button onClick={function() { sfx.click(); setShowOptions(true); }} style={{ background: "#141009", border: "1px solid #2a1f0a", borderRadius: 7, color: "#8a7a64", cursor: "pointer", fontFamily: "monospace", fontWeight: "bold", fontSize: 11, letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, height: 80, padding: "0 14px", flexShrink: 0 }}><span style={{ fontSize: 18 }}>{"\u2699"}</span><span>OPTIONS</span></button>
           </GameFooter>
