@@ -37,8 +37,10 @@ function requestFullscreen(el) {
     if (promise && promise.then) {
         promise.then(function() {
             try {
-                if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock("landscape").catch(function() {});
+                // eslint-disable-next-line no-restricted-globals
+                if (window.screen.orientation && window.screen.orientation.lock) {
+                    // eslint-disable-next-line no-restricted-globals
+                    window.screen.orientation.lock("landscape").catch(function() {});
                 }
             } catch (e) {}
         }).catch(function() {});
@@ -48,8 +50,10 @@ function requestFullscreen(el) {
 
 function exitFullscreen() {
     try {
-        if (screen.orientation && screen.orientation.unlock) {
-            screen.orientation.unlock();
+        // eslint-disable-next-line no-restricted-globals
+        if (window.screen.orientation && window.screen.orientation.unlock) {
+            // eslint-disable-next-line no-restricted-globals
+            window.screen.orientation.unlock();
         }
     } catch (e) {}
     if (document.exitFullscreen) return document.exitFullscreen();
@@ -155,16 +159,20 @@ function useViewportInfo() {
 
 // --- Fullscreen re-entry on rotation ---
 
+var userExitedFullscreen = { current: false };
+
 function useFullscreenPersistence(isFull) {
     var wasFull = useRef(false);
 
     useEffect(function() {
-        if (isFull) wasFull.current = true;
-        if (!isFull && wasFull.current) {
-            // We lost fullscreen (probably rotation). Try to re-enter.
-            // Small delay to let the browser settle after rotation
+        if (isFull) {
+            wasFull.current = true;
+            userExitedFullscreen.current = false;
+        }
+        if (!isFull && wasFull.current && !userExitedFullscreen.current) {
+            // Lost fullscreen unexpectedly (rotation). Try to re-enter.
             var timer = setTimeout(function() {
-                if (!isFullscreenActive()) {
+                if (!isFullscreenActive() && !userExitedFullscreen.current) {
                     requestFullscreen(document.documentElement);
                 }
             }, 300);
@@ -175,7 +183,7 @@ function useFullscreenPersistence(isFull) {
     // Also listen for orientation change directly
     useEffect(function() {
         function onOrientationChange() {
-            if (wasFull.current && !isFullscreenActive()) {
+            if (wasFull.current && !isFullscreenActive() && !userExitedFullscreen.current) {
                 setTimeout(function() {
                     requestFullscreen(document.documentElement);
                 }, 500);
@@ -227,8 +235,10 @@ function MobileBtn({ icon, label, onClick, disabled, color, danger }) {
             alignItems: "center",
             justifyContent: "center",
             gap: 2,
-            padding: "6px 4px",
+            padding: "4px 4px",
             width: "100%",
+            height: "100%",
+            flex: 1,
         }}>
             {icon && <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>}
             <span>{label}</span>
@@ -240,17 +250,34 @@ function MobileBtn({ icon, label, onClick, disabled, color, danger }) {
 
 function ShelfItem({ item, index }) {
     var [showPopup, setShowPopup] = useState(false);
+    var ref = useRef(null);
+
+    // Close popup when tapping anywhere outside
+    useEffect(function() {
+        if (!showPopup) return;
+        function handleTap(e) {
+            if (ref.current && !ref.current.contains(e.target)) {
+                setShowPopup(false);
+            }
+        }
+        document.addEventListener("touchstart", handleTap);
+        document.addEventListener("mousedown", handleTap);
+        return function() {
+            document.removeEventListener("touchstart", handleTap);
+            document.removeEventListener("mousedown", handleTap);
+        };
+    }, [showPopup]);
 
     return (
-        <div className="mobile-shelf-icon" onClick={function(e) { e.stopPropagation(); setShowPopup(function(s) { return !s; }); }}>
+        <div ref={ref} className="mobile-shelf-icon" onClick={function(e) { e.stopPropagation(); setShowPopup(function(s) { return !s; }); }}
+             style={ showPopup ? { background: "#2a1f0a", borderColor: "#f59e0b" } : undefined }>
             <span>{weaponIcon(item.wKey)}</span>
             {showPopup && (
-                <div className="mobile-shelf-popup" onClick={function(e) { e.stopPropagation(); }} style={{ left: "50%", transform: "translateX(-50%)" }}>
+                <div className="mobile-shelf-popup" onClick={function(e) { e.stopPropagation(); }} style={{ right: 0, left: "auto" }}>
                     <div style={{ fontSize: 10, color: item.color || "#f59e0b", letterSpacing: 1, fontWeight: "bold", marginBottom: 3 }}>{item.label}</div>
                     <div style={{ fontSize: 9, color: "#c8b89a", marginBottom: 2 }}>{item.wName}</div>
                     <div style={{ fontSize: 9, color: "#8a7a64", marginBottom: 3 }}>{item.matName || ""}</div>
                     <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: "bold" }}>~{item.val}g</div>
-                    <div style={{ fontSize: 7, color: "#4a3c2c", marginTop: 4, letterSpacing: 1 }}>TAP OUTSIDE TO CLOSE</div>
                 </div>
             )}
         </div>
@@ -337,22 +364,22 @@ function MobileLayout(props) {
     // --- Banner content ---
     var banner = (
         <div className="mobile-banner">
-            <div style={{ display: "flex", alignItems: "center", gap: 6, width: 80, flexShrink: 0 }}>
-                <span style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1 }}>LV</span>
-                <span style={{ fontSize: 14, color: "#f59e0b", fontWeight: "bold" }}>{props.level || 1}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, paddingLeft: "4vw" }}>
+                <span style={{ fontSize: 15, color: "#8a7a64", letterSpacing: 1, fontWeight: "bold" }}>LV</span>
+                <span style={{ fontSize: 22, color: "#f59e0b", fontWeight: "bold" }}>{props.level || 1}</span>
+                <span style={{ fontSize: 16, color: "#fbbf24", fontWeight: "bold", marginLeft: "3vw" }}>{props.rankName || ""}</span>
             </div>
 
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 16 }}>
-                <span style={{ fontSize: 13, color: "#f59e0b", fontWeight: "bold" }}>{props.gold || 0}g</span>
                 {props.royalQuest && !props.royalQuest.fulfilled && (
-                    <span style={{ fontSize: 9, color: "#f59e0b", letterSpacing: 1 }}>DECREE DUE DAY {props.royalQuest.deadline}</span>
+                    <span style={{ fontSize: 17, color: "#f59e0b", letterSpacing: 1, fontWeight: "bold" }}>DECREE DUE DAY {props.royalQuest.deadline}</span>
                 )}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                <span style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1 }}>DAY</span>
-                <span style={{ fontSize: 14, color: "#f0e6c8", fontWeight: "bold" }}>{props.day || 1}</span>
-                <button onClick={function() { if (isFull) exitFullscreen(); else requestFullscreen(document.documentElement); }} style={{
+            <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, paddingRight: 4 }}>
+                <span style={{ fontSize: 15, color: "#8a7a64", letterSpacing: 1, fontWeight: "bold" }}>DAY</span>
+                <span style={{ fontSize: 22, color: "#f0e6c8", fontWeight: "bold" }}>{props.day || 1}</span>
+                <button onClick={function() { if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); } else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); } }} style={{
                     background: "none", border: "1px solid #3d2e0f", borderRadius: 4,
                     color: "#8a7a64", fontSize: 12, padding: "2px 5px", cursor: "pointer",
                     fontFamily: "monospace", marginLeft: 4,
@@ -377,30 +404,57 @@ function MobileLayout(props) {
                 </>
             ) : (
                 <>
-                    <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>REP</div>
-                    <div style={{ fontSize: 14, color: props.repColor || "#fb923c", fontWeight: "bold" }}>{props.reputation || 0}/10</div>
-                    <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, marginTop: 4 }}>RANK</div>
-                    <div style={{ fontSize: 9, color: "#fbbf24", fontWeight: "bold" }}>{props.rankName || ""}</div>
-                    <div style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1, marginTop: 4 }}>SHELF</div>
-                    <div style={{ fontSize: 14, color: "#f0e6c8", fontWeight: "bold" }}>{finished.length}</div>
+                    <div style={{ fontSize: 10, color: "#8a7a64", letterSpacing: 1, textAlign: "center" }}>REP</div>
+                    <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 1, marginTop: 2 }}>
+                        {Array.from({ length: 10 }).map(function(_, i) {
+                            var filled = i < (props.reputation || 0);
+                            return <div key={i} style={{
+                                width: 7, height: 7, borderRadius: 1,
+                                background: filled ? (props.repColor || "#fb923c") : "#2a1f0a",
+                                border: "1px solid " + (filled ? (props.repColor || "#fb923c") : "#3d2e0f"),
+                            }} />;
+                        })}
+                    </div>
+                    {props.stats && (
+                        <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 3 }}>
+                            {[["BRN", "brawn", "#f59e0b"], ["PRC", "precision", "#60a5fa"], ["TEC", "technique", "#4ade80"], ["SLV", "silverTongue", "#c084fc"]].map(function(s) {
+                                var val = props.stats[s[1]] || 0;
+                                return (
+                                    <div key={s[0]} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                        <span style={{ fontSize: 7, color: "#8a7a64", letterSpacing: 1 }}>{s[0]}</span>
+                                        <div style={{ display: "flex", gap: 1 }}>
+                                            {Array.from({ length: Math.max(val, 1) }).map(function(_, i) {
+                                                var filled = i < val;
+                                                return <div key={i} style={{
+                                                    width: 5, height: 5, borderRadius: 1,
+                                                    background: filled ? s[2] : "#2a1f0a",
+                                                    border: "1px solid " + (filled ? s[2] : "#3d2e0f"),
+                                                }} />;
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {(props.statPoints || 0) > 0 && (
+                                <div style={{ fontSize: 7, color: "#f59e0b", textAlign: "center", letterSpacing: 1, marginTop: 2 }}>+{props.statPoints} PTS</div>
+                            )}
+                        </div>
+                    )}
                 </>
             )}
-            <div style={{ marginTop: "auto" }}>
-                <MobileBtn icon={"\u2699"} label="OPT" onClick={props.onOptions} />
-            </div>
         </div>
     );
 
     // --- Action strip ---
     var actionStrip = (
-        <div className="mobile-action-strip">
+        <div className="mobile-action-strip" style={{ justifyContent: "stretch" }}>
             {isForging && phase === "sess_result" ? (
                 <>
-                    <MobileBtn icon={"\uD83D\uDD25"} label="FORGE" onClick={props.onForge} disabled={props.forgeDisabled} />
-                    <MobileBtn icon={"\u2696"} label="NORM" onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" />
-                    <MobileBtn icon={"\uD83D\uDCA7"} label="QUENCH" onClick={props.onQuench} disabled={props.quenchDisabled} />
-                    <MobileBtn icon={"\uD83D\uDDD1"} label="SCRAP" onClick={props.onScrap} color="#8a7a64" />
-                    <MobileBtn icon={"\u23F8"} label="LEAVE" onClick={props.onLeave} color="#60a5fa" />
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDD25"} label="FORGE" onClick={props.onForge} disabled={props.forgeDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u2696"} label="NORM" onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDCA7"} label="QUENCH" onClick={props.onQuench} disabled={props.quenchDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDDD1"} label="SCRAP" onClick={props.onScrap} color="#8a7a64" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u23F8"} label="LEAVE" onClick={props.onLeave} color="#60a5fa" /></div>
                 </>
             ) : isQTEActive ? (
                 <>
@@ -409,14 +463,12 @@ function MobileLayout(props) {
                 </>
             ) : (
                 <>
-                    <MobileBtn icon={"\uD83D\uDCA4"} label="SLEEP" onClick={props.onSleep} disabled={props.sleepDisabled} />
-                    <MobileBtn icon={"\u23F3"} label="REST" onClick={props.onRest} disabled={props.restDisabled} />
-                    <MobileBtn icon={"\uD83D\uDCE3"} label="PROMO" onClick={props.onPromote} disabled={props.promoteDisabled} />
-                    <MobileBtn icon={"\uD83D\uDDD1"} label="SCAV" onClick={props.onScavenge} disabled={props.scavengeDisabled} />
-                    <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
-                        <MobileBtn icon={"\uD83D\uDED2"} label="SHOP" onClick={props.onShop} disabled={props.shopDisabled} />
-                        <MobileBtn icon={"\u2697"} label="MATS" onClick={props.onMats} disabled={props.matsDisabled} />
-                    </div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDCA4"} label="SLEEP" onClick={props.onSleep} disabled={props.sleepDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u23F3"} label="REST" onClick={props.onRest} disabled={props.restDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDCE3"} label="PROMO" onClick={props.onPromote} disabled={props.promoteDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDDD1"} label="SCAV" onClick={props.onScavenge} disabled={props.scavengeDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDED2"} label="SHOP" onClick={props.onShop} disabled={props.shopDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u2697"} label="MATS" onClick={props.onMats} disabled={props.matsDisabled} /></div>
                 </>
             )}
         </div>
@@ -524,12 +576,17 @@ function MobileLayout(props) {
                 })}
             </div>
 
-            {/* Handedness swap */}
-            <button onClick={props.onToggleHand} style={{
-                background: "none", border: "1px solid #3d2e0f", borderRadius: 4,
-                color: "#8a7a64", fontSize: 10, padding: "2px 5px", cursor: "pointer",
-                fontFamily: "monospace", flexShrink: 0,
-            }}>{isLeftHanded ? "\u21C0" : "\u21BC"}</button>
+            {/* Gold */}
+            <span style={{ fontSize: 21, color: "#f59e0b", fontWeight: "bold", flexShrink: 0 }}>{props.gold || 0}g</span>
+
+            {/* Options button — icon only, square */}
+            <button onClick={props.onOptions} style={{
+                background: "#141009", border: "1px solid #3d2e0f", borderRadius: 6,
+                color: "#8a7a64", fontSize: 20, cursor: "pointer",
+                flexShrink: 0, width: 32, height: 32,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: 0,
+            }}>{"\u2699"}</button>
         </div>
     );
 

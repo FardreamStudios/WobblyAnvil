@@ -879,9 +879,10 @@ export default function App() {
               onToggleHand={function() { setHandedness(function(h) { return h === "right" ? "left" : "right"; }); }}
           />
           {showOptions && (<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 400, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={function(e) { if (e.target === e.currentTarget) setShowOptions(false); }}>
-            <Panel style={{ padding: "24px 28px", width: 300, maxHeight: "60vh", overflowY: "auto" }}>
+            <Panel style={{ padding: "24px 28px", width: 300 }}>
               <Row style={{ marginBottom: 16 }}><div style={{ fontSize: 14, color: "#f59e0b", letterSpacing: 3 }}>OPTIONS</div><button onClick={function() { setShowOptions(false); }} style={{ background: "#2a1f0a", border: "1px solid #3d2e0f", borderRadius: 5, color: "#f59e0b", padding: "4px 10px", cursor: "pointer", fontFamily: "monospace", fontSize: 13 }}>X</button></Row>
               <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+                <SectionLabel>LAYOUT</SectionLabel><label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>Left-Handed Mode<input type="checkbox" checked={handedness === "left"} onChange={function() { setHandedness(function(h) { return h === "right" ? "left" : "right"; }); }} style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }} /></label><div style={{ borderTop: "1px solid #2a1f0a", marginTop: 12, paddingTop: 12 }} />
                 <SectionLabel>AUDIO</SectionLabel>
                 {[["Shop Music", true, function(e) { sfx.idleMuted = !e.target.checked; }], ["Forge Music", true, function(e) { sfx.forgeMuted = !e.target.checked; }]].map(function(r) { return (<label key={r[0]} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>{r[0]}<input type="checkbox" defaultChecked={r[1]} onChange={r[2]} style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }} /></label>); })}
               </div>
