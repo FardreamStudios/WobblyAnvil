@@ -49,6 +49,7 @@ function buildContext(instance, payload) {
         bus:      _bus,
         payload:  payload || {},
         manager:  AbilityManager,
+        instanceId: instance.instanceId,
         endSelf:  function() { endAbility(instance.instanceId); },
         state:    _stateProvider ? _stateProvider() : {},
     };

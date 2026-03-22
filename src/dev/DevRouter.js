@@ -10,9 +10,11 @@
 // ============================================================
 
 import HUDViewer from "./HUDViewer.js";
+import ParticleEditor from "./ParticleEditor.js";
 
 var DEV_ROUTES = {
     "/dev/hud-viewer": HUDViewer,
+    "/dev/particle-editor": ParticleEditor,
 };
 
 function DevRouter() {

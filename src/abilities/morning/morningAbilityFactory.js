@@ -3,7 +3,8 @@
 // Takes a data-table row and returns a valid ability definition
 // for AbilityManager.register().
 //
-// Handles: weighted variant pick, bus emission, toast display.
+// Handles: weighted variant pick, bus emission, toast display,
+//          persistent modifiers, and endWhen conditions.
 // Does NOT handle: complex VFX sequences, custom state logic,
 // or anything that needs bespoke code. Those stay as individual
 // ability files (mystery, reactive, etc.).
@@ -19,6 +20,7 @@
 //     requiresMats:  false,             // skip if player has no materials
 //     requiresGold:  false,             // skip if player has no gold
 //     condition:     null,              // optional fn(state) → bool
+//     toastDuration: 4000,             // optional override
 //     variants: [
 //       {
 //         title:   "Town Festival",
@@ -29,6 +31,21 @@
 //         ],
 //       },
 //     ],
+//
+//     // --- PERSISTENT MODIFIER SUPPORT (optional) ---
+//     modifiers: [                      // registered on activate, auto-removed on end
+//       { attribute: "heatPerfectZone", operation: "multiply", value: 1.5 },
+//     ],
+//     endWhen: {                        // bus-driven end condition
+//       tag: "ECONOMY_WEAPON_SOLD",     // EVENT_TAGS key or raw tag string
+//       condition: null,                // optional fn(payload, ctx) → bool
+//     },
+//     onEndToast: {                     // optional toast shown when ability ends
+//       msg:   "BLESSING FADES\nThe forge returns to normal.",
+//       icon:  "✨",
+//       color: "#4ade80",
+//       duration: 3000,
+//     },
 //   }
 //
 // EFFECTS:
@@ -120,11 +137,25 @@ function resolveDesc(desc, matKey, resolvedPayload) {
     return result;
 }
 
+// --- Resolve endWhen tag (EVENT_TAGS key or raw string) ---
+function resolveEndWhenTag(tagKey) {
+    return EVENT_TAGS[tagKey] || tagKey;
+}
+
 // ============================================================
 // FACTORY
 // ============================================================
 
 function createMorningAbility(row) {
+    // Pre-resolve endWhen if present
+    var endWhenDef = null;
+    if (row.endWhen && row.endWhen.tag) {
+        endWhenDef = {
+            tag:       resolveEndWhenTag(row.endWhen.tag),
+            condition: row.endWhen.condition || null,
+        };
+    }
+
     return {
         // --- Identity ---
         id:        row.id,
@@ -194,6 +225,17 @@ function createMorningAbility(row) {
                 ctx.bus.emit(tag, payload);
             }
 
+            // Register modifiers (persistent abilities)
+            var modifiers = row.modifiers || [];
+            for (var m = 0; m < modifiers.length; m++) {
+                ctx.manager.addModifier({
+                    source:    ctx.instanceId,
+                    attribute: modifiers[m].attribute,
+                    operation: modifiers[m].operation,
+                    value:     modifiers[m].value,
+                });
+            }
+
             // Toast
             var desc = resolveDesc(variant.desc, matKey);
             ctx.bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
@@ -205,9 +247,17 @@ function createMorningAbility(row) {
         },
 
         // --- End ---
-        endWhen:  null,
-        duration: null,
-        onEnd:    null,
+        endWhen:  endWhenDef,
+        duration: row.duration || null,
+
+        onEnd: row.onEndToast ? function(ctx) {
+            ctx.bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+                msg:      row.onEndToast.msg    || "Effect ended.",
+                icon:     row.onEndToast.icon   || "",
+                color:    row.onEndToast.color  || "#4ade80",
+                duration: row.onEndToast.duration || 3000,
+            });
+        } : null,
     };
 }
 

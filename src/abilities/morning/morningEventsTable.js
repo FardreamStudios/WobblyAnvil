@@ -244,6 +244,103 @@ var MORNING_EVENTS = [
         ],
     },
 
+    // ============================================================
+    // PERSISTENT MODIFIER ABILITIES
+    // These use the factory's modifier + endWhen support.
+    // They stay active and affect game math until ended.
+    // ============================================================
+
+    // --- BLESSING OF FLAME (wider heat perfect zone all day) ---
+    {
+        id: "blessing_of_flame",
+        chance: 0.07,
+        icon: "\uD83D\uDD25",
+        color: "#f59e0b",
+        tags: ["event", "buff", "forge"],
+        scope: "day",
+        variants: [
+            { title: "Blessing of Flame", desc: "The forge burns true. Heat perfect zone +50% today.", weight: 100, effects: [] },
+        ],
+        modifiers: [
+            { attribute: "heatPerfectZone", operation: "multiply", value: 1.5 },
+        ],
+        onEndToast: {
+            msg: "BLESSING FADES\nThe forge returns to normal.",
+            icon: "\u2728",
+            color: "#8a7a64",
+            duration: 3000,
+        },
+    },
+
+    // --- SUPPLY CARAVAN (material prices drop 30% all day) ---
+    {
+        id: "supply_caravan",
+        chance: 0.06,
+        icon: "\uD83D\uDED2",
+        color: "#4ade80",
+        tags: ["event", "buff", "market"],
+        scope: "day",
+        variants: [
+            { title: "Supply Caravan", desc: "A caravan rolls in. Material prices -30% today.", weight: 100, effects: [] },
+        ],
+        modifiers: [
+            { attribute: "materialPrice", operation: "multiply", value: 0.7 },
+        ],
+        onEndToast: {
+            msg: "CARAVAN DEPARTS\nPrices return to normal.",
+            icon: "\uD83D\uDED2",
+            color: "#8a7a64",
+            duration: 3000,
+        },
+    },
+
+    // --- TRAVELING SMITH (customer chance halved all day) ---
+    {
+        id: "traveling_smith",
+        chance: 0.06,
+        icon: "\u2694",
+        color: "#ef4444",
+        tags: ["event", "debuff", "customers"],
+        scope: "day",
+        variants: [
+            { title: "Traveling Smith", desc: "A rival smith is in town. Customer chance halved today.", weight: 100, effects: [] },
+        ],
+        modifiers: [
+            { attribute: "customerChance", operation: "multiply", value: 0.5 },
+        ],
+        onEndToast: {
+            msg: "RIVAL LEAVES\nCustomers return to normal.",
+            icon: "\u2694",
+            color: "#4ade80",
+            duration: 3000,
+        },
+    },
+
+    // --- ROYAL INSPECTION (double rep gain until next sale) ---
+    {
+        id: "royal_inspection",
+        chance: 0.05,
+        icon: "\uD83D\uDC51",
+        color: "#a78bfa",
+        tags: ["event", "buff", "reputation"],
+        scope: "manual",
+        variants: [
+            { title: "Royal Inspection", desc: "A royal inspector watches. Next sale earns double reputation.", weight: 100, effects: [] },
+        ],
+        modifiers: [
+            { attribute: "repGain", operation: "multiply", value: 2.0 },
+        ],
+        endWhen: {
+            tag: "ECONOMY_EARN_GOLD",
+        },
+        onEndToast: {
+            msg: "INSPECTOR SATISFIED\nThe royal inspector nods and leaves.",
+            icon: "\uD83D\uDC51",
+            color: "#4ade80",
+            duration: 3000,
+        },
+    },
+
 ];
 
 export default MORNING_EVENTS;
