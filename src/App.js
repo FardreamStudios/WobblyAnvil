@@ -26,6 +26,7 @@ import EVENT_TAGS from "./config/eventTags.js";
 
 // --- State Hooks ---
 import useUIState from "./hooks/useUIState.js";
+import useGameMode from "./hooks/useGameMode.js";
 import useEconomyState from "./hooks/useEconomyState.js";
 import useDayState from "./hooks/useDayState.js";
 import usePlayerState from "./hooks/usePlayerState.js";
@@ -135,6 +136,9 @@ export default function App() {
   var forge = useForgeState();
   var quest = useQuestState();
   var mystery = useMysteryState();
+
+  // --- GameMode Hook (owns init, sub-mode registration, lifecycle) ---
+  var gm = useGameMode({ bus: GameplayEventBus });
 
   // --- FX Cue Router ---
   useFXCues({ sfx: sfx, fxRef: mystery.fxRef });
@@ -371,7 +375,7 @@ export default function App() {
 
   // --- Reset ---
   function resetGame() {
-    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState();
+    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame();
     setScreen("splash"); setShowShop(false); setShowMaterials(false); setShowGiveUp(false); setShowOptions(false);
     setToasts([]); setToastQueue([]); setActiveToast(null); setGameOver(false); setActiveCustomer(null);
     setGold(STARTING_GOLD); setTotalGoldEarned(0); setInv({ bronze: 10, iron: 4, steel: 0, damascus: 0, titanium: 0, iridium: 0, tungsten: 0, mithril: 0, orichalcum: 0 });

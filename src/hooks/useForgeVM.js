@@ -3,7 +3,10 @@
 // Owns: All forge logic (QTE handlers, session flow, weapon
 //       finishing, WIP management), forge-specific refs,
 //       and forge-derived display values.
-// Consumes: useForgeState + cross-domain deps passed in.
+// Consumes: useForgeState + ForgeMode (phase authority) +
+//           cross-domain deps passed in.
+// Phase writes go through ForgeMode.transitionTo() first
+// (validation + bus emission), then sync React via setPhase().
 // Returns: Action handlers + display-ready props.
 // ============================================================
 
@@ -13,6 +16,7 @@ import GameUtils from "../modules/utilities.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
 import DynamicEvents from "../logic/dynamicEvents.js";
+import ForgeMode from "../gameMode/forgeMode.js";
 
 // --- Constants ---
 var PHASES = GameConstants.PHASES;
@@ -134,7 +138,8 @@ function useForgeVM(deps) {
 
     function resetForge() {
         qteProcessing.current = false; sfx.setMode("idle");
-        setForgeBubble(null); setQteFlash(null); setPhase(PHASES.IDLE);
+        setForgeBubble(null); setQteFlash(null);
+        ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE);
         setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null);
         stressRef.current = 0; qualRef.current = 0;
     }
@@ -142,7 +147,9 @@ function useForgeVM(deps) {
     function takeBreak() {
         setWipWeapon({ wKey: wKey, matKey: matKey, qualScore: qualRef.current, stress: stressRef.current, forgeSess: forgeSess, sessResult: sessResult });
         qteProcessing.current = false; sfx.setMode("idle");
-        setForgeBubble(null); setQteFlash(null); setPhase(PHASES.IDLE); setSessResult(null);
+        setForgeBubble(null); setQteFlash(null);
+        ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE);
+        setSessResult(null);
     }
 
     function resumeWip() {
@@ -152,7 +159,9 @@ function useForgeVM(deps) {
         setQualScore(wipWeapon.qualScore); setStress(wipWeapon.stress);
         setForgeSess(wipWeapon.forgeSess); setSessResult(wipWeapon.sessResult || null);
         setQteFlash(null); setForgeBubble(null); qteProcessing.current = false;
-        setWipWeapon(null); setPhase(PHASES.SESS_RESULT); sfx.setMode("forge");
+        setWipWeapon(null);
+        ForgeMode.forcePhase(PHASES.SESS_RESULT); setPhase(PHASES.SESS_RESULT);
+        sfx.setMode("forge");
     }
 
     function scrapWip() {
@@ -177,7 +186,8 @@ function useForgeVM(deps) {
         setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + needed - weapon.materialCost; return n; });
         qualRef.current = 20; stressRef.current = 0; setQualScore(20); setStress(0);
         setForgeSess(0); setSessResult(null); setQteFlash(null); qteProcessing.current = false;
-        setPhase(PHASES.HEAT); sfx.setMode("forge");
+        ForgeMode.transitionTo(PHASES.HEAT); setPhase(PHASES.HEAT);
+        sfx.setMode("forge");
     }
 
     function onForgeClick() {
@@ -201,7 +211,7 @@ function useForgeVM(deps) {
         setQteFlash(tier.label);
         var bs = tier.bonusStrikes, strikeTotal = BALANCE.baseStrikes + bs;
         showForgeBubbleFn("HEAT RESULT", [{ text: strikeTotal + " strikes", color: bs > 0 ? "#4ade80" : tier.id === "poor" ? "#f87171" : "#c8b89a", bold: true }], tier.color);
-        setTimeout(function() { setQteFlash(null); qteProcessing.current = false; setBonusStrikes(bs); setStrikesLeft(strikeTotal); sessionStartQual.current = qualRef.current; setPhase(PHASES.HAMMER); }, QTE_FLASH_MS);
+        setTimeout(function() { setQteFlash(null); qteProcessing.current = false; setBonusStrikes(bs); setStrikesLeft(strikeTotal); sessionStartQual.current = qualRef.current; ForgeMode.transitionTo(PHASES.HAMMER); setPhase(PHASES.HAMMER); }, QTE_FLASH_MS);
     }
 
     function handleHammerFire(pos) {
@@ -225,7 +235,7 @@ function useForgeVM(deps) {
         setSessResult({ delta: delta, nq: nq, quality: q, ns: ns, sessions: forgeSess + 1 });
         showForgeBubbleFn("HAMMER RESULT", [{ text: (delta >= 0 ? "+" : "") + delta + " quality", color: delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a", bold: true }], delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a");
         if (pendingMystery && pendingMystery.severity && Math.random() < 0.5) { takeBreak(); var snapshot = { gold: gold, inv: inv, finished: finished }; if (pendingMystery.severity === "good") { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); DynamicEvents.mysteryGood(GameplayEventBus, snapshot); } else { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); DynamicEvents.mysteryBad(GameplayEventBus, snapshot, true); } return; }
-        setPhase(PHASES.SESS_RESULT);
+        ForgeMode.transitionTo(PHASES.SESS_RESULT); setPhase(PHASES.SESS_RESULT);
     }
 
     function attemptForge() {
@@ -233,7 +243,7 @@ function useForgeVM(deps) {
             var chance = stress >= STRESS_MAX ? BALANCE.shatterChanceMax : BALANCE.shatterChanceHigh;
             if (Math.random() < chance) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
         }
-        setPhase(PHASES.HEAT);
+        ForgeMode.transitionTo(PHASES.HEAT); setPhase(PHASES.HEAT);
     }
 
     function doNormalize() {
@@ -245,7 +255,7 @@ function useForgeVM(deps) {
         setSessResult({ delta: nq - oldQ, nq: nq, quality: getQualityTier(nq), ns: ns, sessions: forgeSess });
         showForgeBubbleFn("NORMALIZE", [{ text: (nq - oldQ) + " quality", color: "#f87171", bold: true }, { text: "-1 stress", color: "#60a5fa", bold: true }], "#60a5fa");
         if (pendingMystery && pendingMystery.severity) { takeBreak(); var snapshot = { gold: gold, inv: inv, finished: finished }; if (pendingMystery.severity === "good") { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); DynamicEvents.mysteryGood(GameplayEventBus, snapshot); } else { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); DynamicEvents.mysteryBad(GameplayEventBus, snapshot, true); } return; }
-        setPhase(PHASES.SESS_RESULT);
+        ForgeMode.transitionTo(PHASES.SESS_RESULT); setPhase(PHASES.SESS_RESULT);
     }
 
     function finishWeapon(nq) {
@@ -268,7 +278,8 @@ function useForgeVM(deps) {
         if (!isQuestDelivery) { nf = finished.concat([item]); setFinished(nf); }
         var toastMsg = isQuestDelivery ? (questComplete ? "DECREE FULFILLED\n" + q.label + " " + weapon.name : "DELIVERED " + deliveredSoFar + "/" + questQty + "\n" + q.label + " " + weapon.name) : q.label.toUpperCase() + " " + weapon.name + "\n~" + val + "g added to shelf";
         addToast(toastMsg, "", questComplete ? "#4ade80" : isQuestDelivery ? "#f59e0b" : q.weaponColor);
-        stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); setPhase(PHASES.IDLE);
+        stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null);
+        ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE);
         if (!isQuestDelivery) setTimeout(function() { trySpawnCustomer(hour, nf); }, 400);
     }
 
@@ -284,9 +295,9 @@ function useForgeVM(deps) {
             else if (good) { var nq2 = clamp(qualRef.current, 0, 100); qualRef.current = nq2; advanceTime(sessCost, undefined, true); finishWeapon(nq2); }
             else if (poor) {
                 var loss = randInt(10, 20), nq3 = clamp(qualRef.current - loss, 0, 100); qualRef.current = nq3; advanceTime(sessCost, undefined, true);
-                if (nq3 <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); setPhase(PHASES.IDLE); }
+                if (nq3 <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
                 else finishWeapon(nq3);
-            } else { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); setPhase(PHASES.IDLE); }
+            } else { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
         }, QTE_FLASH_MS);
     }
 
@@ -309,7 +320,7 @@ function useForgeVM(deps) {
         sfx.setMode("idle");
         setForgeBubble(null);
         setQteFlash(null);
-        setPhase(PHASES.IDLE);
+        ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE);
         setQualScore(0);
         setStress(0);
         setForgeSess(0);

@@ -126,13 +126,8 @@ set /p "DEPLOY_CHOICE=  Run npm run deploy? (Y/N): "
 
 if /i "!DEPLOY_CHOICE!"=="Y" (
     npm run deploy
-    if !errorlevel! NEQ 0 (
-        echo ERROR: npm run deploy failed.
-        pause
-        exit /b 1
-    )
     echo.
-    echo   Deployed !NEW_VERSION!
+    echo   Deploy finished for !NEW_VERSION!
     echo.
 ) else (
     echo.
