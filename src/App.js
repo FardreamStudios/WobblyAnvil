@@ -29,6 +29,8 @@ import usePlayerState from "./hooks/usePlayerState.js";
 import useForgeState from "./hooks/useForgeState.js";
 import useForgeVM from "./hooks/useForgeVM.js";
 import usePlayerVM from "./hooks/usePlayerVM.js";
+import useEconomyVM from "./hooks/useEconomyVM.js";
+import useDayVM from "./hooks/useDayVM.js";
 import useQuestState from "./hooks/useQuestState.js";
 import useMysteryState from "./hooks/useMysteryState.js";
 
@@ -253,9 +255,6 @@ export default function App() {
   // --- Derived (cross-domain) ---
   var isLocked = isQTEActive || !!activeCustomer || toastQueue.length > 0 || !!activeToast || mysteryPending;
 
-  // --- Gold Pop Helpers ---
-  function popGold(amount) { setGoldPops(function(p) { return p.concat([{ id: Date.now() + Math.random(), amount: amount }]); }); }
-  function removeGoldPop(id) { setGoldPops(function(p) { return p.filter(function(x) { return x.id !== id; }); }); }
 
   // --- Toast System ---
   useEffect(function() {
@@ -272,18 +271,6 @@ export default function App() {
   function addToast(msg, icon, color, duration, locked) { setToasts(function(t) { return t.concat([{ id: Date.now() + Math.random(), msg: msg, icon: icon, color: color, duration: duration || null, locked: locked || false }]); }); }
   function removeToast(id) { setToasts(function(t) { return t.filter(function(x) { return x.id !== id; }); }); }
 
-  // --- Gold & XP ---
-  function earnGold(amount) {
-    if (amount === 0) return;
-    popGold(amount); sfx.coin();
-    setGold(function(g) { return g + amount; });
-    setTotalGoldEarned(function(t) {
-      var nt = t + amount, or = getSmithRank(t), nr = getSmithRank(nt);
-      if (nr.name !== or.name) { sfx.levelup(); setTimeout(function() { addToast("RANK UP!\n" + nr.name, "", "#fbbf24"); }, 100); }
-      return nt;
-    });
-  }
-  function spendGold(amount) { if (amount === 0) return; popGold(-amount); sfx.coinLoss(); setGold(function(g) { return g - amount; }); }
 
 
 
@@ -352,20 +339,12 @@ export default function App() {
     });
   }, [sfx]);
 
-  function handleSell(price, weaponId) {
-    earnGold(price);
-    setFinished(function(f) { var nf = f.filter(function(w) { return w.id !== weaponId; }); setTimeout(function() { trySpawnCustomer(hour, nf); }, 500); return nf; });
-    setHasSoldWeapon(true); setActiveCustomer(null);
-    setTimeout(function() { addToast("SOLD!\n+" + price + "g", "", "#4ade80"); sfx.toast(); }, 100);
-  }
-  function handleRefuse() { setActiveCustomer(null); }
 
   // --- Time & Actions ---
   function advanceTime(hrs, nf, useStam) {
     setHour(function(h) { var next = h + hrs; setTimeout(function() { trySpawnCustomer(next, nf); }, 200); return next; });
     if (useStam) { setStamina(function(s) { return Math.max(0, s - 1); }); gainXp(6); }
   }
-  function waitHour() { sfx.click(); advanceTime(2, undefined, false); setStamina(function(s) { return Math.min(maxStam, s + 1); }); }
   function promote() {
     sfx.click(); advanceTime(1, undefined, true); setPromoteUses(function(p) { return p + 1; });
     var items = finishedRef.current;
@@ -386,6 +365,13 @@ export default function App() {
   var gainXp = playerVM.gainXp, loseXp = playerVM.loseXp, changeRep = playerVM.changeRep, allocateStat = playerVM.allocateStat;
   var xpNeeded = playerVM.xpNeeded;
 
+  // --- Economy ViewModel ---
+  var economyVM = useEconomyVM({
+    economy: economy, quest: quest, sfx: sfx,
+    addToast: addToast, trySpawnCustomer: trySpawnCustomer, hour: hour
+  });
+  var earnGold = economyVM.earnGold, spendGold = economyVM.spendGold, popGold = economyVM.popGold, removeGoldPop = economyVM.removeGoldPop, handleSell = economyVM.handleSell, handleRefuse = economyVM.handleRefuse;
+
   // --- Forge ViewModel ---
   var forgeVM = useForgeVM({
     forge: forge, sfx: sfx, addToast: addToast, advanceTime: advanceTime,
@@ -403,6 +389,16 @@ export default function App() {
   var strikeLabel = forgeVM.strikeLabel, strikeColor = forgeVM.strikeColor, stressColor = forgeVM.stressColor, stressLabel2 = forgeVM.stressLabel2;
   var showBars = forgeVM.showBars, isQTEActive = forgeVM.isQTEActive, isForging = forgeVM.isForging, diffColor = forgeVM.diffColor;
   var qtePosRef = forgeVM.qtePosRef, qteProcessing = forgeVM.qteProcessing;
+
+  // --- Day ViewModel ---
+  var dayVM = useDayVM({
+    dayState: dayState, economy: economy, quest: quest, mystery: mystery,
+    sfx: sfx, addToast: addToast, setToastQueue: setToastQueue, setActiveToast: setActiveToast,
+    trySpawnCustomer: trySpawnCustomer, earnGold: earnGold, changeRep: changeRep,
+    forgeOnSleep: forgeVM.onSleep, applyEvent: applyEvent, applyMystery: applyMystery,
+    maxStam: maxStam, advanceTime: advanceTime, unlockedBP: unlockedBP, reputation: reputation
+  });
+  var waitHour = dayVM.waitHour, buildDayQueue = dayVM.buildDayQueue, doSleep = dayVM.doSleep, sleep = dayVM.sleep;
 
   function scavenge() {
     sfx.click(); advanceTime(1, undefined, true);
@@ -422,59 +418,6 @@ export default function App() {
     else { var m3 = addMat(); setTimeout(function() { addToast("SCAVENGED!\nFound 1 " + MATS[m3].name, "", "#a0a0a0"); }, 200); }
   }
 
-  // --- Day Cycle ---
-  function buildDayQueue(newDay, state, pendingQuestNum) {
-    var ev = rollDailyEvent(state); setMEvent(ev);
-    if (ev && ev.effect) {
-      if (ev.id === "mystery" && ev.severity) { if (!pendingMystery) setTimeout(function() { setPendingMystery({ effect: ev.effect, severity: ev.severity }); }, 150); }
-      else { var r = ev.effect({ gold: state.gold || STARTING_GOLD, inv: state.inv || { bronze: 10, iron: 4 }, hour: WAKE_HOUR, stamina: state.stamina || BASE_STAMINA, finished: state.finished || [] }); setTimeout(function() { applyEvent(r); }, 150); }
-    }
-    var queue = [];
-    queue.push({ id: "gm_" + newDay, msg: "DAY " + newDay + "\nGood morning, blacksmith.", icon: "", color: "#f59e0b" });
-    if (ev && ev.id !== "slow" && ev.id !== "mystery") queue.push({ id: "ev_" + newDay, msg: ev.title + "\n" + ev.desc, icon: ev.icon, color: TAG_COLORS[ev.variantTag || ev.tag] || "#f59e0b" });
-    if (pendingQuestNum != null) {
-      var bp = state.unlockedBP || ["dagger", "shortsword", "axe"];
-      var q2 = generateRoyalQuest(pendingQuestNum, bp, newDay, state.reputation || 4);
-      if (q2) {
-        setRoyalQuest(q2); setQuestNum(pendingQuestNum); sfx.royal();
-        queue.push({ id: "rq_" + newDay, msg: q2.name + "\nDemands " + q2.minQualityLabel + "+ " + q2.materialRequired.toUpperCase() + " " + q2.weaponName + (q2.qty > 1 ? " x" + q2.qty : "") + " by Day " + q2.deadline, icon: "", color: "#f59e0b" });
-      }
-    }
-    return queue;
-  }
-
-  function doSleep() {
-    var late = Math.max(0, hour - 24), ns = Math.max(1, maxStam - Math.floor(late)), newDay = day + 1;
-    var resolutionToast = null, spawnQuestNum = null;
-    if (royalQuest && newDay >= royalQuest.deadline) {
-      if (royalQuest.fulfilled) {
-        var rqR = royalQuest.reward, rqRep = royalQuest.reputationGain;
-        earnGold(rqR); changeRep(rqRep);
-        resolutionToast = { msg: "DECREE COMPLETE\n+" + rqR + "g +" + rqRep + " rep", icon: "", color: "#f59e0b" };
-        spawnQuestNum = questNum + 1;
-      } else {
-        changeRep(-royalQuest.reputationLoss);
-        resolutionToast = { msg: "Quest Overdue!\n-" + royalQuest.reputationLoss + " reputation", icon: "", color: "#ef4444" };
-        spawnQuestNum = questNum + 1;
-      }
-      setRoyalQuest(null);
-    }
-    setLateToastShown(false); setDay(newDay); setHour(WAKE_HOUR); setStamina(ns);
-    setCustVisitsToday(0); setMaxCustToday(BASE_DAILY_CUSTOMERS); setForcedExhaustion(false);
-    setPriceBonus(1.0); setPriceDebuff(1.0); setMatDiscount(null); setGlobalMatMult(1.0);
-    setGuaranteedCustomers(false); setPromoteUses(0);
-    sfx.setMode("idle");
-    forgeVM.onSleep();
-    setActiveToast(null); sfx.resetDay(); sfx.setMode("idle");
-    setTimeout(function() {
-      var state = { gold: gold, inv: inv, finished: finished, hasSoldWeapon: hasSoldWeapon, lastSleepHour: hour, stamina: ns, unlockedBP: unlockedBP, reputation: reputation };
-      var dayQueue = buildDayQueue(newDay, state, spawnQuestNum);
-      var fullQueue = resolutionToast ? [{ id: "res_" + newDay, msg: resolutionToast.msg, icon: resolutionToast.icon, color: resolutionToast.color }].concat(dayQueue) : dayQueue;
-      setToastQueue(fullQueue);
-      setTimeout(function() { trySpawnCustomer(9, finished); }, 600);
-    }, 300);
-  }
-  function sleep() { if (pendingMystery && pendingMystery.severity) { applyMystery(doSleep); return; } doSleep(); }
 
   // --- Game Init ---
   useEffect(function() {
