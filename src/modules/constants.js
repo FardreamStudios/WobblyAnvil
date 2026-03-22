@@ -327,7 +327,7 @@ var FIRE_FX_MOBILE = {
     displayW: 235,
     displayH: 155,
     posLeft: "2%",
-    posTop: "60%",
+    posTop: "3%",
     zIndex: 3,
     coalRX: 30,
     coalRY: 6,
