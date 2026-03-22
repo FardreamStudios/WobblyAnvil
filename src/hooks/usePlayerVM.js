@@ -1,0 +1,96 @@
+// ============================================================
+// usePlayerVM.js — Wobbly Anvil Player ViewModel Hook
+// Owns: XP gain/loss, level-up logic, stat allocation,
+//       reputation changes, and derived display values
+//       (xpNeeded, smithRank, nextRank).
+// Consumes: usePlayerState + cross-domain deps passed in.
+// Returns: Action handlers + display-ready props.
+// ============================================================
+
+import { useRef, useCallback, useEffect } from "react";
+import GameUtils from "../modules/utilities.js";
+
+// --- Utilities ---
+var xpForLevel = GameUtils.xpForLevel;
+var getSmithRank = GameUtils.getSmithRank;
+var getNextRank = GameUtils.getNextRank;
+
+// ============================================================
+// Hook
+// ============================================================
+
+function usePlayerVM(deps) {
+    // --- Unpack dependencies from App.js ---
+    var player = deps.player;
+    var sfx = deps.sfx;
+    var setStamina = deps.setStamina;
+    var setGameOver = deps.setGameOver;
+    var gameOver = deps.gameOver;
+
+    // --- Player state (from usePlayerState) ---
+    var level = player.level, setLevel = player.setLevel;
+    var xp = player.xp, setXp = player.setXp;
+    var statPoints = player.statPoints, setStatPoints = player.setStatPoints;
+    var stats = player.stats, setStats = player.setStats;
+
+    // --- Refs ---
+    var levelRef = useRef(level);
+    levelRef.current = level;
+
+    // --- Stat Cost ---
+    function statCost(currentLevel) { return currentLevel < 3 ? 1 : currentLevel < 6 ? 2 : 3; }
+
+    // --- Stat Allocation ---
+    function allocateStat(k) {
+        var cost = statCost(stats[k]); if (statPoints < cost) return;
+        setStats(function(s) { var n = Object.assign({}, s); n[k] = s[k] + 1; return n; });
+        setStatPoints(function(p) { return p - cost; });
+        if (k === "brawn") setStamina(function(s) { return s + 1; });
+    }
+
+    // --- XP ---
+    var gainXp = useCallback(function(amount) {
+        setXp(function(prev) {
+            return prev + amount;
+        });
+    }, []);
+
+    useEffect(function() {
+        var cur = xp, lv = level, pts = 0;
+        while (cur >= xpForLevel(lv)) { cur -= xpForLevel(lv); lv++; pts++; }
+        if (pts > 0) { setXp(cur); setLevel(lv); setStatPoints(function(p) { return p + pts; }); sfx.levelup(); }
+    }, [xp]);
+
+    function loseXp(amount) { setXp(function(prev) { return Math.max(0, prev - amount); }); }
+
+    // --- Reputation ---
+    var changeRep = useCallback(function(delta, delay) {
+        if (gameOver) return;
+        player.setReputation(function(r) {
+            var nr = Math.max(0, Math.min(10, r + delta));
+            if (nr <= 0) { setTimeout(function() { sfx.gameover(); setTimeout(function() { setGameOver(true); }, 2600); }, (delay || 0)); }
+            return nr;
+        });
+    }, [sfx, gameOver]);
+
+    // --- Derived Display Values ---
+    var xpNeeded = xpForLevel(level);
+
+    // ============================================================
+    // Return — actions + display props
+    // ============================================================
+
+    return {
+        // --- Actions ---
+        allocateStat: allocateStat,
+        statCost: statCost,
+        gainXp: gainXp,
+        loseXp: loseXp,
+        changeRep: changeRep,
+
+        // --- Display Props ---
+        xpNeeded: xpNeeded,
+    };
+}
+
+export default usePlayerVM;

@@ -28,6 +28,7 @@ import useDayState from "./hooks/useDayState.js";
 import usePlayerState from "./hooks/usePlayerState.js";
 import useForgeState from "./hooks/useForgeState.js";
 import useForgeVM from "./hooks/useForgeVM.js";
+import usePlayerVM from "./hooks/usePlayerVM.js";
 import useQuestState from "./hooks/useQuestState.js";
 import useMysteryState from "./hooks/useMysteryState.js";
 
@@ -283,35 +284,9 @@ export default function App() {
     });
   }
   function spendGold(amount) { if (amount === 0) return; popGold(-amount); sfx.coinLoss(); setGold(function(g) { return g - amount; }); }
-  function statCost(currentLevel) { return currentLevel < 3 ? 1 : currentLevel < 6 ? 2 : 3; }
-  function allocateStat(k) {
-    var cost = statCost(stats[k]); if (statPoints < cost) return;
-    setStats(function(s) { var n = Object.assign({}, s); n[k] = s[k] + 1; return n; });
-    setStatPoints(function(p) { return p - cost; });
-    if (k === "brawn") setStamina(function(s) { return s + 1; });
-  }
-  var levelRef = useRef(level);
-  levelRef.current = level;
-  var gainXp = useCallback(function(amount) {
-    setXp(function(prev) {
-      return prev + amount;
-    });
-  }, []);
-  useEffect(function() {
-    var cur = xp, lv = level, pts = 0;
-    while (cur >= xpForLevel(lv)) { cur -= xpForLevel(lv); lv++; pts++; }
-    if (pts > 0) { setXp(cur); setLevel(lv); setStatPoints(function(p) { return p + pts; }); sfx.levelup(); }
-  }, [xp]);
-  function loseXp(amount) { setXp(function(prev) { return Math.max(0, prev - amount); }); }
 
-  var changeRep = useCallback(function(delta, delay) {
-    if (gameOver) return;
-    setReputation(function(r) {
-      var nr = Math.max(0, Math.min(10, r + delta));
-      if (nr <= 0) { setTimeout(function() { sfx.gameover(); setTimeout(function() { setGameOver(true); }, 2600); }, (delay || 0)); }
-      return nr;
-    });
-  }, [sfx, gameOver]);
+
+
 
   // --- Event Application ---
   function applyEvent(r) {
@@ -401,6 +376,15 @@ export default function App() {
       return false;
     });
   }
+
+  // --- Player ViewModel ---
+  var playerVM = usePlayerVM({
+    player: player, sfx: sfx,
+    setStamina: setStamina, setGameOver: setGameOver,
+    gameOver: gameOver
+  });
+  var gainXp = playerVM.gainXp, loseXp = playerVM.loseXp, changeRep = playerVM.changeRep, allocateStat = playerVM.allocateStat;
+  var xpNeeded = playerVM.xpNeeded;
 
   // --- Forge ViewModel ---
   var forgeVM = useForgeVM({
@@ -523,7 +507,6 @@ export default function App() {
   var timeColor = hour < 18 ? "#4ade80" : hour < 21 ? "#fbbf24" : hour < 24 ? "#fb923c" : "#ef4444";
   var timeBarPct = hour >= 24 ? 100 : hourPct;
   var timeBarClass = hour >= 24 ? "blink-slow" : "";
-  var xpNeeded = xpForLevel(level);
   var smithRank = getSmithRank(totalGoldEarned);
   var nextRank = getNextRank(totalGoldEarned);
 
