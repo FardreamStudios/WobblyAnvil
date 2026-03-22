@@ -20,6 +20,8 @@
 import { useState, useEffect, useRef } from "react";
 import W from "../components/widgets.js";
 import THEME from "../config/theme.js";
+import ForgeFireFX from "../components/ForgeFireFX.js";
+import GameConstants from "./constants.js";
 
 // --- Design aspect ratio for portrait scale-to-fit ---
 var LANDSCAPE_MIN_RATIO = 1.3; // width/height — below this we're in portrait territory
@@ -583,6 +585,7 @@ function MobileLayout(props) {
         <div className="mobile-center" onClick={isQTEActive ? props.onForgeClick : null} style={{ cursor: isQTEActive ? "pointer" : "default" }}>
             {props.overlay}
             {props.scene}
+            <ForgeFireFX active={isForging} config={GameConstants.FIRE_FX_MOBILE} />
             {props.forgeUI}
 
             {/* Begin Forge button — idle, no WIP, centered at bottom */}

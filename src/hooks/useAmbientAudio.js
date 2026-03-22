@@ -7,9 +7,10 @@
 // for maximum format compatibility.
 //
 // Channels:
-//   ambient — quiet background loop (fades out during forge)
-//   fireLoop — looping fire crackle (fades in/out with forge)
-//   fireBurst — one-shot fire startup (no fade)
+//   ambient    — quiet background loop (fades out during forge)
+//   fireLoop   — looping fire crackle (fades in/out with forge)
+//   fireBurst  — one-shot fire startup (no fade)
+//   hammerPing — random ping from pool, timing deviation (forge only)
 //
 // Pattern: consumes isForging boolean, handles all transitions
 // internally. Views don't touch this — it's pure side-effect.
@@ -66,6 +67,8 @@ function useAmbientAudio(deps) {
     var ambientRef    = useRef(null);   // Audio element
     var fireLoopRef   = useRef(null);   // Audio element
     var fireBurstRef  = useRef(null);   // Audio element
+    var hammerPoolRef = useRef([]);     // Array of Audio elements (one per hammer file)
+    var hammerTimerRef = useRef(null);  // setTimeout id for next hammer ping
     var startedRef    = useRef(false);
     var forgingRef    = useRef(false);
     var mutedRef      = useRef(false);
@@ -106,6 +109,11 @@ function useAmbientAudio(deps) {
         if (!fireBurstRef.current) {
             fireBurstRef.current = createAudio(audioPath(AMBIENT.fireBurstFile), false);
         }
+        if (hammerPoolRef.current.length === 0 && AMBIENT.hammerFiles) {
+            hammerPoolRef.current = AMBIENT.hammerFiles.map(function(f) {
+                return createAudio(audioPath(f), false);
+            });
+        }
     }
 
     // --- Start ambient (first user interaction) ---
@@ -120,6 +128,48 @@ function useAmbientAudio(deps) {
         ambient.volume = 0;
         ambient.play().catch(function() {});
         trackFade(fadeVolume(ambient, AMBIENT.ambientVol, AMBIENT.fadeInSec * 1000));
+    }
+
+    // --- Hammer ambient loop ---
+    function startHammerLoop() {
+        if (!AMBIENT.hammerFiles || AMBIENT.hammerFiles.length === 0) return;
+        stopHammerLoop();
+
+        function scheduleNext() {
+            var deviation = (Math.random() * 2 - 1) * AMBIENT.hammerDeviationMs;
+            var delay = AMBIENT.hammerIntervalMs + deviation;
+            hammerTimerRef.current = setTimeout(function() {
+                if (!forgingRef.current || mutedRef.current) return;
+                // Pick random file from pool
+                var pool = hammerPoolRef.current;
+                if (pool.length === 0) return;
+                var audio = pool[Math.floor(Math.random() * pool.length)];
+                audio.currentTime = 0;
+                audio.volume = AMBIENT.hammerVol;
+                audio.play().catch(function() {});
+                scheduleNext();
+            }, Math.max(200, delay));
+        }
+
+        // Initial delay before first ping (half interval + deviation)
+        var firstDelay = (AMBIENT.hammerIntervalMs * 0.5) + (Math.random() * AMBIENT.hammerDeviationMs);
+        hammerTimerRef.current = setTimeout(function() {
+            if (!forgingRef.current || mutedRef.current) return;
+            var pool = hammerPoolRef.current;
+            if (pool.length === 0) return;
+            var audio = pool[Math.floor(Math.random() * pool.length)];
+            audio.currentTime = 0;
+            audio.volume = AMBIENT.hammerVol;
+            audio.play().catch(function() {});
+            scheduleNext();
+        }, Math.max(200, firstDelay));
+    }
+
+    function stopHammerLoop() {
+        if (hammerTimerRef.current) {
+            clearTimeout(hammerTimerRef.current);
+            hammerTimerRef.current = null;
+        }
     }
 
     // --- Transition: idle → forge ---
@@ -150,11 +200,15 @@ function useAmbientAudio(deps) {
             fireLoop.play().catch(function() {});
             trackFade(fadeVolume(fireLoop, AMBIENT.fireLoopVol, AMBIENT.fadeInSec * 1000));
         }
+
+        // Hammer ambient ping loop
+        startHammerLoop();
     }
 
     // --- Transition: forge → idle ---
     function exitForge() {
         clearFades();
+        stopHammerLoop();
 
         // Fade out fire loop
         var fireLoop = fireLoopRef.current;
@@ -190,6 +244,7 @@ function useAmbientAudio(deps) {
     useEffect(function() {
         if (muted) {
             clearFades();
+            stopHammerLoop();
             if (ambientRef.current) { ambientRef.current.pause(); ambientRef.current.volume = 0; }
             if (fireLoopRef.current) { fireLoopRef.current.pause(); fireLoopRef.current.volume = 0; }
             startedRef.current = false;
@@ -201,9 +256,12 @@ function useAmbientAudio(deps) {
     useEffect(function() {
         return function() {
             clearFades();
+            stopHammerLoop();
             if (ambientRef.current) { ambientRef.current.pause(); ambientRef.current = null; }
             if (fireLoopRef.current) { fireLoopRef.current.pause(); fireLoopRef.current = null; }
             if (fireBurstRef.current) { fireBurstRef.current.pause(); fireBurstRef.current = null; }
+            hammerPoolRef.current.forEach(function(a) { a.pause(); });
+            hammerPoolRef.current = [];
         };
     }, []);
 

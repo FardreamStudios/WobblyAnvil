@@ -282,6 +282,12 @@ var AMBIENT_AUDIO = {
     fireLoopVol:   0.08,
     fadeInSec:     0.8,
     fadeOutSec:    0.8,
+    // Hammer ambient ping (loops during forge with timing deviation)
+    hammerFiles:      ["sHammerPing1.mp3", "sHammerPing2.mp3"],
+    hammerVol:        0.12,
+    hammerIntervalMs: 1800,
+    hammerDeviationMs: 400,
+    hammerFadeInSec:  0.6,
 };
 
 // --- Fire VFX Config ---
@@ -309,6 +315,28 @@ var FIRE_FX = {
     spawnRadius: 10,
     maxParticles: 100,
     // Flare-up startup (frames at ~60fps)
+    flareRampFrames: 30,
+    flareFlashFrames: 12,
+    flareSettleFrames: 40,
+};
+
+// --- Fire VFX Config (Mobile) ---
+var FIRE_FX_MOBILE = {
+    canvasW: 80,
+    canvasH: 60,
+    displayW: 140,
+    displayH: 95,
+    posLeft: "3%",
+    posTop: "25%",
+    zIndex: 3,
+    coalRX: 30,
+    coalRY: 6,
+    ovalMainRX: 15,
+    ovalMainRY: 9,
+    ovalTopRX: 10,
+    ovalTopRY: 6,
+    spawnRadius: 10,
+    maxParticles: 100,
     flareRampFrames: 30,
     flareFlashFrames: 12,
     flareSettleFrames: 40,
@@ -412,6 +440,7 @@ var GameConstants = {
 
     // Fire VFX
     FIRE_FX: FIRE_FX,
+    FIRE_FX_MOBILE: FIRE_FX_MOBILE,
 };
 
 export default GameConstants;

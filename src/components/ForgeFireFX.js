@@ -28,6 +28,7 @@ var FIRE_FX = GameConstants.FIRE_FX;
 
 function ForgeFireFX(props) {
     var active = props.active;
+    var FIRE_FX = props.config || GameConstants.FIRE_FX;
 
     var bgRef = useRef(null);
     var fgRef = useRef(null);
