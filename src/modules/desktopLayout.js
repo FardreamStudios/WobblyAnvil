@@ -400,7 +400,7 @@ function DesktopLayout(props) {
                                 </div>)}
 
                                 {/* QTE */}
-                                <div style={{ background: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "rgba(5, 3, 1, 0.75)" : "transparent", borderRadius: 8, padding: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "10px 14px" : 0, width: "100%", maxWidth: 500, boxSizing: "border-box", transition: "background 0.3s, padding 0.3s" }}>
+                                <div style={{ background: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "rgba(5, 3, 1, 0.85)" : "transparent", borderRadius: 8, padding: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "10px 14px" : 0, width: "100%", maxWidth: 500, boxSizing: "border-box", transition: "background 0.3s, padding 0.3s" }}>
                                     <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
                                 </div>
 

@@ -34,53 +34,60 @@ var SPRITE_FULL = PUB + "/images/ui/waPixelBarTinyFull.png";
 
 // --- Sprite Bar Constants ---
 var BAR_COLS = 30;
-var SPRITE_W = 10;   // native sprite width px
-var SPRITE_H = 32;   // native sprite height px
-var SCALE = 4;        // CSS upscale factor
-var COL_DISPLAY_W = SPRITE_W * SCALE;  // 40px displayed
-var COL_DISPLAY_H = SPRITE_H * SCALE;  // 128px displayed
+var BAR_MAX_W = 480;  // fits inside QTE_W
+var BAR_HEIGHT = 52;  // matches old bar height
 var HEIGHT_EXPONENT = 2.4;  // power curve for column heights
 
 // --- Hue Rotation Map ---
 // Base sprite is green (#4ade80-ish). These CSS hue-rotate values
 // shift it into each target color. Tuned by eye for pixel art.
+// Pre-built CSS filter strings per color variant.
+// hue-rotate alone can't hit true red from a green source — red uses
+// sepia + saturate + hue-rotate chain to force it.
 var HUE_VARIANTS = {
-    cyan:   { hue: -40,  label: "cyan" },
-    green:  { hue: 0,    label: "green" },
-    lime:   { hue: 30,   label: "lime" },
-    yellow: { hue: 60,   label: "yellow" },
-    orange: { hue: 90,   label: "orange" },
-    red:    { hue: 140,  label: "red" },
+    cyan:   { filter: "hue-rotate(60deg)" },
+    green:  { filter: "hue-rotate(0deg)" },
+    lime:   { filter: "hue-rotate(-30deg)" },
+    yellow: { filter: "hue-rotate(-60deg)" },
+    orange: { filter: "hue-rotate(-80deg) saturate(1.5)" },
+    red:    { filter: "hue-rotate(-105deg) saturate(1.5)" },
 };
 
-// --- Color Picker: maps column position to a hue variant key ---
+// --- Color Picker: sweet zone = cyan, then gradient outward from center ---
+// Perfect zone (sweetLow–sweetHigh) is always cyan.
+// Color gradient peaks at given peak column. Cyan at peak, gradient outward.
+// sweetLow/sweetHigh kept in signature for future use but not used.
 
-function pickBarColor(index, sweetLow, sweetHigh, totalCols) {
-    if (index >= sweetLow && index <= sweetHigh) return "green";
-    var distance = index < sweetLow ? sweetLow - index : index - sweetHigh;
-    var maxDist = Math.max(sweetLow, totalCols - 1 - sweetHigh) || 1;
-    var ratio = Math.min(1, distance / maxDist);
-    if (ratio < 0.18) return "lime";
-    if (ratio < 0.38) return "yellow";
-    if (ratio < 0.62) return "orange";
+function pickBarColor(index, sweetLow, sweetHigh, totalCols, peakCol) {
+    var peak = peakCol !== undefined ? peakCol : (totalCols - 1) / 2;
+    var maxDist = Math.max(peak, totalCols - 1 - peak) || 1;
+    var dist = Math.abs(index - peak) / maxDist; // 0 at peak, 1 at far edge
+    if (dist < 0.08) return "cyan";
+    if (dist < 0.20) return "green";
+    if (dist < 0.38) return "lime";
+    if (dist < 0.55) return "yellow";
+    if (dist < 0.75) return "orange";
     return "red";
 }
 
-// --- Height Curve: power curve peaking at center ---
+// --- Height Curve: power curve peaking at given peak column ---
 
-function colHeight(index, totalCols) {
-    var center = (totalCols - 1) / 2;
-    var dist = Math.abs(index - center) / center; // 0 at center, 1 at edges
-    var t = 1 - dist; // 1 at center, 0 at edges
+function colHeight(index, totalCols, peakCol) {
+    var peak = peakCol !== undefined ? peakCol : (totalCols - 1) / 2;
+    var maxDist = Math.max(peak, totalCols - 1 - peak) || 1;
+    var dist = Math.abs(index - peak) / maxDist; // 0 at peak, 1 at far edge
+    var t = 1 - dist; // 1 at peak, 0 at far edge
     var normalized = Math.pow(t, HEIGHT_EXPONENT);
-    // Scale between 30% and 100% of full display height
-    return Math.round(COL_DISPLAY_H * (0.3 + 0.7 * normalized));
+    // Scale between 25% and 100% of bar height
+    return Math.round(BAR_HEIGHT * (0.25 + 0.75 * normalized));
 }
 
+// --- Computed strip dimensions ---
+var STRIP_W = BAR_COLS * 10 + (BAR_COLS - 1) * 3; // 30*10 + 29*3 = 387px
+
 // --- SpriteBar Component ---
-// Renders BAR_COLS sprite divs. Each column is either full (with hue filter)
-// or empty. Needle column rendered as a bright white/gold overlay.
-// hitCols = Set of column indices that have been "hit" (show empty sprite).
+// Renders BAR_COLS sprite divs. During freeze: hit column stays full,
+// all others swap to empty. After freeze clears, all light back up.
 
 function SpriteBar({ pos, sweetLow, sweetHigh, frozen, hitCols, needleColor }) {
     var needleCol = positionToColumn(pos);
@@ -88,41 +95,44 @@ function SpriteBar({ pos, sweetLow, sweetHigh, frozen, hitCols, needleColor }) {
     var mappedNeedle = Math.round(needleCol / (QTE_COLS - 1) * (BAR_COLS - 1));
     var mappedSweetLow = Math.round(sweetLow / (QTE_COLS - 1) * (BAR_COLS - 1));
     var mappedSweetHigh = Math.round(sweetHigh / (QTE_COLS - 1) * (BAR_COLS - 1));
+    var peakCol = Math.round((mappedSweetLow + mappedSweetHigh) / 2);
 
     var cols = [];
     for (var i = 0; i < BAR_COLS; i++) {
         var isNeedle = i === mappedNeedle;
         var isHit = hitCols && hitCols.has(i);
-        var height = colHeight(i, BAR_COLS);
-        var colorKey = pickBarColor(i, mappedSweetLow, mappedSweetHigh, BAR_COLS);
-        var hueVal = HUE_VARIANTS[colorKey].hue;
+        var height = colHeight(i, BAR_COLS, peakCol);
+        var colorKey = pickBarColor(i, mappedSweetLow, mappedSweetHigh, BAR_COLS, peakCol);
+        var variant = HUE_VARIANTS[colorKey];
 
-        // Determine which sprite to show
-        var showEmpty = isHit && !isNeedle;
+        // During freeze: hit column stays full, everything else goes empty
+        // When not frozen: all columns show full
+        var showEmpty = frozen && !isHit;
         var spriteUrl = showEmpty ? SPRITE_EMPTY : SPRITE_FULL;
 
-        // Needle styling
-        var filter = isNeedle
-            ? "brightness(3) saturate(0)"
-            : showEmpty
-                ? "brightness(0.5)"
-                : "hue-rotate(" + hueVal + "deg)";
-
-        if (isNeedle && frozen) {
-            filter = "brightness(2) sepia(1) saturate(3) hue-rotate(10deg)";
+        // Build filter string from variant
+        var filter;
+        if (isNeedle && !frozen) {
+            filter = "brightness(3) saturate(0)";
+        } else if (isNeedle && frozen) {
+            filter = variant.filter + " brightness(1.4)";
+        } else if (showEmpty) {
+            filter = "brightness(0.5)";
+        } else {
+            filter = variant.filter;
         }
 
         cols.push(
             <div key={i} style={{
-                width: COL_DISPLAY_W,
+                width: 10,
+                flexShrink: 0,
                 height: height,
                 backgroundImage: "url(" + spriteUrl + ")",
-                backgroundSize: COL_DISPLAY_W + "px " + height + "px",
+                backgroundSize: "100% " + height + "px",
                 backgroundRepeat: "no-repeat",
                 imageRendering: "pixelated",
                 filter: filter,
-                transition: isHit ? "filter 0.15s" : "none",
-                flexShrink: 0,
+                transition: frozen ? "filter 0.15s" : "none",
             }} />
         );
     }
@@ -131,44 +141,53 @@ function SpriteBar({ pos, sweetLow, sweetHigh, frozen, hitCols, needleColor }) {
         <div style={{
             userSelect: "none",
             display: "flex",
-            gap: 1,
+            gap: 3,
             alignItems: "flex-end",
-            height: COL_DISPLAY_H,
-            width: "100%",
-            overflow: "hidden",
-            justifyContent: "center",
+            height: BAR_HEIGHT,
+            width: STRIP_W,
+            margin: "0 auto",
         }}>
             {cols}
         </div>
     );
 }
 
-// --- Diamond Marker (positioned below the bar at needle location) ---
+// --- Pointer (positioned below the bar, aligned to column strip) ---
 
-function DiamondMarker({ pos }) {
-    var mappedPos = positionToColumn(pos) / (QTE_COLS - 1);
-    var totalBarWidth = BAR_COLS * (COL_DISPLAY_W + 1) - 1; // cols * (width + gap) - last gap
-    var leftPx = Math.round(mappedPos * totalBarWidth);
+var SPRITE_POINTER = PUB + "/images/ui/waPixelPointer.png";
+
+function DiamondMarker({ pos, frozen, hitCols }) {
+    // Map position to a pixel offset within the column strip
+    var colIndex;
+    if (frozen && hitCols && hitCols.size > 0) {
+        colIndex = hitCols.values().next().value;
+    } else {
+        colIndex = positionToColumn(pos) / (QTE_COLS - 1) * (BAR_COLS - 1);
+    }
+    // Each column center = index * (colWidth + gap) + colWidth/2
+    var leftPx = colIndex * 13 + 5; // 13 = 10px col + 3px gap, 5 = half col width
 
     return (
         <div style={{
             position: "relative",
-            width: totalBarWidth,
-            height: 12,
+            width: STRIP_W,
+            height: 16,
             margin: "0 auto",
         }}>
-            <div style={{
-                position: "absolute",
-                left: leftPx - 6,
-                top: 0,
-                width: 0,
-                height: 0,
-                borderLeft: "6px solid transparent",
-                borderRight: "6px solid transparent",
-                borderBottom: "10px solid #fbbf24",
-                filter: "drop-shadow(0 0 4px #f59e0b88)",
-                transition: "left 0.03s linear",
-            }} />
+            <img
+                src={SPRITE_POINTER}
+                alt=""
+                style={{
+                    position: "absolute",
+                    left: leftPx - 8,
+                    top: 0,
+                    width: 16,
+                    height: 16,
+                    imageRendering: "pixelated",
+                    pointerEvents: "none",
+                    transform: "scaleY(-1)",
+                }}
+            />
         </div>
     );
 }
@@ -191,17 +210,16 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
         setHitCols(new Set());
     }, [phase]);
 
-    // Record hit column when flash fires (player clicked)
+    // Record hit column when flash fires, clear when flash ends
     useEffect(function() {
-        if (!flash) return;
-        var currentPos = posRef.current;
-        var needleCol = positionToColumn(currentPos);
-        var mappedCol = Math.round(needleCol / (QTE_COLS - 1) * (BAR_COLS - 1));
-        setHitCols(function(prev) {
-            var next = new Set(prev);
-            next.add(mappedCol);
-            return next;
-        });
+        if (flash) {
+            var currentPos = posRef.current;
+            var needleCol = positionToColumn(currentPos);
+            var mappedCol = Math.round(needleCol / (QTE_COLS - 1) * (BAR_COLS - 1));
+            setHitCols(new Set([mappedCol]));
+        } else {
+            setHitCols(new Set());
+        }
     }, [flash]);
 
     // Heat needle animation — delta-time based
@@ -342,7 +360,7 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
                     frozen={frozen}
                     hitCols={hitCols}
                 />
-                <DiamondMarker pos={barPos} />
+                <DiamondMarker pos={barPos} frozen={frozen} hitCols={hitCols} />
             </div>
         </div>
     );

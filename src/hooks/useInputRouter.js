@@ -51,7 +51,6 @@ function useInputRouter(deps) {
     var isLocked = isQTEActive
         || !!activeCustomer
         || toastQueue.length > 0
-        || !!activeToast
         || mysteryPending;
 
     // --- Stamina helpers ---
