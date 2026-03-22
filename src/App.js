@@ -27,6 +27,7 @@ import useEconomyState from "./hooks/useEconomyState.js";
 import useDayState from "./hooks/useDayState.js";
 import usePlayerState from "./hooks/usePlayerState.js";
 import useForgeState from "./hooks/useForgeState.js";
+import useForgeVM from "./hooks/useForgeVM.js";
 import useQuestState from "./hooks/useQuestState.js";
 import useMysteryState from "./hooks/useMysteryState.js";
 
@@ -35,44 +36,30 @@ var PHASES = GameConstants.PHASES;
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
 var UPGRADES = GameConstants.UPGRADES;
-var HEAT_TIERS = GameConstants.HEAT_TIERS;
 var CUST_TYPES = GameConstants.CUST_TYPES;
 var STATS_DEF = GameConstants.STATS_DEF;
 var TAG_COLORS = GameConstants.TAG_COLORS;
 var LATE_TOASTS = GameConstants.LATE_TOASTS;
 var COL_W = GameConstants.COL_W;
-var QTE_FLASH_MS = GameConstants.QTE_FLASH_MS;
 var STRESS_MAX = GameConstants.STRESS_MAX;
 var STARTING_GOLD = GameConstants.STARTING_GOLD;
 var BASE_STAMINA = GameConstants.BASE_STAMINA;
 var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
 var WAKE_HOUR = GameConstants.WAKE_HOUR;
 var REST_HOUR_LIMIT = GameConstants.REST_HOUR_LIMIT;
-var MAT_DESTROY_RECOVERY = GameConstants.MAT_DESTROY_RECOVERY;
 var MAT_SCRAP_RECOVERY = GameConstants.MAT_SCRAP_RECOVERY;
 var BALANCE = GameConstants.BALANCE;
 
 // --- Destructure Utilities ---
-var rand = GameUtils.rand;
 var randInt = GameUtils.randInt;
-var clamp = GameUtils.clamp;
 var weightedPick = GameUtils.weightedPick;
 var getQualityTier = GameUtils.getQualityTier;
-var qualityValue = GameUtils.qualityValue;
 var referenceValue = GameUtils.referenceValue;
 var xpForLevel = GameUtils.xpForLevel;
 var getSmithRank = GameUtils.getSmithRank;
 var getNextRank = GameUtils.getNextRank;
-var calcSpeedMultiplier = GameUtils.calcSpeedMultiplier;
-var calcStrikeMultiplier = GameUtils.calcStrikeMultiplier;
-var calcHeatResult = GameUtils.calcHeatResult;
-var calcHammerResult = GameUtils.calcHammerResult;
-var columnToPosition = GameUtils.columnToPosition;
-var positionToColumn = GameUtils.positionToColumn;
 var formatTime = GameUtils.formatTime;
 var canAffordTime = GameUtils.canAffordTime;
-var qualityGainMultiplier = GameUtils.qualityGainMultiplier;
-var randScrapToast = GameUtils.randScrapToast;
 
 // --- Destructure Events ---
 var EVENTS = GameEvents.EVENTS;
@@ -246,18 +233,12 @@ export default function App() {
   }, [hour]);
 
   // --- Refs ---
-  var qteProcessing = useRef(false);
-  var qtePosRef = useRef(0);
-  var qualRef = useRef(0);
-  var stressRef = useRef(0);
-  var sessionStartQual = useRef(0);
   var finishedRef = useRef(finished);
   var custVisRef = useRef(custVisitsToday);
   var maxCustRef = useRef(maxCustToday);
   var guaranteedCustomersRef = useRef(false);
   var phaseRef = useRef(phase);
   var royalQuestRef = useRef(royalQuest);
-  var fbTimerRef = useRef(null);
   var gameStarted = useRef(false);
 
   // Keep refs current
@@ -268,33 +249,8 @@ export default function App() {
   phaseRef.current = phase;
   royalQuestRef.current = royalQuest;
 
-  // --- Derived Values ---
-  var weapon = WEAPONS[wKey] || WEAPONS.dagger;
-  var matData = MATS[matKey] || MATS.bronze;
-  var matDiffMod = matData.difficultyModifier;
-  var effDiff = weapon.difficulty + matDiffMod;
-  var isExhausted = stamina <= 0 || forcedExhaustion;
-  var sessCost = isExhausted ? BALANCE.sessCostExhausted : BALANCE.sessCostNormal;
-  var maxStam = BASE_STAMINA + stats.brawn;
-  var heatWinLo = BALANCE.heatWinLo, heatWinHi = BALANCE.heatWinHi;
-  var heatSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.forge, effDiff);
-  var hammerSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.anvil, effDiff);
-  var quenchSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.quench, effDiff);
-  var strikeMult = calcStrikeMultiplier(stats.technique + upgrades.hammer, effDiff);
-  var activeSpeedMult = phase === PHASES.HEAT ? heatSpeedMult : phase === PHASES.QUENCH ? quenchSpeedMult : hammerSpeedMult;
-  var speedLabel = activeSpeedMult < 0.95 ? "EASY" : activeSpeedMult > 1.05 ? "HARD" : "NORMAL";
-  var speedColor = activeSpeedMult < 0.95 ? "#4ade80" : activeSpeedMult > 1.05 ? "#ef4444" : "#f59e0b";
-  var strikeLabel = strikeMult > 1.05 ? "PRECISE" : strikeMult < 0.95 ? "CLUMSY" : "STEADY";
-  var strikeColor = strikeMult > 1.05 ? "#4ade80" : strikeMult < 0.95 ? "#ef4444" : "#f59e0b";
-  var stressColor = stress === 0 ? "#4ade80" : stress === 1 ? "#fbbf24" : stress === 2 ? "#fb923c" : "#ef4444";
-  var stressLabel2 = stress === 0 ? "CALM" : stress === 1 ? "TENSE" : stress === 2 ? "STRAINED" : "CRITICAL";
-  var showBars = qualScore > 0 && phase !== PHASES.SELECT && phase !== PHASES.SELECT_MAT && phase !== PHASES.IDLE;
-  var isQTEActive = phase === PHASES.HEAT || phase === PHASES.HAMMER || phase === PHASES.QUENCH;
-  var isForging = phase !== PHASES.IDLE && phase !== PHASES.SELECT && phase !== PHASES.SELECT_MAT;
+  // --- Derived (cross-domain) ---
   var isLocked = isQTEActive || !!activeCustomer || toastQueue.length > 0 || !!activeToast || mysteryPending;
-
-  // --- Difficulty color for mobile data strip ---
-  var diffColor = effDiff <= 3 ? "#4ade80" : effDiff <= 6 ? "#fbbf24" : effDiff <= 8 ? "#fb923c" : "#ef4444";
 
   // --- Gold Pop Helpers ---
   function popGold(amount) { setGoldPops(function(p) { return p.concat([{ id: Date.now() + Math.random(), amount: amount }]); }); }
@@ -431,7 +387,6 @@ export default function App() {
 
   // --- Time & Actions ---
   function advanceTime(hrs, nf, useStam) {
-    if (hrs === undefined) hrs = sessCost;
     setHour(function(h) { var next = h + hrs; setTimeout(function() { trySpawnCustomer(next, nf); }, 200); return next; });
     if (useStam) { setStamina(function(s) { return Math.max(0, s - 1); }); gainXp(6); }
   }
@@ -446,6 +401,25 @@ export default function App() {
       return false;
     });
   }
+
+  // --- Forge ViewModel ---
+  var forgeVM = useForgeVM({
+    forge: forge, sfx: sfx, addToast: addToast, advanceTime: advanceTime,
+    spendGold: spendGold, gainXp: gainXp, applyMystery: applyMystery,
+    trySpawnCustomer: trySpawnCustomer, setInv: setInv, setFinished: setFinished,
+    setRoyalQuest: setRoyalQuest, setWeaponShake: setWeaponShake,
+    gold: gold, inv: inv, finished: finished, hour: hour, stamina: stamina,
+    forcedExhaustion: forcedExhaustion, stats: stats, upgrades: upgrades,
+    pendingMystery: pendingMystery, royalQuestRef: royalQuestRef
+  });
+  var takeBreak = forgeVM.takeBreak, resumeWip = forgeVM.resumeWip, scrapWip = forgeVM.scrapWip, scrapWeapon = forgeVM.scrapWeapon, confirmSelect = forgeVM.confirmSelect, onForgeClick = forgeVM.onForgeClick, handleAutoFire = forgeVM.handleAutoFire, attemptForge = forgeVM.attemptForge, doNormalize = forgeVM.doNormalize;
+  var weapon = forgeVM.weapon, matData = forgeVM.matData, matDiffMod = forgeVM.matDiffMod, effDiff = forgeVM.effDiff, isExhausted = forgeVM.isExhausted, sessCost = forgeVM.sessCost, maxStam = forgeVM.maxStam;
+  var heatWinLo = forgeVM.heatWinLo, heatWinHi = forgeVM.heatWinHi, heatSpeedMult = forgeVM.heatSpeedMult, hammerSpeedMult = forgeVM.hammerSpeedMult, quenchSpeedMult = forgeVM.quenchSpeedMult;
+  var strikeMult = forgeVM.strikeMult, activeSpeedMult = forgeVM.activeSpeedMult, speedLabel = forgeVM.speedLabel, speedColor = forgeVM.speedColor;
+  var strikeLabel = forgeVM.strikeLabel, strikeColor = forgeVM.strikeColor, stressColor = forgeVM.stressColor, stressLabel2 = forgeVM.stressLabel2;
+  var showBars = forgeVM.showBars, isQTEActive = forgeVM.isQTEActive, isForging = forgeVM.isForging, diffColor = forgeVM.diffColor;
+  var qtePosRef = forgeVM.qtePosRef, qteProcessing = forgeVM.qteProcessing;
+
   function scavenge() {
     sfx.click(); advanceTime(1, undefined, true);
     var matKeys = Object.keys(MATS);
@@ -506,8 +480,7 @@ export default function App() {
     setPriceBonus(1.0); setPriceDebuff(1.0); setMatDiscount(null); setGlobalMatMult(1.0);
     setGuaranteedCustomers(false); setPromoteUses(0);
     sfx.setMode("idle");
-    if (isForging && qualRef.current > 0) takeBreak();
-    else { setForgeBubble(null); setQteFlash(null); qteProcessing.current = false; }
+    forgeVM.onSleep();
     setActiveToast(null); sfx.resetDay(); sfx.setMode("idle");
     setTimeout(function() {
       var state = { gold: gold, inv: inv, finished: finished, hasSoldWeapon: hasSoldWeapon, lastSleepHour: hour, stamina: ns, unlockedBP: unlockedBP, reputation: reputation };
@@ -518,128 +491,6 @@ export default function App() {
     }, 300);
   }
   function sleep() { if (pendingMystery && pendingMystery.severity) { applyMystery(doSleep); return; } doSleep(); }
-
-  // --- Forge Logic ---
-  function takeBreak() { setWipWeapon({ wKey: wKey, matKey: matKey, qualScore: qualRef.current, stress: stressRef.current, forgeSess: forgeSess, sessResult: sessResult }); qteProcessing.current = false; sfx.setMode("idle"); setForgeBubble(null); setQteFlash(null); setPhase(PHASES.IDLE); setSessResult(null); }
-  function resumeWip() { if (!wipWeapon) return; sfx.click(); setWKey(wipWeapon.wKey); setMatKey(wipWeapon.matKey); qualRef.current = wipWeapon.qualScore; stressRef.current = wipWeapon.stress; setQualScore(wipWeapon.qualScore); setStress(wipWeapon.stress); setForgeSess(wipWeapon.forgeSess); setSessResult(wipWeapon.sessResult || null); setQteFlash(null); setForgeBubble(null); qteProcessing.current = false; setWipWeapon(null); setPhase(PHASES.SESS_RESULT); sfx.setMode("forge"); }
-  function scrapWip() { if (!wipWeapon) return; sfx.click(); setInv(function(i) { var n = Object.assign({}, i), w = WEAPONS[wipWeapon.wKey]; n[wipWeapon.matKey] = (n[wipWeapon.matKey] || 0) + Math.floor(w.materialCost * MAT_SCRAP_RECOVERY); return n; }); addToast(randScrapToast(), "", "#a0a0a0"); setWipWeapon(null); }
-  function triggerWeaponShake() { setWeaponShake(true); setTimeout(function() { setWeaponShake(false); }, 350); }
-  function resetForge() { qteProcessing.current = false; sfx.setMode("idle"); setForgeBubble(null); setQteFlash(null); setPhase(PHASES.IDLE); setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); stressRef.current = 0; qualRef.current = 0; }
-  function scrapWeapon() { setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.floor(weapon.materialCost * MAT_SCRAP_RECOVERY); return n; }); addToast(randScrapToast(), "", "#a0a0a0"); resetForge(); }
-  function showForgeBubbleFn(title, lines, color) { clearTimeout(fbTimerRef.current); setForgeBubble({ title: title, lines: lines, color: color }); fbTimerRef.current = setTimeout(function() { setForgeBubble(null); }, 5000); }
-
-  function confirmSelect() {
-    if (stamina <= 0) return;
-    var have = inv[matKey] || 0, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[matKey].price * needed;
-    if (have < weapon.materialCost && gold < buyPrice) return;
-    if (needed > 0) spendGold(buyPrice);
-    setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + needed - weapon.materialCost; return n; });
-    qualRef.current = 20; stressRef.current = 0; setQualScore(20); setStress(0); setForgeSess(0); setSessResult(null); setQteFlash(null); qteProcessing.current = false;
-    setPhase(PHASES.HEAT); sfx.setMode("forge");
-  }
-
-  function onForgeClick() {
-    if (!isQTEActive || qteProcessing.current) return;
-    qteProcessing.current = true;
-    var pos = qtePosRef.current;
-    if (phase === PHASES.HEAT) handleHeatFire(pos, false);
-    else if (phase === PHASES.HAMMER) handleHammerFire(pos);
-    else if (phase === PHASES.QUENCH) handleQuenchFire(pos);
-  }
-  function handleAutoFire(pos) { if (qteProcessing.current) return; qteProcessing.current = true; handleHeatFire(pos, true); }
-
-  function handleHeatFire(pos, isAuto) {
-    var tier = isAuto ? HEAT_TIERS[4] : calcHeatResult(pos, heatWinLo, heatWinHi);
-    if (!isAuto) sfx.heat(tier.id); setQteFlash(tier.label);
-    var bs = tier.bonusStrikes, strikeTotal = BALANCE.baseStrikes + bs;
-    showForgeBubbleFn("HEAT RESULT", [{ text: strikeTotal + " strikes", color: bs > 0 ? "#4ade80" : tier.id === "poor" ? "#f87171" : "#c8b89a", bold: true }], tier.color);
-    setTimeout(function() { setQteFlash(null); qteProcessing.current = false; setBonusStrikes(bs); setStrikesLeft(strikeTotal); sessionStartQual.current = qualRef.current; setPhase(PHASES.HAMMER); }, QTE_FLASH_MS);
-  }
-
-  function handleHammerFire(pos) {
-    var tier = calcHammerResult(pos); sfx.hammer(tier.sfxKey);
-    var rawPts = tier.points, actualDelta = rawPts < 0 ? rawPts : Math.round(rawPts * strikeMult * qualityGainMultiplier(qualRef.current));
-    var newQ = clamp(qualRef.current + actualDelta, 0, 100); qualRef.current = newQ; setQualScore(newQ);
-    var newL = strikesLeft - 1; setStrikesLeft(newL);
-    setQteFlash(tier.label + " " + (actualDelta >= 0 ? "+" : "") + actualDelta);
-    setTimeout(function() {
-      setQteFlash(null); qteProcessing.current = false;
-      if (newQ <= 0) { sfx.shatter(); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
-      if (newL <= 0) finishHammerSession();
-    }, QTE_FLASH_MS);
-  }
-
-  function finishHammerSession() {
-    var delta = qualRef.current - sessionStartQual.current;
-    var ns = Math.min(STRESS_MAX, stressRef.current + 1), nq = qualRef.current;
-    stressRef.current = ns; setStress(ns); setForgeSess(forgeSess + 1); advanceTime(sessCost, undefined, true);
-    var q = getQualityTier(nq);
-    setSessResult({ delta: delta, nq: nq, quality: q, ns: ns, sessions: forgeSess + 1 });
-    showForgeBubbleFn("HAMMER RESULT", [{ text: (delta >= 0 ? "+" : "") + delta + " quality", color: delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a", bold: true }], delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a");
-    if (pendingMystery && pendingMystery.severity && Math.random() < 0.5) { takeBreak(); applyMystery(function() {}, true); return; }
-    setPhase(PHASES.SESS_RESULT);
-  }
-
-  function attemptForge() {
-    if (stress >= STRESS_MAX - 1) {
-      var chance = stress >= STRESS_MAX ? BALANCE.shatterChanceMax : BALANCE.shatterChanceHigh;
-      if (Math.random() < chance) { sfx.shatter(); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
-    }
-    setPhase(PHASES.HEAT);
-  }
-
-  function doNormalize() {
-    var loLoss = BALANCE.normalizeLossLo[upgrades.furnace];
-    var hiLoss = BALANCE.normalizeLossHi[upgrades.furnace];
-    var lossPct = rand(loLoss, hiLoss), oldQ = qualRef.current;
-    var nq = Math.max(0, Math.floor(oldQ * (1 - lossPct))), ns = Math.max(0, stressRef.current - 1);
-    stressRef.current = ns; qualRef.current = nq; setStress(ns); setQualScore(nq); advanceTime(2, undefined, false);
-    setSessResult({ delta: nq - oldQ, nq: nq, quality: getQualityTier(nq), ns: ns, sessions: forgeSess });
-    showForgeBubbleFn("NORMALIZE", [{ text: (nq - oldQ) + " quality", color: "#f87171", bold: true }, { text: "-1 stress", color: "#60a5fa", bold: true }], "#60a5fa");
-    if (pendingMystery && pendingMystery.severity) { takeBreak(); applyMystery(function() {}); return; }
-    setPhase(PHASES.SESS_RESULT);
-  }
-
-  function finishWeapon(nq) {
-    var q = getQualityTier(nq), val = qualityValue(wKey, matKey, nq, upgrades);
-    var item = { wKey: wKey, wName: weapon.name, matKey: matKey, score: nq, id: Date.now(), label: q.label, val: val, color: q.weaponColor };
-    gainXp(Math.round((BALANCE.finishXpBase + weapon.difficulty * BALANCE.finishXpPerDiff) * getQualityTier(nq).xpMultiplier));
-    sfx.setMode("idle");
-    var rq = royalQuestRef.current, isQuestDelivery = false, questComplete = false, deliveredSoFar = 0, questQty = 1;
-    if (rq && !rq.fulfilled) {
-      var matOk = matKey === rq.materialRequired;
-      if (wKey === rq.weaponKey && nq >= rq.minQuality && matOk) {
-        isQuestDelivery = true; questQty = rq.qty || 1; deliveredSoFar = (rq.fulfilledQty || 0) + 1;
-        var nowFulfilled = deliveredSoFar >= questQty; questComplete = nowFulfilled;
-        setRoyalQuest(function(r) { return Object.assign({}, r, { fulfilledQty: deliveredSoFar, fulfilled: nowFulfilled }); });
-        sfx.royal();
-      }
-    }
-    var nf = finished;
-    if (!isQuestDelivery) { nf = finished.concat([item]); setFinished(nf); }
-    var toastMsg = isQuestDelivery ? (questComplete ? "DECREE FULFILLED\n" + q.label + " " + weapon.name : "DELIVERED " + deliveredSoFar + "/" + questQty + "\n" + q.label + " " + weapon.name) : q.label.toUpperCase() + " " + weapon.name + "\n~" + val + "g added to shelf";
-    addToast(toastMsg, "", questComplete ? "#4ade80" : isQuestDelivery ? "#f59e0b" : q.weaponColor);
-    stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); setPhase(PHASES.IDLE);
-    if (!isQuestDelivery) setTimeout(function() { trySpawnCustomer(hour, nf); }, 400);
-  }
-
-  function handleQuenchFire(pos) {
-    var dist = Math.abs(columnToPosition(positionToColumn(pos)) - 50);
-    var perfect = dist <= GameConstants.QUENCH_WIN * BALANCE.quenchPerfect, good = !perfect && dist <= GameConstants.QUENCH_WIN * BALANCE.quenchGood, poor = !perfect && !good && dist <= GameConstants.QUENCH_WIN + BALANCE.quenchPoorExtra;
-    sfx.click(); if (perfect || good || poor) sfx.quench(); else sfx.quenchFail();
-    var flashLabel = perfect ? "PERFECT! +5" : good ? "SOLID \u2014 NO CHANGE" : poor ? "ROUGH \u2014 QUALITY LOSS" : "MISS - DESTROYED";
-    setQteFlash(flashLabel);
-    setTimeout(function() {
-      setQteFlash(null); qteProcessing.current = false;
-      if (perfect) { var nq = clamp(qualRef.current + 5, 0, 100); qualRef.current = nq; advanceTime(sessCost, undefined, true); finishWeapon(nq); }
-      else if (good) { var nq2 = clamp(qualRef.current, 0, 100); qualRef.current = nq2; advanceTime(sessCost, undefined, true); finishWeapon(nq2); }
-      else if (poor) {
-        var loss = randInt(10, 20), nq3 = clamp(qualRef.current - loss, 0, 100); qualRef.current = nq3; advanceTime(sessCost, undefined, true);
-        if (nq3 <= 0) { sfx.shatter(); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); setPhase(PHASES.IDLE); }
-        else finishWeapon(nq3);
-      } else { sfx.shatter(); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); setPhase(PHASES.IDLE); }
-    }, QTE_FLASH_MS);
-  }
 
   // --- Game Init ---
   useEffect(function() {
@@ -653,7 +504,7 @@ export default function App() {
 
   // --- Reset ---
   function resetGame() {
-    sfx.setMode("off"); gameStarted.current = false; qteProcessing.current = false; qualRef.current = 0; stressRef.current = 0;
+    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState();
     setScreen("splash"); setShowShop(false); setShowMaterials(false); setShowGiveUp(false); setShowOptions(false);
     setToasts([]); setToastQueue([]); setActiveToast(null); setGameOver(false); setActiveCustomer(null);
     setGold(STARTING_GOLD); setTotalGoldEarned(0); setInv({ bronze: 10, iron: 4, steel: 0, damascus: 0, titanium: 0, iridium: 0, tungsten: 0, mithril: 0, orichalcum: 0 });
