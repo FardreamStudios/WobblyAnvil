@@ -34,12 +34,12 @@ import useDayVM from "./hooks/useDayVM.js";
 import useQuestState from "./hooks/useQuestState.js";
 import useMysteryState from "./hooks/useMysteryState.js";
 import useInputRouter from "./hooks/useInputRouter.js";
+import useShopVM from "./hooks/useShopVM.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
-var UPGRADES = GameConstants.UPGRADES;
 var CUST_TYPES = GameConstants.CUST_TYPES;
 var STATS_DEF = GameConstants.STATS_DEF;
 var TAG_COLORS = GameConstants.TAG_COLORS;
@@ -50,12 +50,9 @@ var STARTING_GOLD = GameConstants.STARTING_GOLD;
 var BASE_STAMINA = GameConstants.BASE_STAMINA;
 var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
 var WAKE_HOUR = GameConstants.WAKE_HOUR;
-var MAT_SCRAP_RECOVERY = GameConstants.MAT_SCRAP_RECOVERY;
 var BALANCE = GameConstants.BALANCE;
 
 // --- Destructure Utilities ---
-var randInt = GameUtils.randInt;
-var weightedPick = GameUtils.weightedPick;
 var getQualityTier = GameUtils.getQualityTier;
 var referenceValue = GameUtils.referenceValue;
 var getSmithRank = GameUtils.getSmithRank;
@@ -174,7 +171,7 @@ export default function App() {
 
   // --- Quest State (from useQuestState) ---
   var activeCustomer = quest.activeCustomer, setActiveCustomer = quest.setActiveCustomer;
-  var hasSoldWeapon = quest.hasSoldWeapon, setHasSoldWeapon = quest.setHasSoldWeapon;
+  var setHasSoldWeapon = quest.setHasSoldWeapon;
 
   // --- Market State (already destructured above from useEconomyState) ---
 
@@ -289,16 +286,6 @@ export default function App() {
     setHour(function(h) { var next = h + hrs; setTimeout(function() { trySpawnCustomer(next, nf); }, 200); return next; });
     if (useStam) { setStamina(function(s) { return Math.max(0, s - 1); }); gainXp(6); }
   }
-  function promote() {
-    sfx.click(); advanceTime(1, undefined, true); setPromoteUses(function(p) { return p + 1; });
-    var items = finishedRef.current;
-    var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
-    shuffled.some(function(ct) {
-      var match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
-      if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); sfx.doorbell(); return true; }
-      return false;
-    });
-  }
 
   // --- Player ViewModel ---
   var playerVM = usePlayerVM({
@@ -306,7 +293,7 @@ export default function App() {
     setStamina: setStamina, setGameOver: setGameOver,
     gameOver: gameOver
   });
-  var gainXp = playerVM.gainXp, loseXp = playerVM.loseXp, changeRep = playerVM.changeRep, allocateStat = playerVM.allocateStat;
+  var gainXp = playerVM.gainXp, changeRep = playerVM.changeRep, allocateStat = playerVM.allocateStat;
   var xpNeeded = playerVM.xpNeeded;
 
   // --- Economy ViewModel ---
@@ -315,6 +302,13 @@ export default function App() {
     addToast: addToast, trySpawnCustomer: trySpawnCustomer, hour: hour
   });
   var earnGold = economyVM.earnGold, spendGold = economyVM.spendGold, popGold = economyVM.popGold, removeGoldPop = economyVM.removeGoldPop, handleSell = economyVM.handleSell, handleRefuse = economyVM.handleRefuse;
+
+  // --- Shop ViewModel ---
+  var shopVM = useShopVM({
+    economy: economy, player: player, sfx: sfx,
+    earnGold: earnGold, spendGold: spendGold
+  });
+  var onBuy = shopVM.onBuy, onUpgrade = shopVM.onUpgrade, onBuyBP = shopVM.onBuyBP, onSellMaterial = shopVM.onSellMaterial;
 
   // --- Forge ViewModel ---
   var forgeVM = useForgeVM({
@@ -329,7 +323,7 @@ export default function App() {
   var takeBreak = forgeVM.takeBreak, resumeWip = forgeVM.resumeWip, scrapWip = forgeVM.scrapWip, scrapWeapon = forgeVM.scrapWeapon, confirmSelect = forgeVM.confirmSelect, onForgeClick = forgeVM.onForgeClick, handleAutoFire = forgeVM.handleAutoFire, attemptForge = forgeVM.attemptForge, doNormalize = forgeVM.doNormalize;
   var weapon = forgeVM.weapon, matData = forgeVM.matData, matDiffMod = forgeVM.matDiffMod, effDiff = forgeVM.effDiff, isExhausted = forgeVM.isExhausted, sessCost = forgeVM.sessCost, maxStam = forgeVM.maxStam;
   var heatWinLo = forgeVM.heatWinLo, heatWinHi = forgeVM.heatWinHi, heatSpeedMult = forgeVM.heatSpeedMult, hammerSpeedMult = forgeVM.hammerSpeedMult, quenchSpeedMult = forgeVM.quenchSpeedMult;
-  var strikeMult = forgeVM.strikeMult, activeSpeedMult = forgeVM.activeSpeedMult, speedLabel = forgeVM.speedLabel, speedColor = forgeVM.speedColor;
+  var speedLabel = forgeVM.speedLabel, speedColor = forgeVM.speedColor;
   var strikeLabel = forgeVM.strikeLabel, strikeColor = forgeVM.strikeColor, stressColor = forgeVM.stressColor, stressLabel2 = forgeVM.stressLabel2;
   var showBars = forgeVM.showBars, isQTEActive = forgeVM.isQTEActive, isForging = forgeVM.isForging, diffColor = forgeVM.diffColor;
   var qtePosRef = forgeVM.qtePosRef, qteProcessing = forgeVM.qteProcessing;
@@ -342,33 +336,16 @@ export default function App() {
     mysteryPending: mysteryPending, finished: finished, promoteUses: promoteUses,
     gold: gold, inv: inv, matKey: matKey, weapon: weapon, buyPrice: MATS[matKey] ? MATS[matKey].price * Math.max(0, (weapon ? weapon.materialCost : 0) - (inv[matKey] || 0)) : 0
   });
-  var isLocked = input.isLocked;
   var dayVM = useDayVM({
     dayState: dayState, economy: economy, quest: quest, mystery: mystery,
     sfx: sfx, addToast: addToast, setToastQueue: setToastQueue, setActiveToast: setActiveToast,
     trySpawnCustomer: trySpawnCustomer, earnGold: earnGold, changeRep: changeRep,
     forgeOnSleep: forgeVM.onSleep,
-    maxStam: maxStam, advanceTime: advanceTime, unlockedBP: unlockedBP, reputation: reputation
+    maxStam: maxStam, advanceTime: advanceTime, unlockedBP: unlockedBP, setUnlockedBP: setUnlockedBP, reputation: reputation,
+    level: level
   });
-  var waitHour = dayVM.waitHour, buildDayQueue = dayVM.buildDayQueue, doSleep = dayVM.doSleep, sleep = dayVM.sleep;
-
-  function scavenge() {
-    sfx.click(); advanceTime(1, undefined, true);
-    var matKeys = Object.keys(MATS);
-    var matWeights = matKeys.map(function(_, i) { return Math.max(1, matKeys.length - i); });
-    var randMat = function() { return weightedPick(matKeys, matWeights); };
-    var addMat = function() { var k = randMat(); setInv(function(i) { var n = Object.assign({}, i); n[k] = (n[k] || 0) + 1; return n; }); return k; };
-    var goldReward = function() { return randInt(5, 5 + Math.floor(level / 2) * 10); };
-    var roll = Math.random();
-    if (roll < 0.05) {
-      var m = addMat(); var g = goldReward(); earnGold(g);
-      var locked = Object.keys(WEAPONS).filter(function(k) { return !unlockedBP.includes(k); });
-      if (locked.length) { var bp = locked[Math.floor(Math.random() * locked.length)]; setUnlockedBP(function(u) { return u.concat([bp]); }); setTimeout(function() { addToast("JACKPOT!\n" + g + "g \u00B7 1 " + MATS[m].name + " \u00B7 " + WEAPONS[bp].name + " blueprint", "", "#fbbf24"); }, 200); }
-      else { setTimeout(function() { addToast("JACKPOT!\n" + g + "g \u00B7 1 " + MATS[m].name, "", "#fbbf24"); }, 200); }
-    } else if (roll < 0.25) { var m1 = addMat(); var m2 = addMat(); setTimeout(function() { addToast("SCAVENGED!\n1 " + MATS[m1].name + " \u00B7 1 " + MATS[m2].name, "", "#a0a0a0"); }, 200); }
-    else if (roll < 0.45) { var g2 = goldReward(); earnGold(g2); setTimeout(function() { addToast("SCAVENGED!\nFound " + g2 + "g", "", "#f59e0b"); }, 200); }
-    else { var m3 = addMat(); setTimeout(function() { addToast("SCAVENGED!\nFound 1 " + MATS[m3].name, "", "#a0a0a0"); }, 200); }
-  }
+  var waitHour = dayVM.waitHour, buildDayQueue = dayVM.buildDayQueue, sleep = dayVM.sleep;
+  var scavenge = dayVM.scavenge, promote = dayVM.promote;
 
 
   // --- Game Init ---
@@ -563,12 +540,12 @@ export default function App() {
 
     return (
         <>
-          {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={function(mat, qty, price) { sfx.click(); var c = price * qty; if (gold < c) return; sfx.coin(); spendGold(c); setInv(function(i) { var n = Object.assign({}, i); n[mat] = (n[mat] || 0) + qty; return n; }); }} onUpgrade={function(cat) { sfx.click(); var nl = upgrades[cat] + 1, u = UPGRADES[cat][nl]; if (!u || gold < u.cost) return; spendGold(u.cost); setUpgrades(function(u2) { var n = Object.assign({}, u2); n[cat] = nl; return n; }); }} onBuyBP={function(k, cost) { sfx.click(); if (gold < cost) return; spendGold(cost); setUnlockedBP(function(u) { return u.concat([k]); }); }} onPromote={function() { promote(); }}
+          {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={onBuy} onUpgrade={onUpgrade} onBuyBP={onBuyBP} onPromote={function() { promote(); }}
                                   promoteDisabled={input.promote.disabled || stamina <= 0}
                                   promoteUses={promoteUses}
                                   maxPromoteUses={BALANCE.maxPromoteUses}
                                   finishedCount={finished.length} />}
-          {showMaterials && <MaterialsModal inv={inv} sfx={sfx} onClose={function() { sfx.click(); setShowMaterials(false); }} onSell={function(mat, qty) { sfx.coin(); var price = Math.floor(MATS[mat].price / 2) * qty; setInv(function(i) { var n = Object.assign({}, i); n[mat] = Math.max(0, (n[mat] || 0) - qty); return n; }); earnGold(price); }} />}
+          {showMaterials && <MaterialsModal inv={inv} sfx={sfx} onClose={function() { sfx.click(); setShowMaterials(false); }} onSell={onSellMaterial} />}
           <MobileLayout
               handedness={handedness}
               phase={phase}
@@ -675,12 +652,12 @@ export default function App() {
 
   return (
       <>
-        {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={function(mat, qty, price) { sfx.click(); var c = price * qty; if (gold < c) return; sfx.coin(); spendGold(c); setInv(function(i) { var n = Object.assign({}, i); n[mat] = (n[mat] || 0) + qty; return n; }); }} onUpgrade={function(cat) { sfx.click(); var nl = upgrades[cat] + 1, u = UPGRADES[cat][nl]; if (!u || gold < u.cost) return; spendGold(u.cost); setUpgrades(function(u2) { var n = Object.assign({}, u2); n[cat] = nl; return n; }); }} onBuyBP={function(k, cost) { sfx.click(); if (gold < cost) return; spendGold(cost); setUnlockedBP(function(u) { return u.concat([k]); }); }} onPromote={function() { promote(); }}
+        {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={onBuy} onUpgrade={onUpgrade} onBuyBP={onBuyBP} onPromote={function() { promote(); }}
                                 promoteDisabled={input.promote.disabled || stamina <= 0}
                                 promoteUses={promoteUses}
                                 maxPromoteUses={BALANCE.maxPromoteUses}
                                 finishedCount={finished.length} />}
-        {showMaterials && <MaterialsModal inv={inv} sfx={sfx} onClose={function() { sfx.click(); setShowMaterials(false); }} onSell={function(mat, qty) { sfx.coin(); var price = Math.floor(MATS[mat].price / 2) * qty; setInv(function(i) { var n = Object.assign({}, i); n[mat] = Math.max(0, (n[mat] || 0) - qty); return n; }); earnGold(price); }} />}
+        {showMaterials && <MaterialsModal inv={inv} sfx={sfx} onClose={function() { sfx.click(); setShowMaterials(false); }} onSell={onSellMaterial} />}
         {showGiveUp && <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center" }}><Panel color="#ef4444" style={{ padding: "24px", textAlign: "center", maxWidth: 280 }}><div style={{ fontSize: 13, color: "#ef4444", letterSpacing: 2, marginBottom: 8 }}>GIVE UP?</div><div style={{ fontSize: 10, color: "#c8b89a", marginBottom: 16, lineHeight: 1.7 }}>The king will not be pleased.</div><Row center={true} style={{ gap: 8 }}><DangerBtn onClick={function() { setShowGiveUp(false); setGameOver(true); }}>Yes, Give Up</DangerBtn><ActionBtn onClick={function() { setShowGiveUp(false); }} color="#8a7a64" bg="#141009">Cancel</ActionBtn></Row></Panel></div>}
         <GameShell className={(mysteryShake ? "mystery-shake" : "") + " " + (weaponShake ? "weapon-shake" : "")}>
           {mysteryVignette && <div style={{ position: "fixed", inset: 0, zIndex: 9998, pointerEvents: "none", background: "radial-gradient(ellipse at center, transparent 20%, " + mysteryVignette + "cc 100%)", opacity: mysteryVignetteOpacity, transition: "opacity 1.5s" }} />}

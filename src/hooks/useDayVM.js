@@ -10,11 +10,15 @@
 // ============================================================
 
 import GameConstants from "../modules/constants.js";
+import GameUtils from "../modules/utilities.js";
 import GameEvents from "../modules/events.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import DynamicEvents from "../logic/dynamicEvents.js";
 
 var TAG_COLORS = GameConstants.TAG_COLORS;
+var MATS = GameConstants.MATS;
+var WEAPONS = GameConstants.WEAPONS;
+var CUST_TYPES = GameConstants.CUST_TYPES;
 var STARTING_GOLD = GameConstants.STARTING_GOLD;
 var BASE_STAMINA = GameConstants.BASE_STAMINA;
 var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
@@ -22,6 +26,10 @@ var WAKE_HOUR = GameConstants.WAKE_HOUR;
 
 var rollDailyEvent = GameEvents.rollDailyEvent;
 var generateRoyalQuest = GameEvents.generateRoyalQuest;
+
+var randInt = GameUtils.randInt;
+var weightedPick = GameUtils.weightedPick;
+var getQualityTier = GameUtils.getQualityTier;
 
 function useDayVM(deps) {
     // --- Unpack dependencies from App.js ---
@@ -70,8 +78,14 @@ function useDayVM(deps) {
 
     // --- Read values passed in ---
     var unlockedBP = deps.unlockedBP;
+    var setUnlockedBP = deps.setUnlockedBP;
+    var setInv = economy.setInv;
     var reputation = deps.reputation;
     var advanceTime = deps.advanceTime;
+    var level = deps.level;
+
+    // --- Quest state (promote) ---
+    var setActiveCustomer = quest.setActiveCustomer;
 
     // --- Time Helpers ---
     function waitHour() {
@@ -153,11 +167,44 @@ function useDayVM(deps) {
         doSleep();
     }
 
+    // --- Scavenge (DAY-1) ---
+    function scavenge() {
+        sfx.click(); advanceTime(1, undefined, true);
+        var matKeys = Object.keys(MATS);
+        var matWeights = matKeys.map(function(_, i) { return Math.max(1, matKeys.length - i); });
+        var randMat = function() { return weightedPick(matKeys, matWeights); };
+        var addMat = function() { var k = randMat(); setInv(function(i) { var n = Object.assign({}, i); n[k] = (n[k] || 0) + 1; return n; }); return k; };
+        var goldReward = function() { return randInt(5, 5 + Math.floor(level / 2) * 10); };
+        var roll = Math.random();
+        if (roll < 0.05) {
+            var m = addMat(); var g = goldReward(); earnGold(g);
+            var locked = Object.keys(WEAPONS).filter(function(k) { return !unlockedBP.includes(k); });
+            if (locked.length) { var bp = locked[Math.floor(Math.random() * locked.length)]; setUnlockedBP(function(u) { return u.concat([bp]); }); setTimeout(function() { addToast("JACKPOT!\n" + g + "g \u00B7 1 " + MATS[m].name + " \u00B7 " + WEAPONS[bp].name + " blueprint", "", "#fbbf24"); }, 200); }
+            else { setTimeout(function() { addToast("JACKPOT!\n" + g + "g \u00B7 1 " + MATS[m].name, "", "#fbbf24"); }, 200); }
+        } else if (roll < 0.25) { var m1 = addMat(); var m2 = addMat(); setTimeout(function() { addToast("SCAVENGED!\n1 " + MATS[m1].name + " \u00B7 1 " + MATS[m2].name, "", "#a0a0a0"); }, 200); }
+        else if (roll < 0.45) { var g2 = goldReward(); earnGold(g2); setTimeout(function() { addToast("SCAVENGED!\nFound " + g2 + "g", "", "#f59e0b"); }, 200); }
+        else { var m3 = addMat(); setTimeout(function() { addToast("SCAVENGED!\nFound 1 " + MATS[m3].name, "", "#a0a0a0"); }, 200); }
+    }
+
+    // --- Promote (DAY-2) ---
+    function promote() {
+        sfx.click(); advanceTime(1, undefined, true); setPromoteUses(function(p) { return p + 1; });
+        var items = finished;
+        var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
+        shuffled.some(function(ct) {
+            var match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
+            if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); sfx.doorbell(); return true; }
+            return false;
+        });
+    }
+
     return {
         waitHour: waitHour,
         buildDayQueue: buildDayQueue,
         doSleep: doSleep,
         sleep: sleep,
+        scavenge: scavenge,
+        promote: promote,
     };
 }
 
