@@ -50,6 +50,9 @@ var DEFAULT_CONFIG = {
     damping: 0,
     burstMode: false,
     burstCount: 10,
+    burstRepeat: false,
+    burstRate: 5,
+    burstDuration: 1.0,
 };
 
 // ============================================
@@ -75,6 +78,9 @@ var STARTER_TEMPLATES = [
         damping: 0.5,
         burstMode: false,
         burstCount: 10,
+        burstRepeat: false,
+        burstRate: 5,
+        burstDuration: 1.0,
     },
     {
         name: "smoke_puff",
@@ -95,6 +101,9 @@ var STARTER_TEMPLATES = [
         damping: 1.0,
         burstMode: false,
         burstCount: 10,
+        burstRepeat: false,
+        burstRate: 5,
+        burstDuration: 1.0,
     },
     {
         name: "forge_embers",
@@ -115,6 +124,9 @@ var STARTER_TEMPLATES = [
         damping: 0.3,
         burstMode: false,
         burstCount: 10,
+        burstRepeat: false,
+        burstRate: 5,
+        burstDuration: 1.0,
     },
     {
         name: "anvil_strike",
@@ -135,6 +147,9 @@ var STARTER_TEMPLATES = [
         damping: 2.0,
         burstMode: true,
         burstCount: 30,
+        burstRepeat: true,
+        burstRate: 10,
+        burstDuration: 0.5,
     },
 ];
 
@@ -145,6 +160,9 @@ var PARAM_DEFS = [
     { key: "name", label: "Name", type: "text", group: "identity" },
     { key: "burstMode", label: "Burst Mode", type: "toggle", group: "emission" },
     { key: "burstCount", label: "Burst Count", type: "slider", min: 1, max: 200, step: 1, group: "emission", showIf: "burstMode" },
+    { key: "burstRepeat", label: "Burst Repeat", type: "toggle", group: "emission", showIf: "burstMode" },
+    { key: "burstRate", label: "Bursts/sec", type: "slider", min: 1, max: 30, step: 1, group: "emission", showIf: "burstRepeat" },
+    { key: "burstDuration", label: "Burst Dur (s)", type: "slider", min: 0.1, max: 10, step: 0.1, group: "emission", showIf: "burstRepeat" },
     { key: "spawnRate", label: "Spawn Rate", type: "slider", min: 0, max: 100, step: 1, group: "emission", hideIf: "burstMode" },
     { key: "size.min", label: "Size Min", type: "slider", min: 1, max: 20, step: 1, group: "size" },
     { key: "size.max", label: "Size Max", type: "slider", min: 1, max: 20, step: 1, group: "size" },
@@ -864,6 +882,8 @@ function ParticleEditor() {
             startTime: 0,
             emitterLoop: true,
             hasFiredBurst: false,
+            burstAcc: 0,
+            burstElapsed: 0,
         };
         setEmitters(function(prev) { return prev.concat([newEmitter]); });
         setSelectedEmitterId(id);
@@ -906,6 +926,10 @@ function ParticleEditor() {
                         if (newParticles.length < MAX_PARTICLES) {
                             newParticles.push(createParticle(e.x, e.y, cfg));
                         }
+                    }
+                    // If repeat mode without timeline, start the repeat cycle
+                    if (cfg.burstRepeat) {
+                        return Object.assign({}, e, { particles: newParticles, burstAcc: 0, burstElapsed: 0, hasFiredBurst: false });
                     }
                     return Object.assign({}, e, { particles: newParticles });
                 }
@@ -964,7 +988,7 @@ function ParticleEditor() {
         // Reset burst tracking
         setEmitters(function(prev) {
             return prev.map(function(e) {
-                return Object.assign({}, e, { particles: [], spawnAcc: 0, hasFiredBurst: false });
+                return Object.assign({}, e, { particles: [], spawnAcc: 0, hasFiredBurst: false, burstAcc: 0, burstElapsed: 0 });
             });
         });
     }
@@ -1006,6 +1030,8 @@ function ParticleEditor() {
                     // Reset burst tracking on loop
                     for (var r = 0; r < allEmitters.length; r++) {
                         allEmitters[r].hasFiredBurst = false;
+                        allEmitters[r].burstAcc = 0;
+                        allEmitters[r].burstElapsed = 0;
                     }
                 } else {
                     sysTime = sysDur;
@@ -1038,26 +1064,50 @@ function ParticleEditor() {
                     emitterActive = false;
                 }
 
-                // Per-emitter loop: if emitter doesn't loop and already completed one cycle
-                if (emitterActive && !em.emitterLoop && cfg.burstMode && em.hasFiredBurst) {
+                // Per-emitter loop: if emitter doesn't loop and already completed
+                if (emitterActive && !em.emitterLoop && cfg.burstMode && !cfg.burstRepeat && em.hasFiredBurst) {
+                    emitterActive = false;
+                }
+                // For repeat bursts: check if burst duration has elapsed
+                if (emitterActive && !em.emitterLoop && cfg.burstMode && cfg.burstRepeat && em.burstElapsed >= (cfg.burstDuration || 1)) {
                     emitterActive = false;
                 }
             }
 
             if (!pausedRef.current && emitterActive) {
                 if (cfg.burstMode) {
-                    if (timelineActive) {
-                        // Auto-fire burst when timeline crosses start time
-                        if (!em.hasFiredBurst && sysTime >= (em.startTime || 0)) {
-                            for (var b = 0; b < (cfg.burstCount || 10); b++) {
-                                if (totalParticles + particles.length < MAX_PARTICLES) {
-                                    particles.push(createParticle(em.x, em.y, cfg));
+                    if (cfg.burstRepeat) {
+                        // Repeating burst: fire burstCount particles at burstRate per second
+                        // Track elapsed time since this emitter became active
+                        var emitterLocalTime = timelineActive ? (sysTime - (em.startTime || 0)) : em.burstElapsed;
+                        if (emitterLocalTime >= 0 && em.burstElapsed < (cfg.burstDuration || 1)) {
+                            em.burstElapsed += dt;
+                            var interval = 1 / (cfg.burstRate || 5);
+                            em.burstAcc += dt;
+                            while (em.burstAcc >= interval && em.burstElapsed <= (cfg.burstDuration || 1)) {
+                                em.burstAcc -= interval;
+                                for (var b = 0; b < (cfg.burstCount || 10); b++) {
+                                    if (totalParticles + particles.length < MAX_PARTICLES) {
+                                        particles.push(createParticle(em.x, em.y, cfg));
+                                    }
                                 }
                             }
                             em.hasFiredBurst = true;
                         }
+                    } else {
+                        // Single burst
+                        if (timelineActive) {
+                            if (!em.hasFiredBurst && sysTime >= (em.startTime || 0)) {
+                                for (var b2 = 0; b2 < (cfg.burstCount || 10); b2++) {
+                                    if (totalParticles + particles.length < MAX_PARTICLES) {
+                                        particles.push(createParticle(em.x, em.y, cfg));
+                                    }
+                                }
+                                em.hasFiredBurst = true;
+                            }
+                        }
+                        // Non-timeline single burst is manual only (Fire Burst button)
                     }
-                    // Non-timeline burst is manual only (Fire Burst button)
                 } else {
                     em.spawnAcc += cfg.spawnRate * dt;
                     var toSpawn = Math.floor(em.spawnAcc);
@@ -1173,6 +1223,9 @@ function ParticleEditor() {
             damping: cfg.damping,
             burstMode: cfg.burstMode,
             burstCount: cfg.burstCount,
+            burstRepeat: cfg.burstRepeat,
+            burstRate: cfg.burstRate,
+            burstDuration: cfg.burstDuration,
         };
     }
 
@@ -1778,7 +1831,7 @@ function ParticleEditor() {
 
                         <div style={{ color: "#ff6b6b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>BURST MODE</div>
                         <div style={{ marginBottom: 12, color: "#999" }}>
-                            Switches from continuous to on-demand bursts. Without timeline: use the red "Fire Burst" button. With timeline: bursts fire automatically at the emitter's start time.
+                            Switches from continuous to on-demand bursts. Without timeline: use the red "Fire Burst" button. With timeline: bursts fire automatically at the emitter's start time. Enable "Burst Repeat" to fire multiple bursts over time — set how many bursts per second (Bursts/sec) and how long the burst cycle lasts (Burst Dur). For example: 30 sparks, 10 times/sec, for 0.5s = an intense quick impact.
                         </div>
 
                         <div style={{ color: "#a29bfe", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>TIMELINE</div>
