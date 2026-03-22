@@ -1,11 +1,14 @@
 // ============================================================
 // useUIState.js — Wobbly Anvil UI State Hook
 // Owns: screen navigation, modal toggles, settings, toasts.
+// Bus: subscribes to UI_ADD_TOAST (owns toast state).
 // Pattern: returns flat object of state values + setters.
 // App.js destructures what it needs.
 // ============================================================
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 function useUIState() {
     // --- Screen & Navigation ---
@@ -25,6 +28,24 @@ function useUIState() {
     var [toasts, setToasts] = useState([]);
     var [toastQueue, setToastQueue] = useState([]);
     var [activeToast, setActiveToast] = useState(null);
+
+    // --- Bus: Toast Subscription ---
+    useEffect(function() {
+        function onAddToast(payload) {
+            setToasts(function(t) {
+                return t.concat([{
+                    id: Date.now() + Math.random(),
+                    msg: payload.msg,
+                    icon: payload.icon,
+                    color: payload.color,
+                    duration: payload.duration || null,
+                    locked: payload.locked || false,
+                }]);
+            });
+        }
+        GameplayEventBus.on(EVENT_TAGS.UI_ADD_TOAST, onAddToast);
+        return function() { GameplayEventBus.off(EVENT_TAGS.UI_ADD_TOAST, onAddToast); };
+    }, []);
 
     return {
         // Screen

@@ -7,9 +7,11 @@
 // Returns: Action handlers + display-ready props.
 // ============================================================
 
-import { useRef } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import GameConstants from "../modules/constants.js";
 import GameUtils from "../modules/utilities.js";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 // --- Constants ---
 var PHASES = GameConstants.PHASES;
@@ -296,6 +298,28 @@ function useForgeVM(deps) {
         if (isForging && qualRef.current > 0) takeBreak();
         else { setForgeBubble(null); setQteFlash(null); qteProcessing.current = false; }
     }
+
+    // --- Bus: Forge Subscriptions ---
+    var busDestroyWip = useCallback(function() {
+        if (!wipWeapon && phase === PHASES.IDLE) return;
+        setWipWeapon(null);
+        qteProcessing.current = false;
+        sfx.setMode("idle");
+        setForgeBubble(null);
+        setQteFlash(null);
+        setPhase(PHASES.IDLE);
+        setQualScore(0);
+        setStress(0);
+        setForgeSess(0);
+        setSessResult(null);
+        stressRef.current = 0;
+        qualRef.current = 0;
+    }, [wipWeapon, phase]);
+
+    useEffect(function() {
+        GameplayEventBus.on(EVENT_TAGS.FORGE_DESTROY_WIP, busDestroyWip);
+        return function() { GameplayEventBus.off(EVENT_TAGS.FORGE_DESTROY_WIP, busDestroyWip); };
+    }, [busDestroyWip]);
 
     // ============================================================
     // Return — actions + display props

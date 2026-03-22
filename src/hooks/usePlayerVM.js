@@ -3,12 +3,16 @@
 // Owns: XP gain/loss, level-up logic, stat allocation,
 //       reputation changes, and derived display values
 //       (xpNeeded, smithRank, nextRank).
+// Bus: subscribes to player.change.reputation, player.gain.xp,
+//      player.lose.xp.
 // Consumes: usePlayerState + cross-domain deps passed in.
 // Returns: Action handlers + display-ready props.
 // ============================================================
 
 import { useRef, useCallback, useEffect } from "react";
 import GameUtils from "../modules/utilities.js";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 // --- Utilities ---
 var xpForLevel = GameUtils.xpForLevel;
@@ -75,6 +79,38 @@ function usePlayerVM(deps) {
 
     // --- Derived Display Values ---
     var xpNeeded = xpForLevel(level);
+
+    // --- Bus: Player Subscriptions ---
+    var busChangeRep = useCallback(function(payload) {
+        changeRep(payload.delta, payload.delay);
+    }, [changeRep]);
+
+    var busGainXp = useCallback(function(payload) {
+        if (payload.percent) {
+            setXp(function(prev) { return prev + Math.round(prev * payload.percent); });
+        } else if (payload.amount) {
+            gainXp(payload.amount);
+        }
+    }, [gainXp]);
+
+    var busLoseXp = useCallback(function(payload) {
+        if (payload.percent) {
+            setXp(function(prev) { return Math.max(0, prev - Math.round(prev * payload.percent)); });
+        } else if (payload.amount) {
+            loseXp(payload.amount);
+        }
+    }, []);
+
+    useEffect(function() {
+        GameplayEventBus.on(EVENT_TAGS.PLAYER_CHANGE_REP, busChangeRep);
+        GameplayEventBus.on(EVENT_TAGS.PLAYER_GAIN_XP, busGainXp);
+        GameplayEventBus.on(EVENT_TAGS.PLAYER_LOSE_XP, busLoseXp);
+        return function() {
+            GameplayEventBus.off(EVENT_TAGS.PLAYER_CHANGE_REP, busChangeRep);
+            GameplayEventBus.off(EVENT_TAGS.PLAYER_GAIN_XP, busGainXp);
+            GameplayEventBus.off(EVENT_TAGS.PLAYER_LOSE_XP, busLoseXp);
+        };
+    }, [busChangeRep, busGainXp, busLoseXp]);
 
     // ============================================================
     // Return — actions + display props

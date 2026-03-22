@@ -2,11 +2,16 @@
 // useEconomyVM.js — Wobbly Anvil Economy ViewModel Hook
 // Owns: earnGold, spendGold, popGold, removeGoldPop,
 //       handleSell, handleRefuse.
+// Bus: subscribes to economy.earn.gold, economy.spend.gold,
+//      economy.set.inventory, economy.add.material.
 // Consumes: useEconomyState + cross-domain deps passed in.
 // Returns: Action handlers for gold flow and selling.
 // ============================================================
 
+import { useEffect, useCallback } from "react";
 import GameUtils from "../modules/utilities.js";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 var getSmithRank = GameUtils.getSmithRank;
 
@@ -65,6 +70,34 @@ function useEconomyVM(deps) {
     }
 
     function handleRefuse() { setActiveCustomer(null); }
+
+    // --- Bus: Economy Subscriptions ---
+    var busEarnGold = useCallback(function(payload) { earnGold(payload.amount); }, []);
+    var busSpendGold = useCallback(function(payload) { spendGold(payload.amount); }, []);
+    var busSetInventory = useCallback(function(payload) {
+        if (payload.inv !== undefined) economy.setInv(payload.inv);
+        if (payload.finished !== undefined) economy.setFinished(payload.finished);
+    }, []);
+    var busAddMaterial = useCallback(function(payload) {
+        economy.setInv(function(i) {
+            var n = Object.assign({}, i);
+            n[payload.key] = (n[payload.key] || 0) + payload.qty;
+            return n;
+        });
+    }, []);
+
+    useEffect(function() {
+        GameplayEventBus.on(EVENT_TAGS.ECONOMY_EARN_GOLD, busEarnGold);
+        GameplayEventBus.on(EVENT_TAGS.ECONOMY_SPEND_GOLD, busSpendGold);
+        GameplayEventBus.on(EVENT_TAGS.ECONOMY_SET_INVENTORY, busSetInventory);
+        GameplayEventBus.on(EVENT_TAGS.ECONOMY_ADD_MATERIAL, busAddMaterial);
+        return function() {
+            GameplayEventBus.off(EVENT_TAGS.ECONOMY_EARN_GOLD, busEarnGold);
+            GameplayEventBus.off(EVENT_TAGS.ECONOMY_SPEND_GOLD, busSpendGold);
+            GameplayEventBus.off(EVENT_TAGS.ECONOMY_SET_INVENTORY, busSetInventory);
+            GameplayEventBus.off(EVENT_TAGS.ECONOMY_ADD_MATERIAL, busAddMaterial);
+        };
+    }, []);
 
     return {
         earnGold: earnGold,
