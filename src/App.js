@@ -39,6 +39,7 @@ import useMysteryState from "./hooks/useMysteryState.js";
 import useFXCues from "./hooks/useFXCues.js";
 import useInputRouter from "./hooks/useInputRouter.js";
 import useShopVM from "./hooks/useShopVM.js";
+import useAmbientAudio from "./hooks/useAmbientAudio.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -335,6 +336,9 @@ export default function App() {
   var showBars = forgeVM.showBars, isQTEActive = forgeVM.isQTEActive, isForging = forgeVM.isForging, diffColor = forgeVM.diffColor;
   var qtePosRef = forgeVM.qtePosRef, qteProcessing = forgeVM.qteProcessing;
 
+  // --- Ambient Audio Layer ---
+  var ambient = useAmbientAudio({ isForging: isForging, muted: false });
+
   // --- Input Router ---
   var input = useInputRouter({
     hour: hour, stamina: stamina, stress: stress, sessCost: sessCost,
@@ -394,7 +398,7 @@ export default function App() {
   // ============================================================
 
   if (gameOver) return <ScaleWrapper><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScaleWrapper>;
-  if (screen === "splash") return <ScaleWrapper><SplashScreen onEnter={function() { sfx.warmup(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
+  if (screen === "splash") return <ScaleWrapper><SplashScreen onEnter={function() { sfx.warmup(); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
   if (screen === "menu") return <ScaleWrapper><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 
   // ============================================================

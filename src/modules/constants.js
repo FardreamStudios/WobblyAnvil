@@ -272,6 +272,48 @@ var FTUE_TOASTS = [
     { title: "OPTIONS & SOUND",  msg: "The Options button lets you toggle background music and adjust volume for SFX and music separately.\n\nIf the music is not your thing, turn it off in there." },
 ];
 
+// --- Ambient Audio Config ---
+var AMBIENT_AUDIO = {
+    ambientFile:   "sAmbient1.mp3",
+    fireBurstFile: "sFireStart.mp3",
+    fireLoopFile:  "sAmbientFire.mp3",
+    ambientVol:    0.25,
+    fireBurstVol:  0.40,
+    fireLoopVol:   0.08,
+    fadeInSec:     0.8,
+    fadeOutSec:    0.8,
+};
+
+// --- Fire VFX Config ---
+var FIRE_FX = {
+    // Canvas resolution (pixelated, scaled up by display size)
+    canvasW: 80,
+    canvasH: 60,
+    // Display size (CSS pixels)
+    displayW: 225,
+    displayH: 150,
+    // Position within scene container (CSS)
+    posLeft: "5%",
+    posTop: "21%",
+    zIndex: 3,
+    // Coal bed
+    coalRX: 30,
+    coalRY: 6,
+    // Main oval (bottom)
+    ovalMainRX: 15,
+    ovalMainRY: 9,
+    // Top oval (smaller, overlapping)
+    ovalTopRX: 10,
+    ovalTopRY: 6,
+    // Spark emitter
+    spawnRadius: 10,
+    maxParticles: 100,
+    // Flare-up startup (frames at ~60fps)
+    flareRampFrames: 30,
+    flareFlashFrames: 12,
+    flareSettleFrames: 40,
+};
+
 // --- Centralized Balance Table ---
 var BALANCE = {
     // Forge session time costs
@@ -364,6 +406,12 @@ var GameConstants = {
 
     // Balance
     BALANCE: BALANCE,
+
+    // Ambient Audio
+    AMBIENT_AUDIO: AMBIENT_AUDIO,
+
+    // Fire VFX
+    FIRE_FX: FIRE_FX,
 };
 
 export default GameConstants;

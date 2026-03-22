@@ -14,6 +14,7 @@ import RhythmQTEModule from "./rhythmQTE.js";
 import GameLayout from "./gameLayout.js";
 import SceneSystem from "./sceneSystem.js";
 import DevBanner from "../components/DevBanner.js";
+import ForgeFireFX from "../components/ForgeFireFX.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -323,6 +324,7 @@ function DesktopLayout(props) {
                         <div onClick={onForgeClick} style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 10, padding: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative", cursor: isQTEActive ? "pointer" : "default", flex: 1, minHeight: 280, overflow: "hidden" }}>
                             {/* SCENE */}
                             {(function() { var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides }); return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} />; })()}
+<ForgeFireFX active={forgeVM.isForging} />
 
                             {/* UI LAYER */}
                             <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, width: "100%", flex: 1 }}>
