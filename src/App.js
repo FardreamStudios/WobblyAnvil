@@ -577,6 +577,11 @@ export default function App() {
               matColor={matData.color}
               effDiff={effDiff}
               diffColor={diffColor}
+              speedLabel={speedLabel}
+              speedColor={speedColor}
+              strikeLabel={strikeLabel}
+              strikeColor={strikeColor}
+              matDiffMod={matDiffMod}
 
               /* Data strip props — idle */
               reputation={reputation}
