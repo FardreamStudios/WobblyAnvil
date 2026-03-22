@@ -2,10 +2,10 @@
 // eventTags.js — Wobbly Anvil Event Tag Vocabulary
 // Single source of truth for all bus tags. No magic strings.
 //
-// FORMAT: event.<system>.<verb>.<target>
+// FORMAT: event.<system>.<domain>.<verb>
 //   system — domain that owns the state (economy, player, etc.)
+//   domain — what it acts on (gold, inventory, xp, etc.)
 //   verb   — what happens (earn, spend, set, add, etc.)
-//   target — what it acts on (gold, inventory, xp, etc.)
 //
 // FX CUES: fx.<domain>.<action>
 //   Presentation-only tags. Listeners in useFXCues execute
@@ -20,33 +20,54 @@
 var EVENT_TAGS = {
 
     // --- Economy ---
-    ECONOMY_EARN_GOLD:      "event.economy.earn.gold",
-    ECONOMY_SPEND_GOLD:     "event.economy.spend.gold",
-    ECONOMY_SET_INVENTORY:  "event.economy.set.inventory",
-    ECONOMY_ADD_MATERIAL:   "event.economy.add.material",
+    ECONOMY_EARN_GOLD:      "event.economy.gold.earn",
+    ECONOMY_SPEND_GOLD:     "event.economy.gold.spend",
+    ECONOMY_SET_INVENTORY:  "event.economy.inventory.set",
+    ECONOMY_ADD_MATERIAL:   "event.economy.material.add",
 
     // --- Player ---
-    PLAYER_CHANGE_REP:      "event.player.change.reputation",
-    PLAYER_GAIN_XP:         "event.player.gain.xp",
-    PLAYER_LOSE_XP:         "event.player.lose.xp",
+    PLAYER_CHANGE_REP:      "event.player.reputation.change",
+    PLAYER_GAIN_XP:         "event.player.xp.gain",
+    PLAYER_LOSE_XP:         "event.player.xp.lose",
 
     // --- Forge ---
-    FORGE_DESTROY_WIP:      "event.forge.destroy.wip",
-    FORGE_STOP_SESSION:     "event.forge.stop.session",
+    FORGE_DESTROY_WIP:      "event.forge.wip.destroy",
+    FORGE_STOP_SESSION:     "event.forge.session.stop",
 
     // --- Day ---
-    DAY_SET_STAMINA:        "event.day.set.stamina",
-    DAY_ADVANCE_HOUR:       "event.day.advance.hour",
-    DAY_FORCE_EXHAUSTION:   "event.day.force.exhaustion",
+    DAY_SET_STAMINA:        "event.day.stamina.set",
+    DAY_ADVANCE_HOUR:       "event.day.hour.advance",
+    DAY_FORCE_EXHAUSTION:   "event.day.exhaustion.force",
 
     // --- UI ---
-    UI_ADD_TOAST:           "event.ui.add.toast",
-    UI_SET_LOCK:            "event.ui.set.lock",
+    UI_ADD_TOAST:           "event.ui.toast.add",
+    UI_SET_LOCK:            "event.ui.lock.set",
 
     // --- VFX ---
-    VFX_SHAKE_MYSTERY:      "event.vfx.shake.mystery",
-    VFX_SHAKE_WEAPON:       "event.vfx.shake.weapon",
-    VFX_SET_VIGNETTE:       "event.vfx.set.vignette",
+    VFX_SHAKE_MYSTERY:      "event.vfx.mystery.shake",
+    VFX_SHAKE_WEAPON:       "event.vfx.weapon.shake",
+    VFX_SET_VIGNETTE:       "event.vfx.vignette.set",
+
+    // --- Day Lifecycle (GameMode) ---
+    DAY_CYCLE_START:        "event.day.cycle.start",
+    DAY_MORNING_START:      "event.day.morning.start",
+    DAY_SHOP_OPEN:          "event.day.shop.open",
+    DAY_LATE_START:         "event.day.late.start",
+    DAY_SLEEP_START:        "event.day.sleep.start",
+    DAY_CYCLE_END:          "event.day.cycle.end",
+
+    // --- Mode (GameMode sub-mode switching) ---
+    MODE_FORGE_ENTER:       "event.mode.forge.enter",
+    MODE_FORGE_EXIT:        "event.mode.forge.exit",
+    MODE_SHOP_ENTER:        "event.mode.shop.enter",
+    MODE_SHOP_EXIT:         "event.mode.shop.exit",
+
+    // --- Phase (sub-mode internal transitions) ---
+    PHASE_FORGE_TRANSITION: "event.phase.forge.transition",
+
+    // --- Game Session ---
+    GAME_SESSION_OVER:      "event.game.session.over",
+    GAME_SESSION_NEW:       "event.game.session.new",
 
     // --- FX Cues (presentation only — no state mutations) ---
     FX_HEAT_RESULT:         "fx.forge.heat",

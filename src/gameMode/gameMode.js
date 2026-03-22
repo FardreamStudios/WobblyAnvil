@@ -28,30 +28,7 @@
 // PORTABLE: Could run in a Node terminal with a bus stub.
 // ============================================================
 
-// ============================================================
-// GAME LIFECYCLE TAGS
-// These are the bus tags GameMode emits. Kept here as the
-// single source of truth for the game loop vocabulary.
-// Will be merged into eventTags.js when wired (M-7).
-// ============================================================
-
-var GAME_TAGS = {
-    // --- Day Lifecycle ---
-    DAY_START:          "game.day.start",
-    DAY_MORNING_PHASE:  "game.day.morning_phase",
-    DAY_OPEN:           "game.day.open",
-    DAY_LATE:           "game.day.late",
-    DAY_SLEEP:          "game.day.sleep",
-    DAY_END:            "game.day.end",
-
-    // --- Sub-Mode ---
-    MODE_ENTER:         "game.mode.enter",
-    MODE_EXIT:          "game.mode.exit",
-
-    // --- Game State ---
-    GAME_OVER:          "game.over",
-    GAME_NEW:           "game.new",
-};
+import EVENT_TAGS from "../config/eventTags.js";
 
 // ============================================================
 // INTERNAL STATE
@@ -157,7 +134,11 @@ function enterMode(modeId) {
         }
     }
 
-    _bus.emit(GAME_TAGS.MODE_ENTER, { mode: modeId, subMode: true });
+    // Emit mode-specific tag if registered, else generic
+    var enterTag = EVENT_TAGS["MODE_" + modeId.toUpperCase() + "_ENTER"];
+    if (enterTag) {
+        _bus.emit(enterTag, { mode: modeId });
+    }
     return true;
 }
 
@@ -176,7 +157,10 @@ function exitMode() {
         }
     }
 
-    _bus.emit(GAME_TAGS.MODE_EXIT, { mode: exitedId });
+    var exitTag = EVENT_TAGS["MODE_" + exitedId.toUpperCase() + "_EXIT"];
+    if (exitTag) {
+        _bus.emit(exitTag, { mode: exitedId });
+    }
 }
 
 function getActiveMode() {
@@ -219,19 +203,19 @@ function startDay(dayNumber) {
     _dayPhase = "morning";
 
     // 1. DAY_START — state hooks reset, UI updates
-    _bus.emit(GAME_TAGS.DAY_START, {
+    _bus.emit(EVENT_TAGS.DAY_CYCLE_START, {
         day: _day,
         hour: _config.wakeHour,
     });
 
     // 2. MORNING_PHASE — abilities check activation (festival, merchant, etc.)
-    _bus.emit(GAME_TAGS.DAY_MORNING_PHASE, {
+    _bus.emit(EVENT_TAGS.DAY_MORNING_START, {
         day: _day,
     });
 
     // 3. DAY_OPEN — customers can arrive, gameplay begins
     _dayPhase = "open";
-    _bus.emit(GAME_TAGS.DAY_OPEN, {
+    _bus.emit(EVENT_TAGS.DAY_SHOP_OPEN, {
         day: _day,
         hour: _config.openHour,
     });
@@ -241,7 +225,7 @@ function triggerLate() {
     if (_gameOver || _dayPhase === "sleeping") return;
 
     _dayPhase = "late";
-    _bus.emit(GAME_TAGS.DAY_LATE, {
+    _bus.emit(EVENT_TAGS.DAY_LATE_START, {
         day: _day,
         hour: _config.lateHour,
     });
@@ -257,14 +241,14 @@ function sleep(sleepHour) {
         exitMode();
     }
 
-    _bus.emit(GAME_TAGS.DAY_SLEEP, {
+    _bus.emit(EVENT_TAGS.DAY_SLEEP_START, {
         day: _day,
         hour: sleepHour || _config.lateHour,
         sleepHour: sleepHour || _config.lateHour,
     });
 
     // End day — ability manager cleans up day-scoped abilities
-    _bus.emit(GAME_TAGS.DAY_END, {
+    _bus.emit(EVENT_TAGS.DAY_CYCLE_END, {
         day: _day,
     });
 
@@ -290,7 +274,7 @@ function triggerGameOver(reason) {
         exitMode();
     }
 
-    _bus.emit(GAME_TAGS.GAME_OVER, {
+    _bus.emit(EVENT_TAGS.GAME_SESSION_OVER, {
         reason: _gameOverReason,
         day: _day,
     });
@@ -319,7 +303,7 @@ function newGame() {
     _gameOver = false;
     _gameOverReason = null;
 
-    _bus.emit(GAME_TAGS.GAME_NEW, {});
+    _bus.emit(EVENT_TAGS.GAME_SESSION_NEW, {});
 }
 
 // ============================================================
@@ -371,8 +355,7 @@ function reset() {
 // ============================================================
 
 var GameMode = {
-    // --- Tags (importable by other systems) ---
-    TAGS: GAME_TAGS,
+    // --- Tags now live in eventTags.js — import EVENT_TAGS directly ---
 
     // --- Setup ---
     init:               init,
