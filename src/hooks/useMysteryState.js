@@ -48,6 +48,18 @@ function useMysteryState() {
         };
     }, []);
 
+    // --- Bus: Reset on New Game ---
+    useEffect(function() {
+        function onNewGame() {
+            setPendingMystery(null); setGoodEventUsed(false); setMysteryPending(false);
+            setMysteryShake(false); setWeaponShake(false);
+            setMysteryVignette(null); setMysteryVignetteOpacity(1);
+            setActiveScene("forge"); setSceneActionOverride(null); setPropOverrides({});
+        }
+        GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
+        return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
+    }, []);
+
     return {
         // Mystery
         pendingMystery: pendingMystery,

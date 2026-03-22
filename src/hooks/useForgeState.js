@@ -4,8 +4,10 @@
 //       quality, stress, session tracking, QTE feedback.
 // ============================================================
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import GameConstants from "../modules/constants.js";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 var PHASES = GameConstants.PHASES;
 var MATS = GameConstants.MATS;
@@ -23,6 +25,18 @@ function useForgeState() {
     var [forgeBubble, setForgeBubble] = useState(null);
     var [qteFlash, setQteFlash] = useState(null);
     var [strikesLeft, setStrikesLeft] = useState(0);
+
+    // --- Bus: Reset on New Game ---
+    useEffect(function() {
+        function onNewGame() {
+            setWipWeapon(null); setWKey("dagger"); setMatKey(Object.keys(MATS)[0]);
+            setPhase(PHASES.IDLE); setQualScore(0); setStress(0); setForgeSess(0);
+            setBonusStrikes(0); setSessResult(null); setForgeBubble(null);
+            setQteFlash(null); setStrikesLeft(0);
+        }
+        GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
+        return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
+    }, []);
 
     return {
         wipWeapon: wipWeapon,

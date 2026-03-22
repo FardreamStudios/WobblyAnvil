@@ -45,6 +45,16 @@ function useDayState() {
         };
     }, [busAdvanceHour, busSetStamina, busForceExhaustion]);
 
+    // --- Bus: Reset on New Game ---
+    useEffect(function() {
+        function onNewGame() {
+            setDay(1); setHour(WAKE_HOUR); setStamina(BASE_STAMINA);
+            setForcedExhaustion(false); setLateToastShown(false); setGameOver(false);
+        }
+        GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
+        return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
+    }, []);
+
     return {
         day: day,
         setDay: setDay,

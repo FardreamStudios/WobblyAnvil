@@ -4,7 +4,9 @@
 //       sell tracking, promote usage.
 // ============================================================
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 function useQuestState() {
     // --- Quests & Events ---
@@ -16,6 +18,16 @@ function useQuestState() {
     var [activeCustomer, setActiveCustomer] = useState(null);
     var [hasSoldWeapon, setHasSoldWeapon] = useState(false);
     var [promoteUses, setPromoteUses] = useState(0);
+
+    // --- Bus: Reset on New Game ---
+    useEffect(function() {
+        function onNewGame() {
+            setRoyalQuest(null); setQuestNum(0); setMEvent(null);
+            setActiveCustomer(null); setHasSoldWeapon(false); setPromoteUses(0);
+        }
+        GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
+        return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
+    }, []);
 
     return {
         royalQuest: royalQuest,

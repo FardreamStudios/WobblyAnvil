@@ -377,17 +377,7 @@ export default function App() {
   // --- Reset ---
   function resetGame() {
     sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame();
-    setScreen("splash"); setShowShop(false); setShowMaterials(false); setShowGiveUp(false); setShowOptions(false);
-    setToasts([]); setToastQueue([]); setActiveToast(null); setGameOver(false); setActiveCustomer(null);
-    setGold(STARTING_GOLD); setTotalGoldEarned(0); setInv({ bronze: 10, iron: 4, steel: 0, damascus: 0, titanium: 0, iridium: 0, tungsten: 0, mithril: 0, orichalcum: 0 });
-    setFinished([]); setDay(1); setHour(WAKE_HOUR); setStamina(BASE_STAMINA); setForcedExhaustion(false); setLateToastShown(false);
-    setPriceBonus(1.0); setPriceDebuff(1.0); setMatDiscount(null); setGlobalMatMult(1.0); setGuaranteedCustomers(false); setCustVisitsToday(0); setMaxCustToday(BASE_DAILY_CUSTOMERS); setReputation(4);
-    setLevel(1); setXp(0); setStatPoints(0); setStats(Object.assign({}, STATS_DEF)); setUpgrades({ anvil: 0, hammer: 0, forge: 0, quench: 0, furnace: 0 }); setUnlockedBP(["dagger", "shortsword", "axe"]);
-    setRoyalQuest(null); setQuestNum(0); setMEvent(null); setHasSoldWeapon(false); setPromoteUses(0);
-    setWipWeapon(null); setWKey("dagger"); setMatKey(Object.keys(MATS)[0]); setPhase(PHASES.IDLE);
-    setQualScore(0); setStress(0); setForgeSess(0); setBonusStrikes(0); setSessResult(null); setForgeBubble(null); setQteFlash(null); setStrikesLeft(0);
-    setPendingMystery(null); setGoodEventUsed(false); setMysteryPending(false); setMysteryShake(false); setWeaponShake(false); setMysteryVignette(null); setMysteryVignetteOpacity(1); setGoldPops([]);
-    setActiveScene("forge"); setSceneActionOverride(null); setPropOverrides({});
+    setScreen("splash");
   }
 
   // --- Derived Display Values ---

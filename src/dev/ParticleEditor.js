@@ -189,14 +189,23 @@ function updateParticle(p, dt, config) {
     if (p.lifetime <= 0) p.alive = false;
 }
 
+// Offscreen canvas for pixel-level dithering
+var ditherCanvas = null;
+var ditherCtx = null;
+function getDitherCanvas(w, h) {
+    if (!ditherCanvas || ditherCanvas.width < w || ditherCanvas.height < h) {
+        ditherCanvas = document.createElement("canvas");
+        ditherCanvas.width = Math.max(w, 128); ditherCanvas.height = Math.max(h, 128);
+        ditherCtx = ditherCanvas.getContext("2d");
+    }
+    return { canvas: ditherCanvas, ctx: ditherCtx };
+}
+
 function drawParticle(ctx, p, config) {
     var t = 1 - p.lifetime / p.maxLifetime;
     var col = getColorAtLifetime(t, config);
-    // Opacity with curve
     var rawAlpha = config.fadeOut ? (1 - t) : 1;
     var alpha = evaluateCurve(config.opacityCurve || "linear", rawAlpha);
-    if (config.dithering > 0 && Math.random() < config.dithering) return;
-    // Size with curve
     var sizeCurvedT = evaluateCurve(config.sizeCurve || "linear", t);
     var sizeScale = lerp(config.sizeOverLifetime.start, config.sizeOverLifetime.end, sizeCurvedT);
     var baseSize = Math.max(1, Math.round(p.baseSize * sizeScale));
@@ -204,15 +213,52 @@ function drawParticle(ctx, p, config) {
     var h = Math.max(1, Math.round(baseSize * (config.scaleY || 1)));
     var px = Math.round(p.x); var py = Math.round(p.y);
     var colorStr = "rgba(" + col.r + "," + col.g + "," + col.b + "," + alpha.toFixed(2) + ")";
+    var dither = config.dithering || 0;
+
+    // If dithering, draw to offscreen then punch holes
+    if (dither > 0 && w > 0 && h > 0) {
+        var margin = (config.glow ? (config.glowIntensity || 8) * 2 : 0);
+        var bw = w + margin * 2 + 4; var bh = h + margin * 2 + 4;
+        var dc = getDitherCanvas(bw, bh);
+        dc.ctx.clearRect(0, 0, bw, bh);
+        dc.ctx.save();
+        dc.ctx.translate(bw / 2, bh / 2);
+        if (config.glow) { dc.ctx.shadowColor = "rgba(" + col.r + "," + col.g + "," + col.b + "," + (alpha * 0.6).toFixed(2) + ")"; dc.ctx.shadowBlur = config.glowIntensity || 8; }
+        dc.ctx.fillStyle = colorStr; dc.ctx.strokeStyle = colorStr;
+        var shape = config.shape || "square";
+        if (shape === "circle") { dc.ctx.beginPath(); dc.ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2); dc.ctx.fill(); }
+        else if (shape === "triangle") { dc.ctx.beginPath(); dc.ctx.moveTo(0, -h / 2); dc.ctx.lineTo(-w / 2, h / 2); dc.ctx.lineTo(w / 2, h / 2); dc.ctx.closePath(); dc.ctx.fill(); }
+        else if (shape === "wave") { dc.ctx.lineWidth = Math.max(1, Math.round(baseSize * 0.4)); dc.ctx.lineCap = "round"; dc.ctx.beginPath(); for (var wi = 0; wi <= 6; wi++) { var fx = -w / 2 + (w / 6) * wi; var fy = Math.sin((wi / 6) * Math.PI * 2) * (h / 2); if (wi === 0) dc.ctx.moveTo(fx, fy); else dc.ctx.lineTo(fx, fy); } dc.ctx.stroke(); }
+        else if (shape === "halfmoon") { dc.ctx.beginPath(); dc.ctx.arc(0, 0, w / 2, -Math.PI / 2, Math.PI / 2, false); dc.ctx.arc(-w * 0.15, 0, w / 2.8, Math.PI / 2, -Math.PI / 2, true); dc.ctx.closePath(); dc.ctx.fill(); }
+        else { dc.ctx.fillRect(-w / 2, -h / 2, w, h); }
+        dc.ctx.shadowColor = "transparent"; dc.ctx.shadowBlur = 0;
+        dc.ctx.restore();
+        // Punch out random pixels
+        var imgData = dc.ctx.getImageData(0, 0, bw, bh);
+        var data = imgData.data;
+        for (var di = 3; di < data.length; di += 4) {
+            if (data[di] > 0 && Math.random() < dither) { data[di] = 0; }
+        }
+        dc.ctx.putImageData(imgData, 0, 0);
+        // Draw to main canvas
+        ctx.save();
+        ctx.translate(px, py);
+        if (config.faceVelocity) ctx.rotate(Math.atan2(p.vy, p.vx));
+        ctx.drawImage(dc.canvas, 0, 0, bw, bh, -bw / 2, -bh / 2, bw, bh);
+        ctx.restore();
+        return;
+    }
+
+    // Non-dithered path (unchanged)
     ctx.save(); ctx.translate(px, py);
     if (config.faceVelocity) ctx.rotate(Math.atan2(p.vy, p.vx));
-    if (config.glow) { var gi = config.glowIntensity || 8; ctx.shadowColor = "rgba(" + col.r + "," + col.g + "," + col.b + "," + (alpha * 0.6).toFixed(2) + ")"; ctx.shadowBlur = gi; }
+    if (config.glow) { ctx.shadowColor = "rgba(" + col.r + "," + col.g + "," + col.b + "," + (alpha * 0.6).toFixed(2) + ")"; ctx.shadowBlur = config.glowIntensity || 8; }
     ctx.fillStyle = colorStr;
-    var shape = config.shape || "square";
-    if (shape === "circle") { ctx.beginPath(); ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2); ctx.fill(); }
-    else if (shape === "triangle") { ctx.beginPath(); ctx.moveTo(0, -h / 2); ctx.lineTo(-w / 2, h / 2); ctx.lineTo(w / 2, h / 2); ctx.closePath(); ctx.fill(); }
-    else if (shape === "wave") { ctx.strokeStyle = colorStr; ctx.lineWidth = Math.max(1, Math.round(baseSize * 0.4)); ctx.lineCap = "round"; ctx.beginPath(); for (var i = 0; i <= 6; i++) { var fx = -w / 2 + (w / 6) * i; var fy = Math.sin((i / 6) * Math.PI * 2) * (h / 2); if (i === 0) ctx.moveTo(fx, fy); else ctx.lineTo(fx, fy); } ctx.stroke(); }
-    else if (shape === "halfmoon") { ctx.beginPath(); ctx.arc(0, 0, w / 2, -Math.PI / 2, Math.PI / 2, false); ctx.arc(-w * 0.15, 0, w / 2.8, Math.PI / 2, -Math.PI / 2, true); ctx.closePath(); ctx.fill(); }
+    var shape2 = config.shape || "square";
+    if (shape2 === "circle") { ctx.beginPath(); ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, Math.PI * 2); ctx.fill(); }
+    else if (shape2 === "triangle") { ctx.beginPath(); ctx.moveTo(0, -h / 2); ctx.lineTo(-w / 2, h / 2); ctx.lineTo(w / 2, h / 2); ctx.closePath(); ctx.fill(); }
+    else if (shape2 === "wave") { ctx.strokeStyle = colorStr; ctx.lineWidth = Math.max(1, Math.round(baseSize * 0.4)); ctx.lineCap = "round"; ctx.beginPath(); for (var i = 0; i <= 6; i++) { var fx2 = -w / 2 + (w / 6) * i; var fy2 = Math.sin((i / 6) * Math.PI * 2) * (h / 2); if (i === 0) ctx.moveTo(fx2, fy2); else ctx.lineTo(fx2, fy2); } ctx.stroke(); }
+    else if (shape2 === "halfmoon") { ctx.beginPath(); ctx.arc(0, 0, w / 2, -Math.PI / 2, Math.PI / 2, false); ctx.arc(-w * 0.15, 0, w / 2.8, Math.PI / 2, -Math.PI / 2, true); ctx.closePath(); ctx.fill(); }
     else { ctx.fillRect(-w / 2, -h / 2, w, h); }
     ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.restore();
 }
@@ -354,17 +400,18 @@ function ParticleEditor() {
         var ti = activeTemplateIndex !== null ? activeTemplateIndex : 0; if (!templates.length) return;
         var tpl = templates[ti] || templates[0]; var id = makeEmitterId(); var color = EMITTER_COLORS[emitters.length % EMITTER_COLORS.length];
         // Emitters spawn at center of canvas (which is 0,0 in our coordinate system = CANVAS_WIDTH/2, CANVAS_HEIGHT/2)
-        var newEm = { id: id, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, config: deepClone(tpl), particles: [], spawnAcc: 0, handleColor: color, startTime: 0, emitterLoop: true, hasFiredBurst: false, burstAcc: 0, burstElapsed: 0 };
+        var newEm = { id: id, x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2, config: deepClone(tpl), particles: [], spawnAcc: 0, handleColor: color, startTime: 0, emitterLoop: true, emitterDuration: 2.0, hasFiredBurst: false, burstAcc: 0, burstElapsed: 0, emitterElapsed: 0 };
         setEmitters(function(p) { return p.concat([newEm]); }); setSelectedEmitterId(id);
     }
     function handleDelEmitter(id) { setEmitters(function(p) { return p.filter(function(e) { return e.id !== id; }); }); if (selectedEmitterId === id) setSelectedEmitterId(null); }
     function handleSelEmitter(id) { setSelectedEmitterId(id); }
-    function handleApplyTpl(idx) { if (!selectedEmitterId) return; var tpl = templates[idx]; if (!tpl) return; setEmitters(function(p) { return p.map(function(e) { return e.id === selectedEmitterId ? Object.assign({}, e, { config: deepClone(tpl), particles: [], spawnAcc: 0, hasFiredBurst: false, burstAcc: 0, burstElapsed: 0 }) : e; }); }); }
+    function handleApplyTpl(idx) { if (!selectedEmitterId) return; var tpl = templates[idx]; if (!tpl) return; setEmitters(function(p) { return p.map(function(e) { return e.id === selectedEmitterId ? Object.assign({}, e, { config: deepClone(tpl), particles: [], spawnAcc: 0, hasFiredBurst: false, burstAcc: 0, burstElapsed: 0, emitterElapsed: 0 }) : e; }); }); }
     function handleBurst() { if (!selectedEmitter) return; var cfg = selectedEmitter.config; setEmitters(function(p) { return p.map(function(e) { if (e.id !== selectedEmitterId) return e; var np = e.particles.slice(); for (var b = 0; b < (cfg.burstCount || 10); b++) { if (np.length < MAX_PARTICLES) np.push(createParticle(e.x, e.y, cfg)); } return Object.assign({}, e, { particles: np, burstAcc: cfg.burstRepeat ? 0 : e.burstAcc, burstElapsed: cfg.burstRepeat ? 0 : e.burstElapsed, hasFiredBurst: cfg.burstRepeat ? false : e.hasFiredBurst }); }); }); }
     function handleEmStartTime(v) { if (!selectedEmitterId) return; setEmitters(function(p) { return p.map(function(e) { return e.id === selectedEmitterId ? Object.assign({}, e, { startTime: v }) : e; }); }); }
     function handleEmLoop(v) { if (!selectedEmitterId) return; setEmitters(function(p) { return p.map(function(e) { return e.id === selectedEmitterId ? Object.assign({}, e, { emitterLoop: v }) : e; }); }); }
+    function handleEmDuration(v) { if (!selectedEmitterId) return; setEmitters(function(p) { return p.map(function(e) { return e.id === selectedEmitterId ? Object.assign({}, e, { emitterDuration: v }) : e; }); }); }
     function handleParamChange(key, value) { if (!selectedEmitterId) return; setEmitters(function(p) { return p.map(function(e) { return e.id === selectedEmitterId ? Object.assign({}, e, { config: setNestedValue(e.config, key, value) }) : e; }); }); setUnsavedChanges(true); }
-    function handleRestartTL() { systemTimeRef.current = 0; prevSystemTimeRef.current = 0; setSystemTime(0); setEmitters(function(p) { return p.map(function(e) { return Object.assign({}, e, { particles: [], spawnAcc: 0, hasFiredBurst: false, burstAcc: 0, burstElapsed: 0 }); }); }); }
+    function handleRestartTL() { systemTimeRef.current = 0; prevSystemTimeRef.current = 0; setSystemTime(0); setEmitters(function(p) { return p.map(function(e) { return Object.assign({}, e, { particles: [], spawnAcc: 0, hasFiredBurst: false, burstAcc: 0, burstElapsed: 0, emitterElapsed: 0 }); }); }); }
 
     // ---- MAIN LOOP ----
     var tick = useCallback(function(timestamp) {
@@ -391,7 +438,7 @@ function ParticleEditor() {
         if (!pausedRef.current && tlActive) {
             sysTime += dt;
             if (sysTime >= sysDur) {
-                if (sysLoop) { sysTime = sysTime % sysDur; for (var r = 0; r < allEm.length; r++) { allEm[r].hasFiredBurst = false; allEm[r].burstAcc = 0; allEm[r].burstElapsed = 0; } }
+                if (sysLoop) { sysTime = sysTime % sysDur; for (var r = 0; r < allEm.length; r++) { allEm[r].hasFiredBurst = false; allEm[r].burstAcc = 0; allEm[r].burstElapsed = 0; allEm[r].emitterElapsed = 0; } }
                 else { sysTime = sysDur; }
             }
             prevSystemTimeRef.current = systemTimeRef.current; systemTimeRef.current = sysTime;
@@ -400,11 +447,21 @@ function ParticleEditor() {
         var totalP = 0;
         for (var i = 0; i < allEm.length; i++) {
             var em = allEm[i]; var cfg = em.config; var parts = em.particles; var active = true;
+
+            // Track emitter elapsed time
+            if (!em.emitterElapsed) em.emitterElapsed = 0;
+            if (!pausedRef.current && active) em.emitterElapsed += dt;
+
             if (tlActive) {
                 if (sysTime < (em.startTime || 0)) active = false;
                 if (!sysLoop && sysTime >= sysDur) active = false;
                 if (active && !em.emitterLoop && cfg.burstMode && !cfg.burstRepeat && em.hasFiredBurst) active = false;
                 if (active && !em.emitterLoop && cfg.burstMode && cfg.burstRepeat && em.burstElapsed >= (cfg.burstDuration || 1)) active = false;
+            }
+            // Emitter duration check (only when not looping)
+            if (active && !em.emitterLoop && em.emitterDuration > 0) {
+                var emElapsed = tlActive ? (sysTime - (em.startTime || 0)) : em.emitterElapsed;
+                if (emElapsed > em.emitterDuration) active = false;
             }
             if (!pausedRef.current && active) {
                 if (cfg.burstMode) {
@@ -466,10 +523,10 @@ function ParticleEditor() {
     }
     function handleExportScene() {
         var sc = { systemDuration: systemDuration, systemLoop: systemLoop, useTimeline: useTimeline, templates: templates.map(cfgExport),
-            emitters: emitters.map(function(em) { return { id: em.id, position: { x: em.x, y: em.y }, startTime: em.startTime, emitterLoop: em.emitterLoop, config: cfgExport(em.config) }; }) };
+            emitters: emitters.map(function(em) { return { id: em.id, position: { x: em.x, y: em.y }, startTime: em.startTime, emitterLoop: em.emitterLoop, emitterDuration: em.emitterDuration, config: cfgExport(em.config) }; }) };
         setExportJSON(JSON.stringify(sc, null, 2)); setShowExport(true);
     }
-    function handleExportSel() { if (!selectedEmitter) return; var o = cfgExport(selectedEmitter.config); o.position = { x: selectedEmitter.x, y: selectedEmitter.y }; o.startTime = selectedEmitter.startTime; o.emitterLoop = selectedEmitter.emitterLoop; setExportJSON(JSON.stringify(o, null, 2)); setShowExport(true); }
+    function handleExportSel() { if (!selectedEmitter) return; var o = cfgExport(selectedEmitter.config); o.position = { x: selectedEmitter.x, y: selectedEmitter.y }; o.startTime = selectedEmitter.startTime; o.emitterLoop = selectedEmitter.emitterLoop; o.emitterDuration = selectedEmitter.emitterDuration; setExportJSON(JSON.stringify(o, null, 2)); setShowExport(true); }
     function handleClearScene() { setEmitters([]); setSelectedEmitterId(null); setShowExport(false); }
     function handleCopy() { navigator.clipboard.writeText(exportJSON); }
 
@@ -497,7 +554,7 @@ function ParticleEditor() {
     function renderColorPreview() { if (!selectedEmitter) return null; var c = selectedEmitter.config; return <div style={{ ...S.gradBar, background: "linear-gradient(to right, " + c.colorStart + ", " + c.colorMid + " " + Math.round(c.colorMidPoint * 100) + "%, " + c.colorEnd + ")" }} />; }
     function renderTimeline() {
         var pct = systemDuration > 0 ? (systemTime / systemDuration) * 100 : 0;
-        return (<div style={S.tlBar} onClick={function(e) { var rect = e.currentTarget.getBoundingClientRect(); var t = ((e.clientX - rect.left) / rect.width) * systemDuration; systemTimeRef.current = Math.max(0, Math.min(systemDuration, t)); prevSystemTimeRef.current = systemTimeRef.current; setSystemTime(systemTimeRef.current); setEmitters(function(p) { return p.map(function(em) { return Object.assign({}, em, { hasFiredBurst: false, burstAcc: 0, burstElapsed: 0 }); }); }); }}>
+        return (<div style={S.tlBar} onClick={function(e) { var rect = e.currentTarget.getBoundingClientRect(); var t = ((e.clientX - rect.left) / rect.width) * systemDuration; systemTimeRef.current = Math.max(0, Math.min(systemDuration, t)); prevSystemTimeRef.current = systemTimeRef.current; setSystemTime(systemTimeRef.current); setEmitters(function(p) { return p.map(function(em) { return Object.assign({}, em, { hasFiredBurst: false, burstAcc: 0, burstElapsed: 0, emitterElapsed: 0 }); }); }); }}>
             {emitters.map(function(em) { var sp = systemDuration > 0 ? ((em.startTime || 0) / systemDuration) * 100 : 0; return <div key={em.id} style={{ position: "absolute", top: 2, height: TIMELINE_HEIGHT - 4, left: sp + "%", width: 4, background: em.handleColor, borderRadius: 2, opacity: 0.5, pointerEvents: "none" }} />; })}
             <div style={{ ...S.tlHead, left: pct + "%" }} /><div style={{ position: "absolute", bottom: 2, right: 4, fontSize: "9px", color: "#555", pointerEvents: "none" }}>{systemTime.toFixed(2)}s / {systemDuration.toFixed(1)}s</div>
         </div>);
@@ -562,8 +619,14 @@ function ParticleEditor() {
                 {selectedEmitter ? (<>
                     {useTimeline && (<div style={S.section}><div style={S.secTitle}>Emitter Timing</div>
                         <div style={S.row}><span style={S.label}>Start Time (s)</span><input type="range" style={S.slider} min={0} max={systemDuration} step={0.05} value={selectedEmitter.startTime || 0} onChange={function(e) { handleEmStartTime(parseFloat(e.target.value)); }} /><span style={S.val}>{(selectedEmitter.startTime || 0).toFixed(2)}</span></div>
-                        <div style={S.row}><span style={S.label}>Emitter Loop</span><button style={{ ...S.toggle, background: selectedEmitter.emitterLoop ? "#00ffaa" : "#333" }} onClick={function() { handleEmLoop(!selectedEmitter.emitterLoop); }}><div style={{ ...S.knob, left: selectedEmitter.emitterLoop ? 20 : 2 }} /></button></div>
                     </div>)}
+
+                    <div style={S.section}><div style={S.secTitle}>Emitter Lifetime</div>
+                        <div style={S.row}><span style={S.label}>Emitter Loop</span><button style={{ ...S.toggle, background: selectedEmitter.emitterLoop ? "#00ffaa" : "#333" }} onClick={function() { handleEmLoop(!selectedEmitter.emitterLoop); }}><div style={{ ...S.knob, left: selectedEmitter.emitterLoop ? 20 : 2 }} /></button></div>
+                        {!selectedEmitter.emitterLoop && (
+                            <div style={S.row}><span style={S.label}>Duration (s)</span><input type="range" style={S.slider} min={0.1} max={10} step={0.1} value={selectedEmitter.emitterDuration || 2} onChange={function(e) { handleEmDuration(parseFloat(e.target.value)); }} /><span style={S.val}>{(selectedEmitter.emitterDuration || 2).toFixed(1)}</span></div>
+                        )}
+                    </div>
                     <div style={S.section}><div style={S.secTitle}>Apply Template</div><select style={S.tplSelect} value="" onChange={function(e) { var idx = parseInt(e.target.value); if (!isNaN(idx)) handleApplyTpl(idx); }}><option value="" disabled>Select a template...</option>{templates.map(function(t, i) { return <option key={i} value={i}>{t.name}</option>; })}</select></div>
                     <div style={S.section}><div style={S.secTitle}>Identity</div>{renderGroup("identity")}</div>
                     <div style={S.section}><div style={S.secTitle}>Emission</div>{renderGroup("emission")}

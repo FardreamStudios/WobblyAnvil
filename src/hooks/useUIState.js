@@ -47,6 +47,17 @@ function useUIState() {
         return function() { GameplayEventBus.off(EVENT_TAGS.UI_ADD_TOAST, onAddToast); };
     }, []);
 
+    // --- Bus: Reset on New Game ---
+    useEffect(function() {
+        function onNewGame() {
+            setShowShop(false); setShowMaterials(false); setShowGiveUp(false);
+            setShowOptions(false); setShowRhythmTest(false);
+            setToasts([]); setToastQueue([]); setActiveToast(null);
+        }
+        GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
+        return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
+    }, []);
+
     return {
         // Screen
         screen: screen,
