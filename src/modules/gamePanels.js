@@ -121,7 +121,7 @@ function RepPanel({ reputation }) {
                 {Array.from({ length: 10 }).map(function(_, i) {
                     var filled = i < reputation;
                     var pipColor = i < 3 ? "#ef4444" : i < 6 ? "#fb923c" : i < 8 ? "#4ade80" : "#22c55e";
-                    return <div key={i} style={{ flex: 1, height: 14, borderRadius: 3, background: filled ? pipColor : "#1a1209", border: "1px solid " + (filled ? pipColor + "88" : "#2a1f0a"), transition: "background 0.2s" }} />;
+                    return <div key={i} style={{ flex: 1, height: 10, borderRadius: 3, background: filled ? pipColor : "#1a1209", border: "1px solid " + (filled ? pipColor + "88" : "#2a1f0a"), transition: "background 0.2s" }} />;
                 })}
             </div>
             <div className={reputation <= 1 ? "blink" : ""} style={{ fontSize: 8, color: color, letterSpacing: 1 }}>{status.toUpperCase()}</div>
