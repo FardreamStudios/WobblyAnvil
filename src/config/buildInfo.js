@@ -1,5 +1,5 @@
 var BUILD_INFO = {
-    version: "0.09.00",
+    version: "0.10.00",
     env: "dev",
 };
 

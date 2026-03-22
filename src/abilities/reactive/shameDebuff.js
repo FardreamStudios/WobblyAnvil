@@ -47,12 +47,7 @@ var ShameDebuffAbility = {
 
     // --- End Condition ---
     endWhen: {
-        tag: EVENT_TAGS.ECONOMY_EARN_GOLD,
-        condition: function(payload) {
-            // End on any weapon sale (has a price/weapon context)
-            // ECONOMY_EARN_GOLD fires for sales — check for weapon sale marker
-            return payload && payload.weaponSale === true;
-        },
+        tag: EVENT_TAGS.ECONOMY_WEAPON_SOLD,
     },
 
     // --- Cleanup ---

@@ -64,6 +64,7 @@ function useEconomyVM(deps) {
     // --- Sell / Refuse ---
     function handleSell(price, weaponId) {
         earnGold(price);
+        GameplayEventBus.emit(EVENT_TAGS.ECONOMY_WEAPON_SOLD, { price: price, weaponId: weaponId });
         setFinished(function(f) { var nf = f.filter(function(w) { return w.id !== weaponId; }); setTimeout(function() { trySpawnCustomer(hour, nf); }, 500); return nf; });
         setHasSoldWeapon(true); setActiveCustomer(null);
         setTimeout(function() { addToast("SOLD!\n+" + price + "g", "", "#4ade80"); GameplayEventBus.emit(EVENT_TAGS.FX_TOAST, {}); }, 100);

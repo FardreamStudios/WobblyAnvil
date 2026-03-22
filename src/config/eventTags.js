@@ -24,6 +24,7 @@ var EVENT_TAGS = {
     ECONOMY_SPEND_GOLD:     "event.economy.gold.spend",
     ECONOMY_SET_INVENTORY:  "event.economy.inventory.set",
     ECONOMY_ADD_MATERIAL:   "event.economy.material.add",
+    ECONOMY_WEAPON_SOLD:    "event.economy.weapon.sold",
 
     // --- Player ---
     PLAYER_CHANGE_REP:      "event.player.reputation.change",
