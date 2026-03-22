@@ -12,6 +12,7 @@ import GameConstants from "../modules/constants.js";
 import GameUtils from "../modules/utilities.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
+import DynamicEvents from "../logic/dynamicEvents.js";
 
 // --- Constants ---
 var PHASES = GameConstants.PHASES;
@@ -53,7 +54,7 @@ function useForgeVM(deps) {
     var advanceTime = deps.advanceTime;
     var spendGold = deps.spendGold;
     var gainXp = deps.gainXp;
-    var applyMystery = deps.applyMystery;
+    // (GEB-5: applyMystery removed — mystery events now fire via bus)
     var trySpawnCustomer = deps.trySpawnCustomer;
     var setInv = deps.setInv;
     var setFinished = deps.setFinished;
@@ -223,7 +224,7 @@ function useForgeVM(deps) {
         var q = getQualityTier(nq);
         setSessResult({ delta: delta, nq: nq, quality: q, ns: ns, sessions: forgeSess + 1 });
         showForgeBubbleFn("HAMMER RESULT", [{ text: (delta >= 0 ? "+" : "") + delta + " quality", color: delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a", bold: true }], delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a");
-        if (pendingMystery && pendingMystery.severity && Math.random() < 0.5) { takeBreak(); applyMystery(function() {}, true); return; }
+        if (pendingMystery && pendingMystery.severity && Math.random() < 0.5) { takeBreak(); var snapshot = { gold: gold, inv: inv, finished: finished }; if (pendingMystery.severity === "good") { sfx.mysteryGood(); DynamicEvents.mysteryGood(GameplayEventBus, snapshot); } else { sfx.fireTornado(); sfx.dragonFlyby(); DynamicEvents.mysteryBad(GameplayEventBus, snapshot, true); } return; }
         setPhase(PHASES.SESS_RESULT);
     }
 
@@ -243,7 +244,7 @@ function useForgeVM(deps) {
         stressRef.current = ns; qualRef.current = nq; setStress(ns); setQualScore(nq); advanceTime(2, undefined, false);
         setSessResult({ delta: nq - oldQ, nq: nq, quality: getQualityTier(nq), ns: ns, sessions: forgeSess });
         showForgeBubbleFn("NORMALIZE", [{ text: (nq - oldQ) + " quality", color: "#f87171", bold: true }, { text: "-1 stress", color: "#60a5fa", bold: true }], "#60a5fa");
-        if (pendingMystery && pendingMystery.severity) { takeBreak(); applyMystery(function() {}); return; }
+        if (pendingMystery && pendingMystery.severity) { takeBreak(); var snapshot = { gold: gold, inv: inv, finished: finished }; if (pendingMystery.severity === "good") { sfx.mysteryGood(); DynamicEvents.mysteryGood(GameplayEventBus, snapshot); } else { sfx.fireTornado(); sfx.dragonFlyby(); DynamicEvents.mysteryBad(GameplayEventBus, snapshot, true); } return; }
         setPhase(PHASES.SESS_RESULT);
     }
 

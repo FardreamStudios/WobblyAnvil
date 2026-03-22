@@ -264,55 +264,9 @@ export default function App() {
   function addToast(msg, icon, color, duration, locked) { setToasts(function(t) { return t.concat([{ id: Date.now() + Math.random(), msg: msg, icon: icon, color: color, duration: duration || null, locked: locked || false }]); }); }
   function removeToast(id) { setToasts(function(t) { return t.filter(function(x) { return x.id !== id; }); }); }
 
-  // --- Event Application ---
-  // --- Event Application ---
-  function applyEvent(r) {
-    if (!r) return;
-    if (r.goldDelta !== undefined && r.goldDelta !== 0) { if (r.goldDelta > 0) { sfx.coin(); earnGold(r.goldDelta); } else { sfx.quenchFail(); spendGold(-r.goldDelta); } }
-    if (r.inv !== undefined) setInv(r.inv);
-    if (r.hour !== undefined) setHour(r.hour);
-    if (r.stamina !== undefined) setStamina(r.stamina);
-    if (r.finished !== undefined) setFinished(r.finished);
-    if (r.forcedExhaustion) setForcedExhaustion(true);
-    if (r.priceBonus) setPriceBonus(r.priceBonus);
-    if (r.priceDebuff) setPriceDebuff(r.priceDebuff);
-    if (r.matDiscount) setMatDiscount(r.matDiscount);
-    if (r.globalMatMult) setGlobalMatMult(r.globalMatMult);
-    if (r.guaranteedCustomers) setGuaranteedCustomers(true);
-    if (r.extraCustomers) setMaxCustToday(BASE_DAILY_CUSTOMERS + r.extraCustomers);
-  }
+  // --- Event Application (GEB-5: moved to bus — see DynamicEvents.applyEventResult) ---
 
-  // --- Mystery Events ---
-  function applyMystery(onComplete, wasForging) {
-    if (!pendingMystery || !pendingMystery.severity) { setPendingMystery(null); if (onComplete) onComplete(); return; }
-    var pm = pendingMystery; setPendingMystery(null); setMysteryPending(true); setMysteryShake(true);
-    setMysteryVignette(pm.severity === "good" ? "#fbbf24" : "#ef4444");
-    setTimeout(function() { setMysteryShake(false); }, 3500);
-    if (pm.severity === "good") {
-      sfx.mysteryGood();
-      var rGood = pm.effect({ gold: gold, inv: inv, hour: hour, stamina: stamina, finished: finished });
-      if (rGood.repDelta) changeRep(rGood.repDelta, 7000);
-      gainXp(Math.round(xp * 0.10));
-      var matName = rGood._mysteryMat ? (MATS[rGood._mysteryMat] && MATS[rGood._mysteryMat].name) || rGood._mysteryMat : "";
-      addToast("A DIVINE PRESENCE\nA luminous figure drifted through the forge and vanished. It left " + rGood._mysteryMatQty + " " + matName + ". +1 rep.", "\uD83C\uDF1F", "#fbbf24", 5500, true);
-      applyEvent(rGood);
-    } else {
-      sfx.fireTornado(); sfx.dragonFlyby();
-      var rBad = pm.effect({ gold: gold, inv: inv, hour: hour, stamina: stamina, finished: finished });
-      if (rBad.repDelta) changeRep(rBad.repDelta, 7000);
-      loseXp(Math.round(xp * 0.15));
-      var lostMatName = rBad._mysteryMat ? (MATS[rBad._mysteryMat] && MATS[rBad._mysteryMat].name) || rBad._mysteryMat : "materials";
-      var wipLine = wasForging ? (" Your " + WEAPONS[wKey].name + " was destroyed.") : "";
-      var weaponLine = rBad._mysteryWeaponLost ? (" A " + rBad._mysteryWeaponLost.wName + " was reduced to cinders.") : "";
-      var goldLine = rBad._mysteryGoldLost ? " -" + rBad._mysteryGoldLost + "g." : "";
-      if (wasForging) { setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.floor(WEAPONS[wKey].materialCost * MAT_SCRAP_RECOVERY); return n; }); setWipWeapon(null); }
-      var matLine = rBad._mysteryMat ? (" Your " + lostMatName + " is ash.") : "";
-      addToast("A DRAGON DESCENDS\nA shadow of scales and fire tore through the forge." + matLine + " -1 rep." + goldLine + wipLine + weaponLine, "\uD83D\uDC80", "#ef4444", 5500, true);
-      applyEvent(rBad);
-    }
-    setTimeout(function() { setMysteryVignetteOpacity(0); }, 5000);
-    setTimeout(function() { setTimeout(function() { setMysteryVignette(null); setMysteryVignetteOpacity(1); }, 1500); setMysteryPending(false); if (onComplete) onComplete(); }, 7000);
-  }
+  // --- Mystery Events (GEB-5: moved to bus — see DynamicEvents.mysteryGood/mysteryBad) ---
 
   // --- Customer System ---
   var trySpawnCustomer = useCallback(function(newHour, nf) {
@@ -365,7 +319,7 @@ export default function App() {
   // --- Forge ViewModel ---
   var forgeVM = useForgeVM({
     forge: forge, sfx: sfx, addToast: addToast, advanceTime: advanceTime,
-    spendGold: spendGold, gainXp: gainXp, applyMystery: applyMystery,
+    spendGold: spendGold, gainXp: gainXp,
     trySpawnCustomer: trySpawnCustomer, setInv: setInv, setFinished: setFinished,
     setRoyalQuest: setRoyalQuest, setWeaponShake: setWeaponShake,
     gold: gold, inv: inv, finished: finished, hour: hour, stamina: stamina,
@@ -393,7 +347,7 @@ export default function App() {
     dayState: dayState, economy: economy, quest: quest, mystery: mystery,
     sfx: sfx, addToast: addToast, setToastQueue: setToastQueue, setActiveToast: setActiveToast,
     trySpawnCustomer: trySpawnCustomer, earnGold: earnGold, changeRep: changeRep,
-    forgeOnSleep: forgeVM.onSleep, applyEvent: applyEvent, applyMystery: applyMystery,
+    forgeOnSleep: forgeVM.onSleep,
     maxStam: maxStam, advanceTime: advanceTime, unlockedBP: unlockedBP, reputation: reputation
   });
   var waitHour = dayVM.waitHour, buildDayQueue = dayVM.buildDayQueue, doSleep = dayVM.doSleep, sleep = dayVM.sleep;

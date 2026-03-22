@@ -3,10 +3,16 @@
 // Owns: advanceTime, waitHour, buildDayQueue, doSleep, sleep.
 // Consumes: useDayState + cross-domain deps passed in.
 // Returns: Action handlers for time progression and day cycle.
+//
+// GEB-5: applyEvent replaced with DynamicEvents.applyEventResult.
+//         applyMystery replaced with DynamicEvents.mysteryGood/Bad.
+//         SFX placed at call site until Gameplay Cue system (CUE-1).
 // ============================================================
 
 import GameConstants from "../modules/constants.js";
 import GameEvents from "../modules/events.js";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import DynamicEvents from "../logic/dynamicEvents.js";
 
 var TAG_COLORS = GameConstants.TAG_COLORS;
 var STARTING_GOLD = GameConstants.STARTING_GOLD;
@@ -31,8 +37,6 @@ function useDayVM(deps) {
     var earnGold = deps.earnGold;
     var changeRep = deps.changeRep;
     var forgeOnSleep = deps.forgeOnSleep;
-    var applyEvent = deps.applyEvent;
-    var applyMystery = deps.applyMystery;
     var maxStam = deps.maxStam;
 
     // --- Day state ---
@@ -80,7 +84,10 @@ function useDayVM(deps) {
         var ev = rollDailyEvent(state); setMEvent(ev);
         if (ev && ev.effect) {
             if (ev.id === "mystery" && ev.severity) { if (!pendingMystery) setTimeout(function() { setPendingMystery({ effect: ev.effect, severity: ev.severity }); }, 150); }
-            else { var r = ev.effect({ gold: state.gold || STARTING_GOLD, inv: state.inv || { bronze: 10, iron: 4 }, hour: WAKE_HOUR, stamina: state.stamina || BASE_STAMINA, finished: state.finished || [] }); setTimeout(function() { applyEvent(r); }, 150); }
+            else {
+                var r = ev.effect({ gold: state.gold || STARTING_GOLD, inv: state.inv || { bronze: 10, iron: 4 }, hour: WAKE_HOUR, stamina: state.stamina || BASE_STAMINA, finished: state.finished || [] });
+                setTimeout(function() { DynamicEvents.applyEventResult(GameplayEventBus, r); }, 150);
+            }
         }
         var queue = [];
         queue.push({ id: "gm_" + newDay, msg: "DAY " + newDay + "\nGood morning, blacksmith.", icon: "", color: "#f59e0b" });
@@ -129,7 +136,20 @@ function useDayVM(deps) {
     }
 
     function sleep() {
-        if (pendingMystery && pendingMystery.severity) { applyMystery(doSleep); return; }
+        if (pendingMystery && pendingMystery.severity) {
+            // --- Mystery fires before sleep, then doSleep runs after 7s ---
+            var snapshot = { gold: gold, inv: inv, finished: finished };
+            setPendingMystery(null);
+            if (pendingMystery.severity === "good") {
+                sfx.mysteryGood();
+                DynamicEvents.mysteryGood(GameplayEventBus, snapshot);
+            } else {
+                sfx.fireTornado(); sfx.dragonFlyby();
+                DynamicEvents.mysteryBad(GameplayEventBus, snapshot, false);
+            }
+            setTimeout(doSleep, 7000);
+            return;
+        }
         doSleep();
     }
 

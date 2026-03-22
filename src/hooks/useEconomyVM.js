@@ -72,18 +72,36 @@ function useEconomyVM(deps) {
     function handleRefuse() { setActiveCustomer(null); }
 
     // --- Bus: Economy Subscriptions ---
-    var busEarnGold = useCallback(function(payload) { earnGold(payload.amount); }, []);
-    var busSpendGold = useCallback(function(payload) { spendGold(payload.amount); }, []);
+    // Note: applyEventResult overloads ECONOMY_EARN_GOLD with modifier
+    // fields (priceBonus, guaranteedCustomers, extraCustomers) and
+    // ECONOMY_SPEND_GOLD with priceDebuff. Handlers check for these.
+    var busEarnGold = useCallback(function(payload) {
+        if (payload.amount) earnGold(payload.amount);
+        if (payload.priceBonus) economy.setPriceBonus(payload.priceBonus);
+        if (payload.guaranteedCustomers) economy.setGuaranteedCustomers(true);
+        if (payload.extraCustomers) economy.setMaxCustToday(function(c) { return c + payload.extraCustomers; });
+    }, []);
+
+    var busSpendGold = useCallback(function(payload) {
+        if (payload.amount) spendGold(payload.amount);
+        if (payload.priceDebuff) economy.setPriceDebuff(payload.priceDebuff);
+    }, []);
+
     var busSetInventory = useCallback(function(payload) {
         if (payload.inv !== undefined) economy.setInv(payload.inv);
         if (payload.finished !== undefined) economy.setFinished(payload.finished);
     }, []);
+
     var busAddMaterial = useCallback(function(payload) {
-        economy.setInv(function(i) {
-            var n = Object.assign({}, i);
-            n[payload.key] = (n[payload.key] || 0) + payload.qty;
-            return n;
-        });
+        if (payload.key && payload.qty) {
+            economy.setInv(function(i) {
+                var n = Object.assign({}, i);
+                n[payload.key] = (n[payload.key] || 0) + payload.qty;
+                return n;
+            });
+        }
+        if (payload.matDiscount) economy.setMatDiscount(payload.matDiscount);
+        if (payload.globalMatMult) economy.setGlobalMatMult(payload.globalMatMult);
     }, []);
 
     useEffect(function() {

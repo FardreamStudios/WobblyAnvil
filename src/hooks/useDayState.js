@@ -1,10 +1,14 @@
 // ============================================================
 // useDayState.js — Wobbly Anvil Day/Time State Hook
 // Owns: day counter, hour, stamina, exhaustion, game over.
+// Bus: subscribes to DAY_ADVANCE_HOUR, DAY_SET_STAMINA,
+//      DAY_FORCE_EXHAUSTION.
 // ============================================================
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import GameConstants from "../modules/constants.js";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 var BASE_STAMINA = GameConstants.BASE_STAMINA;
 var WAKE_HOUR = GameConstants.WAKE_HOUR;
@@ -16,6 +20,30 @@ function useDayState() {
     var [forcedExhaustion, setForcedExhaustion] = useState(false);
     var [lateToastShown, setLateToastShown] = useState(false);
     var [gameOver, setGameOver] = useState(false);
+
+    // --- Bus: Day Subscriptions ---
+    var busAdvanceHour = useCallback(function(payload) {
+        if (payload.hour !== undefined) setHour(payload.hour);
+    }, []);
+
+    var busSetStamina = useCallback(function(payload) {
+        if (payload.stamina !== undefined) setStamina(payload.stamina);
+    }, []);
+
+    var busForceExhaustion = useCallback(function() {
+        setForcedExhaustion(true);
+    }, []);
+
+    useEffect(function() {
+        GameplayEventBus.on(EVENT_TAGS.DAY_ADVANCE_HOUR, busAdvanceHour);
+        GameplayEventBus.on(EVENT_TAGS.DAY_SET_STAMINA, busSetStamina);
+        GameplayEventBus.on(EVENT_TAGS.DAY_FORCE_EXHAUSTION, busForceExhaustion);
+        return function() {
+            GameplayEventBus.off(EVENT_TAGS.DAY_ADVANCE_HOUR, busAdvanceHour);
+            GameplayEventBus.off(EVENT_TAGS.DAY_SET_STAMINA, busSetStamina);
+            GameplayEventBus.off(EVENT_TAGS.DAY_FORCE_EXHAUSTION, busForceExhaustion);
+        };
+    }, [busAdvanceHour, busSetStamina, busForceExhaustion]);
 
     return {
         day: day,
