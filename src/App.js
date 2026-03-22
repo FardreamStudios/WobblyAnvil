@@ -33,6 +33,7 @@ import useEconomyVM from "./hooks/useEconomyVM.js";
 import useDayVM from "./hooks/useDayVM.js";
 import useQuestState from "./hooks/useQuestState.js";
 import useMysteryState from "./hooks/useMysteryState.js";
+import useInputRouter from "./hooks/useInputRouter.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -49,7 +50,6 @@ var STARTING_GOLD = GameConstants.STARTING_GOLD;
 var BASE_STAMINA = GameConstants.BASE_STAMINA;
 var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
 var WAKE_HOUR = GameConstants.WAKE_HOUR;
-var REST_HOUR_LIMIT = GameConstants.REST_HOUR_LIMIT;
 var MAT_SCRAP_RECOVERY = GameConstants.MAT_SCRAP_RECOVERY;
 var BALANCE = GameConstants.BALANCE;
 
@@ -58,16 +58,12 @@ var randInt = GameUtils.randInt;
 var weightedPick = GameUtils.weightedPick;
 var getQualityTier = GameUtils.getQualityTier;
 var referenceValue = GameUtils.referenceValue;
-var xpForLevel = GameUtils.xpForLevel;
 var getSmithRank = GameUtils.getSmithRank;
 var getNextRank = GameUtils.getNextRank;
 var formatTime = GameUtils.formatTime;
-var canAffordTime = GameUtils.canAffordTime;
 
 // --- Destructure Events ---
 var EVENTS = GameEvents.EVENTS;
-var rollDailyEvent = GameEvents.rollDailyEvent;
-var generateRoyalQuest = GameEvents.generateRoyalQuest;
 
 // --- Destructure Audio ---
 var useAudio = AudioSystem.useAudio;
@@ -204,7 +200,7 @@ export default function App() {
   var phase = forge.phase, setPhase = forge.setPhase;
   var qualScore = forge.qualScore, setQualScore = forge.setQualScore;
   var stress = forge.stress, setStress = forge.setStress;
-  var forgeSess = forge.forgeSess, setForgeSess = forge.setForgeSess;
+  var setForgeSess = forge.setForgeSess;
   var bonusStrikes = forge.bonusStrikes, setBonusStrikes = forge.setBonusStrikes;
   var sessResult = forge.sessResult, setSessResult = forge.setSessResult;
   var forgeBubble = forge.forgeBubble, setForgeBubble = forge.setForgeBubble;
@@ -252,9 +248,6 @@ export default function App() {
   phaseRef.current = phase;
   royalQuestRef.current = royalQuest;
 
-  // --- Derived (cross-domain) ---
-  var isLocked = isQTEActive || !!activeCustomer || toastQueue.length > 0 || !!activeToast || mysteryPending;
-
 
   // --- Toast System ---
   useEffect(function() {
@@ -271,10 +264,7 @@ export default function App() {
   function addToast(msg, icon, color, duration, locked) { setToasts(function(t) { return t.concat([{ id: Date.now() + Math.random(), msg: msg, icon: icon, color: color, duration: duration || null, locked: locked || false }]); }); }
   function removeToast(id) { setToasts(function(t) { return t.filter(function(x) { return x.id !== id; }); }); }
 
-
-
-
-
+  // --- Event Application ---
   // --- Event Application ---
   function applyEvent(r) {
     if (!r) return;
@@ -390,7 +380,15 @@ export default function App() {
   var showBars = forgeVM.showBars, isQTEActive = forgeVM.isQTEActive, isForging = forgeVM.isForging, diffColor = forgeVM.diffColor;
   var qtePosRef = forgeVM.qtePosRef, qteProcessing = forgeVM.qteProcessing;
 
-  // --- Day ViewModel ---
+  // --- Input Router ---
+  var input = useInputRouter({
+    hour: hour, stamina: stamina, stress: stress, sessCost: sessCost,
+    isQTEActive: isQTEActive, isForging: isForging,
+    activeCustomer: activeCustomer, toastQueue: toastQueue, activeToast: activeToast,
+    mysteryPending: mysteryPending, finished: finished, promoteUses: promoteUses,
+    gold: gold, inv: inv, matKey: matKey, weapon: weapon, buyPrice: MATS[matKey] ? MATS[matKey].price * Math.max(0, (weapon ? weapon.materialCost : 0) - (inv[matKey] || 0)) : 0
+  });
+  var isLocked = input.isLocked;
   var dayVM = useDayVM({
     dayState: dayState, economy: economy, quest: quest, mystery: mystery,
     sfx: sfx, addToast: addToast, setToastQueue: setToastQueue, setActiveToast: setActiveToast,
@@ -543,7 +541,7 @@ export default function App() {
                 </div>
                 {/* Buttons */}
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <button onClick={function() { sfx.click(); setPhase(PHASES.SELECT_MAT); }} disabled={stamina <= 0} style={{ background: "#2a1f0a", border: "2px solid #f59e0b", borderRadius: 6, color: "#f59e0b", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>NEXT</button>
+                  <button onClick={function() { sfx.click(); setPhase(PHASES.SELECT_MAT); }} disabled={stamina <= 0 || input.isLocked} style={{ background: "#2a1f0a", border: "2px solid #f59e0b", borderRadius: 6, color: "#f59e0b", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>NEXT</button>
                   <button onClick={function() { sfx.click(); setPhase(PHASES.IDLE); }} style={{ background: "#141009", border: "2px solid #3d2e0f", borderRadius: 6, color: "#8a7a64", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>CANCEL</button>
                 </div>
               </div>
@@ -590,8 +588,7 @@ export default function App() {
                 {/* Buttons */}
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                   {(function() {
-                    var have = inv[matKey] || 0, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[matKey].price * needed;
-                    var canConfirm = (have >= weapon.materialCost || gold >= buyPrice) && stamina > 0 && canAffordTime(hour, sessCost);
+                    var canConfirm = !input.confirmSelect.disabled;
                     return <button onClick={canConfirm ? function() { sfx.click(); confirmSelect(); } : null} disabled={!canConfirm} style={{ background: canConfirm ? "#2a1f0a" : "#0a0704", border: "2px solid " + (canConfirm ? "#f59e0b" : "#1a1209"), borderRadius: 6, color: canConfirm ? "#f59e0b" : "#2a1f0a", padding: "8px 24px", fontSize: 12, cursor: canConfirm ? "pointer" : "not-allowed", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>CONFIRM</button>;
                   })()}
                   <button onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} style={{ background: "#141009", border: "2px solid #3d2e0f", borderRadius: 6, color: "#8a7a64", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>BACK</button>
@@ -613,7 +610,7 @@ export default function App() {
     return (
         <>
           {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={function(mat, qty, price) { sfx.click(); var c = price * qty; if (gold < c) return; sfx.coin(); spendGold(c); setInv(function(i) { var n = Object.assign({}, i); n[mat] = (n[mat] || 0) + qty; return n; }); }} onUpgrade={function(cat) { sfx.click(); var nl = upgrades[cat] + 1, u = UPGRADES[cat][nl]; if (!u || gold < u.cost) return; spendGold(u.cost); setUpgrades(function(u2) { var n = Object.assign({}, u2); n[cat] = nl; return n; }); }} onBuyBP={function(k, cost) { sfx.click(); if (gold < cost) return; spendGold(cost); setUnlockedBP(function(u) { return u.concat([k]); }); }} onPromote={function() { promote(); }}
-                                  promoteDisabled={isLocked || hour >= 24 || finished.length === 0 || promoteUses >= BALANCE.maxPromoteUses || !canAffordTime(hour, 1) || stamina <= 0}
+                                  promoteDisabled={input.promote.disabled || stamina <= 0}
                                   promoteUses={promoteUses}
                                   maxPromoteUses={BALANCE.maxPromoteUses}
                                   finishedCount={finished.length} />}
@@ -649,27 +646,27 @@ export default function App() {
 
               /* Action strip callbacks — forging (sess_result) */
               onForge={function() { sfx.click(); attemptForge(); }}
-              forgeDisabled={isLocked || stamina <= 0 || !canAffordTime(hour, sessCost)}
+              forgeDisabled={input.forge.disabled}
               onNormalize={function() { sfx.click(); doNormalize(); }}
-              normalizeDisabled={stress <= 0 || !canAffordTime(hour, 2)}
+              normalizeDisabled={input.normalize.disabled}
               onQuench={function() { sfx.click(); setPhase(PHASES.QUENCH); }}
-              quenchDisabled={(stamina <= 0 && !canAffordTime(hour, 2)) || (!canAffordTime(hour, sessCost) && stamina > 0)}
+              quenchDisabled={input.quench.disabled}
               onScrap={function() { sfx.click(); scrapWeapon(); }}
               onLeave={function() { sfx.click(); takeBreak(); }}
 
               /* Action strip callbacks — idle */
               onSleep={function() { sfx.click(); sleep(); }}
-              sleepDisabled={isLocked}
+              sleepDisabled={input.sleep.disabled}
               onRest={waitHour}
-              restDisabled={isLocked || hour >= REST_HOUR_LIMIT || !canAffordTime(hour, 2)}
+              restDisabled={input.rest.disabled}
               onPromote={promote}
-              promoteDisabled={isLocked || hour >= 24 || finished.length === 0 || promoteUses >= BALANCE.maxPromoteUses || !canAffordTime(hour, 1)}
+              promoteDisabled={input.promote.disabled}
               onScavenge={scavenge}
-              scavengeDisabled={isLocked || hour >= 24 || !canAffordTime(hour, 1) || stamina <= 0}
+              scavengeDisabled={input.scavenge.disabled}
               onShop={function() { sfx.click(); setShowShop(true); }}
-              shopDisabled={isLocked}
+              shopDisabled={input.shop.disabled}
               onMats={function() { sfx.click(); setShowMaterials(true); }}
-              matsDisabled={isLocked}
+              matsDisabled={input.mats.disabled}
 
               /* Options button */
               onOptions={function() { sfx.click(); setShowOptions(true); }}
@@ -677,9 +674,9 @@ export default function App() {
               /* Begin forge / WIP props */
               hasWip={!!wipWeapon}
               onBeginForge={function() { sfx.click(); setPhase(PHASES.SELECT); }}
-              beginForgeDisabled={isLocked || (!canAffordTime(hour, sessCost) && !(stamina <= 0 && canAffordTime(hour, 2)))}
+              beginForgeDisabled={input.beginForge.disabled}
               onResumeWip={function() { resumeWip(); }}
-              resumeWipDisabled={isLocked || !canAffordTime(hour, sessCost)}
+              resumeWipDisabled={input.resumeWip.disabled}
               onScrapWip={function() { scrapWip(); }}
 
               /* Center zone content */
@@ -725,7 +722,7 @@ export default function App() {
   return (
       <>
         {showShop && <ShopModal gold={gold} inv={inv} upgrades={upgrades} unlockedBP={unlockedBP} matDiscount={matDiscount} globalMatMult={globalMatMult} royalQuest={royalQuest} sfx={sfx} onClose={function() { setShowShop(false); }} onBuy={function(mat, qty, price) { sfx.click(); var c = price * qty; if (gold < c) return; sfx.coin(); spendGold(c); setInv(function(i) { var n = Object.assign({}, i); n[mat] = (n[mat] || 0) + qty; return n; }); }} onUpgrade={function(cat) { sfx.click(); var nl = upgrades[cat] + 1, u = UPGRADES[cat][nl]; if (!u || gold < u.cost) return; spendGold(u.cost); setUpgrades(function(u2) { var n = Object.assign({}, u2); n[cat] = nl; return n; }); }} onBuyBP={function(k, cost) { sfx.click(); if (gold < cost) return; spendGold(cost); setUnlockedBP(function(u) { return u.concat([k]); }); }} onPromote={function() { promote(); }}
-                                promoteDisabled={isLocked || hour >= 24 || finished.length === 0 || promoteUses >= BALANCE.maxPromoteUses || !canAffordTime(hour, 1) || stamina <= 0}
+                                promoteDisabled={input.promote.disabled || stamina <= 0}
                                 promoteUses={promoteUses}
                                 maxPromoteUses={BALANCE.maxPromoteUses}
                                 finishedCount={finished.length} />}
@@ -789,7 +786,7 @@ export default function App() {
               <Panel style={{ cursor: "default" }}><SectionLabel style={{ marginBottom: 1 }}>LEVEL</SectionLabel><div style={{ fontSize: 22, color: "#f59e0b", fontWeight: "bold", lineHeight: 1 }}>{level}</div><div style={{ fontSize: 8, color: "#8a7a64", marginTop: 4, marginBottom: 2 }}>XP {xp}/{xpNeeded}</div><Bar value={xp} max={xpNeeded} color="#c084fc" h={6} /></Panel>
             </Tooltip>
             <RepPanel reputation={reputation} />
-            <StatPanel stats={stats} points={statPoints} onAllocate={allocateStat} sfx={sfx} locked={isLocked || isForging} />
+            <StatPanel stats={stats} points={statPoints} onAllocate={allocateStat} sfx={sfx} locked={input.statAlloc.disabled} />
             <div style={{ flex: 1, display: "flex", flexDirection: "column" }}><ForgeInfoPanel upgrades={upgrades} /></div>
           </GameLeft>
 
@@ -848,14 +845,14 @@ export default function App() {
                                 {[["WEAPON", WEAPONS[wipWeapon.wKey].name, "#f0e6c8"], ["MATERIAL", (MATS[wipWeapon.matKey] && MATS[wipWeapon.matKey].name) || "Bronze", (MATS[wipWeapon.matKey] && MATS[wipWeapon.matKey].color) || "#a0a0a0"], ["QUALITY", "" + wipWeapon.qualScore, getQualityTier(wipWeapon.qualScore).color], ["STRESS", wipWeapon.stress + "/" + STRESS_MAX, wipWeapon.stress >= STRESS_MAX ? "#ef4444" : wipWeapon.stress >= STRESS_MAX - 1 ? "#fb923c" : "#4ade80"]].map(function(r) { return <div key={r[0]} style={{ flex: 1 }}><SectionLabel style={{ marginBottom: 3 }}>{r[0]}</SectionLabel><div style={{ fontSize: 13, color: r[2], fontWeight: "bold" }}>{r[1]}</div></div>; })}
                               </div>
                               <div style={{ display: "flex", gap: 8 }}>
-                                <button onClick={function(e) { e.stopPropagation(); resumeWip(); }} disabled={isLocked || !canAffordTime(hour, sessCost)} style={{ flex: 2, background: "#0a1a2a", border: "2px solid #60a5fa", borderRadius: 8, color: "#60a5fa", padding: "10px 0", fontSize: 13, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Resume</button>
+                                <button onClick={function(e) { e.stopPropagation(); resumeWip(); }} disabled={input.resumeWip.disabled} style={{ flex: 2, background: "#0a1a2a", border: "2px solid #60a5fa", borderRadius: 8, color: "#60a5fa", padding: "10px 0", fontSize: 13, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Resume</button>
                                 <button onClick={function(e) { e.stopPropagation(); scrapWip(); }} style={{ flex: 1, background: "#141009", border: "2px solid #3d2e0f", borderRadius: 8, color: "#8a7a64", padding: "10px 0", fontSize: 13, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Scrap</button>
                               </div>
                               {stamina <= 0 && <div style={{ fontSize: 10, color: "#fb923c", letterSpacing: 1, textAlign: "center", marginTop: 6 }}>EXHAUSTED — REST BEFORE RESUMING</div>}
                             </div>
                         ) : (
                             <><div style={{ fontSize: 16, letterSpacing: 3, color: "#f59e0b", fontWeight: "bold" }}>FORGE READY</div><SectionLabel>{isExhausted ? "EXHAUSTED — 4HR/SESSION" : "2HR/SESSION"}</SectionLabel>
-                              <button onClick={stamina <= 0 && canAffordTime(hour, 2) ? waitHour : (isLocked || !canAffordTime(hour, sessCost)) ? null : function(e) { e.stopPropagation(); sfx.click(); setPhase(PHASES.SELECT); }} disabled={isLocked || (!canAffordTime(hour, sessCost) && !(stamina <= 0 && canAffordTime(hour, 2)))} style={{ background: "#2a1f0a", border: "2px solid #f59e0b", borderRadius: 8, color: "#f59e0b", padding: "14px 40px", fontSize: 18, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}><span style={{ opacity: stamina <= 0 && canAffordTime(hour, 2) ? 0.65 : 1 }}>Begin Forging</span>{stamina <= 0 && canAffordTime(hour, 2) && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}</button></>
+                              <button onClick={input.beginForge.redirectToRest ? waitHour : input.beginForge.disabled ? null : function(e) { e.stopPropagation(); sfx.click(); setPhase(PHASES.SELECT); }} disabled={input.beginForge.disabled} style={{ background: "#2a1f0a", border: "2px solid #f59e0b", borderRadius: 8, color: "#f59e0b", padding: "14px 40px", fontSize: 18, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}><span style={{ opacity: input.beginForge.redirectToRest ? 0.65 : 1 }}>Begin Forging</span>{input.beginForge.redirectToRest && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}</button></>
                         )}
                       </div>)}
 
@@ -888,7 +885,7 @@ export default function App() {
                           <div style={{ width: "100%", maxHeight: 160, overflowY: "auto", display: "flex", flexDirection: "column", gap: 5 }}>
                             {Object.entries(MATS).map(function(e) { var k = e[0], m = e[1], have = (inv[k] || 0), enough = have >= weapon.materialCost; var isQ = !!(royalQuest && !royalQuest.fulfilled && royalQuest.materialRequired === k); var isSel = matKey === k, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[k].price * needed, canBuy = needed > 0 && gold >= buyPrice; var canSelect = enough || canBuy; return (<div key={k} onClick={canSelect ? function(e) { e.stopPropagation(); sfx.click(); setMatKey(k); } : null} style={{ border: "2px solid " + (isSel ? "#f59e0b" : canSelect ? "#3d2e0f" : "#2a1f0a"), borderRadius: 6, padding: "8px 10px", cursor: canSelect ? "pointer" : "not-allowed", background: isSel ? "#2a1f0a" : "#0a0704", display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ fontSize: 13, color: isSel ? m.color : canSelect ? m.color : "#3d2e0f", letterSpacing: 1, fontWeight: "bold" }}>{m.name.toUpperCase()}</div>{isQ && <span style={{ fontSize: 11, background: "#f59e0b", color: "#0a0704", borderRadius: 4, padding: "1px 6px", fontWeight: "bold" }}>QUEST</span>}</div>{needed > 0 && <span className={!canBuy ? "blink-slow" : ""} style={{ fontSize: 10, color: canBuy ? (isSel ? "#fbbf24" : "#f59e0b") : "#ef4444", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", whiteSpace: "nowrap" }}>{canBuy ? "COSTS " + buyPrice + "g" : "CAN'T AFFORD"}</span>}</div>); })}
                           </div>
-                          <div style={{ display: "flex", gap: 5 }}><ActionBtn onClick={function() { sfx.click(); confirmSelect(); }} disabled={((inv[matKey] || 0) < weapon.materialCost && gold < MATS[matKey].price * Math.max(0, weapon.materialCost - (inv[matKey] || 0))) || stamina <= 0 || !canAffordTime(hour, sessCost)} small={true}>Confirm</ActionBtn><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} color="#8a7a64" bg="#141009" small={true}>Back</ActionBtn></div>
+                          <div style={{ display: "flex", gap: 5 }}><ActionBtn onClick={function() { sfx.click(); confirmSelect(); }} disabled={input.confirmSelect.disabled} small={true}>Confirm</ActionBtn><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} color="#8a7a64" bg="#141009" small={true}>Back</ActionBtn></div>
                         </div>
                       </div>)}
 
@@ -899,11 +896,11 @@ export default function App() {
                       {phase === PHASES.SESS_RESULT && sessResult && (
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }}>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, width: "80%", marginTop: 4 }}>
-                              {(function() { var noStam = stamina <= 0, noTime = !canAffordTime(hour, sessCost), s = sessResult.ns; var needRest = noStam && canAffordTime(hour, 2); var dis = isLocked || (noStam && !canAffordTime(hour, 2)) || noTime; var borderCol = dis ? "#2a1f0a" : s >= STRESS_MAX ? "#ef4444" : s >= STRESS_MAX - 1 ? "#fb923c" : "#f59e0b"; var textCol = dis ? "#4a3c2c" : s >= STRESS_MAX ? "#ef4444" : s >= STRESS_MAX - 1 ? "#fb923c" : "#f59e0b"; var bg = dis ? "#0a0704" : s >= STRESS_MAX ? "#1a0505" : s >= STRESS_MAX - 1 ? "#1a0e05" : "#2a1f0a"; return <button onClick={dis ? null : needRest ? waitHour : function(e) { e.stopPropagation(); sfx.click(); attemptForge(); }} disabled={dis} style={{ background: bg, border: "2px solid " + borderCol, borderRadius: 8, color: textCol, padding: "8px", fontSize: 11, cursor: dis ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}><span style={{ opacity: needRest ? 0.65 : 1 }}>FORGE</span>{needRest && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}{!needRest && s >= STRESS_MAX - 1 && <span className="blink-fast" style={{ fontSize: 10, color: s >= STRESS_MAX ? "#ef4444" : "#fb923c", position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}>{s >= STRESS_MAX ? Math.round(BALANCE.shatterChanceMax * 100) + "%" : Math.round(BALANCE.shatterChanceHigh * 100) + "%"} BREAK</span>}</button>; })()}
-                              <button disabled={stress <= 0 || !canAffordTime(hour, 2)} onClick={function(e) { e.stopPropagation(); sfx.click(); doNormalize(); }} style={{ background: stress <= 0 || !canAffordTime(hour, 2) ? "#0a0704" : "#0a1a2a", border: "2px solid " + (stress <= 0 || !canAffordTime(hour, 2) ? "#2a1f0a" : "#60a5fa"), borderRadius: 8, color: stress <= 0 || !canAffordTime(hour, 2) ? "#4a3c2c" : "#60a5fa", padding: "8px 4px", fontSize: 11, cursor: stress <= 0 || !canAffordTime(hour, 2) ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Normalize</button>
-                              <button onClick={stamina <= 0 && canAffordTime(hour, 2) ? waitHour : (stamina <= 0 || !canAffordTime(hour, sessCost)) ? null : function(e) { e.stopPropagation(); sfx.click(); setPhase(PHASES.QUENCH); }} disabled={(stamina <= 0 && !canAffordTime(hour, 2)) || (!canAffordTime(hour, sessCost) && stamina > 0)} style={{ background: (stamina <= 0 && !canAffordTime(hour, 2)) || !canAffordTime(hour, sessCost) ? "#0a0704" : "#2a1f0a", border: "2px solid " + ((stamina <= 0 && !canAffordTime(hour, 2)) || !canAffordTime(hour, sessCost) ? "#2a1f0a" : "#f59e0b"), borderRadius: 8, color: (stamina <= 0 && !canAffordTime(hour, 2)) || !canAffordTime(hour, sessCost) ? "#4a3c2c" : "#f59e0b", padding: "8px 4px", fontSize: 11, cursor: (stamina <= 0 && !canAffordTime(hour, 2)) || !canAffordTime(hour, sessCost) ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}>
-                                <span style={{ opacity: stamina <= 0 && canAffordTime(hour, 2) ? 0.65 : 1 }}>Quench</span>
-                                {stamina <= 0 && canAffordTime(hour, 2) && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}
+                              {(function() { var s = sessResult.ns; var dis = input.forge.disabled; var needRest = input.forge.redirectToRest; var borderCol = dis ? "#2a1f0a" : s >= STRESS_MAX ? "#ef4444" : s >= STRESS_MAX - 1 ? "#fb923c" : "#f59e0b"; var textCol = dis ? "#4a3c2c" : s >= STRESS_MAX ? "#ef4444" : s >= STRESS_MAX - 1 ? "#fb923c" : "#f59e0b"; var bg = dis ? "#0a0704" : s >= STRESS_MAX ? "#1a0505" : s >= STRESS_MAX - 1 ? "#1a0e05" : "#2a1f0a"; return <button onClick={dis ? null : needRest ? waitHour : function(e) { e.stopPropagation(); sfx.click(); attemptForge(); }} disabled={dis} style={{ background: bg, border: "2px solid " + borderCol, borderRadius: 8, color: textCol, padding: "8px", fontSize: 11, cursor: dis ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}><span style={{ opacity: needRest ? 0.65 : 1 }}>FORGE</span>{needRest && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}{!needRest && s >= STRESS_MAX - 1 && <span className="blink-fast" style={{ fontSize: 10, color: s >= STRESS_MAX ? "#ef4444" : "#fb923c", position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)" }}>{s >= STRESS_MAX ? Math.round(BALANCE.shatterChanceMax * 100) + "%" : Math.round(BALANCE.shatterChanceHigh * 100) + "%"} BREAK</span>}</button>; })()}
+                              <button disabled={input.normalize.disabled} onClick={function(e) { e.stopPropagation(); sfx.click(); doNormalize(); }} style={{ background: input.normalize.disabled ? "#0a0704" : "#0a1a2a", border: "2px solid " + (input.normalize.disabled ? "#2a1f0a" : "#60a5fa"), borderRadius: 8, color: input.normalize.disabled ? "#4a3c2c" : "#60a5fa", padding: "8px 4px", fontSize: 11, cursor: input.normalize.disabled ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Normalize</button>
+                              <button onClick={input.quench.redirectToRest ? waitHour : input.quench.disabled ? null : function(e) { e.stopPropagation(); sfx.click(); setPhase(PHASES.QUENCH); }} disabled={input.quench.disabled} style={{ background: input.quench.disabled ? "#0a0704" : "#2a1f0a", border: "2px solid " + (input.quench.disabled ? "#2a1f0a" : "#f59e0b"), borderRadius: 8, color: input.quench.disabled ? "#4a3c2c" : "#f59e0b", padding: "8px 4px", fontSize: 11, cursor: input.quench.disabled ? "not-allowed" : "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}>
+                                <span style={{ opacity: input.quench.redirectToRest ? 0.65 : 1 }}>Quench</span>
+                                {input.quench.redirectToRest && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}
                               </button>
                               <button onClick={function(e) { e.stopPropagation(); sfx.click(); scrapWeapon(); }} style={{ background: "#141009", border: "2px solid #3d2e0f", borderRadius: 8, color: "#8a7a64", padding: "8px 4px", fontSize: 11, cursor: "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Scrap</button>
                               <button onClick={function(e) { e.stopPropagation(); sfx.click(); takeBreak(); }} style={{ background: "#141009", border: "2px solid #60a5fa", borderRadius: 8, color: "#60a5fa", padding: "8px 4px", fontSize: 11, cursor: "pointer", letterSpacing: 1, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", gridColumn: "span 2" }}>Leave Forging</button>
@@ -930,12 +927,10 @@ export default function App() {
           {/* BOTTOM BAR */}
           <GameFooter>
             <div style={{ display: "flex", gap: 5, flexShrink: 0, height: 80 }}>
-              {[["\uD83D\uDCA4", "Sleep", function() { sfx.click(); sleep(); }, isLocked, false], ["\u23F3", "Rest", waitHour, isLocked || hour >= REST_HOUR_LIMIT || !canAffordTime(hour, 2), false], ["\uD83D\uDCE3", "Promote", promote, isLocked || hour >= 24 || finished.length === 0 || promoteUses >= BALANCE.maxPromoteUses || !canAffordTime(hour, 1), true], ["\uD83D\uDDD1", "Scavenge", scavenge, isLocked || hour >= 24 || !canAffordTime(hour, 1), true]].map(function(b) {
-                var icon = b[0], label = b[1], fn = b[2], dis = b[3], usesStam = b[4];
-                var needRest = usesStam && stamina <= 0 && canAffordTime(hour, 2);
-                var finalDis = dis || (usesStam && stamina <= 0 && !canAffordTime(hour, 2));
+              {[["\uD83D\uDCA4", "Sleep", function() { sfx.click(); sleep(); }, input.sleep.disabled, input.sleep.redirectToRest], ["\u23F3", "Rest", waitHour, input.rest.disabled, input.rest.redirectToRest], ["\uD83D\uDCE3", "Promote", promote, input.promote.disabled, input.promote.redirectToRest], ["\uD83D\uDDD1", "Scavenge", scavenge, input.scavenge.disabled, input.scavenge.redirectToRest]].map(function(b) {
+                var icon = b[0], label = b[1], fn = b[2], dis = b[3], needRest = b[4];
                 var finalFn = needRest ? waitHour : fn;
-                return (<button key={label} onClick={finalDis ? null : finalFn} disabled={finalDis} style={{ background: finalDis ? "#0a0704" : "#141009", border: "1px solid " + (finalDis ? "#1a1209" : "#2a1f0a"), borderRadius: 7, color: finalDis ? "#2a1f0a" : "#8a7a64", cursor: finalDis ? "not-allowed" : "pointer", fontFamily: "monospace", fontWeight: "bold", fontSize: 11, letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, height: "100%", width: 72, padding: 0, position: "relative" }}>
+                return (<button key={label} onClick={dis ? null : finalFn} disabled={dis} style={{ background: dis ? "#0a0704" : "#141009", border: "1px solid " + (dis ? "#1a1209" : "#2a1f0a"), borderRadius: 7, color: dis ? "#2a1f0a" : "#8a7a64", cursor: dis ? "not-allowed" : "pointer", fontFamily: "monospace", fontWeight: "bold", fontSize: 11, letterSpacing: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, height: "100%", width: 72, padding: 0, position: "relative" }}>
                   <span style={{ opacity: needRest ? 0.65 : 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><span style={{ fontSize: 18 }}>{icon}</span><span>{label.toUpperCase()}</span></span>
                   {needRest && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}
                 </button>);
@@ -943,8 +938,8 @@ export default function App() {
             </div>
             <div style={{ width: 1, alignSelf: "stretch", background: "#2a1f0a", flexShrink: 0, margin: "0 8px" }} />
             <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-start" }}>
-              <ActionBtn onClick={function() { sfx.click(); setShowShop(function(s) { return !s; }); }} disabled={isLocked} style={{ height: 80, padding: "0 18px", fontSize: 14, flexShrink: 0 }}>{"\uD83D\uDED2"} Shop</ActionBtn>
-              <button onClick={isLocked ? null : function() { sfx.click(); setShowMaterials(function(s) { return !s; }); }} disabled={isLocked} style={{ height: 80, padding: "0 14px", fontSize: 12, flexShrink: 0, background: "#0f0b06", border: "1px solid " + (isLocked ? "#1a1209" : "#3d2e0f"), borderRadius: 8, color: isLocked ? "#2a1f0a" : "#5a4a38", cursor: isLocked ? "not-allowed" : "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>{"\u2697"} Mats</button>
+              <ActionBtn onClick={function() { sfx.click(); setShowShop(function(s) { return !s; }); }} disabled={input.shop.disabled} style={{ height: 80, padding: "0 18px", fontSize: 14, flexShrink: 0 }}>{"\uD83D\uDED2"} Shop</ActionBtn>
+              <button onClick={input.mats.disabled ? null : function() { sfx.click(); setShowMaterials(function(s) { return !s; }); }} disabled={input.mats.disabled} style={{ height: 80, padding: "0 14px", fontSize: 12, flexShrink: 0, background: "#0f0b06", border: "1px solid " + (input.mats.disabled ? "#1a1209" : "#3d2e0f"), borderRadius: 8, color: input.mats.disabled ? "#2a1f0a" : "#5a4a38", cursor: input.mats.disabled ? "not-allowed" : "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>{"\u2697"} Mats</button>
               <Panel style={{ padding: "8px 18px", minWidth: 80, textAlign: "center", position: "relative" }}>
                 <SectionLabel style={{ marginBottom: 4 }}>GOLD</SectionLabel>
                 <div style={{ fontSize: 28, color: "#f59e0b", fontWeight: "bold", lineHeight: 1 }}>{gold}g</div>

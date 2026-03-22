@@ -23,14 +23,18 @@ var LAYOUT_CSS = "\n  .game-shell-outer {\n    width: 100vw;\n    height: 100vh;
 
 // --- Mobile detection hook ---
 
+function isTouchDevice() {
+    return typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+}
+
 function useLayoutMode() {
     var [isMobile, setIsMobile] = useState(function() {
-        return typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT;
+        return typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT && isTouchDevice();
     });
 
     useEffect(function() {
         function check() {
-            setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+            setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT && isTouchDevice());
         }
         window.addEventListener("resize", check);
         return function() { window.removeEventListener("resize", check); };
