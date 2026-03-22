@@ -7,6 +7,7 @@ setlocal enabledelayedexpansion
 :: 2. git add .
 :: 3. git commit (custom or auto message)
 :: 4. git push
+:: 5. Asks to run npm run deploy
 :: ============================================
 
 set "FILE=src\config\buildInfo.js"
@@ -115,8 +116,29 @@ if !errorlevel! NEQ 0 (
 )
 
 echo.
-echo   Done! Pushed !NEW_VERSION!
+echo   Pushed !NEW_VERSION!
 echo.
+
+:: ---- STEP 4: ASK TO DEPLOY ----
+
+set "DEPLOY_CHOICE="
+set /p "DEPLOY_CHOICE=  Run npm run deploy? (Y/N): "
+
+if /i "!DEPLOY_CHOICE!"=="Y" (
+    npm run deploy
+    if !errorlevel! NEQ 0 (
+        echo ERROR: npm run deploy failed.
+        pause
+        exit /b 1
+    )
+    echo.
+    echo   Deployed !NEW_VERSION!
+    echo.
+) else (
+    echo.
+    echo   Skipped deploy.
+    echo.
+)
 
 pause
 endlocal
