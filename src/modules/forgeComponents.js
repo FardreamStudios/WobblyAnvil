@@ -1,6 +1,10 @@
 // ============================================================
 // forgeComponents.js — Wobbly Anvil Forge Components Module
-// QTE visual bars and the QTE panel controller.
+// QTE visual bars using sprite-div rendering.
+// Loads two tiny PNGs (empty + full), CSS hue-rotates full
+// sprite into 6 color variants. 30 divs per bar, each showing
+// either full (colored) or empty sprite. CSS scales 4x with
+// image-rendering: pixelated.
 // Handles needle animation, phase rendering, strike display.
 // ============================================================
 
@@ -23,102 +27,150 @@ var HAMMER_SPEED_RANGE = 50;
 var QUENCH_SPEED_BASE = 190;
 var QUENCH_SPEED_RANGE = 30;
 
-// --- QTE Gradient Color Helper ---
+// --- Sprite Paths ---
+var PUB = process.env.PUBLIC_URL || "";
+var SPRITE_EMPTY = PUB + "/images/ui/waPixelBarTinyEmpty.png";
+var SPRITE_FULL = PUB + "/images/ui/waPixelBarTinyFull.png";
 
-function qteGradientColor(index, sweetLow, sweetHigh, totalCols) {
-    if (index >= sweetLow && index <= sweetHigh) return "#4ade80";
+// --- Sprite Bar Constants ---
+var BAR_COLS = 30;
+var SPRITE_W = 10;   // native sprite width px
+var SPRITE_H = 32;   // native sprite height px
+var SCALE = 4;        // CSS upscale factor
+var COL_DISPLAY_W = SPRITE_W * SCALE;  // 40px displayed
+var COL_DISPLAY_H = SPRITE_H * SCALE;  // 128px displayed
+var HEIGHT_EXPONENT = 2.4;  // power curve for column heights
+
+// --- Hue Rotation Map ---
+// Base sprite is green (#4ade80-ish). These CSS hue-rotate values
+// shift it into each target color. Tuned by eye for pixel art.
+var HUE_VARIANTS = {
+    cyan:   { hue: -40,  label: "cyan" },
+    green:  { hue: 0,    label: "green" },
+    lime:   { hue: 30,   label: "lime" },
+    yellow: { hue: 60,   label: "yellow" },
+    orange: { hue: 90,   label: "orange" },
+    red:    { hue: 140,  label: "red" },
+};
+
+// --- Color Picker: maps column position to a hue variant key ---
+
+function pickBarColor(index, sweetLow, sweetHigh, totalCols) {
+    if (index >= sweetLow && index <= sweetHigh) return "green";
     var distance = index < sweetLow ? sweetLow - index : index - sweetHigh;
     var maxDist = Math.max(sweetLow, totalCols - 1 - sweetHigh) || 1;
     var ratio = Math.min(1, distance / maxDist);
-    if (ratio < 0.18) return "rgba(160,220,50,0.55)";
-    if (ratio < 0.38) return "rgba(240,175,0,0.55)";
-    if (ratio < 0.62) return "rgba(220,95,0,0.54)";
-    return "rgba(185,35,35,0.5)";
+    if (ratio < 0.18) return "lime";
+    if (ratio < 0.38) return "yellow";
+    if (ratio < 0.62) return "orange";
+    return "red";
 }
 
-// --- Heat Bar ---
+// --- Height Curve: power curve peaking at center ---
 
-function HeatBar({ pos, winLo, winHi, frozen }) {
-    var cols = QTE_COLS;
+function colHeight(index, totalCols) {
+    var center = (totalCols - 1) / 2;
+    var dist = Math.abs(index - center) / center; // 0 at center, 1 at edges
+    var t = 1 - dist; // 1 at center, 0 at edges
+    var normalized = Math.pow(t, HEIGHT_EXPONENT);
+    // Scale between 30% and 100% of full display height
+    return Math.round(COL_DISPLAY_H * (0.3 + 0.7 * normalized));
+}
+
+// --- SpriteBar Component ---
+// Renders BAR_COLS sprite divs. Each column is either full (with hue filter)
+// or empty. Needle column rendered as a bright white/gold overlay.
+// hitCols = Set of column indices that have been "hit" (show empty sprite).
+
+function SpriteBar({ pos, sweetLow, sweetHigh, frozen, hitCols, needleColor }) {
     var needleCol = positionToColumn(pos);
-    var sweetLow = positionToColumn(winLo);
-    var sweetHigh = positionToColumn(winHi);
-    var sweetPeak = Math.round((sweetLow + sweetHigh) / 2);
-    var dangerStart = sweetHigh + 1;
+    // Map QTE_COLS range to BAR_COLS range
+    var mappedNeedle = Math.round(needleCol / (QTE_COLS - 1) * (BAR_COLS - 1));
+    var mappedSweetLow = Math.round(sweetLow / (QTE_COLS - 1) * (BAR_COLS - 1));
+    var mappedSweetHigh = Math.round(sweetHigh / (QTE_COLS - 1) * (BAR_COLS - 1));
 
-    function cellBackground(i) {
-        if (i >= dangerStart) return "rgba(" + (190 + Math.min(55, (i - dangerStart) * 8)) + "," + (Math.max(0, 35 - (i - dangerStart) * 4)) + ",30," + (0.5 + Math.min(0.4, (i - dangerStart) * 0.06)) + ")";
-        if (i >= sweetLow) return i === sweetPeak ? "#88ffaa" : "#4ade80";
-        var ratio = i / sweetLow;
-        if (ratio < 0.3) return "rgba(130," + Math.round(ratio / 0.3 * 15) + ",0,0.5)";
-        if (ratio < 0.58) return "rgba(200," + Math.round((ratio - 0.3) / 0.28 * 110) + ",0,0.55)";
-        return "rgba(240," + Math.round(110 + (ratio - 0.58) / 0.42 * 145) + ",0,0.6)";
-    }
+    var cols = [];
+    for (var i = 0; i < BAR_COLS; i++) {
+        var isNeedle = i === mappedNeedle;
+        var isHit = hitCols && hitCols.has(i);
+        var height = colHeight(i, BAR_COLS);
+        var colorKey = pickBarColor(i, mappedSweetLow, mappedSweetHigh, BAR_COLS);
+        var hueVal = HUE_VARIANTS[colorKey].hue;
 
-    function cellHeight(i) {
-        if (i >= dangerStart) return Math.max(10, 22 - Math.min(10, (i - dangerStart) * 2));
-        if (i === sweetPeak) return 48;
-        if (i >= sweetLow && i <= sweetHigh) return 36;
-        return Math.max(10, Math.round(10 + 18 * (i / sweetLow)));
-    }
+        // Determine which sprite to show
+        var showEmpty = isHit && !isNeedle;
+        var spriteUrl = showEmpty ? SPRITE_EMPTY : SPRITE_FULL;
 
-    var cells = [];
-    for (var i = 0; i < cols; i++) {
-        var isNeedle = i === needleCol;
-        var inSweet = i >= sweetLow && i <= sweetHigh;
-        var inDanger = i >= dangerStart;
-        cells.push(
+        // Needle styling
+        var filter = isNeedle
+            ? "brightness(3) saturate(0)"
+            : showEmpty
+                ? "brightness(0.5)"
+                : "hue-rotate(" + hueVal + "deg)";
+
+        if (isNeedle && frozen) {
+            filter = "brightness(2) sepia(1) saturate(3) hue-rotate(10deg)";
+        }
+
+        cols.push(
             <div key={i} style={{
-                flex: 1, minWidth: 0,
-                height: isNeedle ? 52 : cellHeight(i),
-                background: isNeedle ? (frozen ? "#fbbf24" : "#fff") : cellBackground(i),
-                border: inSweet && !isNeedle ? "1px solid #4ade8099" : inDanger && !isNeedle ? "1px solid #ef444455" : "1px solid #1a1209",
+                width: COL_DISPLAY_W,
+                height: height,
+                backgroundImage: "url(" + spriteUrl + ")",
+                backgroundSize: COL_DISPLAY_W + "px " + height + "px",
+                backgroundRepeat: "no-repeat",
+                imageRendering: "pixelated",
+                filter: filter,
+                transition: isHit ? "filter 0.15s" : "none",
+                flexShrink: 0,
             }} />
         );
     }
-    return <div style={{ userSelect: "none", display: "flex", gap: "2px", alignItems: "flex-end", height: 52, width: "100%", overflow: "hidden" }}>{cells}</div>;
+
+    return (
+        <div style={{
+            userSelect: "none",
+            display: "flex",
+            gap: 1,
+            alignItems: "flex-end",
+            height: COL_DISPLAY_H,
+            width: "100%",
+            overflow: "hidden",
+            justifyContent: "center",
+        }}>
+            {cols}
+        </div>
+    );
 }
 
-// --- Pixel Bar (Hammer / Quench) ---
+// --- Diamond Marker (positioned below the bar at needle location) ---
 
-function PixelBar({ pos, winHalf, frozen, lossZone }) {
-    var cols = QTE_COLS;
-    var needleCol = positionToColumn(pos);
-    var sweetLow = positionToColumn(50 - winHalf);
-    var sweetHigh = positionToColumn(50 + winHalf);
-    var perfectLow = positionToColumn(50 - winHalf * 0.15);
-    var perfectHigh = positionToColumn(50 + winHalf * 0.15);
-    var greatLow = positionToColumn(50 - winHalf * 0.45);
-    var greatHigh = positionToColumn(50 + winHalf * 0.45);
-    var edgeLow = positionToColumn(50 - (winHalf + 1.2));
-    var edgeHigh = positionToColumn(50 + (winHalf + 1.2));
+function DiamondMarker({ pos }) {
+    var mappedPos = positionToColumn(pos) / (QTE_COLS - 1);
+    var totalBarWidth = BAR_COLS * (COL_DISPLAY_W + 1) - 1; // cols * (width + gap) - last gap
+    var leftPx = Math.round(mappedPos * totalBarWidth);
 
-    function cellHeight(i) {
-        if (i >= perfectLow && i <= perfectHigh) return 52;
-        if (i >= greatLow && i <= greatHigh) return 42;
-        if (i >= sweetLow && i <= sweetHigh) return 32;
-        var distance = i < sweetLow ? sweetLow - i : i - sweetHigh;
-        var maxDist = Math.max(sweetLow, cols - 1 - sweetHigh) || 1;
-        return Math.max(16, Math.round(28 * (1 - Math.min(1, distance / maxDist))));
-    }
-
-    var cells = [];
-    for (var i = 0; i < cols; i++) {
-        var isNeedle = i === needleCol;
-        var inSweet = i >= sweetLow && i <= sweetHigh;
-        var inLoss = lossZone && ((inSweet && (i < greatLow || i > greatHigh)) || (i >= edgeLow && i < sweetLow) || (i > sweetHigh && i <= edgeHigh));
-        var inFail = lossZone && !inSweet && (i < edgeLow || i > edgeHigh);
-        var bg = isNeedle ? (frozen ? "#fbbf24" : "#fff") : inLoss ? "#fb923c" : inFail ? "rgba(185,35,35,0.5)" : qteGradientColor(i, sweetLow, sweetHigh, cols);
-        cells.push(
-            <div key={i} style={{
-                flex: 1, minWidth: 0,
-                height: isNeedle ? 52 : cellHeight(i),
-                background: bg,
-                border: inSweet && !isNeedle ? "1px solid #4ade8077" : "1px solid #1a1209",
+    return (
+        <div style={{
+            position: "relative",
+            width: totalBarWidth,
+            height: 12,
+            margin: "0 auto",
+        }}>
+            <div style={{
+                position: "absolute",
+                left: leftPx - 6,
+                top: 0,
+                width: 0,
+                height: 0,
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderBottom: "10px solid #fbbf24",
+                filter: "drop-shadow(0 0 4px #f59e0b88)",
+                transition: "left 0.03s linear",
             }} />
-        );
-    }
-    return <div style={{ userSelect: "none", display: "flex", gap: "2px", alignItems: "flex-end", height: 52, width: "100%", overflow: "hidden" }}>{cells}</div>;
+        </div>
+    );
 }
 
 // --- QTE Panel (manages needle animation and renders the active QTE) ---
@@ -127,11 +179,30 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
     var [heatPos, setHeatPos] = useState(0);
     var [needlePos, setNeedlePos] = useState(50);
     var [quenchPos, setQuenchPos] = useState(50);
+    var [hitCols, setHitCols] = useState(new Set());
     var heatNeedle = useRef({ pos: 0, speed: 12 });
     var hammerNeedle = useRef({ pos: 50, dir: 1, speed: 76 });
     var quenchNeedle = useRef({ pos: 50, dir: 1, speed: 52 });
     var animId = useRef(null);
     var lastFrameTime = useRef(0);
+
+    // Reset hit columns on phase change
+    useEffect(function() {
+        setHitCols(new Set());
+    }, [phase]);
+
+    // Record hit column when flash fires (player clicked)
+    useEffect(function() {
+        if (!flash) return;
+        var currentPos = posRef.current;
+        var needleCol = positionToColumn(currentPos);
+        var mappedCol = Math.round(needleCol / (QTE_COLS - 1) * (BAR_COLS - 1));
+        setHitCols(function(prev) {
+            var next = new Set(prev);
+            next.add(mappedCol);
+            return next;
+        });
+    }, [flash]);
 
     // Heat needle animation — delta-time based
     useEffect(function() {
@@ -227,6 +298,22 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
             : (flash.indexOf("MISS") >= 0 || flash.indexOf("DESTROY") >= 0 || flash.indexOf("ROUGH") >= 0) ? "#f87171"
                 : "#fbbf24";
 
+    // Compute sweet zone columns for each phase
+    var barPos, barSweetLow, barSweetHigh;
+    if (phase === PHASES.HEAT) {
+        barPos = heatPos;
+        barSweetLow = positionToColumn(heatWinLo);
+        barSweetHigh = positionToColumn(heatWinHi);
+    } else if (phase === PHASES.HAMMER) {
+        barPos = needlePos;
+        barSweetLow = positionToColumn(50 - HAMMER_WIN);
+        barSweetHigh = positionToColumn(50 + HAMMER_WIN);
+    } else {
+        barPos = quenchPos;
+        barSweetLow = positionToColumn(50 - QUENCH_WIN);
+        barSweetHigh = positionToColumn(50 + QUENCH_WIN);
+    }
+
     return (
         <div style={{ width: "100%", maxWidth: QTE_W, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ height: 22, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -240,17 +327,22 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
                     </div>
                 ) : (
                     <span style={{ fontSize: 12, letterSpacing: 2, fontWeight: "bold", color: phase === PHASES.QUENCH ? "#60a5fa" : "#f59e0b", whiteSpace: "nowrap" }}>
-            {phase === PHASES.HEAT ? "HEATING \u2014 HIT THE GREEN" : "QUENCHING \u2014 AIM FOR CENTER"}
-          </span>
+                        {phase === PHASES.HEAT ? "HEATING \u2014 HIT THE GREEN" : "QUENCHING \u2014 AIM FOR CENTER"}
+                    </span>
                 )}
             </div>
             <div style={{ height: 18, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ fontSize: 13, letterSpacing: 2, fontWeight: "bold", color: flashColor, whiteSpace: "nowrap" }}>{flash || defaultLabel}</span>
             </div>
             <div style={{ width: "100%", overflow: "hidden" }}>
-                {phase === PHASES.HEAT && <HeatBar pos={heatPos} winLo={heatWinLo} winHi={heatWinHi} frozen={frozen} />}
-                {phase === PHASES.HAMMER && <PixelBar pos={needlePos} winHalf={HAMMER_WIN} frozen={frozen} />}
-                {phase === PHASES.QUENCH && <PixelBar pos={quenchPos} winHalf={QUENCH_WIN} frozen={frozen} lossZone={true} />}
+                <SpriteBar
+                    pos={barPos}
+                    sweetLow={barSweetLow}
+                    sweetHigh={barSweetHigh}
+                    frozen={frozen}
+                    hitCols={hitCols}
+                />
+                <DiamondMarker pos={barPos} />
             </div>
         </div>
     );
@@ -260,8 +352,7 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
 // Plugin-style API
 // ============================================================
 var ForgeComponents = {
-    HeatBar: HeatBar,
-    PixelBar: PixelBar,
+    SpriteBar: SpriteBar,
     QTEPanel: QTEPanel,
 };
 
