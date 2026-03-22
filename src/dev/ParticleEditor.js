@@ -5,7 +5,8 @@
 // Phase 1: Core engine, single emitter, real-time preview
 // Phase 2: Template system — save, load, delete, duplicate
 // Phase 3: Multi-emitter scene — add/remove/select/drag
-//          emitters, each assigned a template
+// Phase 4: Polish — burst mode, 3-color over lifetime,
+//          size over lifetime, velocity damping
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -29,16 +30,22 @@ var EMITTER_COLORS = ["#00ffaa", "#ff6b6b", "#4ecdc4", "#ffe66d", "#a29bfe", "#f
 var DEFAULT_CONFIG = {
     name: "untitled",
     size: { min: 2, max: 4 },
+    sizeOverLifetime: { start: 1.0, end: 1.0 },
     speed: { min: 30, max: 80 },
     lifetime: { min: 0.4, max: 1.2 },
     colorStart: "#ff6600",
+    colorMid: "#ff4400",
     colorEnd: "#ff2200",
+    colorMidPoint: 0.5,
     fadeOut: true,
     gravity: -40,
     spread: 60,
     spawnRate: 15,
     direction: 270,
     shape: "square",
+    damping: 0,
+    burstMode: false,
+    burstCount: 10,
 };
 
 // ============================================
@@ -48,44 +55,82 @@ var STARTER_TEMPLATES = [
     {
         name: "campfire_sparks",
         size: { min: 1, max: 3 },
+        sizeOverLifetime: { start: 1.0, end: 0.3 },
         speed: { min: 40, max: 100 },
         lifetime: { min: 0.3, max: 0.9 },
-        colorStart: "#ffaa00",
+        colorStart: "#ffee88",
+        colorMid: "#ffaa00",
         colorEnd: "#ff2200",
+        colorMidPoint: 0.3,
         fadeOut: true,
         gravity: -60,
         spread: 30,
         spawnRate: 25,
         direction: 270,
         shape: "square",
+        damping: 0.5,
+        burstMode: false,
+        burstCount: 10,
     },
     {
         name: "smoke_puff",
         size: { min: 3, max: 8 },
+        sizeOverLifetime: { start: 0.5, end: 1.5 },
         speed: { min: 10, max: 30 },
         lifetime: { min: 1.0, max: 2.5 },
-        colorStart: "#888888",
+        colorStart: "#999999",
+        colorMid: "#666666",
         colorEnd: "#333333",
+        colorMidPoint: 0.5,
         fadeOut: true,
         gravity: -15,
         spread: 40,
         spawnRate: 8,
         direction: 270,
         shape: "circle",
+        damping: 1.0,
+        burstMode: false,
+        burstCount: 10,
     },
     {
         name: "forge_embers",
         size: { min: 1, max: 2 },
+        sizeOverLifetime: { start: 1.0, end: 0.0 },
         speed: { min: 60, max: 150 },
         lifetime: { min: 0.2, max: 0.6 },
         colorStart: "#ffffff",
+        colorMid: "#ffaa00",
         colorEnd: "#ff4400",
+        colorMidPoint: 0.4,
         fadeOut: true,
         gravity: -20,
         spread: 90,
         spawnRate: 40,
         direction: 270,
         shape: "square",
+        damping: 0.3,
+        burstMode: false,
+        burstCount: 10,
+    },
+    {
+        name: "anvil_strike",
+        size: { min: 1, max: 3 },
+        sizeOverLifetime: { start: 1.0, end: 0.2 },
+        speed: { min: 80, max: 200 },
+        lifetime: { min: 0.15, max: 0.5 },
+        colorStart: "#ffffff",
+        colorMid: "#ffdd44",
+        colorEnd: "#ff6600",
+        colorMidPoint: 0.25,
+        fadeOut: true,
+        gravity: 50,
+        spread: 180,
+        spawnRate: 0,
+        direction: 270,
+        shape: "square",
+        damping: 2.0,
+        burstMode: true,
+        burstCount: 30,
     },
 ];
 
@@ -93,21 +138,28 @@ var STARTER_TEMPLATES = [
 // PARAM DEFINITIONS TABLE
 // ============================================
 var PARAM_DEFS = [
-    { key: "name", label: "Name", type: "text" },
-    { key: "spawnRate", label: "Spawn Rate", type: "slider", min: 1, max: 100, step: 1 },
-    { key: "size.min", label: "Size Min", type: "slider", min: 1, max: 20, step: 1 },
-    { key: "size.max", label: "Size Max", type: "slider", min: 1, max: 20, step: 1 },
-    { key: "speed.min", label: "Speed Min", type: "slider", min: 0, max: 300, step: 5 },
-    { key: "speed.max", label: "Speed Max", type: "slider", min: 0, max: 300, step: 5 },
-    { key: "lifetime.min", label: "Life Min (s)", type: "slider", min: 0.1, max: 5, step: 0.1 },
-    { key: "lifetime.max", label: "Life Max (s)", type: "slider", min: 0.1, max: 5, step: 0.1 },
-    { key: "direction", label: "Direction (\u00B0)", type: "slider", min: 0, max: 360, step: 1 },
-    { key: "spread", label: "Spread (\u00B0)", type: "slider", min: 0, max: 180, step: 1 },
-    { key: "gravity", label: "Gravity", type: "slider", min: -200, max: 200, step: 5 },
-    { key: "colorStart", label: "Color Start", type: "color" },
-    { key: "colorEnd", label: "Color End", type: "color" },
-    { key: "fadeOut", label: "Fade Out", type: "toggle" },
-    { key: "shape", label: "Shape", type: "select", options: ["square", "circle"] },
+    { key: "name", label: "Name", type: "text", group: "identity" },
+    { key: "burstMode", label: "Burst Mode", type: "toggle", group: "emission" },
+    { key: "burstCount", label: "Burst Count", type: "slider", min: 1, max: 200, step: 1, group: "emission", showIf: "burstMode" },
+    { key: "spawnRate", label: "Spawn Rate", type: "slider", min: 0, max: 100, step: 1, group: "emission", hideIf: "burstMode" },
+    { key: "size.min", label: "Size Min", type: "slider", min: 1, max: 20, step: 1, group: "size" },
+    { key: "size.max", label: "Size Max", type: "slider", min: 1, max: 20, step: 1, group: "size" },
+    { key: "sizeOverLifetime.start", label: "Size Start \u00D7", type: "slider", min: 0, max: 3, step: 0.1, group: "size" },
+    { key: "sizeOverLifetime.end", label: "Size End \u00D7", type: "slider", min: 0, max: 3, step: 0.1, group: "size" },
+    { key: "speed.min", label: "Speed Min", type: "slider", min: 0, max: 300, step: 5, group: "motion" },
+    { key: "speed.max", label: "Speed Max", type: "slider", min: 0, max: 300, step: 5, group: "motion" },
+    { key: "lifetime.min", label: "Life Min (s)", type: "slider", min: 0.1, max: 5, step: 0.1, group: "motion" },
+    { key: "lifetime.max", label: "Life Max (s)", type: "slider", min: 0.1, max: 5, step: 0.1, group: "motion" },
+    { key: "direction", label: "Direction (\u00B0)", type: "slider", min: 0, max: 360, step: 1, group: "motion" },
+    { key: "spread", label: "Spread (\u00B0)", type: "slider", min: 0, max: 180, step: 1, group: "motion" },
+    { key: "gravity", label: "Gravity", type: "slider", min: -200, max: 200, step: 5, group: "motion" },
+    { key: "damping", label: "Damping", type: "slider", min: 0, max: 5, step: 0.1, group: "motion" },
+    { key: "colorStart", label: "Color Start", type: "color", group: "appearance" },
+    { key: "colorMid", label: "Color Mid", type: "color", group: "appearance" },
+    { key: "colorEnd", label: "Color End", type: "color", group: "appearance" },
+    { key: "colorMidPoint", label: "Mid Point", type: "slider", min: 0.05, max: 0.95, step: 0.05, group: "appearance" },
+    { key: "fadeOut", label: "Fade Out", type: "toggle", group: "appearance" },
+    { key: "shape", label: "Shape", type: "select", options: ["square", "circle"], group: "appearance" },
 ];
 
 // ============================================
@@ -130,6 +182,29 @@ function hexToRgb(hex) {
     var g = parseInt(hex.slice(3, 5), 16);
     var b = parseInt(hex.slice(5, 7), 16);
     return { r: r, g: g, b: b };
+}
+
+function lerpColor(c1, c2, t) {
+    return {
+        r: Math.round(lerp(c1.r, c2.r, t)),
+        g: Math.round(lerp(c1.g, c2.g, t)),
+        b: Math.round(lerp(c1.b, c2.b, t)),
+    };
+}
+
+function getColorAtLifetime(t, config) {
+    var cStart = hexToRgb(config.colorStart);
+    var cMid = hexToRgb(config.colorMid);
+    var cEnd = hexToRgb(config.colorEnd);
+    var mid = config.colorMidPoint;
+
+    if (t <= mid) {
+        var localT = mid > 0 ? t / mid : 0;
+        return lerpColor(cStart, cMid, localT);
+    } else {
+        var localT2 = mid < 1 ? (t - mid) / (1 - mid) : 1;
+        return lerpColor(cMid, cEnd, localT2);
+    }
 }
 
 function getNestedValue(obj, path) {
@@ -179,13 +254,20 @@ function createParticle(emitterX, emitterY, config) {
         vy: Math.sin(angle) * speed,
         lifetime: lifetime,
         maxLifetime: lifetime,
-        size: size,
+        baseSize: size,
         alive: true,
     };
 }
 
-function updateParticle(p, dt, gravity) {
-    p.vy -= gravity * dt;
+function updateParticle(p, dt, config) {
+    // Damping
+    if (config.damping > 0) {
+        var dampFactor = Math.max(0, 1 - config.damping * dt);
+        p.vx *= dampFactor;
+        p.vy *= dampFactor;
+    }
+
+    p.vy -= config.gravity * dt;
     p.x += p.vx * dt;
     p.y += p.vy * dt;
     p.lifetime -= dt;
@@ -196,22 +278,26 @@ function updateParticle(p, dt, gravity) {
 
 function drawParticle(ctx, p, config) {
     var t = 1 - p.lifetime / p.maxLifetime;
-    var cStart = hexToRgb(config.colorStart);
-    var cEnd = hexToRgb(config.colorEnd);
-    var r = Math.round(lerp(cStart.r, cEnd.r, t));
-    var g = Math.round(lerp(cStart.g, cEnd.g, t));
-    var b = Math.round(lerp(cStart.b, cEnd.b, t));
+
+    // Color over lifetime (3-point)
+    var col = getColorAtLifetime(t, config);
+
+    // Opacity
     var alpha = config.fadeOut ? p.lifetime / p.maxLifetime : 1;
 
-    ctx.fillStyle = "rgba(" + r + "," + g + "," + b + "," + alpha.toFixed(2) + ")";
+    // Size over lifetime
+    var sizeScale = lerp(config.sizeOverLifetime.start, config.sizeOverLifetime.end, t);
+    var size = Math.max(1, Math.round(p.baseSize * sizeScale));
+
+    ctx.fillStyle = "rgba(" + col.r + "," + col.g + "," + col.b + "," + alpha.toFixed(2) + ")";
 
     if (config.shape === "circle") {
         ctx.beginPath();
-        ctx.arc(Math.round(p.x), Math.round(p.y), p.size / 2, 0, Math.PI * 2);
+        ctx.arc(Math.round(p.x), Math.round(p.y), size / 2, 0, Math.PI * 2);
         ctx.fill();
     } else {
-        var half = Math.floor(p.size / 2);
-        ctx.fillRect(Math.round(p.x) - half, Math.round(p.y) - half, p.size, p.size);
+        var half = Math.floor(size / 2);
+        ctx.fillRect(Math.round(p.x) - half, Math.round(p.y) - half, size, size);
     }
 }
 
@@ -235,7 +321,6 @@ function drawGrid(ctx, w, h) {
 function drawEmitterHandle(ctx, x, y, handleColor, selected, label) {
     var s = EMITTER_HANDLE_SIZE;
 
-    // Glow for selected
     if (selected) {
         ctx.shadowColor = handleColor;
         ctx.shadowBlur = 10;
@@ -250,7 +335,6 @@ function drawEmitterHandle(ctx, x, y, handleColor, selected, label) {
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
 
-    // Crosshair
     ctx.strokeStyle = handleColor + (selected ? "cc" : "66");
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -260,7 +344,6 @@ function drawEmitterHandle(ctx, x, y, handleColor, selected, label) {
     ctx.lineTo(x + s, y);
     ctx.stroke();
 
-    // Label
     if (label) {
         ctx.font = "9px monospace";
         ctx.fillStyle = handleColor;
@@ -283,7 +366,6 @@ var styles = {
         fontSize: "12px",
         overflow: "hidden",
     },
-    // -- LEFT PANEL --
     leftPanel: {
         width: LIBRARY_WIDTH,
         background: "#0a0a0a",
@@ -353,7 +435,6 @@ var styles = {
         borderRadius: 4,
         textAlign: "center",
     },
-    // -- EMITTER LIST SECTION --
     emitterItem: {
         padding: "6px 12px",
         borderBottom: "1px solid #141414",
@@ -384,7 +465,6 @@ var styles = {
         marginLeft: 4,
         flexShrink: 0,
     },
-    // -- CENTER: CANVAS --
     canvasWrap: {
         flex: 1,
         display: "flex",
@@ -413,7 +493,6 @@ var styles = {
         textAlign: "center",
         marginTop: 4,
     },
-    // -- RIGHT: CONTROLS PANEL --
     panel: {
         width: PANEL_WIDTH,
         background: "#111111",
@@ -542,6 +621,21 @@ var styles = {
         borderRadius: 3,
         marginTop: 4,
     },
+    burstBtn: {
+        width: "100%",
+        padding: "10px",
+        background: "#ff6b6b",
+        color: "#fff",
+        border: "none",
+        fontWeight: 700,
+        fontSize: "11px",
+        fontFamily: "inherit",
+        textTransform: "uppercase",
+        letterSpacing: "1.5px",
+        cursor: "pointer",
+        borderRadius: 3,
+        marginTop: 4,
+    },
     resetBtn: {
         width: "100%",
         padding: "8px",
@@ -591,6 +685,12 @@ var styles = {
         outline: "none",
         width: "100%",
     },
+    colorGradientBar: {
+        height: 12,
+        borderRadius: 3,
+        border: "1px solid #333",
+        marginBottom: 8,
+    },
 };
 
 // ============================================
@@ -602,13 +702,10 @@ function ParticleEditor() {
     var animFrameRef = useRef(null);
     var draggingIdRef = useRef(null);
 
-    // -- TEMPLATES --
     var [templates, setTemplates] = useState(STARTER_TEMPLATES.map(deepClone));
     var [activeTemplateIndex, setActiveTemplateIndex] = useState(null);
     var [unsavedChanges, setUnsavedChanges] = useState(false);
 
-    // -- EMITTERS --
-    // Each emitter: { id, x, y, config, particles, spawnAcc, handleColor }
     var [emitters, setEmitters] = useState([]);
     var [selectedEmitterId, setSelectedEmitterId] = useState(null);
     var emittersRef = useRef(emitters);
@@ -617,13 +714,15 @@ function ParticleEditor() {
     var [paused, setPaused] = useState(false);
     var [showExport, setShowExport] = useState(false);
     var [exportJSON, setExportJSON] = useState("");
+    var [showHelp, setShowHelp] = useState(false);
 
     var pausedRef = useRef(paused);
+    var selectedEmitterIdRef = useRef(selectedEmitterId);
 
     useEffect(function() { emittersRef.current = emitters; }, [emitters]);
     useEffect(function() { pausedRef.current = paused; }, [paused]);
+    useEffect(function() { selectedEmitterIdRef.current = selectedEmitterId; }, [selectedEmitterId]);
 
-    // Get selected emitter object
     var selectedEmitter = null;
     for (var i = 0; i < emitters.length; i++) {
         if (emitters[i].id === selectedEmitterId) {
@@ -654,20 +753,15 @@ function ParticleEditor() {
         var newTemplate = deepClone(selectedEmitter.config);
         newTemplate.name = newTemplate.name + "_copy";
         setTemplates(function(prev) {
-            var next = prev.map(deepClone);
-            next.push(newTemplate);
-            return next;
+            return prev.map(deepClone).concat([newTemplate]);
         });
     }
 
     function handleDuplicateTemplate(index) {
-        var source = templates[index];
-        var dupe = deepClone(source);
-        dupe.name = source.name + "_copy";
+        var dupe = deepClone(templates[index]);
+        dupe.name = dupe.name + "_copy";
         setTemplates(function(prev) {
-            var next = prev.map(deepClone);
-            next.push(dupe);
-            return next;
+            return prev.map(deepClone).concat([dupe]);
         });
     }
 
@@ -675,27 +769,22 @@ function ParticleEditor() {
         setTemplates(function(prev) {
             return prev.filter(function(_, i) { return i !== index; });
         });
-        if (activeTemplateIndex === index) {
-            setActiveTemplateIndex(null);
-        } else if (activeTemplateIndex !== null && activeTemplateIndex > index) {
-            setActiveTemplateIndex(activeTemplateIndex - 1);
-        }
+        if (activeTemplateIndex === index) setActiveTemplateIndex(null);
+        else if (activeTemplateIndex !== null && activeTemplateIndex > index) setActiveTemplateIndex(activeTemplateIndex - 1);
     }
 
     function handleNewTemplate() {
-        var newTemplate = deepClone(DEFAULT_CONFIG);
-        newTemplate.name = "new_template";
+        var tpl = deepClone(DEFAULT_CONFIG);
+        tpl.name = "new_template";
         setTemplates(function(prev) {
-            var next = prev.map(deepClone);
-            next.push(newTemplate);
-            return next;
+            return prev.map(deepClone).concat([tpl]);
         });
     }
 
     // ---- EMITTER ACTIONS ----
 
-    function handleAddEmitter(templateIndex) {
-        var tplIndex = templateIndex !== undefined ? templateIndex : (activeTemplateIndex !== null ? activeTemplateIndex : 0);
+    function handleAddEmitter() {
+        var tplIndex = activeTemplateIndex !== null ? activeTemplateIndex : 0;
         if (templates.length === 0) return;
         var tpl = templates[tplIndex] || templates[0];
         var id = makeEmitterId();
@@ -717,9 +806,7 @@ function ParticleEditor() {
         setEmitters(function(prev) {
             return prev.filter(function(e) { return e.id !== id; });
         });
-        if (selectedEmitterId === id) {
-            setSelectedEmitterId(null);
-        }
+        if (selectedEmitterId === id) setSelectedEmitterId(null);
     }
 
     function handleSelectEmitter(id) {
@@ -740,7 +827,28 @@ function ParticleEditor() {
         });
     }
 
-    // ---- CONFIG CHANGE (for selected emitter) ----
+    // Burst fire
+    function handleBurst() {
+        if (!selectedEmitter) return;
+        var cfg = selectedEmitter.config;
+        var count = cfg.burstCount || 10;
+        setEmitters(function(prev) {
+            return prev.map(function(e) {
+                if (e.id === selectedEmitterId) {
+                    var newParticles = e.particles.slice();
+                    for (var b = 0; b < count; b++) {
+                        if (newParticles.length < MAX_PARTICLES) {
+                            newParticles.push(createParticle(e.x, e.y, cfg));
+                        }
+                    }
+                    return Object.assign({}, e, { particles: newParticles });
+                }
+                return e;
+            });
+        });
+    }
+
+    // ---- CONFIG CHANGE ----
 
     function handleParamChange(key, value) {
         if (selectedEmitterId === null) return;
@@ -767,6 +875,7 @@ function ParticleEditor() {
         lastTimeRef.current = timestamp;
 
         var allEmitters = emittersRef.current;
+        var selId = selectedEmitterIdRef.current;
 
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         drawGrid(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -779,18 +888,21 @@ function ParticleEditor() {
             var particles = em.particles;
 
             if (!pausedRef.current) {
-                em.spawnAcc += cfg.spawnRate * dt;
-                var toSpawn = Math.floor(em.spawnAcc);
-                em.spawnAcc -= toSpawn;
+                // Continuous spawning (only if not burst mode)
+                if (!cfg.burstMode) {
+                    em.spawnAcc += cfg.spawnRate * dt;
+                    var toSpawn = Math.floor(em.spawnAcc);
+                    em.spawnAcc -= toSpawn;
 
-                for (var s = 0; s < toSpawn; s++) {
-                    if (totalParticles + particles.length < MAX_PARTICLES) {
-                        particles.push(createParticle(em.x, em.y, cfg));
+                    for (var s = 0; s < toSpawn; s++) {
+                        if (totalParticles + particles.length < MAX_PARTICLES) {
+                            particles.push(createParticle(em.x, em.y, cfg));
+                        }
                     }
                 }
 
                 for (var j = particles.length - 1; j >= 0; j--) {
-                    updateParticle(particles[j], dt, cfg.gravity);
+                    updateParticle(particles[j], dt, cfg);
                     if (!particles[j].alive) {
                         particles.splice(j, 1);
                     }
@@ -807,13 +919,12 @@ function ParticleEditor() {
         // Draw handles on top
         for (var h = 0; h < allEmitters.length; h++) {
             var e = allEmitters[h];
-            var sel = e.id === selectedEmitterId;
-            drawEmitterHandle(ctx, e.x, e.y, e.handleColor, sel, cfg ? e.config.name : "");
+            drawEmitterHandle(ctx, e.x, e.y, e.handleColor, e.id === selId, e.config.name);
         }
 
         setParticleCount(totalParticles);
         animFrameRef.current = requestAnimationFrame(tick);
-    }, [selectedEmitterId]);
+    }, []);
 
     useEffect(function() {
         animFrameRef.current = requestAnimationFrame(tick);
@@ -829,19 +940,14 @@ function ParticleEditor() {
         var mx = e.clientX - rect.left;
         var my = e.clientY - rect.top;
 
-        // Check if clicking on any emitter handle (check in reverse for top-most)
         for (var i = emitters.length - 1; i >= 0; i--) {
             var em = emitters[i];
-            var dx = mx - em.x;
-            var dy = my - em.y;
-            if (Math.abs(dx) < EMITTER_HANDLE_SIZE && Math.abs(dy) < EMITTER_HANDLE_SIZE) {
+            if (Math.abs(mx - em.x) < EMITTER_HANDLE_SIZE && Math.abs(my - em.y) < EMITTER_HANDLE_SIZE) {
                 draggingIdRef.current = em.id;
                 setSelectedEmitterId(em.id);
                 return;
             }
         }
-
-        // Clicked empty space — deselect
         setSelectedEmitterId(null);
     }
 
@@ -867,69 +973,49 @@ function ParticleEditor() {
 
     // ---- EXPORT ----
 
+    function configToExport(cfg) {
+        return {
+            name: cfg.name,
+            size: cfg.size,
+            sizeOverLifetime: cfg.sizeOverLifetime,
+            speed: cfg.speed,
+            lifetime: cfg.lifetime,
+            colorStart: cfg.colorStart,
+            colorMid: cfg.colorMid,
+            colorEnd: cfg.colorEnd,
+            colorMidPoint: cfg.colorMidPoint,
+            fadeOut: cfg.fadeOut,
+            gravity: cfg.gravity,
+            spread: cfg.spread,
+            spawnRate: cfg.spawnRate,
+            direction: cfg.direction,
+            shape: cfg.shape,
+            damping: cfg.damping,
+            burstMode: cfg.burstMode,
+            burstCount: cfg.burstCount,
+        };
+    }
+
     function handleExportScene() {
         var scene = {
-            templates: templates.map(function(tpl) {
-                return {
-                    name: tpl.name,
-                    size: tpl.size,
-                    speed: tpl.speed,
-                    lifetime: tpl.lifetime,
-                    colorStart: tpl.colorStart,
-                    colorEnd: tpl.colorEnd,
-                    fadeOut: tpl.fadeOut,
-                    gravity: tpl.gravity,
-                    spread: tpl.spread,
-                    spawnRate: tpl.spawnRate,
-                    direction: tpl.direction,
-                    shape: tpl.shape,
-                };
-            }),
+            templates: templates.map(configToExport),
             emitters: emitters.map(function(em) {
                 return {
                     id: em.id,
                     position: { x: em.x, y: em.y },
-                    config: {
-                        name: em.config.name,
-                        size: em.config.size,
-                        speed: em.config.speed,
-                        lifetime: em.config.lifetime,
-                        colorStart: em.config.colorStart,
-                        colorEnd: em.config.colorEnd,
-                        fadeOut: em.config.fadeOut,
-                        gravity: em.config.gravity,
-                        spread: em.config.spread,
-                        spawnRate: em.config.spawnRate,
-                        direction: em.config.direction,
-                        shape: em.config.shape,
-                    },
+                    config: configToExport(em.config),
                 };
             }),
         };
-        var json = JSON.stringify(scene, null, 2);
-        setExportJSON(json);
+        setExportJSON(JSON.stringify(scene, null, 2));
         setShowExport(true);
     }
 
     function handleExportSelected() {
         if (!selectedEmitter) return;
-        var output = {
-            name: selectedEmitter.config.name,
-            position: { x: selectedEmitter.x, y: selectedEmitter.y },
-            size: selectedEmitter.config.size,
-            speed: selectedEmitter.config.speed,
-            lifetime: selectedEmitter.config.lifetime,
-            colorStart: selectedEmitter.config.colorStart,
-            colorEnd: selectedEmitter.config.colorEnd,
-            fadeOut: selectedEmitter.config.fadeOut,
-            gravity: selectedEmitter.config.gravity,
-            spread: selectedEmitter.config.spread,
-            spawnRate: selectedEmitter.config.spawnRate,
-            direction: selectedEmitter.config.direction,
-            shape: selectedEmitter.config.shape,
-        };
-        var json = JSON.stringify(output, null, 2);
-        setExportJSON(json);
+        var output = configToExport(selectedEmitter.config);
+        output.position = { x: selectedEmitter.x, y: selectedEmitter.y };
+        setExportJSON(JSON.stringify(output, null, 2));
         setShowExport(true);
     }
 
@@ -945,8 +1031,16 @@ function ParticleEditor() {
 
     // ---- RENDER PARAM ----
 
+    function shouldShowParam(def, cfg) {
+        if (def.showIf && !cfg[def.showIf]) return false;
+        if (def.hideIf && cfg[def.hideIf]) return false;
+        return true;
+    }
+
     function renderParam(def) {
         if (!selectedEmitter) return null;
+        if (!shouldShowParam(def, selectedEmitter.config)) return null;
+
         var val = getNestedValue(selectedEmitter.config, def.key);
 
         if (def.type === "text") {
@@ -1003,10 +1097,7 @@ function ParticleEditor() {
                 <div key={def.key} style={styles.paramRow}>
                     <span style={styles.paramLabel}>{def.label}</span>
                     <button
-                        style={{
-                            ...styles.toggle,
-                            background: val ? "#00ffaa" : "#333",
-                        }}
+                        style={{ ...styles.toggle, background: val ? "#00ffaa" : "#333" }}
                         onClick={function() { handleParamChange(def.key, !val); }}
                     >
                         <div style={{ ...styles.toggleKnob, left: val ? 20 : 2 }} />
@@ -1035,16 +1126,26 @@ function ParticleEditor() {
         return null;
     }
 
+    function renderParamGroup(groupName) {
+        return PARAM_DEFS.filter(function(d) { return d.group === groupName; }).map(renderParam);
+    }
+
+    // Color gradient preview
+    function renderColorPreview() {
+        if (!selectedEmitter) return null;
+        var cfg = selectedEmitter.config;
+        var gradient = "linear-gradient(to right, " + cfg.colorStart + ", " + cfg.colorMid + " " + Math.round(cfg.colorMidPoint * 100) + "%, " + cfg.colorEnd + ")";
+        return <div style={{ ...styles.colorGradientBar, background: gradient }} />;
+    }
+
     // ============================================
     // RENDER
     // ============================================
     return (
         <div style={styles.container}>
 
-            {/* LEFT PANEL — TEMPLATES + EMITTER LIST */}
+            {/* LEFT PANEL */}
             <div style={styles.leftPanel}>
-
-                {/* TEMPLATES */}
                 <div style={styles.libraryHeader}>
                     Templates ({templates.length})
                 </div>
@@ -1095,20 +1196,13 @@ function ParticleEditor() {
                     + New Template
                 </button>
 
-                {/* Spawn emitter from selected template */}
                 <button
-                    style={{
-                        ...styles.addBtn,
-                        color: "#00ffaa",
-                        borderColor: "#00ffaa44",
-                        background: "#0d1a14",
-                    }}
+                    style={{ ...styles.addBtn, color: "#00ffaa", borderColor: "#00ffaa44", background: "#0d1a14" }}
                     onClick={function() { handleAddEmitter(); }}
                 >
                     + Add Emitter to Scene
                 </button>
 
-                {/* EMITTER LIST */}
                 <div style={{ ...styles.libraryHeader, color: "#00ffaa" }}>
                     Scene ({emitters.length})
                 </div>
@@ -1132,9 +1226,7 @@ function ParticleEditor() {
                             }}>
                                 {em.config.name}
                             </span>
-                            <span style={styles.emitterPos}>
-                                ({em.x},{em.y})
-                            </span>
+                            <span style={styles.emitterPos}>({em.x},{em.y})</span>
                             <button
                                 style={{ ...styles.templateBtn, color: "#ff4444", marginLeft: 4 }}
                                 onClick={function(e) { e.stopPropagation(); handleDeleteEmitter(em.id); }}
@@ -1187,11 +1279,20 @@ function ParticleEditor() {
                             <span style={{ color: "#f59e0b", marginLeft: 8, fontSize: "9px" }}>\u25CF EDITED</span>
                         )}
                     </span>
-                    <span
-                        style={{ float: "right", cursor: "pointer", color: paused ? "#ff4444" : "#00ffaa" }}
-                        onClick={function() { setPaused(!paused); }}
-                    >
-                        {paused ? "\u25B6 PLAY" : "\u23F8 PAUSE"}
+                    <span style={{ float: "right", display: "flex", gap: 12, alignItems: "center" }}>
+                        <span
+                            style={{ cursor: "pointer", color: "#555", fontSize: "12px", fontWeight: "bold" }}
+                            onClick={function() { setShowHelp(true); }}
+                            title="Instructions"
+                        >
+                            ?
+                        </span>
+                        <span
+                            style={{ cursor: "pointer", color: paused ? "#ff4444" : "#00ffaa" }}
+                            onClick={function() { setPaused(!paused); }}
+                        >
+                            {paused ? "\u25B6 PLAY" : "\u23F8 PAUSE"}
+                        </span>
                     </span>
                 </div>
 
@@ -1218,34 +1319,40 @@ function ParticleEditor() {
                         {/* Identity */}
                         <div style={styles.section}>
                             <div style={styles.sectionTitle}>Identity</div>
-                            {renderParam(PARAM_DEFS[0])}
+                            {renderParamGroup("identity")}
                         </div>
 
                         {/* Emission */}
                         <div style={styles.section}>
                             <div style={styles.sectionTitle}>Emission</div>
-                            {PARAM_DEFS.slice(1, 2).map(renderParam)}
+                            {renderParamGroup("emission")}
+                            {selectedEmitter.config.burstMode && (
+                                <button style={styles.burstBtn} onClick={handleBurst}>
+                                    \u26A1 Fire Burst
+                                </button>
+                            )}
                         </div>
 
                         {/* Size */}
                         <div style={styles.section}>
                             <div style={styles.sectionTitle}>Size</div>
-                            {PARAM_DEFS.slice(2, 4).map(renderParam)}
+                            {renderParamGroup("size")}
                         </div>
 
                         {/* Motion */}
                         <div style={styles.section}>
                             <div style={styles.sectionTitle}>Motion</div>
-                            {PARAM_DEFS.slice(4, 11).map(renderParam)}
+                            {renderParamGroup("motion")}
                         </div>
 
                         {/* Appearance */}
                         <div style={styles.section}>
                             <div style={styles.sectionTitle}>Appearance</div>
-                            {PARAM_DEFS.slice(11).map(renderParam)}
+                            {renderColorPreview()}
+                            {renderParamGroup("appearance")}
                         </div>
 
-                        {/* Save to template */}
+                        {/* Save */}
                         <div style={styles.section}>
                             <div style={styles.sectionTitle}>Save</div>
                             {activeTemplateIndex !== null && (
@@ -1299,6 +1406,75 @@ function ParticleEditor() {
                     )}
                 </div>
             </div>
+
+            {/* HELP MODAL */}
+            {showHelp && (
+                <div
+                    style={{
+                        position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)",
+                        zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center",
+                        fontFamily: "'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
+                    }}
+                    onClick={function(e) { if (e.target === e.currentTarget) setShowHelp(false); }}
+                >
+                    <div style={{
+                        background: "#111", border: "1px solid #333", borderRadius: 8,
+                        padding: "24px 28px", maxWidth: 520, maxHeight: "80vh", overflowY: "auto",
+                        color: "#ccc", fontSize: "12px", lineHeight: 1.7,
+                    }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                            <span style={{ fontSize: "13px", fontWeight: 700, color: "#00ffaa", letterSpacing: 2, textTransform: "uppercase" }}>
+                                How To Use
+                            </span>
+                            <button
+                                onClick={function() { setShowHelp(false); }}
+                                style={{ background: "#222", border: "1px solid #333", color: "#888", padding: "4px 10px", cursor: "pointer", borderRadius: 4, fontFamily: "inherit", fontSize: "11px" }}
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div style={{ color: "#f59e0b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>TEMPLATES (left panel)</div>
+                        <div style={{ marginBottom: 12, color: "#999" }}>
+                            Templates are reusable particle presets. Click one to highlight it, then press "+ Add Emitter to Scene" to place it on the canvas. You can duplicate or delete templates with the buttons on each row. Use "+ New Template" to start from scratch.
+                        </div>
+
+                        <div style={{ color: "#f59e0b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>SCENE (left panel)</div>
+                        <div style={{ marginBottom: 12, color: "#999" }}>
+                            The scene list shows every emitter currently on the canvas. Click one to select it. The selected emitter gets a glow and you can edit its settings in the right panel.
+                        </div>
+
+                        <div style={{ color: "#00ffaa", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>CANVAS (center)</div>
+                        <div style={{ marginBottom: 12, color: "#999" }}>
+                            Each emitter shows as a crosshair handle. Click a handle to select it, then drag to reposition. Click empty space to deselect. Each emitter has a unique color so you can tell them apart.
+                        </div>
+
+                        <div style={{ color: "#00ffaa", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>CONTROLS (right panel)</div>
+                        <div style={{ marginBottom: 12, color: "#999" }}>
+                            When an emitter is selected, the right panel shows all its settings. Changes are live — tweak a slider and see the result instantly. Use "Apply Template" to swap an emitter's config to any saved template.
+                        </div>
+
+                        <div style={{ color: "#ff6b6b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>BURST MODE</div>
+                        <div style={{ marginBottom: 12, color: "#999" }}>
+                            Toggle burst mode on to switch from continuous spawning to on-demand bursts. Set the burst count, then hit the red "Fire Burst" button to spawn them all at once. Great for impacts and hit effects.
+                        </div>
+
+                        <div style={{ color: "#a29bfe", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>KEY SETTINGS</div>
+                        <div style={{ marginBottom: 12, color: "#999" }}>
+                            Size Start/End \u00D7 — particles grow or shrink over their life.{"\n"}
+                            Color Start/Mid/End — 3-point color ramp with adjustable midpoint.{"\n"}
+                            Damping — how fast particles slow down (0 = none, higher = more drag).{"\n"}
+                            Direction — angle particles fire (270\u00B0 = up).{"\n"}
+                            Spread — cone width around the direction.
+                        </div>
+
+                        <div style={{ color: "#f59e0b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>SAVING & EXPORTING</div>
+                        <div style={{ marginBottom: 4, color: "#999" }}>
+                            "Save to Template" overwrites the selected template with current settings. "Save as New" creates a new template entry. "Export Selected" or "Export Full Scene" gives you JSON — copy it and paste it to Claude to build into the game.
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -13,6 +13,7 @@ import { useRef, useCallback, useEffect } from "react";
 import GameUtils from "../modules/utilities.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
+import AbilityManager from "../abilities/abilityManager.js";
 
 // --- Utilities ---
 var xpForLevel = GameUtils.xpForLevel;
@@ -71,7 +72,8 @@ function usePlayerVM(deps) {
     var changeRep = useCallback(function(delta, delay) {
         if (gameOver) return;
         player.setReputation(function(r) {
-            var nr = Math.max(0, Math.min(10, r + delta));
+            var rd = delta > 0 ? AbilityManager.resolveValue("repGain", delta) : delta;
+            var nr = Math.max(0, Math.min(10, r + rd));
             if (nr <= 0) { setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_GAME_OVER, {}); setTimeout(function() { setGameOver(true); }, 2600); }, (delay || 0)); }
             return nr;
         });

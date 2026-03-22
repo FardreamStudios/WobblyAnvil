@@ -17,6 +17,7 @@ import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
 import DynamicEvents from "../logic/dynamicEvents.js";
 import ForgeMode from "../gameMode/forgeMode.js";
+import AbilityManager from "../abilities/abilityManager.js";
 
 // --- Constants ---
 var PHASES = GameConstants.PHASES;
@@ -107,7 +108,9 @@ function useForgeVM(deps) {
     var isExhausted = stamina <= 0 || forcedExhaustion;
     var sessCost = isExhausted ? BALANCE.sessCostExhausted : BALANCE.sessCostNormal;
     var maxStam = BASE_STAMINA + stats.brawn;
-    var heatWinLo = BALANCE.heatWinLo, heatWinHi = BALANCE.heatWinHi;
+    var baseZoneW = BALANCE.heatWinHi - BALANCE.heatWinLo;
+    var resolvedZoneW = AbilityManager.resolveValue("heatPerfectZone", baseZoneW);
+    var zoneMid = (BALANCE.heatWinLo + BALANCE.heatWinHi) / 2;var heatWinLo = Math.max(0, Math.round(zoneMid - resolvedZoneW / 2));var heatWinHi = Math.min(100, Math.round(zoneMid + resolvedZoneW / 2));
     var heatSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.forge, effDiff);
     var hammerSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.anvil, effDiff);
     var quenchSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.quench, effDiff);

@@ -5,7 +5,8 @@
 // ============================================================
 
 import { useState, useEffect, useRef } from "react";
-import GameConstants from "./constants.js";
+import GameConstants from "../modules/constants.js";
+import AbilityManager from "../abilities/abilityManager.js";
 import GameUtils from "./utilities.js";
 import UIComponents from "./uiComponents.js";
 
@@ -268,7 +269,7 @@ function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult
     var [amounts, setAmounts] = useState(Object.fromEntries(Object.keys(MATS).map(function(k) { return [k, 1]; })));
     var UPGRADE_CATS = [["forge", "Forge", "Heat QTE Speed"], ["anvil", "Anvil", "Hammer QTE Speed"], ["hammer", "Hammer", "Strike Power"], ["quench", "Quench", "Quench QTE Speed"], ["furnace", "Furnace", "Normalize Penalty"]];
     var matPrices = Object.fromEntries(Object.entries(MATS).map(function(entry) {
-        var key = entry[0], basePrice = MATS[key].price;
+        var key = entry[0], basePrice = AbilityManager.resolveValue("materialPrice", MATS[key].price);
         var price = matDiscount && matDiscount.key === key ? Math.round(basePrice * matDiscount.mult) : basePrice;
         price = Math.round(price * (globalMatMult || 1.0));
         return [key, price];

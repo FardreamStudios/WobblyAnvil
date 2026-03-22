@@ -23,6 +23,7 @@ import DesktopLayoutModule from "./modules/desktopLayout.js";
 import DevBanner from "./components/DevBanner.js";
 import GameplayEventBus from "./logic/gameplayEventBus.js";
 import EVENT_TAGS from "./config/eventTags.js";
+import AbilityManager from "./abilities/abilityManager.js";
 
 // --- State Hooks ---
 import useUIState from "./hooks/useUIState.js";
@@ -283,8 +284,8 @@ export default function App() {
     if (!items.length || custVisRef.current >= maxCustRef.current) return;
     if (newHour < 9 || newHour > 21) return;
     if (phaseRef.current !== PHASES.IDLE && phaseRef.current !== PHASES.SESS_RESULT) return;
-    if (!guaranteedCustomersRef.current && Math.random() > 0.42) return;
-    var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
+    var resolvedChance = AbilityManager.resolveValue("customerChance", 0.42);
+    if (!guaranteedCustomersRef.current && Math.random() > resolvedChance) return;    var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
     shuffled.some(function(ct) {
       var match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
       if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); GameplayEventBus.emit(EVENT_TAGS.FX_DOORBELL, {}); return true; }
