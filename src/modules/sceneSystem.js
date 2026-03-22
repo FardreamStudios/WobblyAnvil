@@ -110,9 +110,11 @@ var PROP_VISIBILITY = {
 
 var CHARACTER_CONFIG = {
     id: "smith",
-    z: 5,
+    z: 1,
     imageRendering: "auto",
     defaultAction: "idle",
+    visiblePhases: ["HEAT", "HAMMER", "QUENCH", "SESS_RESULT"],
+    fadeDuration: 0.6,
 
     actions: {
         idle: {
@@ -128,15 +130,16 @@ var CHARACTER_CONFIG = {
             anchor: "bottom-center",
         },
         hammering: {
-            sheet: "/images/smithHammer.png",
-            frames: 4,
+            sheet: "/images/waSmithHammerSS.png",
+            frames: 9,
             fps: 8,
-            frameWidth: 64,
-            frameHeight: 96,
+            frameWidth: 284,
+            frameHeight: 284,
+            colCount: 3,
             loop: true,
             movement: "none",
-            position: { x: "50%", y: "80%" },
-            scale: 1.0,
+            position: { x: "42%", y: "109%" },
+            scale: 0.55,
             anchor: "bottom-center",
         },
         quenching: {
@@ -244,7 +247,7 @@ var CHARACTER_CONFIG = {
 // ============================================================
 
 function resolveSceneState(options) {
-    var phase = options.phase || "IDLE";
+    var phase = (options.phase || "IDLE").toUpperCase();
     var sceneName = options.scene || "forge";
     var overrideAction = options.overrideAction || null;
     var propOverrides = options.propOverrides || {};
@@ -345,7 +348,7 @@ function Background({ config, phase }) {
 // Supports loop and one-shot modes.
 // ============================================================
 
-function SpriteSheet({ sheet, frames, fps, frameWidth, frameHeight, loop, imageRendering, onComplete }) {
+function SpriteSheet({ sheet, frames, fps, frameWidth, frameHeight, loop, imageRendering, onComplete, colCount }) {
     var [frame, setFrame] = useState(0);
     var frameRef = useRef(0);
     var intervalRef = useRef(null);
@@ -374,16 +377,21 @@ function SpriteSheet({ sheet, frames, fps, frameWidth, frameHeight, loop, imageR
         return function() { clearInterval(intervalRef.current); };
     }, [sheet, frames, fps, loop]);
 
-    var bgX = -(frame * frameWidth);
+    var cols = colCount || frames;
+    var col = frame % cols;
+    var row = Math.floor(frame / cols);
+    var bgX = -(col * frameWidth);
+    var bgY = -(row * frameHeight);
+    var totalRows = Math.ceil(frames / cols);
 
     return (
         <div style={{
             width: frameWidth,
             height: frameHeight,
             backgroundImage: "url(" + resolvePublicUrl(sheet) + ")",
-            backgroundPosition: bgX + "px 0px",
+            backgroundPosition: bgX + "px " + bgY + "px",
             backgroundRepeat: "no-repeat",
-            backgroundSize: (frameWidth * frames) + "px " + frameHeight + "px",
+            backgroundSize: (frameWidth * cols) + "px " + (frameHeight * totalRows) + "px",
             imageRendering: imageRendering || "auto",
         }} />
     );
@@ -495,6 +503,19 @@ function Character({ config, action, onActionComplete }) {
         ", transform " + currentAction.transitionDuration + "s " + (currentAction.transitionEasing || "ease-in-out")
         : "none";
 
+    var visiblePhases = config.visiblePhases || null;
+    var isVisible = !visiblePhases || visiblePhases.indexOf(action) >= 0;
+    if (!isVisible && visiblePhases) {
+        for (var vp = 0; vp < visiblePhases.length; vp++) {
+            var phaseAction = PHASE_ACTION_MAP[visiblePhases[vp]];
+            if (phaseAction === action) { isVisible = true; break; }
+        }
+    }
+    var fadeDur = config.fadeDuration || 0.4;
+    var opacityStr = isVisible ? 1 : 0;
+    var fadeTransition = "opacity " + fadeDur + "s ease-in-out";
+    var fullTransition = transitionStr === "none" ? fadeTransition : transitionStr + ", " + fadeTransition;
+
     return (
         <div style={{
             position: "absolute",
@@ -502,7 +523,8 @@ function Character({ config, action, onActionComplete }) {
             top: pos.y,
             transform: anchorXform + " scale(" + scale + ")",
             zIndex: config.z || 5,
-            transition: transitionStr,
+            transition: fullTransition,
+            opacity: opacityStr,
             pointerEvents: "none",
         }}>
             {currentAction.sheet && (
@@ -512,6 +534,7 @@ function Character({ config, action, onActionComplete }) {
                     fps={currentAction.fps || 8}
                     frameWidth={currentAction.frameWidth || 64}
                     frameHeight={currentAction.frameHeight || 96}
+                    colCount={currentAction.colCount || null}
                     loop={currentAction.loop !== false}
                     imageRendering={config.imageRendering || "auto"}
                     onComplete={currentAction.movement === "authored" ? handleSpriteComplete : null}

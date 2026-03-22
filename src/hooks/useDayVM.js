@@ -13,6 +13,7 @@ import GameConstants from "../modules/constants.js";
 import GameUtils from "../modules/utilities.js";
 import GameEvents from "../modules/events.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 import DynamicEvents from "../logic/dynamicEvents.js";
 
 var TAG_COLORS = GameConstants.TAG_COLORS;
