@@ -1178,14 +1178,14 @@ function ParticleEditor() {
                                     onClick={function(e) { e.stopPropagation(); handleDuplicateTemplate(index); }}
                                     title="Duplicate"
                                 >
-                                    \u2398
+                                    {"\u2398"}
                                 </button>
                                 <button
                                     style={{ ...styles.templateBtn, color: "#ff4444" }}
                                     onClick={function(e) { e.stopPropagation(); handleDeleteTemplate(index); }}
                                     title="Delete"
                                 >
-                                    \u2715
+                                    {"\u2715"}
                                 </button>
                             </div>
                         </div>
@@ -1232,7 +1232,7 @@ function ParticleEditor() {
                                 onClick={function(e) { e.stopPropagation(); handleDeleteEmitter(em.id); }}
                                 title="Remove"
                             >
-                                \u2715
+                                {"\u2715"}
                             </button>
                         </div>
                     );
@@ -1276,7 +1276,7 @@ function ParticleEditor() {
                     <span>
                         {selectedEmitter ? selectedEmitter.config.name : "Particle Editor"}
                         {unsavedChanges && selectedEmitter && (
-                            <span style={{ color: "#f59e0b", marginLeft: 8, fontSize: "9px" }}>\u25CF EDITED</span>
+                            <span style={{ color: "#f59e0b", marginLeft: 8, fontSize: "9px" }}>{"\u25CF"} EDITED</span>
                         )}
                     </span>
                     <span style={{ float: "right", display: "flex", gap: 12, alignItems: "center" }}>
@@ -1328,7 +1328,7 @@ function ParticleEditor() {
                             {renderParamGroup("emission")}
                             {selectedEmitter.config.burstMode && (
                                 <button style={styles.burstBtn} onClick={handleBurst}>
-                                    \u26A1 Fire Burst
+                                    {"\u26A1"} Fire Burst
                                 </button>
                             )}
                         </div>
