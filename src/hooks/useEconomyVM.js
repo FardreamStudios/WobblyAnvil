@@ -46,18 +46,18 @@ function useEconomyVM(deps) {
     // --- Gold Flow ---
     function earnGold(amount) {
         if (amount === 0) return;
-        popGold(amount); sfx.coin();
+        popGold(amount); GameplayEventBus.emit(EVENT_TAGS.FX_COIN_EARN, {});
         setGold(function(g) { return g + amount; });
         setTotalGoldEarned(function(t) {
             var nt = t + amount, or = getSmithRank(t), nr = getSmithRank(nt);
-            if (nr.name !== or.name) { sfx.levelup(); setTimeout(function() { addToast("RANK UP!\n" + nr.name, "", "#fbbf24"); }, 100); }
+            if (nr.name !== or.name) { GameplayEventBus.emit(EVENT_TAGS.FX_LEVEL_UP, {}); setTimeout(function() { addToast("RANK UP!\n" + nr.name, "", "#fbbf24"); }, 100); }
             return nt;
         });
     }
 
     function spendGold(amount) {
         if (amount === 0) return;
-        popGold(-amount); sfx.coinLoss();
+        popGold(-amount); GameplayEventBus.emit(EVENT_TAGS.FX_COIN_LOSS, {});
         setGold(function(g) { return g - amount; });
     }
 
@@ -66,7 +66,7 @@ function useEconomyVM(deps) {
         earnGold(price);
         setFinished(function(f) { var nf = f.filter(function(w) { return w.id !== weaponId; }); setTimeout(function() { trySpawnCustomer(hour, nf); }, 500); return nf; });
         setHasSoldWeapon(true); setActiveCustomer(null);
-        setTimeout(function() { addToast("SOLD!\n+" + price + "g", "", "#4ade80"); sfx.toast(); }, 100);
+        setTimeout(function() { addToast("SOLD!\n+" + price + "g", "", "#4ade80"); GameplayEventBus.emit(EVENT_TAGS.FX_TOAST, {}); }, 100);
     }
 
     function handleRefuse() { setActiveCustomer(null); }

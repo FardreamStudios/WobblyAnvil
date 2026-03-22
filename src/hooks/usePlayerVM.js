@@ -62,7 +62,7 @@ function usePlayerVM(deps) {
     useEffect(function() {
         var cur = xp, lv = level, pts = 0;
         while (cur >= xpForLevel(lv)) { cur -= xpForLevel(lv); lv++; pts++; }
-        if (pts > 0) { setXp(cur); setLevel(lv); setStatPoints(function(p) { return p + pts; }); sfx.levelup(); }
+        if (pts > 0) { setXp(cur); setLevel(lv); setStatPoints(function(p) { return p + pts; }); GameplayEventBus.emit(EVENT_TAGS.FX_LEVEL_UP, {}); }
     }, [xp]);
 
     function loseXp(amount) { setXp(function(prev) { return Math.max(0, prev - amount); }); }
@@ -72,7 +72,7 @@ function usePlayerVM(deps) {
         if (gameOver) return;
         player.setReputation(function(r) {
             var nr = Math.max(0, Math.min(10, r + delta));
-            if (nr <= 0) { setTimeout(function() { sfx.gameover(); setTimeout(function() { setGameOver(true); }, 2600); }, (delay || 0)); }
+            if (nr <= 0) { setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_GAME_OVER, {}); setTimeout(function() { setGameOver(true); }, 2600); }, (delay || 0)); }
             return nr;
         });
     }, [sfx, gameOver]);

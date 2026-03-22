@@ -20,6 +20,8 @@ import GameLayout from "./modules/gameLayout.js";
 import SceneSystem from "./modules/sceneSystem.js";
 import MobileLayoutModule from "./modules/mobileLayout.js";
 import DevBanner from "./components/DevBanner.js";
+import GameplayEventBus from "./logic/gameplayEventBus.js";
+import EVENT_TAGS from "./config/eventTags.js";
 
 // --- State Hooks ---
 import useUIState from "./hooks/useUIState.js";
@@ -33,6 +35,7 @@ import useEconomyVM from "./hooks/useEconomyVM.js";
 import useDayVM from "./hooks/useDayVM.js";
 import useQuestState from "./hooks/useQuestState.js";
 import useMysteryState from "./hooks/useMysteryState.js";
+import useFXCues from "./hooks/useFXCues.js";
 import useInputRouter from "./hooks/useInputRouter.js";
 import useShopVM from "./hooks/useShopVM.js";
 
@@ -130,6 +133,9 @@ export default function App() {
   var forge = useForgeState();
   var quest = useQuestState();
   var mystery = useMysteryState();
+
+  // --- FX Cue Router ---
+  useFXCues({ sfx: sfx, fxRef: mystery.fxRef });
 
   // --- UI State (from useUIState) ---
   var screen = ui.screen, setScreen = ui.setScreen;
@@ -275,7 +281,7 @@ export default function App() {
     var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
     shuffled.some(function(ct) {
       var match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
-      if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); sfx.doorbell(); return true; }
+      if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); GameplayEventBus.emit(EVENT_TAGS.FX_DOORBELL, {}); return true; }
       return false;
     });
   }, [sfx]);
@@ -387,7 +393,7 @@ export default function App() {
   // ============================================================
 
   if (gameOver) return <ScaleWrapper><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScaleWrapper>;
-  if (screen === "splash") return <ScaleWrapper><SplashScreen onEnter={function() { sfx.warmup(); setTimeout(function() { sfx.fanfare(); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
+  if (screen === "splash") return <ScaleWrapper><SplashScreen onEnter={function() { sfx.warmup(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
   if (screen === "menu") return <ScaleWrapper><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 
   // ============================================================

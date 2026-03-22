@@ -7,12 +7,14 @@
 //   verb   — what happens (earn, spend, set, add, etc.)
 //   target — what it acts on (gold, inventory, xp, etc.)
 //
+// FX CUES: fx.<domain>.<action>
+//   Presentation-only tags. Listeners in useFXCues execute
+//   SFX/VFX — no state mutations. Any object can emit these.
+//
 // USAGE:
 //   import EVENT_TAGS from "../config/eventTags.js";
 //   bus.emit(EVENT_TAGS.ECONOMY_EARN_GOLD, { amount: 500 });
-//
-// This list grows as we add events. Not every tag needs a
-// listener on day one — wire what you need, add the rest later.
+//   bus.emit(EVENT_TAGS.FX_SHATTER, {});
 // ============================================================
 
 var EVENT_TAGS = {
@@ -45,6 +47,24 @@ var EVENT_TAGS = {
     VFX_SHAKE_MYSTERY:      "event.vfx.shake.mystery",
     VFX_SHAKE_WEAPON:       "event.vfx.shake.weapon",
     VFX_SET_VIGNETTE:       "event.vfx.set.vignette",
+
+    // --- FX Cues (presentation only — no state mutations) ---
+    FX_HEAT_RESULT:         "fx.forge.heat",
+    FX_HAMMER_HIT:          "fx.forge.hammer",
+    FX_QUENCH_SUCCESS:      "fx.forge.quench.success",
+    FX_QUENCH_FAIL:         "fx.forge.quench.fail",
+    FX_SHATTER:             "fx.forge.shatter",
+    FX_FINISH_WEAPON:       "fx.forge.finish",
+    FX_ROYAL_DECREE:        "fx.quest.royal",
+    FX_DOORBELL:            "fx.economy.doorbell",
+    FX_COIN_EARN:           "fx.economy.coin.earn",
+    FX_COIN_LOSS:           "fx.economy.coin.loss",
+    FX_TOAST:               "fx.ui.toast",
+    FX_LEVEL_UP:            "fx.player.levelup",
+    FX_GAME_OVER:           "fx.player.gameover",
+    FX_MYSTERY_GOOD:        "fx.mystery.good",
+    FX_MYSTERY_BAD:         "fx.mystery.bad",
+    FX_FANFARE:             "fx.ui.fanfare",
 };
 
 export default EVENT_TAGS;

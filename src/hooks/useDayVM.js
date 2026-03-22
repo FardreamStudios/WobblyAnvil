@@ -155,10 +155,10 @@ function useDayVM(deps) {
             var snapshot = { gold: gold, inv: inv, finished: finished };
             setPendingMystery(null);
             if (pendingMystery.severity === "good") {
-                sfx.mysteryGood();
+                GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {});
                 DynamicEvents.mysteryGood(GameplayEventBus, snapshot);
             } else {
-                sfx.fireTornado(); sfx.dragonFlyby();
+                GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {});
                 DynamicEvents.mysteryBad(GameplayEventBus, snapshot, false);
             }
             setTimeout(doSleep, 7000);

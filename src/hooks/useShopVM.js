@@ -9,6 +9,8 @@
 // ============================================================
 
 import GameConstants from "../modules/constants.js";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 var MATS = GameConstants.MATS;
 var UPGRADES = GameConstants.UPGRADES;
@@ -34,7 +36,7 @@ function useShopVM(deps) {
         sfx.click();
         var cost = price * qty;
         if (gold < cost) return;
-        sfx.coin();
+        GameplayEventBus.emit(EVENT_TAGS.FX_COIN_EARN, {});
         spendGold(cost);
         setInv(function(i) {
             var n = Object.assign({}, i);
@@ -70,7 +72,7 @@ function useShopVM(deps) {
     // --- Sell Material ---
     // mat: material key, qty: number to sell
     function onSellMaterial(mat, qty) {
-        sfx.coin();
+        GameplayEventBus.emit(EVENT_TAGS.FX_COIN_EARN, {});
         var price = Math.floor(MATS[mat].price / 2) * qty;
         setInv(function(i) {
             var n = Object.assign({}, i);
