@@ -33,6 +33,10 @@ var EVENT_TAGS = {
     // --- Forge ---
     FORGE_DESTROY_WIP:      "event.forge.wip.destroy",
     FORGE_STOP_SESSION:     "event.forge.session.stop",
+    FORGE_SESSION_COMPLETE: "event.forge.session.complete",
+
+    // --- Quest ---
+    QUEST_FAILED:           "event.quest.failed",
 
     // --- Day ---
     DAY_SET_STAMINA:        "event.day.stamina.set",

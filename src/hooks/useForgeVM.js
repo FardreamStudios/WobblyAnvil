@@ -219,7 +219,7 @@ function useForgeVM(deps) {
 
     function handleHammerFire(pos) {
         var tier = calcHammerResult(pos); GameplayEventBus.emit(EVENT_TAGS.FX_HAMMER_HIT, { quality: tier.sfxKey });
-        var rawPts = tier.points, actualDelta = rawPts < 0 ? rawPts : Math.round(rawPts * strikeMult * qualityGainMultiplier(qualRef.current));
+        var rawPts = tier.points, actualDelta = rawPts < 0 ? rawPts : Math.round(rawPts * strikeMult * qualityGainMultiplier(qualRef.current) * AbilityManager.resolveValue("qualityGainRate", 1.0));
         var newQ = clamp(qualRef.current + actualDelta, 0, 100); qualRef.current = newQ; setQualScore(newQ);
         var newL = strikesLeft - 1; setStrikesLeft(newL);
         setQteFlash(tier.label + " " + (actualDelta >= 0 ? "+" : "") + actualDelta);
@@ -281,6 +281,7 @@ function useForgeVM(deps) {
         if (!isQuestDelivery) { nf = finished.concat([item]); setFinished(nf); }
         var toastMsg = isQuestDelivery ? (questComplete ? "DECREE FULFILLED\n" + q.label + " " + weapon.name : "DELIVERED " + deliveredSoFar + "/" + questQty + "\n" + q.label + " " + weapon.name) : q.label.toUpperCase() + " " + weapon.name + "\n~" + val + "g added to shelf";
         addToast(toastMsg, "", questComplete ? "#4ade80" : isQuestDelivery ? "#f59e0b" : q.weaponColor);
+        GameplayEventBus.emit(EVENT_TAGS.FORGE_SESSION_COMPLETE, { quality: nq, weaponKey: wKey, matKey: matKey });
         stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null);
         ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE);
         if (!isQuestDelivery) setTimeout(function() { trySpawnCustomer(hour, nf); }, 400);

@@ -37,14 +37,14 @@ import MysteryVisitorAbility from "./morning/mysteryVisitor.js";
 import MysteryShadowAbility from "./morning/mysteryShadow.js";
 
 // --- Reactive abilities ---
-// import HotStreakAbility from "./reactive/hotStreak.js";
-// import ShameDebuffAbility from "./reactive/shameDebuff.js";
+import HotStreakAbility from "./reactive/hotStreak.js";
+import ShameDebuffAbility from "./reactive/shameDebuff.js";
 
 var COMPLEX_ABILITIES = [
     MysteryVisitorAbility,
     MysteryShadowAbility,
-    // HotStreakAbility,
-    // ShameDebuffAbility,
+    HotStreakAbility,
+    ShameDebuffAbility,
 ];
 
 // ============================================================

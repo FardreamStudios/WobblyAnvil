@@ -7,6 +7,8 @@
 // Phase 3: Multi-emitter scene — add/remove/select/drag
 // Phase 4: Polish — burst mode, 3-color over lifetime,
 //          size over lifetime, velocity damping
+// Phase 5: Grid/handle toggles, system timeline with
+//          duration, loop, per-emitter start time & loop
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -23,6 +25,8 @@ var EMITTER_HANDLE_SIZE = 14;
 var GRID_SIZE = 20;
 var GRID_COLOR = "rgba(255,255,255,0.04)";
 var EMITTER_COLORS = ["#00ffaa", "#ff6b6b", "#4ecdc4", "#ffe66d", "#a29bfe", "#fd79a8", "#00cec9", "#fab1a0"];
+var DEFAULT_SYSTEM_DURATION = 2.0;
+var TIMELINE_HEIGHT = 40;
 
 // ============================================
 // DEFAULT EMITTER CONFIG
@@ -260,7 +264,6 @@ function createParticle(emitterX, emitterY, config) {
 }
 
 function updateParticle(p, dt, config) {
-    // Damping
     if (config.damping > 0) {
         var dampFactor = Math.max(0, 1 - config.damping * dt);
         p.vx *= dampFactor;
@@ -278,14 +281,8 @@ function updateParticle(p, dt, config) {
 
 function drawParticle(ctx, p, config) {
     var t = 1 - p.lifetime / p.maxLifetime;
-
-    // Color over lifetime (3-point)
     var col = getColorAtLifetime(t, config);
-
-    // Opacity
     var alpha = config.fadeOut ? p.lifetime / p.maxLifetime : 1;
-
-    // Size over lifetime
     var sizeScale = lerp(config.sizeOverLifetime.start, config.sizeOverLifetime.end, t);
     var size = Math.max(1, Math.round(p.baseSize * sizeScale));
 
@@ -691,6 +688,50 @@ var styles = {
         border: "1px solid #333",
         marginBottom: 8,
     },
+    checkbox: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        cursor: "pointer",
+        fontSize: "11px",
+        color: "#888",
+        marginBottom: 4,
+        userSelect: "none",
+    },
+    checkboxInput: {
+        accentColor: "#00ffaa",
+        width: 14,
+        height: 14,
+        cursor: "pointer",
+    },
+    timelineBar: {
+        width: "100%",
+        height: TIMELINE_HEIGHT,
+        background: "#0a0a0a",
+        border: "1px solid #1a1a1a",
+        borderRadius: 4,
+        position: "relative",
+        overflow: "hidden",
+        marginTop: 6,
+        cursor: "pointer",
+    },
+    timelinePlayhead: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        width: 2,
+        background: "#00ffaa",
+        zIndex: 3,
+        pointerEvents: "none",
+    },
+    timelineEmitterMark: {
+        position: "absolute",
+        top: 2,
+        height: TIMELINE_HEIGHT - 4,
+        borderRadius: 2,
+        opacity: 0.5,
+        pointerEvents: "none",
+    },
 };
 
 // ============================================
@@ -716,12 +757,34 @@ function ParticleEditor() {
     var [exportJSON, setExportJSON] = useState("");
     var [showHelp, setShowHelp] = useState(false);
 
+    // -- DISPLAY TOGGLES --
+    var [showGrid, setShowGrid] = useState(true);
+    var [showHandles, setShowHandles] = useState(true);
+
+    // -- TIMELINE STATE --
+    var [useTimeline, setUseTimeline] = useState(false);
+    var [systemDuration, setSystemDuration] = useState(DEFAULT_SYSTEM_DURATION);
+    var [systemLoop, setSystemLoop] = useState(true);
+    var [systemTime, setSystemTime] = useState(0);
+    var systemTimeRef = useRef(0);
+    var prevSystemTimeRef = useRef(0);
+
     var pausedRef = useRef(paused);
     var selectedEmitterIdRef = useRef(selectedEmitterId);
+    var useTimelineRef = useRef(useTimeline);
+    var systemDurationRef = useRef(systemDuration);
+    var systemLoopRef = useRef(systemLoop);
+    var showGridRef = useRef(showGrid);
+    var showHandlesRef = useRef(showHandles);
 
     useEffect(function() { emittersRef.current = emitters; }, [emitters]);
     useEffect(function() { pausedRef.current = paused; }, [paused]);
     useEffect(function() { selectedEmitterIdRef.current = selectedEmitterId; }, [selectedEmitterId]);
+    useEffect(function() { useTimelineRef.current = useTimeline; }, [useTimeline]);
+    useEffect(function() { systemDurationRef.current = systemDuration; }, [systemDuration]);
+    useEffect(function() { systemLoopRef.current = systemLoop; }, [systemLoop]);
+    useEffect(function() { showGridRef.current = showGrid; }, [showGrid]);
+    useEffect(function() { showHandlesRef.current = showHandles; }, [showHandles]);
 
     var selectedEmitter = null;
     for (var i = 0; i < emitters.length; i++) {
@@ -797,6 +860,10 @@ function ParticleEditor() {
             particles: [],
             spawnAcc: 0,
             handleColor: color,
+            // Timeline per-emitter settings
+            startTime: 0,
+            emitterLoop: true,
+            hasFiredBurst: false,
         };
         setEmitters(function(prev) { return prev.concat([newEmitter]); });
         setSelectedEmitterId(id);
@@ -820,14 +887,13 @@ function ParticleEditor() {
         setEmitters(function(prev) {
             return prev.map(function(e) {
                 if (e.id === selectedEmitterId) {
-                    return Object.assign({}, e, { config: deepClone(tpl), particles: [], spawnAcc: 0 });
+                    return Object.assign({}, e, { config: deepClone(tpl), particles: [], spawnAcc: 0, hasFiredBurst: false });
                 }
                 return e;
             });
         });
     }
 
-    // Burst fire
     function handleBurst() {
         if (!selectedEmitter) return;
         var cfg = selectedEmitter.config;
@@ -842,6 +908,32 @@ function ParticleEditor() {
                         }
                     }
                     return Object.assign({}, e, { particles: newParticles });
+                }
+                return e;
+            });
+        });
+    }
+
+    // ---- EMITTER TIMELINE SETTINGS ----
+
+    function handleEmitterStartTime(value) {
+        if (selectedEmitterId === null) return;
+        setEmitters(function(prev) {
+            return prev.map(function(e) {
+                if (e.id === selectedEmitterId) {
+                    return Object.assign({}, e, { startTime: value });
+                }
+                return e;
+            });
+        });
+    }
+
+    function handleEmitterLoop(value) {
+        if (selectedEmitterId === null) return;
+        setEmitters(function(prev) {
+            return prev.map(function(e) {
+                if (e.id === selectedEmitterId) {
+                    return Object.assign({}, e, { emitterLoop: value });
                 }
                 return e;
             });
@@ -863,6 +955,20 @@ function ParticleEditor() {
         setUnsavedChanges(true);
     }
 
+    // ---- TIMELINE RESTART ----
+
+    function handleRestartTimeline() {
+        systemTimeRef.current = 0;
+        prevSystemTimeRef.current = 0;
+        setSystemTime(0);
+        // Reset burst tracking
+        setEmitters(function(prev) {
+            return prev.map(function(e) {
+                return Object.assign({}, e, { particles: [], spawnAcc: 0, hasFiredBurst: false });
+            });
+        });
+    }
+
     // ---- MAIN LOOP ----
 
     var tick = useCallback(function(timestamp) {
@@ -876,9 +982,39 @@ function ParticleEditor() {
 
         var allEmitters = emittersRef.current;
         var selId = selectedEmitterIdRef.current;
+        var timelineActive = useTimelineRef.current;
+        var sysDur = systemDurationRef.current;
+        var sysLoop = systemLoopRef.current;
 
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        drawGrid(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        if (showGridRef.current) {
+            drawGrid(ctx, CANVAS_WIDTH, CANVAS_HEIGHT);
+        }
+
+        // Advance system time
+        var sysTime = systemTimeRef.current;
+        var prevSysTime = prevSystemTimeRef.current;
+
+        if (!pausedRef.current && timelineActive) {
+            sysTime += dt;
+
+            // Check for loop/stop
+            if (sysTime >= sysDur) {
+                if (sysLoop) {
+                    sysTime = sysTime % sysDur;
+                    // Reset burst tracking on loop
+                    for (var r = 0; r < allEmitters.length; r++) {
+                        allEmitters[r].hasFiredBurst = false;
+                    }
+                } else {
+                    sysTime = sysDur;
+                }
+            }
+
+            prevSystemTimeRef.current = systemTimeRef.current;
+            systemTimeRef.current = sysTime;
+        }
 
         var totalParticles = 0;
 
@@ -887,9 +1023,42 @@ function ParticleEditor() {
             var cfg = em.config;
             var particles = em.particles;
 
-            if (!pausedRef.current) {
-                // Continuous spawning (only if not burst mode)
-                if (!cfg.burstMode) {
+            // Determine if this emitter is active based on timeline
+            var emitterActive = true;
+
+            if (timelineActive) {
+                var startT = em.startTime || 0;
+
+                if (sysTime < startT) {
+                    emitterActive = false;
+                }
+
+                // If not looping and system has passed duration, stop
+                if (!sysLoop && sysTime >= sysDur) {
+                    emitterActive = false;
+                }
+
+                // Per-emitter loop: if emitter doesn't loop and already completed one cycle
+                if (emitterActive && !em.emitterLoop && cfg.burstMode && em.hasFiredBurst) {
+                    emitterActive = false;
+                }
+            }
+
+            if (!pausedRef.current && emitterActive) {
+                if (cfg.burstMode) {
+                    if (timelineActive) {
+                        // Auto-fire burst when timeline crosses start time
+                        if (!em.hasFiredBurst && sysTime >= (em.startTime || 0)) {
+                            for (var b = 0; b < (cfg.burstCount || 10); b++) {
+                                if (totalParticles + particles.length < MAX_PARTICLES) {
+                                    particles.push(createParticle(em.x, em.y, cfg));
+                                }
+                            }
+                            em.hasFiredBurst = true;
+                        }
+                    }
+                    // Non-timeline burst is manual only (Fire Burst button)
+                } else {
                     em.spawnAcc += cfg.spawnRate * dt;
                     var toSpawn = Math.floor(em.spawnAcc);
                     em.spawnAcc -= toSpawn;
@@ -900,7 +1069,10 @@ function ParticleEditor() {
                         }
                     }
                 }
+            }
 
+            // Always update and draw existing particles even if emitter inactive
+            if (!pausedRef.current) {
                 for (var j = particles.length - 1; j >= 0; j--) {
                     updateParticle(particles[j], dt, cfg);
                     if (!particles[j].alive) {
@@ -917,12 +1089,20 @@ function ParticleEditor() {
         }
 
         // Draw handles on top
-        for (var h = 0; h < allEmitters.length; h++) {
-            var e = allEmitters[h];
-            drawEmitterHandle(ctx, e.x, e.y, e.handleColor, e.id === selId, e.config.name);
+        if (showHandlesRef.current) {
+            for (var h = 0; h < allEmitters.length; h++) {
+                var e = allEmitters[h];
+                drawEmitterHandle(ctx, e.x, e.y, e.handleColor, e.id === selId, e.config.name);
+            }
         }
 
         setParticleCount(totalParticles);
+
+        // Update React state for timeline display (throttled)
+        if (timelineActive) {
+            setSystemTime(sysTime);
+        }
+
         animFrameRef.current = requestAnimationFrame(tick);
     }, []);
 
@@ -998,11 +1178,16 @@ function ParticleEditor() {
 
     function handleExportScene() {
         var scene = {
+            systemDuration: systemDuration,
+            systemLoop: systemLoop,
+            useTimeline: useTimeline,
             templates: templates.map(configToExport),
             emitters: emitters.map(function(em) {
                 return {
                     id: em.id,
                     position: { x: em.x, y: em.y },
+                    startTime: em.startTime,
+                    emitterLoop: em.emitterLoop,
                     config: configToExport(em.config),
                 };
             }),
@@ -1015,6 +1200,8 @@ function ParticleEditor() {
         if (!selectedEmitter) return;
         var output = configToExport(selectedEmitter.config);
         output.position = { x: selectedEmitter.x, y: selectedEmitter.y };
+        output.startTime = selectedEmitter.startTime;
+        output.emitterLoop = selectedEmitter.emitterLoop;
         setExportJSON(JSON.stringify(output, null, 2));
         setShowExport(true);
     }
@@ -1130,12 +1317,54 @@ function ParticleEditor() {
         return PARAM_DEFS.filter(function(d) { return d.group === groupName; }).map(renderParam);
     }
 
-    // Color gradient preview
     function renderColorPreview() {
         if (!selectedEmitter) return null;
         var cfg = selectedEmitter.config;
         var gradient = "linear-gradient(to right, " + cfg.colorStart + ", " + cfg.colorMid + " " + Math.round(cfg.colorMidPoint * 100) + "%, " + cfg.colorEnd + ")";
         return <div style={{ ...styles.colorGradientBar, background: gradient }} />;
+    }
+
+    // Timeline visual
+    function renderTimeline() {
+        var pct = systemDuration > 0 ? (systemTime / systemDuration) * 100 : 0;
+        return (
+            <div style={styles.timelineBar} onClick={function(e) {
+                var rect = e.currentTarget.getBoundingClientRect();
+                var x = e.clientX - rect.left;
+                var t = (x / rect.width) * systemDuration;
+                systemTimeRef.current = Math.max(0, Math.min(systemDuration, t));
+                prevSystemTimeRef.current = systemTimeRef.current;
+                setSystemTime(systemTimeRef.current);
+                // Reset burst tracking
+                setEmitters(function(prev) {
+                    return prev.map(function(em) {
+                        return Object.assign({}, em, { hasFiredBurst: (em.startTime || 0) <= systemTimeRef.current ? false : false });
+                    });
+                });
+            }}>
+                {/* Emitter start marks */}
+                {emitters.map(function(em) {
+                    var startPct = systemDuration > 0 ? ((em.startTime || 0) / systemDuration) * 100 : 0;
+                    return (
+                        <div key={em.id} style={{
+                            ...styles.timelineEmitterMark,
+                            left: startPct + "%",
+                            width: 4,
+                            background: em.handleColor,
+                        }} title={em.config.name + " starts at " + (em.startTime || 0).toFixed(2) + "s"} />
+                    );
+                })}
+                {/* Playhead */}
+                <div style={{ ...styles.timelinePlayhead, left: pct + "%" }} />
+                {/* Time label */}
+                <div style={{
+                    position: "absolute", bottom: 2, right: 4,
+                    fontSize: "9px", color: "#555", pointerEvents: "none",
+                }}>
+                    {systemTime.toFixed(2)}s / {systemDuration.toFixed(1)}s
+                </div>
+            </div>
+        );
     }
 
     // ============================================
@@ -1266,7 +1495,19 @@ function ParticleEditor() {
                 <div style={styles.statusBar}>
                     Particles: {particleCount} / {MAX_PARTICLES}
                     {" | Emitters: " + emitters.length}
-                    {paused ? " | \u23F8 PAUSED" : ""}
+                    {paused ? " | PAUSED" : ""}
+                </div>
+
+                {/* Display toggles */}
+                <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 12 }}>
+                    <label style={styles.checkbox}>
+                        <input type="checkbox" checked={showGrid} onChange={function() { setShowGrid(!showGrid); }} style={styles.checkboxInput} />
+                        Grid
+                    </label>
+                    <label style={styles.checkbox}>
+                        <input type="checkbox" checked={showHandles} onChange={function() { setShowHandles(!showHandles); }} style={styles.checkboxInput} />
+                        Handles
+                    </label>
                 </div>
             </div>
 
@@ -1296,8 +1537,84 @@ function ParticleEditor() {
                     </span>
                 </div>
 
+                {/* TIMELINE SECTION */}
+                <div style={styles.section}>
+                    <div style={styles.sectionTitle}>Timeline</div>
+                    <div style={styles.paramRow}>
+                        <span style={styles.paramLabel}>Enable Timeline</span>
+                        <button
+                            style={{ ...styles.toggle, background: useTimeline ? "#00ffaa" : "#333" }}
+                            onClick={function() { setUseTimeline(!useTimeline); }}
+                        >
+                            <div style={{ ...styles.toggleKnob, left: useTimeline ? 20 : 2 }} />
+                        </button>
+                    </div>
+                    {useTimeline && (
+                        <>
+                            <div style={styles.paramRow}>
+                                <span style={styles.paramLabel}>Duration (s)</span>
+                                <input
+                                    type="range"
+                                    style={styles.slider}
+                                    min={0.5}
+                                    max={10}
+                                    step={0.1}
+                                    value={systemDuration}
+                                    onChange={function(e) { setSystemDuration(parseFloat(e.target.value)); }}
+                                />
+                                <span style={styles.paramValue}>{systemDuration.toFixed(1)}</span>
+                            </div>
+                            <div style={styles.paramRow}>
+                                <span style={styles.paramLabel}>System Loop</span>
+                                <button
+                                    style={{ ...styles.toggle, background: systemLoop ? "#00ffaa" : "#333" }}
+                                    onClick={function() { setSystemLoop(!systemLoop); }}
+                                >
+                                    <div style={{ ...styles.toggleKnob, left: systemLoop ? 20 : 2 }} />
+                                </button>
+                            </div>
+                            {renderTimeline()}
+                            <button
+                                style={{ ...styles.resetBtn, marginTop: 6, color: "#00ffaa", borderColor: "#00ffaa44" }}
+                                onClick={handleRestartTimeline}
+                            >
+                                Restart Timeline
+                            </button>
+                        </>
+                    )}
+                </div>
+
                 {selectedEmitter ? (
                     <>
+                        {/* Per-emitter timeline settings */}
+                        {useTimeline && (
+                            <div style={styles.section}>
+                                <div style={styles.sectionTitle}>Emitter Timing</div>
+                                <div style={styles.paramRow}>
+                                    <span style={styles.paramLabel}>Start Time (s)</span>
+                                    <input
+                                        type="range"
+                                        style={styles.slider}
+                                        min={0}
+                                        max={systemDuration}
+                                        step={0.05}
+                                        value={selectedEmitter.startTime || 0}
+                                        onChange={function(e) { handleEmitterStartTime(parseFloat(e.target.value)); }}
+                                    />
+                                    <span style={styles.paramValue}>{(selectedEmitter.startTime || 0).toFixed(2)}</span>
+                                </div>
+                                <div style={styles.paramRow}>
+                                    <span style={styles.paramLabel}>Emitter Loop</span>
+                                    <button
+                                        style={{ ...styles.toggle, background: selectedEmitter.emitterLoop ? "#00ffaa" : "#333" }}
+                                        onClick={function() { handleEmitterLoop(!selectedEmitter.emitterLoop); }}
+                                    >
+                                        <div style={{ ...styles.toggleKnob, left: selectedEmitter.emitterLoop ? 20 : 2 }} />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Apply template */}
                         <div style={styles.section}>
                             <div style={styles.sectionTitle}>Apply Template</div>
@@ -1326,10 +1643,15 @@ function ParticleEditor() {
                         <div style={styles.section}>
                             <div style={styles.sectionTitle}>Emission</div>
                             {renderParamGroup("emission")}
-                            {selectedEmitter.config.burstMode && (
+                            {selectedEmitter.config.burstMode && !useTimeline && (
                                 <button style={styles.burstBtn} onClick={handleBurst}>
                                     {"\u26A1"} Fire Burst
                                 </button>
+                            )}
+                            {selectedEmitter.config.burstMode && useTimeline && (
+                                <div style={{ fontSize: "10px", color: "#555", marginTop: 4 }}>
+                                    Bursts fire automatically at start time when timeline is active.
+                                </div>
                             )}
                         </div>
 
@@ -1436,41 +1758,42 @@ function ParticleEditor() {
 
                         <div style={{ color: "#f59e0b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>TEMPLATES (left panel)</div>
                         <div style={{ marginBottom: 12, color: "#999" }}>
-                            Templates are reusable particle presets. Click one to highlight it, then press "+ Add Emitter to Scene" to place it on the canvas. You can duplicate or delete templates with the buttons on each row. Use "+ New Template" to start from scratch.
+                            Templates are reusable particle presets. Click one to highlight it, then press "+ Add Emitter to Scene" to place it on the canvas. You can duplicate or delete templates with the buttons on each row.
                         </div>
 
                         <div style={{ color: "#f59e0b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>SCENE (left panel)</div>
                         <div style={{ marginBottom: 12, color: "#999" }}>
-                            The scene list shows every emitter currently on the canvas. Click one to select it. The selected emitter gets a glow and you can edit its settings in the right panel.
+                            Shows every emitter on the canvas. Click to select, then edit in the right panel. Red X removes it.
                         </div>
 
                         <div style={{ color: "#00ffaa", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>CANVAS (center)</div>
                         <div style={{ marginBottom: 12, color: "#999" }}>
-                            Each emitter shows as a crosshair handle. Click a handle to select it, then drag to reposition. Click empty space to deselect. Each emitter has a unique color so you can tell them apart.
+                            Click a handle to select, drag to reposition. Click empty space to deselect. Use the checkboxes (top right) to toggle the grid and emitter handles on/off.
                         </div>
 
                         <div style={{ color: "#00ffaa", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>CONTROLS (right panel)</div>
                         <div style={{ marginBottom: 12, color: "#999" }}>
-                            When an emitter is selected, the right panel shows all its settings. Changes are live — tweak a slider and see the result instantly. Use "Apply Template" to swap an emitter's config to any saved template.
+                            All changes are live. Use "Apply Template" to swap an emitter's config to any saved template.
                         </div>
 
                         <div style={{ color: "#ff6b6b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>BURST MODE</div>
                         <div style={{ marginBottom: 12, color: "#999" }}>
-                            Toggle burst mode on to switch from continuous spawning to on-demand bursts. Set the burst count, then hit the red "Fire Burst" button to spawn them all at once. Great for impacts and hit effects.
+                            Switches from continuous to on-demand bursts. Without timeline: use the red "Fire Burst" button. With timeline: bursts fire automatically at the emitter's start time.
+                        </div>
+
+                        <div style={{ color: "#a29bfe", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>TIMELINE</div>
+                        <div style={{ marginBottom: 12, color: "#999" }}>
+                            Enable timeline to choreograph a multi-emitter effect. Set a system duration and toggle loop. Each emitter gets a start time — it only activates when the playhead reaches that point. Click the timeline bar to scrub. Burst emitters auto-fire at their start time. "Emitter Loop" controls whether that emitter keeps firing each loop cycle or only fires once. Use "Restart Timeline" to reset everything.
                         </div>
 
                         <div style={{ color: "#a29bfe", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>KEY SETTINGS</div>
                         <div style={{ marginBottom: 12, color: "#999" }}>
-                            Size Start/End \u00D7 — particles grow or shrink over their life.{"\n"}
-                            Color Start/Mid/End — 3-point color ramp with adjustable midpoint.{"\n"}
-                            Damping — how fast particles slow down (0 = none, higher = more drag).{"\n"}
-                            Direction — angle particles fire (270\u00B0 = up).{"\n"}
-                            Spread — cone width around the direction.
+                            Size Start/End — particles grow or shrink over life. Color Start/Mid/End — 3-point color ramp. Damping — how fast particles slow down. Direction — angle particles fire (270° = up). Spread — cone width.
                         </div>
 
-                        <div style={{ color: "#f59e0b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>SAVING & EXPORTING</div>
+                        <div style={{ color: "#f59e0b", fontWeight: 600, marginBottom: 4, fontSize: "11px", letterSpacing: 1 }}>EXPORTING</div>
                         <div style={{ marginBottom: 4, color: "#999" }}>
-                            "Save to Template" overwrites the selected template with current settings. "Save as New" creates a new template entry. "Export Selected" or "Export Full Scene" gives you JSON — copy it and paste it to Claude to build into the game.
+                            "Export Selected" or "Export Full Scene" gives you JSON. Copy it and paste it to Claude to build into the game. Scene export includes timeline settings.
                         </div>
                     </div>
                 </div>

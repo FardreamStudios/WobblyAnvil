@@ -128,6 +128,7 @@ function useDayVM(deps) {
                 resolutionToast = { msg: "DECREE COMPLETE\n+" + rqR + "g +" + rqRep + " rep", icon: "", color: "#f59e0b" };
                 spawnQuestNum = questNum + 1;
             } else {
+                GameplayEventBus.emit(EVENT_TAGS.QUEST_FAILED, { questId: royalQuest.id, reputationLoss: royalQuest.reputationLoss });
                 changeRep(-royalQuest.reputationLoss);
                 resolutionToast = { msg: "Quest Overdue!\n-" + royalQuest.reputationLoss + " reputation", icon: "", color: "#ef4444" };
                 spawnQuestNum = questNum + 1;
