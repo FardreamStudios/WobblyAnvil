@@ -22,6 +22,7 @@ import W from "../components/widgets.js";
 import THEME from "../config/theme.js";
 import ForgeFireFX from "../components/ForgeFireFX.js";
 import GameConstants from "./constants.js";
+import usePressHold from "../hooks/usePressHold.js";
 
 // --- Design aspect ratio for portrait scale-to-fit ---
 var LANDSCAPE_MIN_RATIO = 1.3; // width/height — below this we're in portrait territory
@@ -225,39 +226,160 @@ function weaponIcon(wKey) {
 
 // --- Mobile Action Button ---
 
-function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, danger }) {
+function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, danger, holdContent }) {
     var T = THEME;
+    var btnRef = useRef(null);
+    var popRef = useRef(null);
+    var [showPop, setShowPop] = useState(false);
+
+    // --- Press-hold gesture ---
+    var hasHold = !!holdContent;
+    var press = usePressHold({
+        onClick: (!disabled && onClick) ? onClick : null,
+        onHold: hasHold ? function() { setShowPop(true); } : null,
+        disabled: disabled,
+    });
+
+    // --- Dismiss popover on outside tap ---
+    useEffect(function() {
+        if (!showPop) return;
+        function dismiss(e) {
+            if (popRef.current && !popRef.current.contains(e.target) &&
+                btnRef.current && !btnRef.current.contains(e.target)) {
+                setShowPop(false);
+            }
+        }
+        document.addEventListener("touchstart", dismiss);
+        document.addEventListener("mousedown", dismiss);
+        return function() {
+            document.removeEventListener("touchstart", dismiss);
+            document.removeEventListener("mousedown", dismiss);
+        };
+    }, [showPop]);
+
+    // --- Compute popover position ---
+    function getPopStyle() {
+        if (!btnRef.current) return {};
+        var rect = btnRef.current.getBoundingClientRect();
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        var midX = rect.left + rect.width / 2;
+        var goLeft = midX > vw / 2;
+        var popW = 180;
+        var popH = 120; // estimate — CSS will auto-size
+        var margin = 8;
+
+        var style = {
+            position: "fixed",
+            zIndex: 9999,
+            width: popW,
+            maxHeight: vh - margin * 2,
+            overflowY: "auto",
+        };
+
+        // Horizontal
+        if (goLeft) {
+            style.right = vw - rect.left + 6;
+        } else {
+            style.left = rect.right + 6;
+        }
+
+        // Vertical — center on button, clamp to edges
+        var centerY = rect.top + rect.height / 2 - popH / 2;
+        var clampedY = Math.max(margin, Math.min(centerY, vh - popH - margin));
+        style.top = clampedY;
+
+        return style;
+    }
+
+    // --- Arrow nub style ---
+    function getArrowStyle() {
+        if (!btnRef.current) return {};
+        var rect = btnRef.current.getBoundingClientRect();
+        var vw = window.innerWidth;
+        var midX = rect.left + rect.width / 2;
+        var goLeft = midX > vw / 2;
+        var arrowSize = 6;
+
+        var base = {
+            position: "absolute",
+            width: 0, height: 0,
+            borderTop: arrowSize + "px solid transparent",
+            borderBottom: arrowSize + "px solid transparent",
+            top: "50%",
+            transform: "translateY(-50%)",
+        };
+
+        if (goLeft) {
+            // Arrow points right
+            base.right = -arrowSize;
+            base.borderLeft = arrowSize + "px solid " + T.colors.borderLight;
+        } else {
+            // Arrow points left
+            base.left = -arrowSize;
+            base.borderRight = arrowSize + "px solid " + T.colors.borderLight;
+        }
+        return base;
+    }
+
     var textColor = disabled ? T.colors.bgHighlight : danger ? T.colors.red : color || T.colors.gold;
     var hasImg = !!imgSrc;
     var borderColor = hasImg ? "transparent" : (disabled ? T.colors.borderDark : danger ? T.colors.red : color || T.colors.gold);
-    var bg = hasImg ? "transparent" : (disabled ? T.colors.bgDeep : danger ? T.colors.bgDanger : T.colors.bgWarm);
+    var bgColor = hasImg ? "transparent" : (disabled ? T.colors.bgDeep : danger ? T.colors.bgDanger : T.colors.bgWarm);
     var iconFilter = disabled ? "brightness(0.3)" : "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 2px rgba(0,0,0,0.6))";
+
+    // If holdContent exists, use press handlers instead of plain onClick
+    var btnProps = hasHold ? press.handlers : { onClick: disabled ? null : onClick };
+
     return (
-        <button onClick={disabled ? null : onClick} disabled={disabled} style={{
-            background: bg,
-            border: "1px solid " + borderColor,
-            borderRadius: T.radius.md,
-            color: textColor,
-            cursor: disabled ? "not-allowed" : "pointer",
-            fontFamily: T.fonts.body,
-            fontWeight: "bold",
-            fontSize: T.fontSize.xs,
-            letterSpacing: T.letterSpacing.tight,
-            textTransform: "uppercase",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: T.spacing.xxs,
-            padding: "4px 4px",
-            width: "100%",
-            height: "100%",
-            flex: 1,
-        }}>
-            {imgSrc && <img src={imgSrc} alt={label || ""} style={{ width: imgSize || 40, height: imgSize || 40, objectFit: "contain", filter: iconFilter }} />}
-            {!imgSrc && icon && <span style={{ fontSize: T.fontSize.xxl, lineHeight: 1 }}>{icon}</span>}
-            {!imgSrc && label && <span>{label}</span>}
-        </button>
+        <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1 }}>
+            <button {...btnProps} disabled={disabled} style={{
+                background: press.isHolding ? T.colors.bgHighlight : bgColor,
+                border: "1px solid " + borderColor,
+                borderRadius: T.radius.md,
+                color: textColor,
+                cursor: disabled ? "not-allowed" : "pointer",
+                fontFamily: T.fonts.body,
+                fontWeight: "bold",
+                fontSize: T.fontSize.xs,
+                letterSpacing: T.letterSpacing.tight,
+                textTransform: "uppercase",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: T.spacing.xxs,
+                padding: "4px 4px",
+                width: "100%",
+                height: "100%",
+                flex: 1,
+                transition: "background 0.1s ease",
+                WebkitUserSelect: "none",
+                userSelect: "none",
+            }}>
+                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} style={{ width: imgSize || 40, height: imgSize || 40, objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />}
+                {!imgSrc && icon && <span style={{ fontSize: T.fontSize.xxl, lineHeight: 1, pointerEvents: "none" }}>{icon}</span>}
+                {!imgSrc && label && <span style={{ pointerEvents: "none" }}>{label}</span>}
+            </button>
+
+            {/* Hold popover */}
+            {showPop && holdContent && (
+                <div ref={popRef} style={Object.assign({}, getPopStyle(), {
+                    background: T.colors.bgMid,
+                    border: "1px solid " + T.colors.borderLight,
+                    borderRadius: T.radius.lg,
+                    padding: "10px 12px",
+                    boxShadow: T.shadows.heavy || "0 6px 24px rgba(0,0,0,0.85)",
+                    color: T.colors.textBody,
+                    fontSize: T.fontSize.sm,
+                    fontFamily: T.fonts.body,
+                    lineHeight: 1.5,
+                })}>
+                    <div style={getArrowStyle()} />
+                    {typeof holdContent === "function" ? holdContent() : holdContent}
+                </div>
+            )}
+        </div>
     );
 }
 
