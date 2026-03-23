@@ -962,7 +962,7 @@ function MobileLayout(props) {
     // --- Center content ---
     var forgeBtnPos = { position: "absolute", top: "55%", left: "50%", transform: "translate(-50%, -50%)", zIndex: T.z.ui };
     var center = (
-        <div className="mobile-center" onClick={isQTEActive ? props.onForgeClick : null} style={{ cursor: isQTEActive ? "pointer" : "default" }}>
+        <div className="mobile-center" onClick={isQTEActive ? props.onForgeClick : null} onTouchStart={isQTEActive ? function(e) { e.preventDefault(); props.onForgeClick(); } : null} style={{ cursor: isQTEActive ? "pointer" : "default" }}>
             {props.overlay}
             {props.scene}
             {props.forgeUI}

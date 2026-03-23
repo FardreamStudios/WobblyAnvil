@@ -82,6 +82,7 @@ function usePressHold(opts) {
     }, []);
 
     var onTouchEnd = useCallback(function(e) {
+        e.preventDefault();
         endPress();
     }, [onClick, onHold]);
 

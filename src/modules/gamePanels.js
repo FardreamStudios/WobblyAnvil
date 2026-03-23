@@ -236,8 +236,10 @@ function CustomerPanel({ customer, weapon, onSell, onRefuse, silverTongue, price
 
 function MaterialsModal({ inv, onClose, onSell, sfx, title }) {
     var displayTitle = title || "MATERIALS";
+    var mountedRef = useRef(false);
+    useEffect(function() { var a = requestAnimationFrame(function() { requestAnimationFrame(function() { mountedRef.current = true; }); }); return function() { cancelAnimationFrame(a); }; }, []);
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={function(e) { if (mountedRef.current && e.target === e.currentTarget) onClose(); }}>
             <div style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 12, padding: "20px", width: "min(500px,90vw)" }}>
                 <Row style={{ marginBottom: 16 }}>
                     <div style={{ fontSize: 16, color: "#f59e0b", letterSpacing: 3 }}>{displayTitle}</div>
@@ -280,9 +282,11 @@ function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult
     var hasPromote = typeof onPromote === "function";
     var TABS = [["materials", "Materials"], ["blueprints", "Blueprints"], ["upgrades", "Upgrades"]];
     if (hasPromote) TABS.push(["promote", "Promote"]);
+    var mountedRef = useRef(false);
+    useEffect(function() { var a = requestAnimationFrame(function() { requestAnimationFrame(function() { mountedRef.current = true; }); }); return function() { cancelAnimationFrame(a); }; }, []);
 
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={function(e) { if (e.target === e.currentTarget) onClose(); }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={function(e) { if (mountedRef.current && e.target === e.currentTarget) onClose(); }}>
             <div style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 12, width: "min(680px,95vw)", height: "min(560px,85vh)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 <Row style={{ padding: "16px 20px", borderBottom: "1px solid #2a1f0a" }}>
                     <div style={{ fontSize: 18, color: "#f59e0b", letterSpacing: 3 }}>MARKET</div>
