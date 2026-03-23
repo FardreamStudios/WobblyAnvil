@@ -440,31 +440,15 @@ export default function App() {
               </div>
           )}
 
-          {/* QTE dark box — quality/stress bars + QTE needle */}
-          {(showBars || isQTEActive) && (
+          {/* QTE dark box — only during active QTE phases */}
+          {isQTEActive && (
               <div style={{ width: "100%", maxWidth: 400, background: "rgba(8,5,2,0.88)", border: "1px solid #2a1f0a", borderRadius: 10, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
-                {showBars && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>QUALITY</span>
-                        <span style={{ fontSize: 10, color: getQualityTier(qualScore).weaponColor, fontWeight: "bold" }}>{getQualityTier(qualScore).label} ({qualScore})</span>
-                      </div>
-                      <Bar value={qualScore} max={100} color={getQualityTier(qualScore).weaponColor} h={8} />
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
-                        <span style={{ fontSize: 8, color: "#8a7a64", letterSpacing: 1 }}>STRESS</span>
-                        <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
-                          <Pips count={STRESS_MAX} filled={stress} filledColor={stressColor} size={12} />
-                          <span style={{ color: stressColor, fontWeight: "bold", fontSize: 9 }}>{stressLabel2}</span>
-                        </div>
-                      </div>
-                    </div>
-                )}
                 <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
               </div>
           )}
 
           {/* QTEPanel when NOT in dark box (non-QTE forge phases that still need it) */}
-          {!showBars && !isQTEActive && (
+          {!isQTEActive && (
               <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
           )}
 
@@ -588,8 +572,10 @@ export default function App() {
               /* Data strip props — forging */
               qualScore={qualScore}
               qualityColor={getQualityTier(qualScore).weaponColor}
+              qualityLabel={getQualityTier(qualScore).label}
               stressColor={stressColor}
               stressLabel={stressLabel2}
+              stressFilled={stress}
               weaponName={weapon.name}
               matName={matData.name}
               matColor={matData.color}
