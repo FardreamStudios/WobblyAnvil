@@ -147,8 +147,8 @@ function CustomerPanel({ customer, weapon, onSell, onRefuse, silverTongue, price
     var budgetRef = useRef(Math.round(shelfValue * rand(customer.type.budgetLow, customer.type.budgetHigh)));
     var moodRef = useRef(MOODS[randInt(0, weapon.score >= TIERS[8].scoreMin ? 3 : weapon.score >= TIERS[4].scoreMin ? 2 : 1)]);
     var mood = moodRef.current;
-    var maxOffer = Math.round(budgetRef.current * mood.mult * (1 + silverTongue * 0.10) * (priceBonus || 1.0) * (priceDebuff || 1.0));
-    var openingOfferRef = useRef(Math.round(maxOffer * rand(0.6, 0.75)));
+    var maxOffer = Math.round(budgetRef.current * mood.mult * (1 + silverTongue * 0.20) * (priceBonus || 1.0) * (priceDebuff || 1.0));
+    var openingOfferRef = useRef(Math.round(maxOffer * rand(0.6, 0.85)));
     var [offer, setOffer] = useState(openingOfferRef.current);
     var step = Math.max(1, Math.floor(shelfValue * 0.05));
     var [myPrice, setMyPrice] = useState(Math.round(shelfValue * 1.5));

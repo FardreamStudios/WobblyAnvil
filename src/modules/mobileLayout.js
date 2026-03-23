@@ -860,7 +860,7 @@ function MobileLayout(props) {
     // --- Action strip ---
     var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
     var actionStrip = (
-        <div className={actionStripClass} style={{ justifyContent: "stretch" }}>
+        <div className={actionStripClass} style={{ justifyContent: "space-evenly", paddingBottom: "10%" }}>
             {isForging && phase === "sess_result" ? (
                 <>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
@@ -873,16 +873,8 @@ function MobileLayout(props) {
                 <div style={{ flex: 1 }} />
             ) : (
                 <>
-                    {/* Decree + Sleep/Rest row */}
-                    <div style={{ display: "flex", gap: 4, flex: 2 }}>
-                        {props.royalQuest && (
-                            <div style={{ width: 36, flexShrink: 0, display: "flex" }}><DecreeBtn quest={props.royalQuest} questNum={props.questNum} /></div>
-                        )}
-                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-                            <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
-                            <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" /></div>
-                        </div>
-                    </div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} holdContent="Browse weapons, materials, and upgrades" /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
@@ -891,8 +883,22 @@ function MobileLayout(props) {
         </div>
     );
 
+    // --- Decree float (left of sidebar, between rest and sleep height) ---
+    var decreeFloat = props.royalQuest && !isForging && !isQTEActive ? (
+        <div style={{
+            position: "absolute",
+            top: "28%",
+            right: isLeftHanded ? "auto" : 140,
+            left: isLeftHanded ? 140 : "auto",
+            zIndex: T.z.ui + 1,
+            width: 44,
+        }}>
+            <DecreeBtn quest={props.royalQuest} questNum={props.questNum} />
+        </div>
+    ) : null;
+
     // --- Center content ---
-    var forgeBtnPos = { position: "absolute", bottom: "33%", left: "50%", transform: "translateX(-50%)", zIndex: T.z.ui };
+    var forgeBtnPos = { position: "absolute", top: "55%", left: "50%", transform: "translate(-50%, -50%)", zIndex: T.z.ui };
     var center = (
         <div className="mobile-center" onClick={isQTEActive ? props.onForgeClick : null} style={{ cursor: isQTEActive ? "pointer" : "default" }}>
             {props.overlay}
@@ -941,6 +947,7 @@ function MobileLayout(props) {
         <MobileShell className={props.className}>
             <div className="mobile-middle" style={{ flexDirection: middleDirection }}>
                 {center}
+                {decreeFloat}
                 <div style={{ position: "relative", flexShrink: 0, width: 140 }}>
                     <img src={IC.sidebar} alt="" draggable={false} style={{
                         position: "absolute",
@@ -949,20 +956,21 @@ function MobileLayout(props) {
                         left: isLeftHanded ? 0 : "auto",
                         height: "100%",
                         width: "auto",
-                        opacity: 0.85,
+                        opacity: 0.50,
+                        filter: "brightness(0.3)",
                         transform: isLeftHanded ? "scaleX(-1)" : "none",
                         pointerEvents: "none",
                         zIndex: 1,
                     }} />
                     <div style={{
                         position: "absolute",
-                        top: 6,
-                        right: isLeftHanded ? "auto" : 106,
-                        left: isLeftHanded ? 106 : "auto",
+                        top: "1%",
+                        left: 0,
+                        right: 0,
                         zIndex: 3,
                         fontFamily: "'Cinzel', serif",
                         color: T.colors.textLabel,
-                        fontSize: 11,
+                        fontSize: 15,
                         letterSpacing: 2,
                         fontWeight: "bold",
                         textShadow: "0 1px 4px rgba(0,0,0,0.9)",
@@ -971,7 +979,7 @@ function MobileLayout(props) {
                         pointerEvents: "none",
                     }}>
                         DAY<br/>
-                        <span style={{ fontSize: 28, color: T.colors.textLight, letterSpacing: 0 }}>{props.day || 1}</span>
+                        <span style={{ fontSize: 32, color: T.colors.textLight, letterSpacing: 0 }}>{props.day || 1}</span>
                     </div>
                     {actionStrip}
                 </div>

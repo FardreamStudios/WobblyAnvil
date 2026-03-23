@@ -21,7 +21,7 @@ var MORNING_EVENTS = [
     // --- QUIET ---
     {
         id: "slow_morning",
-        chance: 0.20,
+        chance: 0.12,
         icon: "\uD83D\uDCA4",
         color: "#8a7a64",
         tags: ["event", "quiet"],
@@ -33,7 +33,7 @@ var MORNING_EVENTS = [
     // --- FESTIVAL (extra customers) ---
     {
         id: "festival",
-        chance: 0.12,
+        chance: 0.06,
         icon: "\uD83C\uDF89",
         color: "#fbbf24",
         tags: ["event", "buff", "customers"],
@@ -47,7 +47,7 @@ var MORNING_EVENTS = [
     // --- MERCHANT (gift materials) ---
     {
         id: "merchant_visit",
-        chance: 0.10,
+        chance: 0.07,
         icon: "\u2692",
         color: "#4ade80",
         tags: ["event", "buff", "materials"],
@@ -61,7 +61,7 @@ var MORNING_EVENTS = [
     // --- RAT (lose materials) ---
     {
         id: "rat_infestation",
-        chance: 0.08,
+        chance: 0.06,
         icon: "\uD83D\uDC00",
         color: "#fb923c",
         tags: ["event", "hazard", "materials"],
@@ -76,7 +76,7 @@ var MORNING_EVENTS = [
     // --- RIVAL (sell price debuff) ---
     {
         id: "rival",
-        chance: 0.08,
+        chance: 0.06,
         icon: "\uD83D\uDE20",
         color: "#ef4444",
         tags: ["event", "debuff", "market"],
@@ -90,7 +90,7 @@ var MORNING_EVENTS = [
     // --- BACKPAIN (forced exhaustion) ---
     {
         id: "backpain",
-        chance: 0.06,
+        chance: 0.04,
         icon: "\uD83E\uDD15",
         color: "#fb923c",
         tags: ["event", "hazard", "stamina"],
@@ -104,7 +104,7 @@ var MORNING_EVENTS = [
     // --- APPRENTICE (bonus stamina) ---
     {
         id: "apprentice",
-        chance: 0.10,
+        chance: 0.07,
         icon: "\uD83D\uDC66",
         color: "#4ade80",
         tags: ["event", "buff", "stamina"],
@@ -118,7 +118,7 @@ var MORNING_EVENTS = [
     // --- BONANZA (sell price buff) ---
     {
         id: "bonanza",
-        chance: 0.08,
+        chance: 0.06,
         icon: "\uD83D\uDC8E",
         color: "#4ade80",
         tags: ["event", "buff", "market"],
@@ -132,7 +132,7 @@ var MORNING_EVENTS = [
     // --- COMMISSION (free gold) ---
     {
         id: "commission",
-        chance: 0.06,
+        chance: 0.04,
         icon: "\uD83C\uDFF0",
         color: "#4ade80",
         tags: ["event", "buff", "gold"],
@@ -146,7 +146,7 @@ var MORNING_EVENTS = [
     // --- TAXMAN (lose gold) ---
     {
         id: "taxman",
-        chance: 0.06,
+        chance: 0.04,
         icon: "\uD83D\uDCB0",
         color: "#ef4444",
         tags: ["event", "hazard", "gold"],
@@ -161,7 +161,7 @@ var MORNING_EVENTS = [
     // --- MOM (lose hours + stamina) ---
     {
         id: "mom",
-        chance: 0.06,
+        chance: 0.04,
         icon: "\uD83D\uDC69",
         color: "#fb923c",
         tags: ["event", "hazard", "time"],
@@ -175,7 +175,7 @@ var MORNING_EVENTS = [
     // --- FIRE (lose hours + gold) ---
     {
         id: "fire",
-        chance: 0.05,
+        chance: 0.03,
         icon: "\uD83D\uDD25",
         color: "#ef4444",
         tags: ["event", "hazard", "gold", "time"],
@@ -190,7 +190,7 @@ var MORNING_EVENTS = [
     // --- FLOOD (lose hours + gold) ---
     {
         id: "flood",
-        chance: 0.04,
+        chance: 0.03,
         icon: "\uD83C\uDF0A",
         color: "#60a5fa",
         tags: ["event", "hazard", "gold", "time"],
@@ -205,7 +205,7 @@ var MORNING_EVENTS = [
     // --- DROUGHT (material price increase) ---
     {
         id: "drought",
-        chance: 0.06,
+        chance: 0.05,
         icon: "\u2600",
         color: "#fb923c",
         tags: ["event", "debuff", "market"],
@@ -220,7 +220,7 @@ var MORNING_EVENTS = [
     // --- CURSE (lose portion of materials) ---
     {
         id: "curse",
-        chance: 0.05,
+        chance: 0.04,
         icon: "\uD83D\uDC80",
         color: "#ef4444",
         tags: ["event", "hazard", "materials"],
@@ -235,7 +235,7 @@ var MORNING_EVENTS = [
     // --- VIRAL (guaranteed customers all day) ---
     {
         id: "viral",
-        chance: 0.03,
+        chance: 0.02,
         icon: "\uD83C\uDF1F",
         color: "#fbbf24",
         tags: ["event", "buff", "customers"],
@@ -253,7 +253,7 @@ var MORNING_EVENTS = [
     // --- BLESSING OF FLAME (wider heat perfect zone all day) ---
     {
         id: "blessing_of_flame",
-        chance: 0.07,
+        chance: 0.05,
         icon: "\uD83D\uDD25",
         color: "#f59e0b",
         tags: ["event", "buff", "forge"],
@@ -275,7 +275,7 @@ var MORNING_EVENTS = [
     // --- SUPPLY CARAVAN (material prices drop 30% all day) ---
     {
         id: "supply_caravan",
-        chance: 0.06,
+        chance: 0.04,
         icon: "\uD83D\uDED2",
         color: "#4ade80",
         tags: ["event", "buff", "market"],
@@ -297,7 +297,7 @@ var MORNING_EVENTS = [
     // --- TRAVELING SMITH (customer chance halved all day) ---
     {
         id: "traveling_smith",
-        chance: 0.06,
+        chance: 0.04,
         icon: "\u2694",
         color: "#ef4444",
         tags: ["event", "debuff", "customers"],
@@ -319,7 +319,7 @@ var MORNING_EVENTS = [
     // --- ROYAL INSPECTION (double rep gain until next sale) ---
     {
         id: "royal_inspection",
-        chance: 0.05,
+        chance: 0.04,
         icon: "\uD83D\uDC51",
         color: "#a78bfa",
         tags: ["event", "buff", "reputation"],

@@ -132,7 +132,7 @@ var STAT_META = {
     brawn:        { label: "Brawn",         desc: "Each point adds +1 max stamina." },
     precision:    { label: "Precision",     desc: "Slows needle in all QTEs. Stacks with forge/anvil/quench upgrade bonuses." },
     technique:    { label: "Technique",     desc: "Increases hammer strike points. Stacks with hammer upgrade bonus." },
-    silverTongue: { label: "Silver Tongue", desc: "Each point raises the customer's maximum offer by 10%." },
+    silverTongue: { label: "Silver Tongue", desc: "Each point raises the customer's maximum offer by 20%." },
 };
 
 // --- Upgrades ---
@@ -184,7 +184,7 @@ var CUST_TYPES = [
     { id: "adventurer", name: "Nervous Adventurer", icon: "\u2694",      minQuality: 0,              budgetLow: 0.55, budgetHigh: 0.75, patience: 4, greet: ["First dungeon tomorrow.", "Something pointy please.", "Any payment plans?"] },
     { id: "wizard",     name: "Arcane Wizard",      icon: "\uD83E\uDDD9", minQuality: TIER_FINE_MIN,    budgetLow: 1.0,  budgetHigh: 1.30, patience: 3, greet: ["I require only the finest.", "Ordinary steel bores me.", "Impress me, smith."] },
     { id: "knight",     name: "Town Knight",        icon: "\uD83D\uDEE1", minQuality: 0,              budgetLow: 0.80, budgetHigh: 1.05, patience: 4, greet: ["Something befitting a knight.", "Polish matters as much as edge.", "Make it worthy."] },
-    { id: "goblin",     name: "Goblin Merchant",    icon: "\uD83D\uDC7A", minQuality: 0,              budgetLow: 0.40, budgetHigh: 0.55, patience: 2, greet: ["Goblin pay fair. Maybe.", "Goblin not picky.", "You sell, goblin buy."] },
+    { id: "goblin",     name: "Goblin Merchant",    icon: "\uD83D\uDC7A", minQuality: 0,              budgetLow: 0.55, budgetHigh: 0.70, patience: 2, greet: ["Goblin pay fair. Maybe.", "Goblin not picky.", "You sell, goblin buy."] },
     { id: "guard",      name: "Town Guard",         icon: "\uD83C\uDFF0", minQuality: 0,              budgetLow: 0.65, budgetHigh: 0.85, patience: 3, greet: ["Won't break on me, right?", "Budget's tight this month.", "Just needs to be reliable."] },
     { id: "noble",      name: "Visiting Noble",     icon: "\uD83D\uDC51", minQuality: TIER_FINE_MIN,    budgetLow: 1.10, budgetHigh: 1.45, patience: 2, greet: ["I hear you supply the crown.", "Only the finest will do.", "Quality above all else."] },
     { id: "bounty",     name: "Bounty Hunter",      icon: "\uD83C\uDFF9", minQuality: 0,              budgetLow: 0.85, budgetHigh: 1.10, patience: 3, greet: ["Make it quick, I'm on a contract.", "Needs to hold up in a fight.", "No frills, just reliable."] },
@@ -327,7 +327,7 @@ var FIRE_FX_MOBILE = {
     displayW: 235,
     displayH: 155,
     posLeft: "2%",
-    posTop: "8%",
+    posTop: "11%",
     zIndex: 3,
     coalRX: 30,
     coalRY: 6,
