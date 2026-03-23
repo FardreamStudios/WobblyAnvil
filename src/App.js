@@ -126,11 +126,6 @@ var isFullscreenActive = MobileLayoutModule.isFullscreenActive;
 // ============================================================
 
 export default function App() {
-  // Dev tools route — bypass game entirely
-  if (window.location.pathname.startsWith("/dev")) {
-    return <DevRouter />;
-  }
-
   var sfx = useAudio();
   var isMobile = useLayoutMode();
 
@@ -414,6 +409,11 @@ export default function App() {
   // ============================================================
   // RENDER
   // ============================================================
+
+  // Dev tools route — bypass game rendering (hooks already called above)
+  if (window.location.pathname.startsWith("/dev")) {
+    return <DevRouter />;
+  }
 
   if (gameOver) return <ScaleWrapper key="sw"><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScaleWrapper>;
   if (screen === "splash") return <ScaleWrapper key="sw"><SplashScreen onEnter={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
