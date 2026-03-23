@@ -1007,7 +1007,22 @@ function MobileLayout(props) {
                     <span style={{ fontFamily: "'Cinzel', serif", color: T.colors.textLabel, fontSize: 18, letterSpacing: 2, fontWeight: "bold", textShadow: "0 1px 4px rgba(0,0,0,0.9)", lineHeight: 1 }}>DAY</span>
                     <span style={{ fontFamily: "'Cinzel', serif", fontSize: 28, color: T.colors.textLight, fontWeight: "bold", textShadow: "0 1px 4px rgba(0,0,0,0.9)", lineHeight: 1 }}>{props.day || 1}</span>
                 </div>
-                {/* Action strip — absolute overlay, does not push background */}
+                {/* Sidebar background image — free-floating, not clipped by action strip */}
+                <img src={IC.sidebar} alt="" draggable={false} style={{
+                    position: "absolute",
+                    top: 0,
+                    bottom: 0,
+                    right: isLeftHanded ? "auto" : 0,
+                    left: isLeftHanded ? 0 : "auto",
+                    height: "100%",
+                    width: 120,
+                    objectFit: "cover",
+                    opacity: 0.60,
+                    transform: isLeftHanded ? "scaleX(-1)" : "none",
+                    pointerEvents: "none",
+                    zIndex: T.z.ui - 1,
+                }} />
+                {/* Action strip — absolute overlay, passes clicks during QTE */}
                 <div style={{
                     position: "absolute",
                     top: 0,
@@ -1019,21 +1034,8 @@ function MobileLayout(props) {
                     flexDirection: "column",
                     zIndex: T.z.ui,
                     background: "transparent",
-                    overflow: "visible",
+                    pointerEvents: isQTEActive ? "none" : "auto",
                 }}>
-                    <img src={IC.sidebar} alt="" draggable={false} style={{
-                        position: "absolute",
-                        top: 0,
-                        right: isLeftHanded ? "auto" : 0,
-                        left: isLeftHanded ? 0 : "auto",
-                        height: "100%",
-                        width: "110%",
-                        objectFit: "cover",
-                        opacity: 1.0,
-                        transform: isLeftHanded ? "scaleX(-1)" : "none",
-                        pointerEvents: "none",
-                        zIndex: 1,
-                    }} />
                     {actionStrip}
                 </div>
                 {drawer}
