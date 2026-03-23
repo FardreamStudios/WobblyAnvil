@@ -98,31 +98,29 @@ Each spec below covers one system or module. Format: what it does, why we need i
 
 ---
 
-## SPEC: Events (Legacy)
+## SPEC: Events (Legacy) — REPLACED
 
 **File:** `src/modules/events.js`  
-**Status:** ⚠️ SCHEDULED FOR REPLACEMENT — See DES-1 spec
+**Status:** ❌ REPLACED by DES-1 Ability System (M-1 thru M-10 complete)
 
-**What it does:** Defines the EVENTS array (all daily event types with weighted variants), `rollDailyEvent()` roller, and `generateRoyalQuest()` generator.
+**What it did:** Defined the EVENTS array (all daily event types with weighted variants), `rollDailyEvent()` roller, and `generateRoyalQuest()` generator.
 
-**Why it exists:** Original event system — picks a random morning event and applies its effect. Works but tightly couples event selection with effect execution.
+**Replaced by:** Individual ability files in `src/abilities/morning/`. Morning roll now handled by `AbilityManager.rollMorning()`. `generateRoyalQuest` preserved in `src/logic/`.
 
-**What's replacing it:** DES-1 Ability System. Individual ability files replace the EVENTS array. Bus-reactive activation replaces the morning roller. `generateRoyalQuest` will be preserved — moved to `src/logic/`.
-
-**When it's used:** Called once per day by `useDayVM.buildDayQueue`.
+**Action:** Delete from disk if still present.
 
 ---
 
-## SPEC: Dynamic Events (Legacy)
+## SPEC: Dynamic Events (Legacy) — REPLACED
 
 **File:** `src/logic/dynamicEvents.js`  
-**Status:** ⚠️ SCHEDULED FOR REPLACEMENT — See DES-1 spec
+**Status:** ❌ REPLACED by DES-1 Ability System (M-1 thru M-10 complete)
 
-**What it does:** Three functions: `mysteryGood` (divine visitor VFX + rewards), `mysteryBad` (shadow attack VFX + damage), `applyEventResult` (translates event snapshot objects into bus emissions).
+**What it did:** Three functions: `mysteryGood` (divine visitor VFX + rewards), `mysteryBad` (shadow attack VFX + damage), `applyEventResult` (translates event snapshot objects into bus emissions).
 
-**Why it exists:** Bridge between old snapshot-based events and the new bus. Mystery events speak bus-native. Regular events still return snapshots that `applyEventResult` translates.
+**Replaced by:** `src/abilities/morning/mysteryVisitor.js` and `src/abilities/morning/mysteryShadow.js`. Each ability emits its own tags directly — no translation layer needed.
 
-**What's replacing it:** DES-1 Ability System. Mystery events become individual ability files. `applyEventResult` eliminated — each ability emits its own tags directly.
+**Action:** Delete from disk if still present.
 
 ---
 
@@ -139,20 +137,20 @@ Each spec below covers one system or module. Format: what it does, why we need i
 
 **When it's used:** Called by FX cues (via bus), directly by some UI interactions (button clicks), and music modes triggered by phase changes.
 
-**Review note:** Music mode switching is currently triggered from App.js. Should eventually be driven by bus tags when GameMode takes over phase management.
+**Review note:** Music mode switching is currently triggered from App.js. Should be driven by bus tags now that GameMode owns phase management.
 
 ---
 
 ## SPEC: App.js (Wiring Layer)
 
 **File:** `src/App.js`  
-**Status:** ⚠️ TOO LARGE — ~697 lines, target is <100 after GameMode extraction
+**Status:** ⚠️ PARTIALLY SHRUNK — GameMode + Ability System wired in. Customer spawning + toast plumbing still inside.
 
-**What it does:** Currently the game brain. Instantiates all state hooks, all VM hooks, wires dependencies between them, owns customer spawning, time advancement, toast management, and renders the layout (mobile or desktop).
+**What it does:** Instantiates all state hooks, all VM hooks, wires dependencies, and renders the layout (mobile or desktop). GameMode and AbilityManager are initialized here. Still owns `trySpawnCustomer`, `advanceTime`, toast queue management, and customer visit tracking.
 
-**Why it's a problem:** It does too many jobs. Orchestration logic, toast plumbing, customer spawning, and view selection are all tangled together. The file should be pure wiring — instantiate systems, connect them, render.
+**Remaining extraction:** Customer spawning logic → `customerManager.js` (DES-1.1). After that extraction, App.js should approach the target of ~100 lines of pure wiring.
 
-**What's replacing the bulk:** DES-1 GameMode takes over orchestration (day cycle, customer spawning, phase management). App.js shrinks to ~30-40 lines of hook instantiation + layout rendering.
+**Target:** <100 lines — instantiate systems, connect them, render. Nothing else.
 
 ---
 
@@ -164,10 +162,11 @@ Each spec below covers one system or module. Format: what it does, why we need i
 - `src/hooks/usePlayerState.js` — reputation, level, XP, stats, upgrades, blueprints
 - `src/hooks/useForgeState.js` — WIP weapon, phase, quality, stress, session data, QTE state
 - `src/hooks/useQuestState.js` — royal quest, active customer, morning event, promote uses
-- `src/hooks/useMysteryState.js` — pending mystery, FX refs, good event tracking
 - `src/hooks/useUIState.js` — screen, modals, toasts, handedness, volume
 
-**Status:** ✅ Stable (except useMysteryState — scheduled for removal in DES-1)
+**Status:** ✅ Stable
+
+**Removed:** `useMysteryState.js` — replaced by ability instances managing their own state (DES-1 M-10). Delete from disk if still present.
 
 **What they do:** Each hook owns one domain's raw state and mutations. Bus subscriptions for incoming events are wired in useEffect. Returns state + setters.
 
@@ -352,47 +351,50 @@ Each spec below covers one system or module. Format: what it does, why we need i
 
 ---
 
-## SPEC: GameMode (Planned — DES-1)
+## SPEC: GameMode
 
-**Files (planned):** `src/gameMode/gameMode.js`, `src/gameMode/useGameMode.js`, `src/gameMode/forgeMode.js`, `src/gameMode/shopMode.js`, `src/gameMode/idleMode.js`  
-**Status:** 🔵 PLANNED — Full spec in `architecture/DES-1_GameMode_AbilitySystem.md`
+**Files:** `src/gameMode/gameMode.js`, `src/gameMode/useGameMode.js`, `src/gameMode/forgeMode.js`  
+**Status:** ✅ LIVE — DES-1 M-2, M-5, M-6, M-7 complete
 
-**What it does:** Owns the macro game loop — day lifecycle (wake → morning → open → late → sleep → next day), sub-mode switching (forge, shop, future activities), win/loss conditions, and game-level bus emissions. Pure JS core with a thin React hook wrapper.
-
-**Why we need it:** App.js currently owns ~200 lines of orchestration logic (day cycling, customer spawning, phase management, sleep sequence). This is game *rules*, not wiring — it belongs in a dedicated system. GameMode also enables adding new activity modes (fishing, trading) without touching core wiring.
-
-**When it's used:** Always active. It's the top-level game loop that everything else runs inside.
+**What it does:** Owns the macro game loop — day lifecycle (wake → morning → open → late → sleep → next day), sub-mode switching, win/loss conditions, and game-level bus emissions. Pure JS core with a thin React hook wrapper.
 
 **Architecture:** Pure JS core (`gameMode.js`) = C++ UGameMode. React hook wrapper (`useGameMode.js`) = Blueprint that bridges to rendering. Sub-modes implement a standard contract: `canEnter`, `onEnter`, `onExit`, `getPhase`, `getView`.
 
-**UE Analogy:** AGameMode (C++ base) + Blueprint GameMode + GameState.
+**Currently registered sub-modes:** forgeMode. Shop and idle modes not yet extracted.
 
-**Replaces:** Day cycle logic in useDayVM, orchestration in App.js, implicit phase management.
+**What it replaced:** Day cycle logic from useDayVM, orchestration from App.js, implicit phase management.
+
+**Remaining work:** Customer spawning timing was originally spec'd to live here (DES-1 Section 3.2), but the complexity warrants a dedicated `customerManager.js` that listens to GameMode's lifecycle tags. See Customer Manager spec below.
+
+**UE Analogy:** AGameMode (C++ base) + Blueprint GameMode + GameState.
 
 ---
 
-## SPEC: Ability Manager (Planned — DES-1)
+## SPEC: Ability Manager
 
-**Files (planned):** `src/abilities/abilityManager.js`, `src/abilities/index.js`, `src/abilities/morning/*.js`, `src/abilities/reactive/*.js`  
-**Status:** 🔵 PLANNED — Full spec in `architecture/DES-1_GameMode_AbilitySystem.md`
+**Files:** `src/abilities/abilityManager.js`, `src/abilities/index.js`, `src/abilities/morning/*.js`, `src/abilities/reactive/*.js`  
+**Status:** ✅ LIVE — DES-1 M-1, M-3, M-4, M-8, M-9 complete
 
 **What it does:** Reactive gameplay ability system. Abilities are self-contained definitions (one per file) that watch the bus for triggers, self-activate when conditions are met, run behavior (emit bus tags, register modifiers), and self-terminate when end conditions are met or scope expires.
 
-**Why we need it:** The current event system (events.js) is a monolithic roller that couples "pick an event" with "do the event." Abilities decouple these — any system can trigger an ability, and abilities affect game state through the bus without knowing who's listening. This also enables persistent effects ("cursed forge until you sell a weapon") and reactive gameplay ("3 good forges in a row triggers a buff").
+**Morning abilities live:** festival, merchantVisit, ratInfestation, fire, weatherEvent, cursedForge, mysteryVisitor, mysteryShadow. Morning roll handled by `AbilityManager.rollMorning()`.
 
-**When it's used:** Always active. The manager watches the bus from game start. Abilities activate and deactivate throughout gameplay based on triggers from any system (day cycle, forge, economy, player actions).
+**Reactive abilities live:** hotStreak, shameDebuff, royalAttention.
 
 **Key features:**
 - Lifecycle: Registered → Watching → Active → Ending → Dead
 - Modifier system: abilities declare operations (add, multiply, override, set_min, set_max) on game attributes. Resolution order: override → multiply → add → clamp.
 - Scoping: "day" (auto-end at day end), "permanent" (persists across days), "manual" (explicit end or endWhen condition).
+- Toast buffer: Morning abilities queue toasts via `queueToast()`, flushed by `useDayVM.buildDayQueue`.
 - Diagnostics: warning log at 10+ active abilities.
+
+**Modifier attributes currently wired:** `heatPerfectZone`, `materialPrice`, `customerChance`, `repGain`.
 
 **Architecture:** Each ability is a single JS file exporting a definition object. `index.js` collects all definitions for bulk registration. Adding a new ability = one file + one import line.
 
 **UE Analogy:** Gameplay Ability System (GAS) — Abilities + Gameplay Effects + Modifier system.
 
-**Replaces:** events.js (EVENTS array, rollDailyEvent), dynamicEvents.js (mysteryGood, mysteryBad, applyEventResult), useMysteryState.js.
+**Replaced:** events.js (EVENTS array, rollDailyEvent), dynamicEvents.js (mysteryGood, mysteryBad, applyEventResult), useMysteryState.js.
 
 ---
 
@@ -413,4 +415,38 @@ Each spec below covers one system or module. Format: what it does, why we need i
 
 ---
 
-*End of architecture audit. Systems marked ⚠️ have active replacement plans in DES-1. Systems marked 🔵 are planned builds.*
+## SPEC: Customer Manager (Planned — DES-1.1)
+
+**File (planned):** `src/logic/customerManager.js`  
+**Status:** 🔵 PLANNED
+
+**What it does:** Pure JS singleton that owns the full customer lifecycle — spawn decisions, active customer tracking, walkout timers, daily visit caps, and cleanup. Communicates exclusively through the bus. Zero React.
+
+**Why we need it:** Customer spawning is currently ~20 lines of bespoke logic inside App.js (`trySpawnCustomer`) plus scattered `setTimeout` calls and ref tracking (`custVisRef`, `maxCustRef`, `guaranteedCustomersRef`). There is no single owner for the customer lifecycle, which causes the orphaned `activeCustomer` lockup bug — if a customer is set but never cleared, the game softlocks because `isLocked` stays true in the Input Router.
+
+**Why not GameMode:** DES-1 Section 3.2 originally spec'd customer spawning timing inside GameMode. In practice, customer logic (type matching, quality gates, walkout timers, cooldowns, visit caps) is complex enough to warrant its own manager. Same delegation pattern as AbilityManager — GameMode emits lifecycle tags, CustomerManager listens and handles the domain logic.
+
+**Execution flow:**
+```
+GameMode emits GAME.DAY.OPEN → CustomerManager starts listening for hour ticks
+DAY_ADVANCE_HOUR { hour } → CustomerManager checks guards → emits CUSTOMER_SPAWN
+useQuestState hears CUSTOMER_SPAWN → setActiveCustomer()
+Player sells/refuses → bus emits ECONOMY_WEAPON_SOLD or CUSTOMER_REFUSE
+CustomerManager hears it → emits CUSTOMER_CLEAR
+useQuestState hears CUSTOMER_CLEAR → setActiveCustomer(null)
+GameMode emits GAME.DAY.END → CustomerManager resets daily counters
+```
+
+**Bus tags (new):** CUSTOMER_SPAWN, CUSTOMER_CLEAR, CUSTOMER_WALKOUT, CUSTOMER_REFUSE
+
+**Spawn guards:** Hour range (9–21), no active customer, visits < daily max, phase is IDLE or SESS_RESULT, random roll against `resolveValue("customerChance", 0.42)`.
+
+**Architecture:** Same pattern as `abilityManager.js` and `gameMode.js` — pure JS core, init with bus reference, talks only through tags. Could run in Node with a bus stub.
+
+**Replaces:** `trySpawnCustomer` in App.js, `custVisRef`, `maxCustRef`, `guaranteedCustomersRef`, all scattered `setTimeout` spawn calls.
+
+**UE Analogy:** A subsystem dedicated to NPC spawning — like a Spawn Manager that listens to the Game Mode's phase broadcasts.
+
+---
+
+*End of architecture audit. Systems marked ❌ have been replaced (delete from disk if still present). Systems marked 🔵 are planned builds.*
