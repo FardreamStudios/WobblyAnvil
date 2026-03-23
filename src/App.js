@@ -561,7 +561,7 @@ export default function App() {
               level={level}
               gold={gold}
               day={day}
-              royalQuest={royalQuest}
+              royalQuest={royalQuest}questNum={questNum}
 
               /* Data strip props — forging */
               qualScore={qualScore}
