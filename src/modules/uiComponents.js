@@ -240,7 +240,7 @@ function Tooltip({ title, text, below, children }) {
                     border: "1px solid #f59e0b66",
                     borderRadius: 10,
                     padding: "14px 16px",
-                    fontSize: 12,
+                    fontSize: 24,
                     color: "#c8b89a",
                     lineHeight: 1.8,
                     zIndex: 300,
@@ -248,8 +248,9 @@ function Tooltip({ title, text, below, children }) {
                     boxShadow: "0 6px 20px rgba(0,0,0,0.97)",
                     pointerEvents: "none",
                     whiteSpace: "normal",
+                    overflow: "hidden",
                 })}>
-                    {title && <div style={{ color: "#f59e0b", fontWeight: "bold", letterSpacing: 2, marginBottom: 8, fontSize: 12 }}>{title}</div>}
+                    {title && <div style={{ color: "#f59e0b", fontWeight: "bold", letterSpacing: 2, marginBottom: 8, fontSize: 24 }}>{title}</div>}
                     {text}
                 </div>
             )}
