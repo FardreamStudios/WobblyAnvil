@@ -23,6 +23,17 @@ var SHAPES=["square","circle","triangle","wave","halfmoon"];
 var CURVES=["flat","rampUp","rampDown","easeIn","easeOut","easeInOut","quickIn","quickOut","pulse","waveCurve"];
 var CURVE_LBL={flat:"Flat",rampUp:"Ramp Up",rampDown:"Ramp Down",easeIn:"Ease In",easeOut:"Ease Out",easeInOut:"Ease In-Out",quickIn:"Quick In",quickOut:"Quick Out",pulse:"Pulse",waveCurve:"Wave"};
 
+// Pixel art color palettes — hand-picked colors that look good at low resolution
+var PALETTES=[
+    {name:"PICO-8",colors:["#000000","#1d2b53","#7e2553","#008751","#ab5236","#5f574f","#c2c3c7","#fff1e8","#ff004d","#ffa300","#ffec27","#00e436","#29adff","#83769c","#ff77a8","#ffccaa"]},
+    {name:"Sweetie 16",colors:["#1a1c2c","#5d275d","#b13e53","#ef7d57","#ffcd75","#a7f070","#38b764","#257179","#29366f","#3b5dc9","#41a6f6","#73eff7","#f4f4f4","#94b0c2","#566c86","#333c57"]},
+    {name:"Endesga 32",colors:["#be4a2f","#d77643","#ead4aa","#e4a672","#b86f50","#733e39","#3e2731","#a22633","#e43b44","#f77622","#feae34","#fee761","#63c74d","#3e8948","#265c42","#193c3e","#124e89","#0099db","#2ce8f5","#ffffff","#c0cbdc","#8b9bb4","#5a6988","#3a4466","#262b44","#181425","#ff0044","#68386c","#b55088","#f6757a","#e8b796","#c28569"]},
+    {name:"DB32",colors:["#000000","#222034","#45283c","#663931","#8f563b","#df7126","#d9a066","#eec39a","#fbf236","#99e550","#6abe30","#37946e","#4b692f","#524b24","#323c39","#3f3f74","#306082","#5b6ee1","#639bff","#5fcde4","#cbdbfc","#ffffff","#9badb7","#847e87","#696a6a","#595652","#76428a","#ac3232","#d95763","#d77bba","#8f974a","#8a6f30"]},
+    {name:"Resurrect 64",colors:["#2e222f","#3e3546","#625565","#966c6c","#ab947a","#694f62","#7f708a","#9babb2","#c7dcd0","#ffffff","#6e2727","#b33831","#ea4f36","#f57d4a","#ae2334","#e83b3b","#fb6b1d","#f79617","#f9c22b","#7a3045","#9e4539","#cd683d","#e6904e","#fbb954","#4c3e24","#676633","#a2a947","#d5e04b","#fbff86","#165a4c","#239063","#1ebc73","#91db69","#cddf6c","#313638","#374e4a","#547e64","#92a984","#b2ba90","#0b5e65","#0b8a8f","#0eaf9b","#30e1b9","#8ff8e2","#323353","#484a77","#4d65b4","#4d9be6","#8fd3ff","#45293f","#6b3e75","#905ea9","#a884f3","#eaaded","#753c54","#a24b6f","#cf657f","#ed8099","#831c5d","#c32454","#f04f78","#f68181","#fca790","#fdcbb0"]},
+    {name:"NES",colors:["#000000","#fcfcfc","#f8f8f8","#bcbcbc","#7c7c7c","#a4e4fc","#3cbcfc","#0078f8","#0000fc","#b8b8f8","#6888fc","#0058f8","#0000bc","#d8b8f8","#9878f8","#6844fc","#4428bc","#f8b8f8","#f878f8","#d800cc","#940084","#f8a4c0","#f85898","#e40058","#a80020","#f0d0b0","#f87858","#f83800","#a81000","#fce0a8","#fca044","#e45c10","#881400","#f8d878","#f8b800","#ac7c00","#503000","#d8f878","#b8f818","#00b800","#007800","#b8f8b8","#58d854","#00a800","#006800","#b8f8d8","#58f898","#00a844","#005800","#00fcfc","#00e8d8","#008888","#004058"]},
+];
+var PAL_NAMES=PALETTES.map(function(p){return p.name;});
+
 function evalCurve(name,t){
     var c=Math.max(0,Math.min(1,t));
     switch(name){
@@ -113,6 +124,13 @@ function sv(o,p,val){var a=p.split(".");var c=JSON.parse(JSON.stringify(o));var 
 function dc(o){return JSON.parse(JSON.stringify(o));}
 var nid=1;function mid(){return"em_"+(nid++);}
 
+// Snap a hex color to the nearest color in a palette using RGB distance
+function snapToPal(hex,palIdx){
+    if(palIdx<0||palIdx>=PALETTES.length)return hex;
+    var src=h2rgb(hex),cols=PALETTES[palIdx].colors,best=cols[0],bestD=Infinity;
+    for(var i=0;i<cols.length;i++){var c=h2rgb(cols[i]);var d=(src.r-c.r)*(src.r-c.r)+(src.g-c.g)*(src.g-c.g)+(src.b-c.b)*(src.b-c.b);if(d<bestD){bestD=d;best=cols[i];}}
+    return best;
+}
 // ============================================
 // PARTICLE ENGINE
 // ============================================
@@ -266,6 +284,7 @@ function ParticleEditor(){
     var [bgB,setBgB]=useState(0);var [zoom,setZoom]=useState(1);
     var [panX,setPanX]=useState(0);var [panY,setPanY]=useState(0);
     var panRef=useRef(false),panStart=useRef({x:0,y:0,px:0,py:0});
+    var [palMode,setPalMode]=useState(false);var [palIdx,setPalIdx]=useState(0);
 
     var pausedR=useRef(paused),selIdR=useRef(selId),sysDurR=useRef(sysDur),sysModeR=useRef(sysMode);
     var showGridR=useRef(showGrid),showHR=useRef(showH),bgBR=useRef(bgB),zoomR=useRef(zoom),panXR=useRef(panX),panYR=useRef(panY);
@@ -440,7 +459,7 @@ function ParticleEditor(){
         var v=gv(selEm.pcfg,def.key);
         if(def.type==="text")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input style={S.tin} value={v} onChange={function(e){setPcfg(def.key,e.target.value);}}/></div>;
         if(def.type==="slider")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input type="range" style={S.sli} min={def.min} max={def.max} step={def.step} value={v} onChange={function(e){setPcfg(def.key,def.step<1?parseFloat(e.target.value):parseInt(e.target.value));}}/><span style={S.val}>{v}</span></div>;
-        if(def.type==="color")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input type="color" style={S.cin} value={v} onChange={function(e){setPcfg(def.key,e.target.value);}}/><span style={S.val}>{v}</span></div>;
+        if(def.type==="color")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input type="color" style={S.cin} value={v} onChange={function(e){var c=e.target.value;if(palMode)c=snapToPal(c,palIdx);setPcfg(def.key,c);}}/><span style={S.val}>{v}</span></div>;
         if(def.type==="toggle")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><button style={{...S.tog,background:v?"#00ffaa":"#333"}} onClick={function(){setPcfg(def.key,!v);}}><div style={{...S.knob,left:v?20:2}}/></button></div>;
         if(def.type==="select")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><select style={S.sel2} value={v} onChange={function(e){setPcfg(def.key,e.target.value);}}>{def.options.map(function(o){return <option key={o} value={o}>{o}</option>;})}</select></div>;
         if(def.type==="curve")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><select style={S.cs} value={v||"flat"} onChange={function(e){setPcfg(def.key,e.target.value);}}>{CURVES.map(function(c){return <option key={c} value={c}>{CURVE_LBL[c]}</option>;})}</select><CurveSVG c={v||"flat"}/></div>;
@@ -564,7 +583,18 @@ function ParticleEditor(){
                     <div style={S.sec}><div style={S.st}>Identity</div>{rg("identity")}</div>
                     <div style={S.sec}><div style={S.st}>Size</div>{rg("size")}</div>
                     <div style={S.sec}><div style={S.st}>Motion</div>{rg("motion")}</div>
-                    <div style={S.sec}><div style={S.st}>Appearance</div>{colorPrev()}{rg("appearance")}</div>
+                    <div style={S.sec}><div style={S.st}>Appearance</div>{colorPrev()}
+                        {/* Palette mode controls */}
+                        <div style={S.row}><span style={S.lab}>Pixel Palette</span><button style={{...S.tog,background:palMode?"#f59e0b":"#333"}} onClick={function(){setPalMode(!palMode);}}><div style={{...S.knob,left:palMode?20:2}}/></button></div>
+                        {palMode&&(<>
+                            <div style={S.row}><span style={S.lab}>Palette</span><select style={S.sel2} value={palIdx} onChange={function(e){setPalIdx(parseInt(e.target.value));}}>{PALETTES.map(function(p,i){return <option key={i} value={i}>{p.name+" ("+p.colors.length+")"}</option>;})}</select></div>
+                            <div style={{display:"flex",flexWrap:"wrap",gap:1,marginBottom:8,padding:"4px 0"}}>{PALETTES[palIdx].colors.map(function(c,ci){return <div key={ci} style={{width:16,height:16,background:c,borderRadius:2,cursor:"pointer",border:"1px solid #333",boxSizing:"border-box"}} title={c} onClick={function(){if(!selEm)return;var keys=["colorStart","colorMid","colorEnd"];var cur=[selEm.pcfg.colorStart,selEm.pcfg.colorMid,selEm.pcfg.colorEnd];var best=0,bestD=Infinity;for(var k=0;k<3;k++){var src=h2rgb(cur[k]),tgt=h2rgb(c);var d2=(src.r-tgt.r)*(src.r-tgt.r)+(src.g-tgt.g)*(src.g-tgt.g)+(src.b-tgt.b)*(src.b-tgt.b);if(d2<bestD){bestD=d2;best=k;}}setPcfg(keys[best],c);}}/>;})}</div>
+                            <div style={{display:"flex",gap:4,marginBottom:8}}>
+                                <button style={{...S.rbtn,flex:1,marginTop:0,fontSize:"9px",color:"#f59e0b",borderColor:"#f59e0b44"}} onClick={function(){if(!selEm)return;setPcfg("colorStart",snapToPal(selEm.pcfg.colorStart,palIdx));setPcfg("colorMid",snapToPal(selEm.pcfg.colorMid,palIdx));setPcfg("colorEnd",snapToPal(selEm.pcfg.colorEnd,palIdx));}}>Snap All Colors</button>
+                            </div>
+                        </>)}
+                        {rg("appearance")}
+                    </div>
                     <div style={S.sec}><div style={S.st}>Save</div>
                         {actTpl!==null&&<button style={S.btn} onClick={saveTpl}>Save to "{tpls[actTpl]?tpls[actTpl].name:""}"</button>}
                         <button style={{...S.rbtn,color:"#00ffaa",borderColor:"#00ffaa44"}} onClick={saveNew}>Save as New Template</button>

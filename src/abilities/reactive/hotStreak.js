@@ -66,8 +66,8 @@ var HotStreakAbility = {
     // --- End Condition ---
     endWhen: {
         tag: EVENT_TAGS.FORGE_SESSION_COMPLETE,
-        condition: function(payload) {
-            var quality = payload && payload.quality || 0;
+        condition: function(ctx) {
+            var quality = ctx.payload && ctx.payload.quality || 0;
             return quality < 30;
         },
     },

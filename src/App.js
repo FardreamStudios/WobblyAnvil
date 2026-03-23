@@ -353,7 +353,7 @@ export default function App() {
     gold: gold, inv: inv, matKey: matKey, weapon: weapon, buyPrice: MATS[matKey] ? MATS[matKey].price * Math.max(0, (weapon ? weapon.materialCost : 0) - (inv[matKey] || 0)) : 0
   });
   var dayVM = useDayVM({
-    dayState: dayState, economy: economy, quest: quest, mystery: mystery, gm: gm,
+    dayState: dayState, economy: economy, quest: quest, gm: gm,
     sfx: sfx, addToast: addToast, setToastQueue: setToastQueue, setActiveToast: setActiveToast,
     trySpawnCustomer: trySpawnCustomer, earnGold: earnGold, changeRep: changeRep,
     forgeOnSleep: forgeVM.onSleep,
