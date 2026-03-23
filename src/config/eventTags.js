@@ -53,6 +53,9 @@ var EVENT_TAGS = {
     VFX_SHAKE_WEAPON:       "event.vfx.weapon.shake",
     VFX_SET_VIGNETTE:       "event.vfx.vignette.set",
 
+    // --- Day Display ---
+    DAY_MORNING_EVENT_DISPLAY: "event.day.morning.event.display",
+
     // --- Day Lifecycle (GameMode) ---
     DAY_CYCLE_START:        "event.day.cycle.start",
     DAY_MORNING_START:      "event.day.morning.start",

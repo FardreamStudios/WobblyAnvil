@@ -19,9 +19,9 @@ var EM_COLS=["#00ffaa","#ff6b6b","#4ecdc4","#ffe66d","#a29bfe","#fd79a8","#00cec
 var TL_H=60;
 var SHAPES=["square","circle","triangle","wave","halfmoon"];
 
-// Curves: "flat" is default (always 1), rest are various easings
-var CURVES=["flat","rampUp","rampDown","easeIn","easeOut","easeInOut","quickIn","quickOut","pulse","waveCurve"];
-var CURVE_LBL={flat:"Flat",rampUp:"Ramp Up",rampDown:"Ramp Down",easeIn:"Ease In",easeOut:"Ease Out",easeInOut:"Ease In-Out",quickIn:"Quick In",quickOut:"Quick Out",pulse:"Pulse",waveCurve:"Wave"};
+// Curves: "none" = no curve (pass-through), "flat" always 1, rest are various easings
+var CURVES=["none","flat","rampUp","rampDown","easeIn","easeOut","easeInOut","quickIn","quickOut","pulse","waveCurve"];
+var CURVE_LBL={none:"None",flat:"Flat",rampUp:"Ramp Up",rampDown:"Ramp Down",easeIn:"Ease In",easeOut:"Ease Out",easeInOut:"Ease In-Out",quickIn:"Quick In",quickOut:"Quick Out",pulse:"Pulse",waveCurve:"Wave"};
 
 // Pixel art color palettes — hand-picked colors that look good at low resolution
 var PALETTES=[
@@ -34,20 +34,23 @@ var PALETTES=[
 ];
 var PAL_NAMES=PALETTES.map(function(p){return p.name;});
 
-function evalCurve(name,t){
-    var c=Math.max(0,Math.min(1,t));
+function evalCurve(name,t,intensity){
+    if(!name||name==="none")return 1;
+    var c=Math.max(0,Math.min(1,t));var raw;
     switch(name){
-        case "rampUp":return c;
-        case "rampDown":return 1-c;
-        case "easeIn":return c*c;
-        case "easeOut":return 1-(1-c)*(1-c);
-        case "easeInOut":return c<0.5?2*c*c:1-Math.pow(-2*c+2,2)/2;
-        case "quickIn":return c<0.15?c/0.15:1;
-        case "quickOut":return c>0.85?(1-c)/0.15:1;
-        case "pulse":return Math.sin(c*Math.PI);
-        case "waveCurve":return(Math.sin(c*Math.PI*2)+1)/2;
-        default:return 1; // flat
+        case "rampUp":raw=c;break;
+        case "rampDown":raw=1-c;break;
+        case "easeIn":raw=c*c;break;
+        case "easeOut":raw=1-(1-c)*(1-c);break;
+        case "easeInOut":raw=c<0.5?2*c*c:1-Math.pow(-2*c+2,2)/2;break;
+        case "quickIn":raw=c<0.15?c/0.15:1;break;
+        case "quickOut":raw=c>0.85?(1-c)/0.15:1;break;
+        case "pulse":raw=Math.sin(c*Math.PI);break;
+        case "waveCurve":raw=(Math.cos(c*Math.PI*2)+1)/2;break;
+        default:raw=1; // flat
     }
+    var inten=intensity!==undefined?intensity:1;
+    return 1+(raw-1)*inten;
 }
 
 // ============================================
@@ -55,11 +58,11 @@ function evalCurve(name,t){
 // ============================================
 var DEF_PCFG={
     name:"untitled",
-    size:{min:2,max:4},sizeOverLifetime:{start:1,end:1},sizeCurve:"flat",scaleX:1,scaleY:1,
-    speed:{min:30,max:80},speedCurve:"flat",
+    size:{min:2,max:4},sizeOverLifetime:{start:1,end:1},sizeCurve:"none",sizeCurveInt:1,scaleX:1,scaleY:1,
+    speed:{min:30,max:80},speedCurve:"none",speedCurveInt:1,
     lifetime:{min:0.4,max:1.2},
-    colorStart:"#ff6600",colorMid:"#ff4400",colorEnd:"#ff2200",colorMidPoint:0.5,colorCurve:"flat",
-    fadeOut:true,opacityCurve:"flat",
+    colorStart:"#ff6600",colorMid:"#ff4400",colorEnd:"#ff2200",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,
+    fadeOut:true,opacityCurve:"none",opacityCurveInt:1,
     gravity:-40,spread:60,direction:270,shape:"square",damping:0,
     faceVelocity:false,ditherAmount:0,ditherDepth:2,glow:false,glowIntensity:8,
 };
@@ -68,12 +71,12 @@ var DEF_PCFG={
 // STARTER TEMPLATES
 // ============================================
 var STARTERS=[
-    {name:"campfire_sparks",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.3},sizeCurve:"easeIn",scaleX:1,scaleY:1,speed:{min:40,max:100},speedCurve:"flat",lifetime:{min:0.3,max:0.9},colorStart:"#ffee88",colorMid:"#ffaa00",colorEnd:"#ff2200",colorMidPoint:0.3,colorCurve:"flat",fadeOut:true,opacityCurve:"rampDown",gravity:-60,spread:30,direction:270,shape:"square",damping:0.5,faceVelocity:false,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:6},
-    {name:"smoke_puff",size:{min:3,max:8},sizeOverLifetime:{start:0.5,end:1.5},sizeCurve:"easeOut",scaleX:1.2,scaleY:1,speed:{min:10,max:30},speedCurve:"easeOut",lifetime:{min:1,max:2.5},colorStart:"#999999",colorMid:"#666666",colorEnd:"#333333",colorMidPoint:0.5,colorCurve:"flat",fadeOut:true,opacityCurve:"quickOut",gravity:-15,spread:40,direction:270,shape:"circle",damping:1,faceVelocity:false,ditherAmount:0.3,ditherDepth:3,glow:false,glowIntensity:8},
-    {name:"forge_embers",size:{min:1,max:2},sizeOverLifetime:{start:1,end:0},sizeCurve:"easeIn",scaleX:1,scaleY:1,speed:{min:60,max:150},speedCurve:"flat",lifetime:{min:0.2,max:0.6},colorStart:"#ffffff",colorMid:"#ffaa00",colorEnd:"#ff4400",colorMidPoint:0.4,colorCurve:"flat",fadeOut:true,opacityCurve:"flat",gravity:-20,spread:90,direction:270,shape:"triangle",damping:0.3,faceVelocity:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:4},
-    {name:"anvil_strike",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.2},sizeCurve:"easeIn",scaleX:1.5,scaleY:0.5,speed:{min:80,max:200},speedCurve:"easeIn",lifetime:{min:0.15,max:0.5},colorStart:"#ffffff",colorMid:"#ffdd44",colorEnd:"#ff6600",colorMidPoint:0.25,colorCurve:"flat",fadeOut:true,opacityCurve:"quickOut",gravity:50,spread:180,direction:270,shape:"square",damping:2,faceVelocity:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:10},
-    {name:"magic_wisp",size:{min:2,max:4},sizeOverLifetime:{start:0.8,end:1.2},sizeCurve:"waveCurve",scaleX:2,scaleY:0.6,speed:{min:15,max:40},speedCurve:"easeOut",lifetime:{min:0.8,max:1.8},colorStart:"#88ffff",colorMid:"#4488ff",colorEnd:"#8844ff",colorMidPoint:0.5,colorCurve:"flat",fadeOut:true,opacityCurve:"pulse",gravity:-10,spread:60,direction:270,shape:"wave",damping:0.8,faceVelocity:true,ditherAmount:0.15,ditherDepth:2,glow:true,glowIntensity:12},
-    {name:"basic_circle",size:{min:20,max:20},sizeOverLifetime:{start:1,end:1},sizeCurve:"flat",scaleX:1,scaleY:1,speed:{min:0,max:0},speedCurve:"flat",lifetime:{min:2,max:2},colorStart:"#ffffff",colorMid:"#ffffff",colorEnd:"#ffffff",colorMidPoint:0.5,colorCurve:"flat",fadeOut:false,opacityCurve:"flat",gravity:0,spread:0,direction:270,shape:"circle",damping:0,faceVelocity:false,ditherAmount:0,ditherDepth:2,glow:false,glowIntensity:8},
+    {name:"campfire_sparks",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.3},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:40,max:100},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.3,max:0.9},colorStart:"#ffee88",colorMid:"#ffaa00",colorEnd:"#ff2200",colorMidPoint:0.3,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"rampDown",opacityCurveInt:1,gravity:-60,spread:30,direction:270,shape:"square",damping:0.5,faceVelocity:false,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:6},
+    {name:"smoke_puff",size:{min:3,max:8},sizeOverLifetime:{start:0.5,end:1.5},sizeCurve:"easeOut",sizeCurveInt:1,scaleX:1.2,scaleY:1,speed:{min:10,max:30},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:1,max:2.5},colorStart:"#999999",colorMid:"#666666",colorEnd:"#333333",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:-15,spread:40,direction:270,shape:"circle",damping:1,faceVelocity:false,ditherAmount:0.3,ditherDepth:3,glow:false,glowIntensity:8},
+    {name:"forge_embers",size:{min:1,max:2},sizeOverLifetime:{start:1,end:0},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:60,max:150},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.2,max:0.6},colorStart:"#ffffff",colorMid:"#ffaa00",colorEnd:"#ff4400",colorMidPoint:0.4,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"none",opacityCurveInt:1,gravity:-20,spread:90,direction:270,shape:"triangle",damping:0.3,faceVelocity:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:4},
+    {name:"anvil_strike",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.2},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1.5,scaleY:0.5,speed:{min:80,max:200},speedCurve:"easeIn",speedCurveInt:1,lifetime:{min:0.15,max:0.5},colorStart:"#ffffff",colorMid:"#ffdd44",colorEnd:"#ff6600",colorMidPoint:0.25,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:50,spread:180,direction:270,shape:"square",damping:2,faceVelocity:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:10},
+    {name:"magic_wisp",size:{min:2,max:4},sizeOverLifetime:{start:0.8,end:1.2},sizeCurve:"waveCurve",sizeCurveInt:1,scaleX:2,scaleY:0.6,speed:{min:15,max:40},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:0.8,max:1.8},colorStart:"#88ffff",colorMid:"#4488ff",colorEnd:"#8844ff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"pulse",opacityCurveInt:1,gravity:-10,spread:60,direction:270,shape:"wave",damping:0.8,faceVelocity:true,ditherAmount:0.15,ditherDepth:2,glow:true,glowIntensity:12},
+    {name:"basic_circle",size:{min:20,max:20},sizeOverLifetime:{start:1,end:1},sizeCurve:"none",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:0,max:0},speedCurve:"none",speedCurveInt:1,lifetime:{min:2,max:2},colorStart:"#ffffff",colorMid:"#ffffff",colorEnd:"#ffffff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:false,opacityCurve:"none",opacityCurveInt:1,gravity:0,spread:0,direction:270,shape:"circle",damping:0,faceVelocity:false,ditherAmount:0,ditherDepth:2,glow:false,glowIntensity:8},
 ];
 
 // ============================================
@@ -86,11 +89,13 @@ var P_DEFS=[
     {key:"sizeOverLifetime.start",label:"Size Start \u00D7",type:"slider",min:0,max:3,step:0.1,group:"size"},
     {key:"sizeOverLifetime.end",label:"Size End \u00D7",type:"slider",min:0,max:3,step:0.1,group:"size"},
     {key:"sizeCurve",label:"Size Curve",type:"curve",group:"size"},
+    {key:"sizeCurveInt",label:"Size Curve \u00D7",type:"slider",min:0,max:2,step:0.1,group:"size",showIfNotNone:"sizeCurve"},
     {key:"scaleX",label:"Scale X",type:"slider",min:0.1,max:4,step:0.1,group:"size"},
     {key:"scaleY",label:"Scale Y",type:"slider",min:0.1,max:4,step:0.1,group:"size"},
     {key:"speed.min",label:"Speed Min",type:"slider",min:0,max:300,step:5,group:"motion"},
     {key:"speed.max",label:"Speed Max",type:"slider",min:0,max:300,step:5,group:"motion"},
     {key:"speedCurve",label:"Speed Curve",type:"curve",group:"motion"},
+    {key:"speedCurveInt",label:"Speed Curve \u00D7",type:"slider",min:0,max:2,step:0.1,group:"motion",showIfNotNone:"speedCurve"},
     {key:"lifetime.min",label:"Life Min (s)",type:"slider",min:0.1,max:5,step:0.1,group:"motion"},
     {key:"lifetime.max",label:"Life Max (s)",type:"slider",min:0.1,max:5,step:0.1,group:"motion"},
     {key:"direction",label:"Direction (\u00B0)",type:"slider",min:0,max:360,step:1,group:"motion"},
@@ -103,8 +108,10 @@ var P_DEFS=[
     {key:"colorEnd",label:"Color End",type:"color",group:"appearance"},
     {key:"colorMidPoint",label:"Mid Point",type:"slider",min:0.05,max:0.95,step:0.05,group:"appearance"},
     {key:"colorCurve",label:"Color Curve",type:"curve",group:"appearance"},
+    {key:"colorCurveInt",label:"Color Curve \u00D7",type:"slider",min:0,max:2,step:0.1,group:"appearance",showIfNotNone:"colorCurve"},
     {key:"fadeOut",label:"Fade Out",type:"toggle",group:"appearance"},
     {key:"opacityCurve",label:"Opacity Curve",type:"curve",group:"appearance"},
+    {key:"opacityCurveInt",label:"Opacity Curve \u00D7",type:"slider",min:0,max:2,step:0.1,group:"appearance",showIfNotNone:"opacityCurve"},
     {key:"shape",label:"Shape",type:"select",options:SHAPES,group:"appearance"},
     {key:"ditherAmount",label:"Dither Amount",type:"slider",min:0,max:1,step:0.05,group:"appearance"},
     {key:"ditherDepth",label:"Dither Depth (px)",type:"slider",min:1,max:10,step:1,group:"appearance",showIf:"ditherAmount"},
@@ -118,7 +125,7 @@ var P_DEFS=[
 function lerp(a,b,t){return a+(b-a)*t;}function rr(a,b){return a+Math.random()*(b-a);}function d2r(d){return d*Math.PI/180;}
 function h2rgb(h){var x=h.replace("#","");if(x.length===3)x=x[0]+x[0]+x[1]+x[1]+x[2]+x[2];return{r:parseInt(x.slice(0,2),16),g:parseInt(x.slice(2,4),16),b:parseInt(x.slice(4,6),16)};}
 function lc(a,b,t){return{r:Math.round(lerp(a.r,b.r,t)),g:Math.round(lerp(a.g,b.g,t)),b:Math.round(lerp(a.b,b.b,t))};}
-function colAt(t,cfg){var ct=evalCurve(cfg.colorCurve||"flat",t);var s=h2rgb(cfg.colorStart),m=h2rgb(cfg.colorMid),e=h2rgb(cfg.colorEnd);var mp=cfg.colorMidPoint;if(ct<=mp)return lc(s,m,mp>0?ct/mp:0);return lc(m,e,mp<1?(ct-mp)/(1-mp):1);}
+function colAt(t,cfg){var ct=evalCurve(cfg.colorCurve||"none",t,cfg.colorCurveInt);var s=h2rgb(cfg.colorStart),m=h2rgb(cfg.colorMid),e=h2rgb(cfg.colorEnd);var mp=cfg.colorMidPoint;if(ct<=mp)return lc(s,m,mp>0?ct/mp:0);return lc(m,e,mp<1?(ct-mp)/(1-mp):1);}
 function gv(o,p){var a=p.split(".");var v=o;for(var i=0;i<a.length;i++)v=v[a[i]];return v;}
 function sv(o,p,val){var a=p.split(".");var c=JSON.parse(JSON.stringify(o));var t=c;for(var i=0;i<a.length-1;i++)t=t[a[i]];t[a[a.length-1]]=val;return c;}
 function dc(o){return JSON.parse(JSON.stringify(o));}
@@ -141,7 +148,7 @@ function mkP(x,y,cfg){
 }
 
 function updP(p,dt,cfg){
-    var t=1-p.life/p.maxLife;var sm=evalCurve(cfg.speedCurve||"flat",1-t);
+    var t=1-p.life/p.maxLife;var sm=evalCurve(cfg.speedCurve||"none",1-t,cfg.speedCurveInt);
     if(cfg.damping>0){var df=Math.max(0,1-cfg.damping*dt);p.vx*=df;p.vy*=df;}
     p.vy-=cfg.gravity*dt;p.x+=p.vx*sm*dt;p.y+=p.vy*sm*dt;p.life-=dt;if(p.life<=0)p.alive=false;
 }
@@ -151,8 +158,8 @@ function getDC(w,h){if(!_dc2||_dc2.width<w||_dc2.height<h){_dc2=document.createE
 
 function drawP(ctx,p,cfg){
     var t=1-p.life/p.maxLife;var col=colAt(t,cfg);
-    var ra=cfg.fadeOut?(1-t):1;var alpha=evalCurve(cfg.opacityCurve||"flat",ra);
-    var st=evalCurve(cfg.sizeCurve||"flat",t);var ss=lerp(cfg.sizeOverLifetime.start,cfg.sizeOverLifetime.end,st);
+    var ra=cfg.fadeOut?(1-t):1;var alpha=evalCurve(cfg.opacityCurve||"none",ra,cfg.opacityCurveInt);
+    var st=evalCurve(cfg.sizeCurve||"none",t,cfg.sizeCurveInt);var ss=lerp(cfg.sizeOverLifetime.start,cfg.sizeOverLifetime.end,st);
     var bs=Math.max(1,Math.round(p.sz*ss));var w=Math.max(1,Math.round(bs*(cfg.scaleX||1)));var h=Math.max(1,Math.round(bs*(cfg.scaleY||1)));
     var cs="rgba("+col.r+","+col.g+","+col.b+","+alpha.toFixed(2)+")";
     var dith=cfg.ditherAmount||0;var dithDep=cfg.ditherDepth||2;var sh=cfg.shape||"square";
@@ -310,7 +317,7 @@ function ParticleEditor(){
     //   type: "loop"|"burst",
     //   -- loop fields: spawnRate
     //   -- burst fields: burstSub: "instant"|"duration", startTime, burstCount,
-    //     emDuration, activations, spawnRate (for duration sub),
+    //     emDuration, activations, actDelay, spawnRate (for duration sub),
     //   -- runtime: particles[], spawnAcc, actIndex, actElapsed }
     function addEm(){
         var ti=actTpl!==null?actTpl:0;if(!tpls.length)return;
@@ -318,7 +325,7 @@ function ParticleEditor(){
         setEms(function(p){return p.concat([{
             id:id,x:CW/2,y:CH/2,pcfg:dc(tpl),handleColor:col,
             type:"loop",spawnRate:15,
-            burstSub:"instant",startTime:0,burstCount:20,emDuration:1,activations:1,burstSpawnRate:30,
+            burstSub:"instant",startTime:0,burstCount:20,emDuration:1,activations:1,burstSpawnRate:30,actDelay:0,
             particles:[],spawnAcc:0,actIndex:0,actElapsed:0,
         }]);});setSelId(id);
     }
@@ -384,13 +391,14 @@ function ParticleEditor(){
                     }
                 } else {
                     // Burst Duration: spawn at rate over duration, with activations
-                    // Each activation runs for the FULL emDuration, stacked sequentially
+                    // Each activation runs for the FULL emDuration, stacked sequentially with delay gaps
                     var emStart=em.startTime||0;
                     var actDur=em.emDuration||1;
                     var actTotal=em.activations||1;
+                    var actDly=em.actDelay||0;
 
                     if(em.actIndex<actTotal){
-                        var actStart=emStart+em.actIndex*actDur;
+                        var actStart=emStart+em.actIndex*(actDur+actDly);
                         var actEnd=actStart+actDur;
 
                         if(st>=actStart&&st<actEnd){
@@ -437,32 +445,32 @@ function ParticleEditor(){
     function onCM(e){e.preventDefault();}
 
     // ---- EXPORT ----
-    function cfgExp(cfg){return{name:cfg.name,size:cfg.size,sizeOverLifetime:cfg.sizeOverLifetime,sizeCurve:cfg.sizeCurve,scaleX:cfg.scaleX,scaleY:cfg.scaleY,speed:cfg.speed,speedCurve:cfg.speedCurve,lifetime:cfg.lifetime,colorStart:cfg.colorStart,colorMid:cfg.colorMid,colorEnd:cfg.colorEnd,colorMidPoint:cfg.colorMidPoint,colorCurve:cfg.colorCurve,fadeOut:cfg.fadeOut,opacityCurve:cfg.opacityCurve,gravity:cfg.gravity,spread:cfg.spread,direction:cfg.direction,shape:cfg.shape,damping:cfg.damping,faceVelocity:cfg.faceVelocity,ditherAmount:cfg.ditherAmount,ditherDepth:cfg.ditherDepth,glow:cfg.glow,glowIntensity:cfg.glowIntensity};}
+    function cfgExp(cfg){return{name:cfg.name,size:cfg.size,sizeOverLifetime:cfg.sizeOverLifetime,sizeCurve:cfg.sizeCurve,sizeCurveInt:cfg.sizeCurveInt,scaleX:cfg.scaleX,scaleY:cfg.scaleY,speed:cfg.speed,speedCurve:cfg.speedCurve,speedCurveInt:cfg.speedCurveInt,lifetime:cfg.lifetime,colorStart:cfg.colorStart,colorMid:cfg.colorMid,colorEnd:cfg.colorEnd,colorMidPoint:cfg.colorMidPoint,colorCurve:cfg.colorCurve,colorCurveInt:cfg.colorCurveInt,fadeOut:cfg.fadeOut,opacityCurve:cfg.opacityCurve,opacityCurveInt:cfg.opacityCurveInt,gravity:cfg.gravity,spread:cfg.spread,direction:cfg.direction,shape:cfg.shape,damping:cfg.damping,faceVelocity:cfg.faceVelocity,ditherAmount:cfg.ditherAmount,ditherDepth:cfg.ditherDepth,glow:cfg.glow,glowIntensity:cfg.glowIntensity};}
     function expScene(){
         var sc={systemDuration:sysDur,systemMode:sysMode,templates:tpls.map(cfgExp),
-            emitters:ems.map(function(em){return{id:em.id,position:{x:em.x,y:em.y},type:em.type,burstSub:em.burstSub,spawnRate:em.spawnRate,burstCount:em.burstCount,burstSpawnRate:em.burstSpawnRate,activations:em.activations,startTime:em.startTime,emitterDuration:em.emDuration,config:cfgExp(em.pcfg)};})};
+            emitters:ems.map(function(em){return{id:em.id,position:{x:em.x,y:em.y},type:em.type,burstSub:em.burstSub,spawnRate:em.spawnRate,burstCount:em.burstCount,burstSpawnRate:em.burstSpawnRate,activations:em.activations,actDelay:em.actDelay,startTime:em.startTime,emitterDuration:em.emDuration,config:cfgExp(em.pcfg)};})};
         setExpJSON(JSON.stringify(sc,null,2));setShowExp(true);
     }
     function expSel(){
         if(!selEm)return;var o=cfgExp(selEm.pcfg);
-        Object.assign(o,{position:{x:selEm.x,y:selEm.y},type:selEm.type,burstSub:selEm.burstSub,spawnRate:selEm.spawnRate,burstCount:selEm.burstCount,burstSpawnRate:selEm.burstSpawnRate,activations:selEm.activations,startTime:selEm.startTime,emitterDuration:selEm.emDuration});
+        Object.assign(o,{position:{x:selEm.x,y:selEm.y},type:selEm.type,burstSub:selEm.burstSub,spawnRate:selEm.spawnRate,burstCount:selEm.burstCount,burstSpawnRate:selEm.burstSpawnRate,activations:selEm.activations,actDelay:selEm.actDelay,startTime:selEm.startTime,emitterDuration:selEm.emDuration});
         setExpJSON(JSON.stringify(o,null,2));setShowExp(true);
     }
     function clearScene(){setEms([]);setSelId(null);setShowExp(false);}
     function cpExp(){navigator.clipboard.writeText(expJSON);}
 
     // ---- RENDER HELPERS ----
-    function CurveSVG(props){var pts=[];for(var i=0;i<=20;i++){var t=i/20;pts.push({x:t,y:evalCurve(props.c,t)});}var d="M "+pts.map(function(p){return(p.x*48+1)+" "+((1-p.y)*18+1);}).join(" L ");return <svg width={50} height={20} style={S.cp}><path d={d} stroke="#00ffaa" strokeWidth={1.5} fill="none"/></svg>;}
+    function CurveSVG(props){var pts=[];for(var i=0;i<=20;i++){var t=i/20;pts.push({x:t,y:evalCurve(props.c,t,props.inten)});}var d="M "+pts.map(function(p){return(p.x*48+1)+" "+(Math.max(0,Math.min(20,(1-p.y)*18+1)));}).join(" L ");return <svg width={50} height={20} style={S.cp}><path d={d} stroke="#00ffaa" strokeWidth={1.5} fill="none"/></svg>;}
 
     function renderP(def){
-        if(!selEm)return null;if(def.showIf&&!selEm.pcfg[def.showIf])return null;
+        if(!selEm)return null;if(def.showIf&&!selEm.pcfg[def.showIf])return null;if(def.showIfNotNone&&(!selEm.pcfg[def.showIfNotNone]||selEm.pcfg[def.showIfNotNone]==="none"))return null;
         var v=gv(selEm.pcfg,def.key);
         if(def.type==="text")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input style={S.tin} value={v} onChange={function(e){setPcfg(def.key,e.target.value);}}/></div>;
         if(def.type==="slider")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input type="range" style={S.sli} min={def.min} max={def.max} step={def.step} value={v} onChange={function(e){setPcfg(def.key,def.step<1?parseFloat(e.target.value):parseInt(e.target.value));}}/><span style={S.val}>{v}</span></div>;
         if(def.type==="color")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input type="color" style={S.cin} value={v} onChange={function(e){var c=e.target.value;if(palMode)c=snapToPal(c,palIdx);setPcfg(def.key,c);}}/><span style={S.val}>{v}</span></div>;
         if(def.type==="toggle")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><button style={{...S.tog,background:v?"#00ffaa":"#333"}} onClick={function(){setPcfg(def.key,!v);}}><div style={{...S.knob,left:v?20:2}}/></button></div>;
         if(def.type==="select")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><select style={S.sel2} value={v} onChange={function(e){setPcfg(def.key,e.target.value);}}>{def.options.map(function(o){return <option key={o} value={o}>{o}</option>;})}</select></div>;
-        if(def.type==="curve")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><select style={S.cs} value={v||"flat"} onChange={function(e){setPcfg(def.key,e.target.value);}}>{CURVES.map(function(c){return <option key={c} value={c}>{CURVE_LBL[c]}</option>;})}</select><CurveSVG c={v||"flat"}/></div>;
+        if(def.type==="curve"){var intKey=def.key+"Int";var inten=selEm.pcfg[intKey]!==undefined?selEm.pcfg[intKey]:1;return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><select style={S.cs} value={v||"none"} onChange={function(e){setPcfg(def.key,e.target.value);}}>{CURVES.map(function(c){return <option key={c} value={c}>{CURVE_LBL[c]}</option>;})}</select><CurveSVG c={v||"none"} inten={inten}/></div>;}
         return null;
     }
     function rg(g){return P_DEFS.filter(function(d){return d.group===g;}).map(renderP);}
@@ -481,10 +489,10 @@ function ParticleEditor(){
                     var lp=sysDur>0?((em.startTime||0)/sysDur)*100:0;
                     return <div key={em.id} style={{position:"absolute",top:yOff,height:barH-1,left:lp+"%",width:3,background:em.handleColor,opacity:opacity,borderRadius:1,pointerEvents:"none"}}/>;
                 } else {
-                    // Duration burst: show activation blocks — each is full duration, stacked
-                    var blocks=[];var emStart=em.startTime||0;var actDur=em.emDuration||1;var actCount=em.activations||1;
+                    // Duration burst: show activation blocks — each is full duration, stacked with delay
+                    var blocks=[];var emStart=em.startTime||0;var actDur=em.emDuration||1;var actCount=em.activations||1;var actDly=em.actDelay||0;
                     for(var a=0;a<actCount;a++){
-                        var aStart=emStart+a*actDur;var lPct=sysDur>0?(aStart/sysDur)*100:0;var wPct=sysDur>0?(actDur/sysDur)*100:0;
+                        var aStart=emStart+a*(actDur+actDly);var lPct=sysDur>0?(aStart/sysDur)*100:0;var wPct=sysDur>0?(actDur/sysDur)*100:0;
                         blocks.push(<div key={em.id+"_"+a} style={{position:"absolute",top:yOff,height:barH-1,left:lPct+"%",width:wPct+"%",background:em.handleColor,opacity:opacity,borderRadius:1,borderRight:a<actCount-1?"1px solid #0a0a0a":"none",pointerEvents:"none",boxSizing:"border-box"}}/>);
                     }
                     return blocks;
@@ -574,6 +582,7 @@ function ParticleEditor(){
                             {selEm.burstSub==="duration"&&(<>
                                 <div style={S.row}><span style={S.lab}>Duration (s)</span><input type="range" style={S.sli} min={0.05} max={10} step={0.05} value={selEm.emDuration||1} onChange={function(e){setEmF("emDuration",parseFloat(e.target.value));}}/><span style={S.val}>{(selEm.emDuration||1).toFixed(2)}</span></div>
                                 <div style={S.row}><span style={S.lab}>Activations</span><input type="range" style={S.sli} min={1} max={10} step={1} value={selEm.activations||1} onChange={function(e){setEmF("activations",parseInt(e.target.value));}}/><span style={S.val}>{selEm.activations||1}</span></div>
+                                <div style={S.row}><span style={S.lab}>Act. Delay (s)</span><input type="range" style={S.sli} min={0} max={5} step={0.05} value={selEm.actDelay||0} onChange={function(e){setEmF("actDelay",parseFloat(e.target.value));}}/><span style={S.val}>{(selEm.actDelay||0).toFixed(2)}</span></div>
                                 <div style={S.row}><span style={S.lab}>Spawn Rate</span><input type="range" style={S.sli} min={1} max={200} step={1} value={selEm.burstSpawnRate||30} onChange={function(e){setEmF("burstSpawnRate",parseInt(e.target.value));}}/><span style={S.val}>{selEm.burstSpawnRate||30}</span></div>
                             </>)}
                         </>)}

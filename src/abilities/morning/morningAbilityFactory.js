@@ -247,6 +247,21 @@ function createMorningAbility(row) {
                 color: row.color || "#fbbf24",
                 duration: row.toastDuration || 4000,
             });
+
+            // Event bar display — derive category tag from row.tags
+            var displayTag = "EVENT";
+            var rowTags = row.tags || [];
+            for (var t = 0; t < rowTags.length; t++) {
+                if (rowTags[t] !== "event") { displayTag = rowTags[t].toUpperCase(); break; }
+            }
+            ctx.bus.emit(EVENT_TAGS.DAY_MORNING_EVENT_DISPLAY, {
+                id: row.id,
+                icon: row.icon || "",
+                title: variant.title,
+                desc: desc,
+                tag: displayTag,
+                color: row.color || "#fbbf24",
+            });
         },
 
         // --- End ---

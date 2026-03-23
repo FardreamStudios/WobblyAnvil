@@ -338,6 +338,19 @@ function useForgeVM(deps) {
         return function() { GameplayEventBus.off(EVENT_TAGS.FORGE_DESTROY_WIP, busDestroyWip); };
     }, [busDestroyWip]);
 
+    // --- Bus: Reset React phase when GameMode exits forge (e.g. sleep) ---
+    useEffect(function() {
+        function onForgeExit() {
+            qteProcessing.current = false;
+            sfx.setMode("idle");
+            setForgeBubble(null);
+            setQteFlash(null);
+            setPhase(PHASES.IDLE);
+        }
+        GameplayEventBus.on(EVENT_TAGS.MODE_FORGE_EXIT, onForgeExit);
+        return function() { GameplayEventBus.off(EVENT_TAGS.MODE_FORGE_EXIT, onForgeExit); };
+    }, []);
+
     // ============================================================
     // Return — actions + display props
     // ============================================================

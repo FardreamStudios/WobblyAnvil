@@ -25,8 +25,20 @@ function useQuestState() {
             setRoyalQuest(null); setQuestNum(0); setMEvent(null);
             setActiveCustomer(null); setHasSoldWeapon(false); setPromoteUses(0);
         }
+        function onMorningEvent(payload) {
+            setMEvent(payload);
+        }
+        function onDayStart() {
+            setMEvent(null);
+        }
         GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
-        return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
+        GameplayEventBus.on(EVENT_TAGS.DAY_MORNING_EVENT_DISPLAY, onMorningEvent);
+        GameplayEventBus.on(EVENT_TAGS.DAY_CYCLE_START, onDayStart);
+        return function() {
+            GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
+            GameplayEventBus.off(EVENT_TAGS.DAY_MORNING_EVENT_DISPLAY, onMorningEvent);
+            GameplayEventBus.off(EVENT_TAGS.DAY_CYCLE_START, onDayStart);
+        };
     }, []);
 
     return {
