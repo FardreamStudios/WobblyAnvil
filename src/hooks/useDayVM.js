@@ -4,9 +4,9 @@
 // Consumes: useDayState + cross-domain deps passed in.
 // Returns: Action handlers for time progression and day cycle.
 //
-// GEB-5: applyEvent replaced with DynamicEvents.applyEventResult.
-//         applyMystery replaced with DynamicEvents.mysteryGood/Bad.
-//         SFX placed at call site until Gameplay Cue system (CUE-1).
+// Morning events are now handled by AbilityManager.rollMorning()
+// called from GameMode.startDay(). This file only builds the
+// structural toast queue (good morning + royal quest).
 // ============================================================
 
 import GameConstants from "../modules/constants.js";
@@ -14,9 +14,7 @@ import GameUtils from "../modules/utilities.js";
 import GameEvents from "../modules/events.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
-import DynamicEvents from "../logic/dynamicEvents.js";
 
-var TAG_COLORS = GameConstants.TAG_COLORS;
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
 var CUST_TYPES = GameConstants.CUST_TYPES;
@@ -25,7 +23,6 @@ var BASE_STAMINA = GameConstants.BASE_STAMINA;
 var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
 var WAKE_HOUR = GameConstants.WAKE_HOUR;
 
-var rollDailyEvent = GameEvents.rollDailyEvent;
 var generateRoyalQuest = GameEvents.generateRoyalQuest;
 
 var randInt = GameUtils.randInt;
@@ -37,7 +34,6 @@ function useDayVM(deps) {
     var dayState = deps.dayState;
     var economy = deps.economy;
     var quest = deps.quest;
-    var mystery = deps.mystery;
     var sfx = deps.sfx;
     var addToast = deps.addToast;
     var setToastQueue = deps.setToastQueue;
@@ -71,12 +67,8 @@ function useDayVM(deps) {
     // --- Quest state ---
     var royalQuest = quest.royalQuest, setRoyalQuest = quest.setRoyalQuest;
     var questNum = quest.questNum, setQuestNum = quest.setQuestNum;
-    var setMEvent = quest.setMEvent;
     var hasSoldWeapon = quest.hasSoldWeapon;
     var setPromoteUses = quest.setPromoteUses;
-
-    // --- Mystery state ---
-    var pendingMystery = mystery.pendingMystery, setPendingMystery = mystery.setPendingMystery;
 
     // --- Read values passed in ---
     var unlockedBP = deps.unlockedBP;
@@ -97,17 +89,10 @@ function useDayVM(deps) {
 
     // --- Day Cycle ---
     function buildDayQueue(newDay, state, pendingQuestNum) {
-        var ev = rollDailyEvent(state); setMEvent(ev);
-        if (ev && ev.effect) {
-            if (ev.id === "mystery" && ev.severity) { if (!pendingMystery) setTimeout(function() { setPendingMystery({ effect: ev.effect, severity: ev.severity }); }, 150); }
-            else {
-                var r = ev.effect({ gold: state.gold || STARTING_GOLD, inv: state.inv || { bronze: 10, iron: 4 }, hour: WAKE_HOUR, stamina: state.stamina || BASE_STAMINA, finished: state.finished || [] });
-                setTimeout(function() { DynamicEvents.applyEventResult(GameplayEventBus, r); }, 150);
-            }
-        }
+        // Morning events now handled by AbilityManager.rollMorning()
+        // called from GameMode.startDay(). This just builds structural toasts.
         var queue = [];
         queue.push({ id: "gm_" + newDay, msg: "DAY " + newDay + "\nGood morning, blacksmith.", icon: "", color: "#f59e0b" });
-        if (ev && ev.id !== "slow" && ev.id !== "mystery") queue.push({ id: "ev_" + newDay, msg: ev.title + "\n" + ev.desc, icon: ev.icon, color: TAG_COLORS[ev.variantTag || ev.tag] || "#f59e0b" });
         if (pendingQuestNum != null) {
             var bp = state.unlockedBP || ["dagger", "shortsword", "axe"];
             var q2 = generateRoyalQuest(pendingQuestNum, bp, newDay, state.reputation || 4);
@@ -156,20 +141,9 @@ function useDayVM(deps) {
     }
 
     function sleep() {
-        if (pendingMystery && pendingMystery.severity) {
-            // --- Mystery fires before sleep, then doSleep runs after 7s ---
-            var snapshot = { gold: gold, inv: inv, finished: finished };
-            setPendingMystery(null);
-            if (pendingMystery.severity === "good") {
-                GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {});
-                DynamicEvents.mysteryGood(GameplayEventBus, snapshot);
-            } else {
-                GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {});
-                DynamicEvents.mysteryBad(GameplayEventBus, snapshot, false);
-            }
-            setTimeout(doSleep, 7000);
-            return;
-        }
+        // Mystery deferral now handled by mysteryVisitor/mysteryShadow
+        // abilities — they listen for DAY_SLEEP_START and fire their
+        // own VFX sequence. We just go straight to doSleep.
         doSleep();
     }
 
