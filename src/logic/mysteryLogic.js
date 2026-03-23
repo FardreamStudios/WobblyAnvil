@@ -1,19 +1,13 @@
 // ============================================================
-// dynamicEvents.js — Wobbly Anvil Dynamic Event Emitters
-// Each event is a function that receives the bus + state
-// snapshot, computes results, and emits tagged payloads.
-// The event doesn't know who's listening.
-//
-// PATTERN:
-//   function myEvent(bus, snapshot, options) {
-//       // compute
-//       bus.emit(TAG, payload);
-//   }
+// mysteryLogic.js — Wobbly Anvil Mystery Event Choreography
+// Pure functions that receive the bus + state snapshot,
+// compute results, and emit tagged payloads.
+// Extracted from dynamicEvents.js (legacy) during M-10 cleanup.
 //
 // TIMING: setTimeout choreography lives here — these functions
 // own the "feel" of the event. Bus listeners are instant.
 //
-// ADDING NEW EVENTS: Write a function, emit tags. Done.
+// UE ANALOGY: Gameplay Cue choreography functions.
 // ============================================================
 
 import EVENT_TAGS from "../config/eventTags.js";
@@ -139,64 +133,11 @@ function mysteryBad(bus, snapshot, wasForging) {
 }
 
 // ============================================================
-// applyEventResult — Generic daily event router
-// Takes a rolled event result object and emits matching tags.
-// Used by buildDayQueue (GEB-6) to replace the if-chain.
+// Plugin-style API
 // ============================================================
-
-function applyEventResult(bus, result) {
-    if (!result) return;
-
-    if (result.goldDelta !== undefined && result.goldDelta !== 0) {
-        if (result.goldDelta > 0) {
-            bus.emit(EVENT_TAGS.ECONOMY_EARN_GOLD, { amount: result.goldDelta });
-        } else {
-            bus.emit(EVENT_TAGS.ECONOMY_SPEND_GOLD, { amount: -result.goldDelta });
-        }
-    }
-    if (result.inv !== undefined) {
-        bus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { inv: result.inv });
-    }
-    if (result.hour !== undefined) {
-        bus.emit(EVENT_TAGS.DAY_ADVANCE_HOUR, { hour: result.hour });
-    }
-    if (result.stamina !== undefined) {
-        bus.emit(EVENT_TAGS.DAY_SET_STAMINA, { stamina: result.stamina });
-    }
-    if (result.finished !== undefined) {
-        bus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { finished: result.finished });
-    }
-    if (result.forcedExhaustion) {
-        bus.emit(EVENT_TAGS.DAY_FORCE_EXHAUSTION, {});
-    }
-    if (result.priceBonus) {
-        bus.emit(EVENT_TAGS.ECONOMY_EARN_GOLD, { priceBonus: result.priceBonus });
-    }
-    if (result.priceDebuff) {
-        bus.emit(EVENT_TAGS.ECONOMY_SPEND_GOLD, { priceDebuff: result.priceDebuff });
-    }
-    if (result.matDiscount) {
-        bus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { matDiscount: result.matDiscount });
-    }
-    if (result.globalMatMult) {
-        bus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { globalMatMult: result.globalMatMult });
-    }
-    if (result.guaranteedCustomers) {
-        bus.emit(EVENT_TAGS.ECONOMY_EARN_GOLD, { guaranteedCustomers: true });
-    }
-    if (result.extraCustomers) {
-        bus.emit(EVENT_TAGS.ECONOMY_EARN_GOLD, { extraCustomers: result.extraCustomers });
-    }
-}
-
-// ============================================================
-// Export
-// ============================================================
-
-var DynamicEvents = {
+var MysteryLogic = {
     mysteryGood: mysteryGood,
     mysteryBad: mysteryBad,
-    applyEventResult: applyEventResult,
 };
 
-export default DynamicEvents;
+export default MysteryLogic;

@@ -4,6 +4,7 @@
 //
 // OWNS:
 //   GameMode initialization (init + sub-mode registration)
+//   AbilityManager initialization (init + register + startWatching)
 //   Bus subscriptions that sync GameMode state → React state
 //   Reactive values for components (day, dayPhase, activeMode)
 //
@@ -25,8 +26,6 @@
 //   gm.sleep(hour)
 //   gm.enterMode("forge")
 //   gm.exitMode()
-//
-// REPLACES: D-Lite ForgeMode.onEnter stopgap in App.js.
 // ============================================================
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -34,6 +33,8 @@ import GameMode from "../gameMode/gameMode.js";
 import ForgeMode from "../gameMode/forgeMode.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
+import AbilityManager from "../abilities/abilityManager.js";
+import ALL_ABILITIES from "../abilities/index.js";
 
 // ============================================================
 // Hook
@@ -42,7 +43,6 @@ import EVENT_TAGS from "../config/eventTags.js";
 function useGameMode(deps) {
     var bus = (deps && deps.bus) || GameplayEventBus;
     var stateProvider = deps && deps.stateProvider || null;
-    var abilityManager = deps && deps.abilityManager || null;
 
     // --- React state mirrors of GameMode internals ---
     var [day, setDay] = useState(0);
@@ -53,18 +53,25 @@ function useGameMode(deps) {
     // --- Init guard ---
     var initialized = useRef(false);
 
-    // --- Initialize GameMode + register sub-modes (once) ---
+    // --- Initialize GameMode + AbilityManager + sub-modes (once) ---
     useEffect(function() {
         if (initialized.current) return;
         initialized.current = true;
 
-        GameMode.init(bus, stateProvider, abilityManager);
+        // 1. Init AbilityManager with bus + state provider
+        AbilityManager.init(bus, stateProvider);
+        AbilityManager.registerAll(ALL_ABILITIES);
+        AbilityManager.startWatching();
+
+        // 2. Init GameMode with bus + state provider + ability manager
+        GameMode.init(bus, stateProvider, AbilityManager);
         GameMode.registerSubMode(ForgeMode);
 
         // Enter forge as default mode (current game only has forge)
         GameMode.enterMode("forge");
 
         return function() {
+            AbilityManager.reset();
             GameMode.reset();
             initialized.current = false;
         };

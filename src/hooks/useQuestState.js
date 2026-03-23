@@ -19,11 +19,16 @@ function useQuestState() {
     var [hasSoldWeapon, setHasSoldWeapon] = useState(false);
     var [promoteUses, setPromoteUses] = useState(0);
 
+    // --- Mystery Event Tracking (moved from useMysteryState in M-10) ---
+    var [pendingMystery, setPendingMystery] = useState(null);
+    var [goodEventUsed, setGoodEventUsed] = useState(false);
+
     // --- Bus: Reset on New Game ---
     useEffect(function() {
         function onNewGame() {
             setRoyalQuest(null); setQuestNum(0); setMEvent(null);
             setActiveCustomer(null); setHasSoldWeapon(false); setPromoteUses(0);
+            setPendingMystery(null); setGoodEventUsed(false);
         }
         function onMorningEvent(payload) {
             setMEvent(payload);
@@ -54,6 +59,10 @@ function useQuestState() {
         setHasSoldWeapon: setHasSoldWeapon,
         promoteUses: promoteUses,
         setPromoteUses: setPromoteUses,
+        pendingMystery: pendingMystery,
+        setPendingMystery: setPendingMystery,
+        goodEventUsed: goodEventUsed,
+        setGoodEventUsed: setGoodEventUsed,
     };
 }
 

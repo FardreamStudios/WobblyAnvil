@@ -1,19 +1,22 @@
 // ============================================================
-// useMysteryState.js — Wobbly Anvil Mystery & Scene State Hook
-// Owns: pending mystery events, VFX shakes/vignettes,
-//       active scene, character action overrides, prop overrides.
+// useVFXState.js — Wobbly Anvil VFX & Scene State Hook
+// Owns: VFX shakes/vignettes, UI lock state,
+//       active scene, character action overrides, prop overrides,
+//       FX canvas ref.
 // Bus: subscribes to vfx.shake.mystery, vfx.shake.weapon,
 //      vfx.set.vignette, ui.set.lock.
+//
+// Extracted from useMysteryState.js during M-10 cleanup.
+// Mystery event state (pendingMystery, goodEventUsed) moved
+// to useQuestState where it belongs thematically.
 // ============================================================
 
 import { useState, useRef, useEffect } from "react";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
 
-function useMysteryState() {
-    // --- Mystery Events ---
-    var [pendingMystery, setPendingMystery] = useState(null);
-    var [goodEventUsed, setGoodEventUsed] = useState(false);
+function useVFXState() {
+    // --- VFX ---
     var [mysteryPending, setMysteryPending] = useState(false);
     var [mysteryShake, setMysteryShake] = useState(false);
     var [weaponShake, setWeaponShake] = useState(false);
@@ -51,7 +54,7 @@ function useMysteryState() {
     // --- Bus: Reset on New Game ---
     useEffect(function() {
         function onNewGame() {
-            setPendingMystery(null); setGoodEventUsed(false); setMysteryPending(false);
+            setMysteryPending(false);
             setMysteryShake(false); setWeaponShake(false);
             setMysteryVignette(null); setMysteryVignetteOpacity(1);
             setActiveScene("forge"); setSceneActionOverride(null); setPropOverrides({});
@@ -61,11 +64,7 @@ function useMysteryState() {
     }, []);
 
     return {
-        // Mystery
-        pendingMystery: pendingMystery,
-        setPendingMystery: setPendingMystery,
-        goodEventUsed: goodEventUsed,
-        setGoodEventUsed: setGoodEventUsed,
+        // VFX
         mysteryPending: mysteryPending,
         setMysteryPending: setMysteryPending,
         mysteryShake: mysteryShake,
@@ -88,4 +87,4 @@ function useMysteryState() {
     };
 }
 
-export default useMysteryState;
+export default useVFXState;

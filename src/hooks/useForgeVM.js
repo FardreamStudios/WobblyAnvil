@@ -15,7 +15,7 @@ import GameConstants from "../modules/constants.js";
 import GameUtils from "../modules/utilities.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
-import DynamicEvents from "../logic/dynamicEvents.js";
+import MysteryLogic from "../logic/mysteryLogic.js";
 import ForgeMode from "../gameMode/forgeMode.js";
 import AbilityManager from "../abilities/abilityManager.js";
 
@@ -237,7 +237,7 @@ function useForgeVM(deps) {
         var q = getQualityTier(nq);
         setSessResult({ delta: delta, nq: nq, quality: q, ns: ns, sessions: forgeSess + 1 });
         showForgeBubbleFn("HAMMER RESULT", [{ text: (delta >= 0 ? "+" : "") + delta + " quality", color: delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a", bold: true }], delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a");
-        if (pendingMystery && pendingMystery.severity && Math.random() < 0.5) { takeBreak(); var snapshot = { gold: gold, inv: inv, finished: finished }; if (pendingMystery.severity === "good") { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); DynamicEvents.mysteryGood(GameplayEventBus, snapshot); } else { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); DynamicEvents.mysteryBad(GameplayEventBus, snapshot, true); } return; }
+        if (pendingMystery && pendingMystery.severity && Math.random() < 0.5) { takeBreak(); var snapshot = { gold: gold, inv: inv, finished: finished }; if (pendingMystery.severity === "good") { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); } else { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, true); } return; }
         ForgeMode.transitionTo(PHASES.SESS_RESULT); setPhase(PHASES.SESS_RESULT);
     }
 
@@ -257,7 +257,7 @@ function useForgeVM(deps) {
         stressRef.current = ns; qualRef.current = nq; setStress(ns); setQualScore(nq); advanceTime(2, undefined, false);
         setSessResult({ delta: nq - oldQ, nq: nq, quality: getQualityTier(nq), ns: ns, sessions: forgeSess });
         showForgeBubbleFn("NORMALIZE", [{ text: (nq - oldQ) + " quality", color: "#f87171", bold: true }, { text: "-1 stress", color: "#60a5fa", bold: true }], "#60a5fa");
-        if (pendingMystery && pendingMystery.severity) { takeBreak(); var snapshot = { gold: gold, inv: inv, finished: finished }; if (pendingMystery.severity === "good") { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); DynamicEvents.mysteryGood(GameplayEventBus, snapshot); } else { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); DynamicEvents.mysteryBad(GameplayEventBus, snapshot, true); } return; }
+        if (pendingMystery && pendingMystery.severity) { takeBreak(); var snapshot = { gold: gold, inv: inv, finished: finished }; if (pendingMystery.severity === "good") { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); } else { GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, true); } return; }
         ForgeMode.transitionTo(PHASES.SESS_RESULT); setPhase(PHASES.SESS_RESULT);
     }
 

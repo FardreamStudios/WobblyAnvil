@@ -11,7 +11,7 @@
 
 import GameConstants from "../modules/constants.js";
 import GameUtils from "../modules/utilities.js";
-import GameEvents from "../modules/events.js";
+import QuestLogic from "../logic/questLogic.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
 
@@ -23,7 +23,7 @@ var BASE_STAMINA = GameConstants.BASE_STAMINA;
 var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
 var WAKE_HOUR = GameConstants.WAKE_HOUR;
 
-var generateRoyalQuest = GameEvents.generateRoyalQuest;
+var generateRoyalQuest = QuestLogic.generateRoyalQuest;
 
 var randInt = GameUtils.randInt;
 var weightedPick = GameUtils.weightedPick;

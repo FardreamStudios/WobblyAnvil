@@ -82,7 +82,7 @@ function DesktopLayout(props) {
     var player = props.player;
     var quest = props.quest;
     var forge = props.forge;
-    var mystery = props.mystery;
+    var vfx = props.vfx;
     var forgeVM = props.forgeVM;
     var playerVM = props.playerVM;
     var economyVM = props.economyVM;
@@ -146,17 +146,19 @@ function DesktopLayout(props) {
     var matKey = forge.matKey, setMatKey = forge.setMatKey;
     var wipWeapon = forge.wipWeapon;
 
-    // --- Mystery State ---
-    var pendingMystery = mystery.pendingMystery;
-    var goodEventUsed = mystery.goodEventUsed;
-    var mysteryShake = mystery.mysteryShake;
-    var weaponShake = mystery.weaponShake;
-    var mysteryVignette = mystery.mysteryVignette;
-    var mysteryVignetteOpacity = mystery.mysteryVignetteOpacity;
-    var activeScene = mystery.activeScene;
-    var sceneActionOverride = mystery.sceneActionOverride, setSceneActionOverride = mystery.setSceneActionOverride;
-    var propOverrides = mystery.propOverrides;
-    var fxRef = mystery.fxRef;
+    // --- Mystery Event Tracking (from quest) ---
+    var pendingMystery = quest.pendingMystery;
+    var goodEventUsed = quest.goodEventUsed;
+
+    // --- VFX State ---
+    var mysteryShake = vfx.mysteryShake;
+    var weaponShake = vfx.weaponShake;
+    var mysteryVignette = vfx.mysteryVignette;
+    var mysteryVignetteOpacity = vfx.mysteryVignetteOpacity;
+    var activeScene = vfx.activeScene;
+    var sceneActionOverride = vfx.sceneActionOverride, setSceneActionOverride = vfx.setSceneActionOverride;
+    var propOverrides = vfx.propOverrides;
+    var fxRef = vfx.fxRef;
 
     // --- ForgeVM ---
     var weapon = forgeVM.weapon;
@@ -218,13 +220,9 @@ function DesktopLayout(props) {
     var removeToast = props.removeToast;
     var addToast = props.addToast;
     var setGameOver = props.setGameOver;
-    var setPendingMystery = props.setPendingMystery;
-    var setGoodEventUsed = props.setGoodEventUsed;
     var setStamina = props.setStamina;
     var setSetShowGiveUp = setShowGiveUp;
 
-    // --- Local refs ---
-    var EVENTS = props.EVENTS;
 
     return (
         <>
@@ -324,7 +322,7 @@ function DesktopLayout(props) {
                         <div onClick={onForgeClick} style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 10, padding: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative", cursor: isQTEActive ? "pointer" : "default", flex: 1, minHeight: 280, overflow: "hidden" }}>
                             {/* SCENE */}
                             {(function() { var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides }); return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} />; })()}
-<ForgeFireFX active={forgeVM.isForging} />
+                            <ForgeFireFX active={forgeVM.isForging} />
 
                             {/* UI LAYER */}
                             <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, width: "100%", flex: 1 }}>
@@ -479,8 +477,8 @@ function DesktopLayout(props) {
                     </div>
                     <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                         <SectionLabel style={{ marginBottom: 4 }}>DEBUG</SectionLabel>
-                        <button onClick={function() { if (goodEventUsed || day > 1) return; var mv = EVENTS.find(function(e) { return e.id === "mystery"; }); if (mv) { setPendingMystery({ severity: "good", effect: mv.variants[1].effect }); setGoodEventUsed(true); } setShowOptions(false); }} disabled={goodEventUsed || day > 1} style={{ background: goodEventUsed || day > 1 ? "#0a0704" : "#1a1500", border: "2px solid " + (goodEventUsed || day > 1 ? "#3d2e0f" : "#fbbf24"), borderRadius: 8, color: goodEventUsed || day > 1 ? "#4a3c2c" : "#fbbf24", padding: "10px 16px", fontSize: 13, cursor: goodEventUsed || day > 1 ? "not-allowed" : "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>{goodEventUsed ? "Good Event Used" : day > 1 ? "Day 1 Only" : "Force Good Event"}</button>
-                        <button onClick={function() { var mv = EVENTS.find(function(e) { return e.id === "mystery"; }); if (mv) setPendingMystery({ severity: "bad", effect: mv.variants[2].effect }); setShowOptions(false); }} style={{ background: "#1a0505", border: "2px solid #ef4444", borderRadius: 8, color: "#ef4444", padding: "10px 16px", fontSize: 13, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Force Dark Event</button>
+                        <button onClick={function() { if (goodEventUsed || day > 1) return; props.onDebugGoodEvent(); setShowOptions(false); }} disabled={goodEventUsed || day > 1} style={{ background: goodEventUsed || day > 1 ? "#0a0704" : "#1a1500", border: "2px solid " + (goodEventUsed || day > 1 ? "#3d2e0f" : "#fbbf24"), borderRadius: 8, color: goodEventUsed || day > 1 ? "#4a3c2c" : "#fbbf24", padding: "10px 16px", fontSize: 13, cursor: goodEventUsed || day > 1 ? "not-allowed" : "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>{goodEventUsed ? "Good Event Used" : day > 1 ? "Day 1 Only" : "Force Good Event"}</button>
+                        <button onClick={function() { props.onDebugBadEvent(); setShowOptions(false); }} style={{ background: "#1a0505", border: "2px solid #ef4444", borderRadius: 8, color: "#ef4444", padding: "10px 16px", fontSize: 13, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Force Dark Event</button>
                         <button onClick={function() { earnGold(10000); setShowOptions(false); }} style={{ background: "#0a1a0a", border: "2px solid #4ade80", borderRadius: 8, color: "#4ade80", padding: "10px 16px", fontSize: 13, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Grant 10,000g</button>
                         <button onClick={function() { setStamina(function(s) { return Math.max(0, s - 1); }); }} style={{ background: "#1a0a1a", border: "2px solid #818cf8", borderRadius: 8, color: "#818cf8", padding: "10px 16px", fontSize: 13, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>Spend 1 Stamina</button>
                         <button onClick={function() { setShowRhythmTest(true); setShowOptions(false); }} style={{ background: "#0a1a1a", border: "2px solid #00ffe5", borderRadius: 8, color: "#00ffe5", padding: "10px 16px", fontSize: 13, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>QTE Test</button>

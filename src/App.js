@@ -9,7 +9,7 @@ import { useEffect, useRef, useCallback } from "react";
 // --- Module Imports ---
 import GameConstants from "./modules/constants.js";
 import GameUtils from "./modules/utilities.js";
-import GameEvents from "./modules/events.js";
+import MysteryLogic from "./logic/mysteryLogic.js";
 import AudioSystem from "./modules/audio.js";
 import UIComponents from "./modules/uiComponents.js";
 import ForgeComponents from "./modules/forgeComponents.js";
@@ -37,7 +37,7 @@ import usePlayerVM from "./hooks/usePlayerVM.js";
 import useEconomyVM from "./hooks/useEconomyVM.js";
 import useDayVM from "./hooks/useDayVM.js";
 import useQuestState from "./hooks/useQuestState.js";
-import useMysteryState from "./hooks/useMysteryState.js";
+import useVFXState from "./hooks/useVFXState.js";
 import useFXCues from "./hooks/useFXCues.js";
 import useInputRouter from "./hooks/useInputRouter.js";
 import useShopVM from "./hooks/useShopVM.js";
@@ -65,9 +65,6 @@ var referenceValue = GameUtils.referenceValue;
 var getSmithRank = GameUtils.getSmithRank;
 var getNextRank = GameUtils.getNextRank;
 var formatTime = GameUtils.formatTime;
-
-// --- Destructure Events ---
-var EVENTS = GameEvents.EVENTS;
 
 // --- Destructure Audio ---
 var useAudio = AudioSystem.useAudio;
@@ -136,13 +133,13 @@ export default function App() {
   var player = usePlayerState();
   var forge = useForgeState();
   var quest = useQuestState();
-  var mystery = useMysteryState();
+  var vfx = useVFXState();
 
   // --- GameMode Hook (owns init, sub-mode registration, lifecycle) ---
   var gm = useGameMode({ bus: GameplayEventBus });
 
   // --- FX Cue Router ---
-  useFXCues({ sfx: sfx, fxRef: mystery.fxRef });
+  useFXCues({ sfx: sfx, fxRef: vfx.fxRef });
 
   // --- UI State (from useUIState) ---
   var screen = ui.screen, setScreen = ui.setScreen;
@@ -217,20 +214,22 @@ export default function App() {
   var qteFlash = forge.qteFlash, setQteFlash = forge.setQteFlash;
   var strikesLeft = forge.strikesLeft, setStrikesLeft = forge.setStrikesLeft;
 
-  // --- Mystery State (from useMysteryState) ---
-  var pendingMystery = mystery.pendingMystery, setPendingMystery = mystery.setPendingMystery;
-  var goodEventUsed = mystery.goodEventUsed, setGoodEventUsed = mystery.setGoodEventUsed;
-  var mysteryPending = mystery.mysteryPending, setMysteryPending = mystery.setMysteryPending;
-  var mysteryShake = mystery.mysteryShake, setMysteryShake = mystery.setMysteryShake;
-  var weaponShake = mystery.weaponShake, setWeaponShake = mystery.setWeaponShake;
-  var mysteryVignette = mystery.mysteryVignette, setMysteryVignette = mystery.setMysteryVignette;
-  var mysteryVignetteOpacity = mystery.mysteryVignetteOpacity, setMysteryVignetteOpacity = mystery.setMysteryVignetteOpacity;
+  // --- Mystery Event Tracking (from useQuestState) ---
+  var pendingMystery = quest.pendingMystery, setPendingMystery = quest.setPendingMystery;
+  var goodEventUsed = quest.goodEventUsed, setGoodEventUsed = quest.setGoodEventUsed;
 
-  // --- Scene State (from useMysteryState) ---
-  var activeScene = mystery.activeScene, setActiveScene = mystery.setActiveScene;
-  var sceneActionOverride = mystery.sceneActionOverride, setSceneActionOverride = mystery.setSceneActionOverride;
-  var propOverrides = mystery.propOverrides, setPropOverrides = mystery.setPropOverrides;
-  var fxRef = mystery.fxRef;
+  // --- VFX State (from useVFXState) ---
+  var mysteryPending = vfx.mysteryPending, setMysteryPending = vfx.setMysteryPending;
+  var mysteryShake = vfx.mysteryShake, setMysteryShake = vfx.setMysteryShake;
+  var weaponShake = vfx.weaponShake, setWeaponShake = vfx.setWeaponShake;
+  var mysteryVignette = vfx.mysteryVignette, setMysteryVignette = vfx.setMysteryVignette;
+  var mysteryVignetteOpacity = vfx.mysteryVignetteOpacity, setMysteryVignetteOpacity = vfx.setMysteryVignetteOpacity;
+
+  // --- Scene State (from useVFXState) ---
+  var activeScene = vfx.activeScene, setActiveScene = vfx.setActiveScene;
+  var sceneActionOverride = vfx.sceneActionOverride, setSceneActionOverride = vfx.setSceneActionOverride;
+  var propOverrides = vfx.propOverrides, setPropOverrides = vfx.setPropOverrides;
+  var fxRef = vfx.fxRef;
 
   // --- Late Night Toast ---
   useEffect(function() {
@@ -273,10 +272,6 @@ export default function App() {
   function onActiveToastDone() { setActiveToast(null); }
   function addToast(msg, icon, color, duration, locked) { setToasts(function(t) { return t.concat([{ id: Date.now() + Math.random(), msg: msg, icon: icon, color: color, duration: duration || null, locked: locked || false }]); }); }
   function removeToast(id) { setToasts(function(t) { return t.filter(function(x) { return x.id !== id; }); }); }
-
-  // --- Event Application (GEB-5: moved to bus — see DynamicEvents.applyEventResult) ---
-
-  // --- Mystery Events (GEB-5: moved to bus — see DynamicEvents.mysteryGood/mysteryBad) ---
 
   // --- Customer System ---
   var trySpawnCustomer = useCallback(function(newHour, nf) {
@@ -674,7 +669,7 @@ export default function App() {
           player={player}
           quest={quest}
           forge={forge}
-          mystery={mystery}
+          vfx={vfx}
           forgeVM={forgeVM}
           playerVM={playerVM}
           economyVM={{ earnGold: earnGold, spendGold: spendGold, popGold: popGold, removeGoldPop: removeGoldPop, handleSell: handleSell, handleRefuse: handleRefuse, onSellMaterial: onSellMaterial }}
@@ -693,10 +688,9 @@ export default function App() {
           removeToast={removeToast}
           addToast={addToast}
           setGameOver={setGameOver}
-          setPendingMystery={setPendingMystery}
-          setGoodEventUsed={setGoodEventUsed}
           setStamina={setStamina}
-          EVENTS={EVENTS}
+          onDebugGoodEvent={function() { var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); setGoodEventUsed(true); setPendingMystery({ severity: "good" }); }}
+          onDebugBadEvent={function() { var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, false); setPendingMystery({ severity: "bad" }); }}
       />
   );
 }
