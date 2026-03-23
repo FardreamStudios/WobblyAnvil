@@ -27,19 +27,17 @@
 // --- Data-table morning events (factory-produced) ---
 import createMorningAbility from "./morning/morningAbilityFactory.js";
 import MORNING_EVENTS from "./morning/morningEventsTable.js";
-
-var morningAbilities = MORNING_EVENTS.map(function(row) {
-    return createMorningAbility(row);
-});
-
 // --- Complex abilities (individual files) ---
 import MysteryVisitorAbility from "./morning/mysteryVisitor.js";
 import MysteryShadowAbility from "./morning/mysteryShadow.js";
-
 // --- Reactive abilities ---
 import HotStreakAbility from "./reactive/hotStreak.js";
 import ShameDebuffAbility from "./reactive/shameDebuff.js";
 import RoyalAttentionAbility from "./reactive/royalAttention.js";
+
+var morningAbilities = MORNING_EVENTS.map(function(row) {
+    return createMorningAbility(row);
+});
 
 var COMPLEX_ABILITIES = [
     MysteryVisitorAbility,

@@ -35,6 +35,7 @@ var _active = [];                   // active ability instances
 var _modifiers = [];                // active modifier entries
 var _watchers = [];                 // { tag, handler } for cleanup
 var _instanceCounter = 0;           // unique instance IDs
+var _pendingToasts = [];            // buffered toasts (drained by buildDayQueue)
 var _initialized = false;
 
 // --- Diagnostics ---
@@ -383,6 +384,29 @@ function resolveValue(attribute, baseValue) {
 }
 
 // ============================================================
+// TOAST BUFFER — Morning ability toasts queue here instead of
+// emitting UI_ADD_TOAST directly. buildDayQueue in useDayVM
+// calls flushToasts() and appends them to the sequenced queue.
+// ============================================================
+
+function queueToast(data) {
+    _pendingToasts.push({
+        id: "ability_" + Date.now() + "_" + Math.random(),
+        msg: data.msg || "",
+        icon: data.icon || "",
+        color: data.color || "#fbbf24",
+        duration: data.duration || null,
+        locked: data.locked || false,
+    });
+}
+
+function flushToasts() {
+    var flushed = _pendingToasts.slice();
+    _pendingToasts = [];
+    return flushed;
+}
+
+// ============================================================
 // MORNING ROLL — Weighted single-pick coordinator
 // Replaces the legacy rollDailyEvent roller. Called by
 // GameMode.startDay() after emitting DAY_MORNING_START.
@@ -462,6 +486,7 @@ function reset() {
     _registry = {};
     _active = [];
     _modifiers = [];
+    _pendingToasts = [];
     _watchers = [];
     _instanceCounter = 0;
 }
@@ -492,6 +517,10 @@ var AbilityManager = {
     addModifier:    addModifier,
     getModifiers:   getModifiers,
     resolveValue:   resolveValue,
+
+    // --- Toast Buffer ---
+    queueToast:     queueToast,
+    flushToasts:    flushToasts,
 
     // --- Morning Roll ---
     rollMorning:    rollMorning,

@@ -239,9 +239,9 @@ function createMorningAbility(row) {
                 });
             }
 
-            // Toast
+            // Toast (buffered — drained by buildDayQueue for sequencing)
             var desc = resolveDesc(variant.desc, matKey);
-            ctx.bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+            ctx.manager.queueToast({
                 msg: variant.title.toUpperCase() + "\n" + desc,
                 icon: row.icon || "",
                 color: row.color || "#fbbf24",
@@ -269,7 +269,7 @@ function createMorningAbility(row) {
         duration: row.duration || null,
 
         onEnd: row.onEndToast ? function(ctx) {
-            ctx.bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+            ctx.manager.queueToast({
                 msg:      row.onEndToast.msg    || "Effect ended.",
                 icon:     row.onEndToast.icon   || "",
                 color:    row.onEndToast.color  || "#4ade80",

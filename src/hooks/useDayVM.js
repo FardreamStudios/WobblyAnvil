@@ -14,6 +14,7 @@ import GameUtils from "../modules/utilities.js";
 import QuestLogic from "../logic/questLogic.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
+import AbilityManager from "../abilities/abilityManager.js";
 
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
@@ -100,6 +101,11 @@ function useDayVM(deps) {
                 setRoyalQuest(q2); setQuestNum(pendingQuestNum); sfx.royal();
                 queue.push({ id: "rq_" + newDay, msg: q2.name + "\nDemands " + q2.minQualityLabel + "+ " + q2.materialRequired.toUpperCase() + " " + q2.weaponName + (q2.qty > 1 ? " x" + q2.qty : "") + " by Day " + q2.deadline, icon: "", color: "#f59e0b" });
             }
+        }
+        // Append any morning ability toasts (buffered by AbilityManager)
+        var abilityToasts = AbilityManager.flushToasts();
+        for (var a = 0; a < abilityToasts.length; a++) {
+            queue.push(abilityToasts[a]);
         }
         return queue;
     }

@@ -37,7 +37,7 @@ var ShameDebuffAbility = {
             value:     0.5,
         });
 
-        ctx.bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+        ctx.manager.queueToast({
             msg:      "SHAME\nWord spreads of your failure. Fewer customers.",
             icon:     "\uD83D\uDE14",
             color:    "#ef4444",
