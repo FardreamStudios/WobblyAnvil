@@ -409,15 +409,9 @@ export default function App() {
   // RENDER
   // ============================================================
 
-  // Mobile uses a simple full-viewport wrapper instead of ScaleWrapper
-  // to avoid scale-recalc flash on screen transitions.
-  var ScreenWrap = isMobile
-      ? function(props) { return <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#0a0704" }}>{props.children}</div>; }
-      : ScaleWrapper;
-
-  if (gameOver) return <ScreenWrap><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScreenWrap>;
-  if (screen === "splash") return <ScreenWrap><SplashScreen onEnter={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScreenWrap>;
-  if (screen === "menu") return <ScreenWrap><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScreenWrap>;
+  if (gameOver) return <ScaleWrapper key="sw"><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScaleWrapper>;
+  if (screen === "splash") return <ScaleWrapper key="sw"><SplashScreen onEnter={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
+  if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 
   // ============================================================
   // MOBILE RENDER BRANCH
