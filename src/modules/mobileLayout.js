@@ -988,25 +988,24 @@ function MobileLayout(props) {
             <div className="mobile-middle" style={{ flexDirection: middleDirection }}>
                 {center}
                 {decreeFloat}
-                {/* DAY label — dead center top of screen */}
+                {/* DAY label — black box, horizontal, dead center top */}
                 <div style={{
                     position: "absolute",
                     top: "2%",
                     left: "50%",
                     transform: "translateX(-50%)",
                     zIndex: T.z.ui + 2,
-                    fontFamily: "'Cinzel', serif",
-                    color: T.colors.textLabel,
-                    fontSize: 21,
-                    letterSpacing: 2,
-                    fontWeight: "bold",
-                    textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-                    lineHeight: 1,
-                    textAlign: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    background: "rgba(0,0,0,0.20)",
+                    border: "1px solid " + T.colors.borderDark,
+                    borderRadius: T.radius.md,
+                    padding: "4px 14px",
                     pointerEvents: "none",
                 }}>
-                    DAY<br/>
-                    <span style={{ fontSize: 32, color: T.colors.textLight, letterSpacing: 0 }}>{props.day || 1}</span>
+                    <span style={{ fontFamily: "'Cinzel', serif", color: T.colors.textLabel, fontSize: 18, letterSpacing: 2, fontWeight: "bold", textShadow: "0 1px 4px rgba(0,0,0,0.9)", lineHeight: 1 }}>DAY</span>
+                    <span style={{ fontFamily: "'Cinzel', serif", fontSize: 28, color: T.colors.textLight, fontWeight: "bold", textShadow: "0 1px 4px rgba(0,0,0,0.9)", lineHeight: 1 }}>{props.day || 1}</span>
                 </div>
                 {/* Action strip — with sidebar bg image */}
                 <div style={{
