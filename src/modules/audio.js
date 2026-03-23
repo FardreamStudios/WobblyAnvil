@@ -78,7 +78,7 @@ function useAudio() {
                 if (!_ctx) {
                     _ctx = new (window.AudioContext || window.webkitAudioContext)();
                     _gainNode = _ctx.createGain();
-                    _gainNode.gain.setValueAtTime(2.5, 0);
+                    _gainNode.gain.setValueAtTime(1.5, 0);
                     _gainNode.connect(_ctx.destination);
                     _sfxGain = _ctx.createGain();
                     _sfxGain.gain.setValueAtTime(0.25, 0);
