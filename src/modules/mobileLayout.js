@@ -720,6 +720,12 @@ function MobileBottomBar(props) {
                    color="textLabel" bg="bgWarm" size={20} radius="md"
                    w={32} h={32} bold={false} upper={false}
                    style={{ padding: 0, flexShrink: 0, border: T.borders.thin }} />
+
+            {/* Fullscreen toggle */}
+            <W.Btn onClick={props.onToggleFullscreen} icon={props.isFull ? "\u2716" : "\u26F6"}
+                   color="textLabel" bg="bgWarm" size={16} radius="md"
+                   w={32} h={32} bold={false} upper={false}
+                   style={{ padding: 0, flexShrink: 0, border: T.borders.thin }} />
         </W.Strip>
     );
 }
@@ -737,34 +743,6 @@ function MobileLayout(props) {
     var isInForgeFlow = phase !== "idle";
     var isFull = useFullscreenState();
     var finished = props.finished || [];
-
-    // --- Banner content ---
-    var banner = (
-        <W.Strip className="mobile-banner" gap="xs" h={T.layout.bannerH}
-                 bg="bgPanel" style={{ borderBottom: T.borders.thin, flexShrink: 0, fontFamily: T.fonts.heading, padding: "0 8px" }}>
-
-            {/* Left — spacer (LV/Rank moved to drawer) */}
-            <W.Strip gap="xs" shrink={false} style={{ paddingLeft: "4vw" }} />
-
-            {/* Center — Royal decree */}
-            <W.Strip flex={1} center gap="xl">
-                {props.royalQuest && !props.royalQuest.fulfilled && (
-                    <W.Label size={17} color="gold" spacing="tight" bold>DECREE DUE DAY {props.royalQuest.deadline}</W.Label>
-                )}
-            </W.Strip>
-
-            {/* Right — Day + Fullscreen */}
-            <W.Strip gap="xs" shrink={false} style={{ paddingRight: 4 }}>
-                <W.Label size={15} color="textLabel" spacing="tight" bold>DAY</W.Label>
-                <W.Label size="h2" color="textLight" bold>{props.day || 1}</W.Label>
-                <button onClick={function() { if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); } else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); } }} style={{
-                    background: "none", border: T.borders.thin, borderRadius: T.radius.sm,
-                    color: T.colors.textLabel, fontSize: T.fontSize.md, padding: "2px 5px", cursor: "pointer",
-                    fontFamily: T.fonts.heading, marginLeft: 4,
-                }}>{isFull ? "\u2716" : "\u26F6"}</button>
-            </W.Strip>
-        </W.Strip>
-    );
 
     // --- Drawer state ---
     var [drawerOpen, setDrawerOpen] = useState(false);
@@ -882,6 +860,11 @@ function MobileLayout(props) {
     var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
     var actionStrip = (
         <div className={actionStripClass} style={{ justifyContent: "stretch" }}>
+            {/* DAY label at top of strip */}
+            <W.Strip center gap="xxs" style={{ flexShrink: 0, padding: "2px 0" }}>
+                <W.Label size="xxs" color="textLabel" spacing="tight" bold font="heading">DAY</W.Label>
+                <W.Label size="lg" color="textLight" bold font="heading">{props.day || 1}</W.Label>
+            </W.Strip>
             {isForging && phase === "sess_result" ? (
                 <>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
@@ -894,11 +877,16 @@ function MobileLayout(props) {
                 <div style={{ flex: 1 }} />
             ) : (
                 <>
-                    {props.royalQuest && (
-                        <div style={{ flex: 1, display: "flex" }}><DecreeBtn quest={props.royalQuest} questNum={props.questNum} /></div>
-                    )}
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" /></div>
+                    {/* Decree + Sleep/Rest row */}
+                    <div style={{ display: "flex", gap: 4, flex: 2 }}>
+                        {props.royalQuest && (
+                            <div style={{ width: 36, flexShrink: 0, display: "flex" }}><DecreeBtn quest={props.royalQuest} questNum={props.questNum} /></div>
+                        )}
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                            <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
+                            <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" /></div>
+                        </div>
+                    </div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} holdContent="Browse weapons, materials, and upgrades" /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
@@ -944,6 +932,10 @@ function MobileLayout(props) {
         stamina={props.stamina} maxStam={props.maxStam}
         staminaColor={props.staminaColor} staminaPct={props.staminaPct}
         finished={finished} gold={props.gold} onOptions={props.onOptions}
+        isFull={isFull} onToggleFullscreen={function() {
+        if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); }
+        else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); }
+    }}
     />;
 
     // --- Assemble ---
@@ -951,7 +943,6 @@ function MobileLayout(props) {
 
     return (
         <MobileShell className={props.className}>
-            {banner}
             <div className="mobile-middle" style={{ flexDirection: middleDirection }}>
                 {center}
                 {actionStrip}
