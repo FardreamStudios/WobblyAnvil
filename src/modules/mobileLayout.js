@@ -1029,7 +1029,7 @@ function MobileLayout(props) {
                         height: "100%",
                         width: "120%",
                         objectFit: "cover",
-                        opacity: 0.70,
+                        opacity: 0.10,
                         transform: isLeftHanded ? "scaleX(-1)" : "none",
                         pointerEvents: "none",
                         zIndex: 1,
