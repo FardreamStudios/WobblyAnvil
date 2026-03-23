@@ -63,6 +63,7 @@ function fadeVolume(audio, targetVol, durationMs, callback) {
 function useAmbientAudio(deps) {
     var isForging = deps.isForging;
     var muted     = deps.muted;
+    var sfxVol    = deps.sfxVol !== undefined ? deps.sfxVol : 1;
 
     var ambientRef    = useRef(null);   // Audio element
     var fireLoopRef   = useRef(null);   // Audio element
@@ -72,9 +73,11 @@ function useAmbientAudio(deps) {
     var startedRef    = useRef(false);
     var forgingRef    = useRef(false);
     var mutedRef      = useRef(false);
+    var sfxVolRef     = useRef(sfxVol); // tracks slider value for use in closures
     var fadeTimers     = useRef([]);     // active fade intervals
 
     mutedRef.current = muted;
+    sfxVolRef.current = sfxVol;
 
     // --- Cancel all active fades ---
     function clearFades() {
@@ -127,7 +130,7 @@ function useAmbientAudio(deps) {
         var ambient = ambientRef.current;
         ambient.volume = 0;
         ambient.play().catch(function() {});
-        trackFade(fadeVolume(ambient, AMBIENT.ambientVol, AMBIENT.fadeInSec * 1000));
+        trackFade(fadeVolume(ambient, AMBIENT.ambientVol * sfxVolRef.current, AMBIENT.fadeInSec * 1000));
     }
 
     // --- Hammer ambient loop ---
@@ -145,7 +148,7 @@ function useAmbientAudio(deps) {
                 if (pool.length === 0) return;
                 var audio = pool[Math.floor(Math.random() * pool.length)];
                 audio.currentTime = 0;
-                audio.volume = AMBIENT.hammerVol;
+                audio.volume = AMBIENT.hammerVol * sfxVolRef.current;
                 audio.play().catch(function() {});
                 scheduleNext();
             }, Math.max(200, delay));
@@ -159,7 +162,7 @@ function useAmbientAudio(deps) {
             if (pool.length === 0) return;
             var audio = pool[Math.floor(Math.random() * pool.length)];
             audio.currentTime = 0;
-            audio.volume = AMBIENT.hammerVol;
+            audio.volume = AMBIENT.hammerVol * sfxVolRef.current;
             audio.play().catch(function() {});
             scheduleNext();
         }, Math.max(200, firstDelay));
@@ -188,7 +191,7 @@ function useAmbientAudio(deps) {
         var burst = fireBurstRef.current;
         if (burst) {
             burst.currentTime = 0;
-            burst.volume = AMBIENT.fireBurstVol;
+            burst.volume = AMBIENT.fireBurstVol * sfxVolRef.current;
             burst.play().catch(function() {});
         }
 
@@ -198,7 +201,7 @@ function useAmbientAudio(deps) {
             fireLoop.currentTime = 0;
             fireLoop.volume = 0;
             fireLoop.play().catch(function() {});
-            trackFade(fadeVolume(fireLoop, AMBIENT.fireLoopVol, AMBIENT.fadeInSec * 1000));
+            trackFade(fadeVolume(fireLoop, AMBIENT.fireLoopVol * sfxVolRef.current, AMBIENT.fadeInSec * 1000));
         }
 
         // Hammer ambient ping loop
@@ -222,7 +225,7 @@ function useAmbientAudio(deps) {
         var ambient = ambientRef.current;
         if (ambient && !mutedRef.current) {
             ambient.play().catch(function() {});
-            trackFade(fadeVolume(ambient, AMBIENT.ambientVol, AMBIENT.fadeInSec * 1000));
+            trackFade(fadeVolume(ambient, AMBIENT.ambientVol * sfxVolRef.current, AMBIENT.fadeInSec * 1000));
         }
     }
 
@@ -251,6 +254,22 @@ function useAmbientAudio(deps) {
             forgingRef.current = false;
         }
     }, [muted]);
+
+    // --- React to sfxVol slider changes (live update playing elements) ---
+    useEffect(function() {
+        if (!startedRef.current || mutedRef.current) return;
+        if (forgingRef.current) {
+            // During forge: fire loop is playing, ambient is paused
+            if (fireLoopRef.current && !fireLoopRef.current.paused) {
+                fireLoopRef.current.volume = AMBIENT.fireLoopVol * sfxVol;
+            }
+        } else {
+            // Idle: ambient is playing, fire is paused
+            if (ambientRef.current && !ambientRef.current.paused) {
+                ambientRef.current.volume = AMBIENT.ambientVol * sfxVol;
+            }
+        }
+    }, [sfxVol]);
 
     // --- Cleanup on unmount ---
     useEffect(function() {

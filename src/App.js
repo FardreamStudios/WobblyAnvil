@@ -358,7 +358,7 @@ export default function App() {
   var qtePosRef = forgeVM.qtePosRef, qteProcessing = forgeVM.qteProcessing;
 
   // --- Ambient Audio Layer ---
-  var ambient = useAmbientAudio({ isForging: isForging, muted: false });
+  var ambient = useAmbientAudio({ isForging: isForging, muted: false, sfxVol: sfxVol });
 
   // --- Input Router ---
   var input = useInputRouter({
@@ -409,9 +409,15 @@ export default function App() {
   // RENDER
   // ============================================================
 
-  if (gameOver) return <ScaleWrapper><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScaleWrapper>;
-  if (screen === "splash") return <ScaleWrapper><SplashScreen onEnter={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
-  if (screen === "menu") return <ScaleWrapper><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
+  // Mobile uses a simple full-viewport wrapper instead of ScaleWrapper
+  // to avoid scale-recalc flash on screen transitions.
+  var ScreenWrap = isMobile
+      ? function(props) { return <div style={{ width: "100vw", height: "100vh", overflow: "hidden", background: "#0a0704" }}>{props.children}</div>; }
+      : ScaleWrapper;
+
+  if (gameOver) return <ScreenWrap><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScreenWrap>;
+  if (screen === "splash") return <ScreenWrap><SplashScreen onEnter={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScreenWrap>;
+  if (screen === "menu") return <ScreenWrap><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScreenWrap>;
 
   // ============================================================
   // MOBILE RENDER BRANCH
