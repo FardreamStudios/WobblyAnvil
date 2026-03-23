@@ -899,24 +899,24 @@ function MobileLayout(props) {
     // --- Action strip ---
     var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
     var actionStrip = (
-        <div className={actionStripClass} style={{ justifyContent: "space-evenly", height: "100%", padding: "18% 10px" }}>
+        <div className={actionStripClass} style={{ justifyContent: "space-evenly", height: "100%", padding: "15vh 4px" }}>
             {isForging && phase === "sess_result" ? (
                 <>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.normalize} onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" holdContent="Reduce stress at the cost of some quality" /></div>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.quench} onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon — lock in your work" /></div>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.scrap} onClick={props.onScrap} color="#8a7a64" holdContent="Destroy this weapon and recover the material" /></div>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.leave} onClick={props.onLeave} color="#60a5fa" holdContent="Walk away — weapon stays on the anvil" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.normalize} onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" holdContent="Reduce stress at the cost of some quality" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.quench} onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon — lock in your work" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.scrap} onClick={props.onScrap} color="#8a7a64" holdContent="Destroy this weapon and recover the material" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.leave} onClick={props.onLeave} color="#60a5fa" holdContent="Walk away — weapon stays on the anvil" /></div>
                 </>
             ) : isQTEActive ? (
                 <div style={{ flex: 1 }} />
             ) : (
                 <>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" /></div>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} holdContent="Browse weapons, materials, and upgrades" /></div>
-                    <div style={{ flex: 0.95, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} holdContent="Browse weapons, materials, and upgrades" /></div>
+                    <div style={{ flex: "0 1 auto", maxHeight: "12vh", display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
                 </>
             )}
         </div>
