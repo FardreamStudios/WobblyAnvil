@@ -53,6 +53,9 @@ function useInputRouter(deps) {
         || toastQueue.length > 0
         || mysteryPending;
 
+    // DEBUG — remove after identifying stuck flag
+    if (isLocked) console.log("[InputRouter] LOCKED:", { isQTEActive: isQTEActive, activeCustomer: !!activeCustomer, toastQueue: toastQueue.length, mysteryPending: mysteryPending });
+
     // --- Stamina helpers ---
     var exhausted       = stamina <= 0;
     var canRest         = canAffordTime(hour, 2);

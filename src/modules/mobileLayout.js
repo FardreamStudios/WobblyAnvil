@@ -245,20 +245,25 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
         disabled: disabled,
     });
 
-    // --- Dismiss popover on outside tap ---
+    // --- Dismiss popover on release or outside tap ---
     useEffect(function() {
         if (!showPop) return;
-        function dismiss(e) {
+        function dismissOutside(e) {
             if (popRef.current && !popRef.current.contains(e.target) &&
                 btnRef.current && !btnRef.current.contains(e.target)) {
                 setShowPop(false);
             }
         }
-        document.addEventListener("touchstart", dismiss);
-        document.addEventListener("mousedown", dismiss);
+        function dismissRelease() { setShowPop(false); }
+        document.addEventListener("touchstart", dismissOutside);
+        document.addEventListener("mousedown", dismissOutside);
+        document.addEventListener("touchend", dismissRelease);
+        document.addEventListener("mouseup", dismissRelease);
         return function() {
-            document.removeEventListener("touchstart", dismiss);
-            document.removeEventListener("mousedown", dismiss);
+            document.removeEventListener("touchstart", dismissOutside);
+            document.removeEventListener("mousedown", dismissOutside);
+            document.removeEventListener("touchend", dismissRelease);
+            document.removeEventListener("mouseup", dismissRelease);
         };
     }, [showPop]);
 
@@ -278,8 +283,7 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
             position: "fixed",
             zIndex: 9999,
             width: popW,
-            maxHeight: vh - margin * 2,
-            overflowY: "hidden",
+            overflow: "visible",
         };
 
         // Horizontal
@@ -898,7 +902,13 @@ function MobileLayout(props) {
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.leave} onClick={props.onLeave} color="#60a5fa" holdContent="Walk away — weapon stays on the anvil" /></div>
                 </>
             ) : isQTEActive ? (
-                <div style={{ flex: 1 }} />
+                <>
+                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.sleep} /></div>
+                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.rest} /></div>
+                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.scavenge} /></div>
+                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.shop} /></div>
+                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.bag} /></div>
+                </>
             ) : (
                 <>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
@@ -911,13 +921,13 @@ function MobileLayout(props) {
             {/* Utility row — options + fullscreen, always visible, tappable during QTE */}
             <div style={{ flex: 0.6, display: "flex", gap: "1.5vh", flexShrink: 0, pointerEvents: "auto" }}>
                 <div style={{ flex: 1, display: "flex" }}>
-                    <MobileBtn icon={"\u2699"} onClick={props.onOptions} holdContent="Open game settings" />
+                    <MobileBtn icon={"\u2699"} onClick={props.onOptions} />
                 </div>
                 <div style={{ flex: 1, display: "flex" }}>
                     <MobileBtn icon={isFull ? "\u2716" : "\u26F6"} onClick={function() {
                         if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); }
                         else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); }
-                    }} holdContent="Toggle fullscreen mode" />
+                    }} />
                 </div>
             </div>
         </div>

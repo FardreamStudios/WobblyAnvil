@@ -14,7 +14,7 @@
 
 import { useState, useRef, useCallback } from "react";
 
-var HOLD_THRESHOLD_MS = 100;
+var HOLD_THRESHOLD_MS = 400;
 var DRAG_TOLERANCE_PX = 10;
 
 function usePressHold(opts) {

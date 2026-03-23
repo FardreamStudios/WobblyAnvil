@@ -21,6 +21,7 @@ import SceneSystem from "./modules/sceneSystem.js";
 import MobileLayoutModule from "./modules/mobileLayout.js";
 import DesktopLayoutModule from "./modules/desktopLayout.js";
 import DevBanner from "./components/DevBanner.js";
+import DevRouter from "./dev/DevRouter.js";
 import GameplayEventBus from "./logic/gameplayEventBus.js";
 import EVENT_TAGS from "./config/eventTags.js";
 import AbilityManager from "./abilities/abilityManager.js";
@@ -125,6 +126,11 @@ var isFullscreenActive = MobileLayoutModule.isFullscreenActive;
 // ============================================================
 
 export default function App() {
+  // Dev tools route — bypass game entirely
+  if (window.location.pathname.startsWith("/dev")) {
+    return <DevRouter />;
+  }
+
   var sfx = useAudio();
   var isMobile = useLayoutMode();
 
