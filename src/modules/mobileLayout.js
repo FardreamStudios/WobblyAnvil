@@ -383,6 +383,172 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
     );
 }
 
+// --- Decree Scroll Button ---
+// Tap = show decree for 3s. Hold = stays until release.
+// Only rendered when royalQuest is active.
+
+function DecreeBtn({ quest, questNum }) {
+    var T = THEME;
+    var MATS = GameConstants.MATS;
+    var btnRef = useRef(null);
+    var popRef = useRef(null);
+    var dismissTimer = useRef(null);
+    var [showPop, setShowPop] = useState(false);
+    var [holding, setHolding] = useState(false);
+
+    // Auto-dismiss after 3s on tap (not hold)
+    useEffect(function() {
+        if (showPop && !holding) {
+            dismissTimer.current = setTimeout(function() {
+                setShowPop(false);
+            }, 3000);
+            return function() { clearTimeout(dismissTimer.current); };
+        }
+    }, [showPop, holding]);
+
+    var press = usePressHold({
+        onClick: function() {
+            setHolding(false);
+            setShowPop(true);
+        },
+        onHold: function() {
+            setHolding(true);
+            setShowPop(true);
+        },
+        disabled: false,
+    });
+
+    // On hold release — start the 3s dismiss
+    useEffect(function() {
+        if (!holding) return;
+        function onUp() { setHolding(false); }
+        document.addEventListener("touchend", onUp);
+        document.addEventListener("mouseup", onUp);
+        return function() {
+            document.removeEventListener("touchend", onUp);
+            document.removeEventListener("mouseup", onUp);
+        };
+    }, [holding]);
+
+    // Dismiss on outside tap
+    useEffect(function() {
+        if (!showPop) return;
+        function dismiss(e) {
+            if (popRef.current && !popRef.current.contains(e.target) &&
+                btnRef.current && !btnRef.current.contains(e.target)) {
+                setShowPop(false);
+                setHolding(false);
+            }
+        }
+        document.addEventListener("touchstart", dismiss);
+        document.addEventListener("mousedown", dismiss);
+        return function() {
+            document.removeEventListener("touchstart", dismiss);
+            document.removeEventListener("mousedown", dismiss);
+        };
+    }, [showPop]);
+
+    // Popover position — always to the right of this button
+    function getPopStyle() {
+        if (!btnRef.current) return {};
+        var rect = btnRef.current.getBoundingClientRect();
+        var vh = window.innerHeight;
+        var popW = 200;
+        var popH = 160;
+        var margin = 8;
+        var clampedY = Math.max(margin, Math.min(rect.top, vh - popH - margin));
+        return {
+            position: "fixed",
+            zIndex: 9999,
+            width: popW,
+            left: rect.right + 6,
+            top: clampedY,
+        };
+    }
+
+    var matData = MATS[quest.materialRequired] || {};
+    var matColor = matData.color || "#a0a0a0";
+    var fulfilled = quest.fulfilled;
+    var accentColor = fulfilled ? T.colors.green : T.colors.gold;
+    var borderGlow = fulfilled ? T.colors.green + "66" : T.colors.gold + "66";
+
+    return (
+        <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1 }}>
+            <button {...press.handlers} style={{
+                background: T.colors.bgWarm,
+                border: "1px solid " + borderGlow,
+                borderRadius: T.radius.md,
+                color: accentColor,
+                cursor: "pointer",
+                fontFamily: T.fonts.body,
+                fontWeight: "bold",
+                fontSize: T.fontSize.xs,
+                letterSpacing: T.letterSpacing.tight,
+                textTransform: "uppercase",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: T.spacing.xxs,
+                padding: "4px 4px",
+                width: "100%",
+                height: "100%",
+                flex: 1,
+                WebkitUserSelect: "none",
+                userSelect: "none",
+            }}>
+                <span style={{ fontSize: T.fontSize.xxl, lineHeight: 1, pointerEvents: "none" }}>{"\uD83D\uDCDC"}</span>
+            </button>
+
+            {showPop && (
+                <div ref={popRef} style={Object.assign({}, getPopStyle(), {
+                    background: T.colors.bgMid,
+                    border: "1px solid " + accentColor + "55",
+                    borderRadius: T.radius.lg,
+                    padding: "10px 12px",
+                    boxShadow: "0 6px 24px rgba(0,0,0,0.85)",
+                    fontFamily: T.fonts.body,
+                    lineHeight: 1.6,
+                })}>
+                    {/* Header */}
+                    <div style={{ fontSize: T.fontSize.sm, color: accentColor, fontWeight: "bold", letterSpacing: 1, marginBottom: 6 }}>
+                        {fulfilled ? "DECREE FULFILLED" : "ROYAL DECREE #" + ((questNum || 0) + 1)}
+                    </div>
+                    {/* From */}
+                    <div style={{ fontSize: T.fontSize.xs, color: T.colors.textDim, marginBottom: 4 }}>
+                        From: <span style={{ color: T.colors.textBody, fontWeight: "bold" }}>{quest.name}</span>
+                    </div>
+                    {/* Demand */}
+                    <div style={{ fontSize: T.fontSize.sm, color: T.colors.textLight, fontWeight: "bold", marginBottom: 6 }}>
+                        {quest.minQualityLabel}+ <span style={{ color: matColor }}>{quest.materialRequired.toUpperCase()}</span>{" "}
+                        {quest.qty > 1 && <span style={{ color: T.colors.gold }}>x{quest.qty} </span>}
+                        {quest.weaponName}
+                    </div>
+                    {/* Progress */}
+                    {quest.qty > 1 && (
+                        <div style={{ fontSize: T.fontSize.xs, color: fulfilled ? T.colors.green : T.colors.textDim, marginBottom: 4 }}>
+                            Delivered: {quest.fulfilledQty || 0}/{quest.qty}
+                        </div>
+                    )}
+                    {/* Deadline */}
+                    <div style={{ fontSize: T.fontSize.xs, color: T.colors.textDim, marginBottom: 6 }}>
+                        Due: <span style={{ color: accentColor, fontWeight: "bold" }}>Day {quest.deadline}</span>
+                    </div>
+                    {/* Rewards / Penalty */}
+                    <div style={{ display: "flex", gap: 6 }}>
+                        <div style={{ flex: 1, background: T.colors.bgDark, border: "1px solid " + T.colors.green + "33", borderRadius: T.radius.sm, padding: "4px 6px" }}>
+                            <div style={{ fontSize: T.fontSize.xs, color: T.colors.green, fontWeight: "bold" }}>+{quest.reward}g +{quest.reputationGain} rep</div>
+                        </div>
+                        <div style={{ flex: 1, background: T.colors.bgDark, border: "1px solid " + T.colors.red + "33", borderRadius: T.radius.sm, padding: "4px 6px" }}>
+                            <div style={{ fontSize: T.fontSize.xs, color: T.colors.red, fontWeight: "bold" }}>-{quest.reputationLoss} rep</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // --- Shelf Icon with popup ---
 
 function ShelfItem({ item, index }) {
@@ -723,6 +889,9 @@ function MobileLayout(props) {
                 <div style={{ flex: 1 }} />
             ) : (
                 <>
+                    {props.royalQuest && (
+                        <div style={{ flex: 1, display: "flex" }}><DecreeBtn quest={props.royalQuest} questNum={props.questNum} /></div>
+                    )}
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" /></div>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
