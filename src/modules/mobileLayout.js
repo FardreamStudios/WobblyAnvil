@@ -930,8 +930,8 @@ function MobileLayout(props) {
             left: isLeftHanded ? "auto" : "6%",
             right: isLeftHanded ? "6%" : "auto",
             zIndex: T.z.ui + 1,
-            width: 112,
-            height: 112,
+            width: 78,
+            height: 78,
         }}>
             <DecreeBtn quest={Object.assign({}, props.royalQuest, { _currentDay: props.day || 1 })} questNum={props.questNum} />
         </div>
@@ -997,7 +997,7 @@ function MobileLayout(props) {
                     zIndex: T.z.ui + 2,
                     fontFamily: "'Cinzel', serif",
                     color: T.colors.textLabel,
-                    fontSize: 15,
+                    fontSize: 21,
                     letterSpacing: 2,
                     fontWeight: "bold",
                     textShadow: "0 1px 4px rgba(0,0,0,0.9)",
@@ -1008,7 +1008,7 @@ function MobileLayout(props) {
                     DAY<br/>
                     <span style={{ fontSize: 32, color: T.colors.textLight, letterSpacing: 0 }}>{props.day || 1}</span>
                 </div>
-                {/* Action strip — independent column, no sidebar box */}
+                {/* Action strip — with sidebar bg image */}
                 <div style={{
                     position: "relative",
                     flexShrink: 0,
@@ -1016,7 +1016,21 @@ function MobileLayout(props) {
                     display: "flex",
                     flexDirection: "column",
                     zIndex: T.z.ui,
+                    background: "transparent",
                 }}>
+                    <img src={IC.sidebar} alt="" draggable={false} style={{
+                        position: "absolute",
+                        top: 0,
+                        right: isLeftHanded ? "auto" : 0,
+                        left: isLeftHanded ? 0 : "auto",
+                        height: "100%",
+                        width: "auto",
+                        opacity: 0.50,
+                        filter: "brightness(0.3)",
+                        transform: isLeftHanded ? "scaleX(-1)" : "none",
+                        pointerEvents: "none",
+                        zIndex: 1,
+                    }} />
                     {actionStrip}
                 </div>
                 {drawer}
