@@ -43,6 +43,7 @@ function useDayVM(deps) {
     var setToastQueue = deps.setToastQueue;
     var setActiveToast = deps.setActiveToast;
     var trySpawnCustomer = deps.trySpawnCustomer;
+    var gm = deps.gm;
     var earnGold = deps.earnGold;
     var changeRep = deps.changeRep;
     var forgeOnSleep = deps.forgeOnSleep;
@@ -142,6 +143,9 @@ function useDayVM(deps) {
         sfx.setMode("idle");
         forgeOnSleep();
         setActiveToast(null); sfx.resetDay(); sfx.setMode("idle");
+        // --- Notify GameMode: end current day, start new one ---
+        gm.sleep(hour);
+        gm.startDay(newDay);
         setTimeout(function() {
             var state = { gold: gold, inv: inv, finished: finished, hasSoldWeapon: hasSoldWeapon, lastSleepHour: hour, stamina: ns, unlockedBP: unlockedBP, reputation: reputation };
             var dayQueue = buildDayQueue(newDay, state, spawnQuestNum);

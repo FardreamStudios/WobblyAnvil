@@ -353,7 +353,7 @@ export default function App() {
     gold: gold, inv: inv, matKey: matKey, weapon: weapon, buyPrice: MATS[matKey] ? MATS[matKey].price * Math.max(0, (weapon ? weapon.materialCost : 0) - (inv[matKey] || 0)) : 0
   });
   var dayVM = useDayVM({
-    dayState: dayState, economy: economy, quest: quest, mystery: mystery,
+    dayState: dayState, economy: economy, quest: quest, mystery: mystery, gm: gm,
     sfx: sfx, addToast: addToast, setToastQueue: setToastQueue, setActiveToast: setActiveToast,
     trySpawnCustomer: trySpawnCustomer, earnGold: earnGold, changeRep: changeRep,
     forgeOnSleep: forgeVM.onSleep,
@@ -370,6 +370,7 @@ export default function App() {
     gameStarted.current = true;
     var state = { gold: STARTING_GOLD, inv: { bronze: 10, iron: 4, steel: 0, damascus: 0, titanium: 0, iridium: 0, tungsten: 0, mithril: 0, orichalcum: 0 }, finished: [], hasSoldWeapon: false, lastSleepHour: 0, stamina: BASE_STAMINA, unlockedBP: ["dagger", "shortsword", "axe"], reputation: 4 };
     setActiveToast(null); sfx.setMode("idle");
+    gm.startDay(1);
     setTimeout(function() { setToastQueue(buildDayQueue(1, state, 0)); }, 300);
   }, [screen]);
   useEffect(function() { return function() { sfx.setMode("off"); }; }, []);

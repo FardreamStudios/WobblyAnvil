@@ -163,16 +163,19 @@ function createMorningAbility(row) {
         scope:     row.scope || "day",
         stackable: false,
 
+        // --- Morning Roll (used by AbilityManager.rollMorning) ---
+        morningPool: true,
+        chance:      row.chance || 0.10,
+
         // --- Activation ---
-        trigger:   "game.day.morning_phase",
+        trigger:   null,   // morning abilities are rolled, not self-activating
 
         canActivate: function(payload, manager, state) {
-            // Condition guard
+            // Condition guards only — probability is handled by rollMorning weighted pick
             if (row.requiresMats && (!state.inv || !hasAnyMats(state.inv))) return false;
             if (row.requiresGold && (!state.gold || state.gold <= 0)) return false;
             if (row.condition && !row.condition(state)) return false;
-            // Probability roll
-            return Math.random() < (row.chance || 0.10);
+            return true;
         },
 
         // --- Behavior ---

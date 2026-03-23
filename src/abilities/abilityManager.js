@@ -52,6 +52,7 @@ function buildContext(instance, payload) {
         instanceId: instance.instanceId,
         endSelf:  function() { endAbility(instance.instanceId); },
         state:    _stateProvider ? _stateProvider() : {},
+        getState: function() { return _stateProvider ? _stateProvider() : {}; },
     };
 }
 
@@ -382,6 +383,71 @@ function resolveValue(attribute, baseValue) {
 }
 
 // ============================================================
+// MORNING ROLL — Weighted single-pick coordinator
+// Replaces the legacy rollDailyEvent roller. Called by
+// GameMode.startDay() after emitting DAY_MORNING_START.
+//
+// 1. Filters registry to morning abilities (trigger === null,
+//    tagged "event" — i.e. factory-produced morning events
+//    plus complex morning abilities like mysteries).
+// 2. Runs canActivate CONDITIONS only (no probability).
+// 3. Builds weighted pool from survivors using def.chance.
+// 4. Weighted-random picks ONE winner.
+// 5. Activates it. Returns { id, instance } or null.
+// ============================================================
+
+var MORNING_TRIGGER_TAG = "game.day.morning_phase";
+
+function rollMorning(payload) {
+    if (!_initialized) return null;
+
+    var state = _stateProvider ? _stateProvider() : {};
+    var candidates = [];
+    var ids = Object.keys(_registry);
+
+    for (var i = 0; i < ids.length; i++) {
+        var def = _registry[ids[i]];
+
+        // Only morning abilities participate in the roll
+        if (!def.morningPool) continue;
+
+        // Run condition checks (canActivate without probability)
+        if (def.canActivate) {
+            try {
+                if (!def.canActivate(payload || {}, AbilityManager, state)) continue;
+            } catch (e) {
+                console.error("[AbilityManager] rollMorning canActivate error for " + def.id + ":", e);
+                continue;
+            }
+        }
+
+        candidates.push(def);
+    }
+
+    if (candidates.length === 0) return null;
+
+    // Weighted random pick
+    var totalWeight = 0;
+    for (var j = 0; j < candidates.length; j++) {
+        totalWeight += (candidates[j].chance || 0.10);
+    }
+    var roll = Math.random() * totalWeight;
+    var cumulative = 0;
+    var winner = candidates[0];
+    for (var k = 0; k < candidates.length; k++) {
+        cumulative += (candidates[k].chance || 0.10);
+        if (roll < cumulative) {
+            winner = candidates[k];
+            break;
+        }
+    }
+
+    // Activate the winner
+    var instance = activateInstance(winner, payload || {});
+    return instance ? { id: winner.id, instance: instance } : null;
+}
+
+// ============================================================
 // RESET — Full teardown (new game)
 // ============================================================
 
@@ -426,6 +492,9 @@ var AbilityManager = {
     addModifier:    addModifier,
     getModifiers:   getModifiers,
     resolveValue:   resolveValue,
+
+    // --- Morning Roll ---
+    rollMorning:    rollMorning,
 
     // --- Cleanup ---
     reset:          reset,

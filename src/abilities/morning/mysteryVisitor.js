@@ -3,18 +3,22 @@
 // "The Visitor" — divine presence grants rare materials,
 // reputation, and XP with a timed VFX sequence.
 //
-// This is a COMPLEX ability — it owns choreographed timing
-// and cannot be expressed as a data table row.
+// DEFERRED-FIRE LIFECYCLE:
+//   Morning roll → onActivate (silent foreshadow, no VFX)
+//   Waits for:
+//     - DAY_SLEEP_START (guaranteed fire at end of day)
+//     - FORGE_SESSION_COMPLETE (20% chance to ambush mid-forge)
+//   When triggered → full VFX sequence (7s)
+//   After VFX → endSelf()
 //
 // VFX SEQUENCE (7s total):
-//   0.0s — Lock UI, start shake + golden vignette
+//   0.0s — FX cue, lock UI, shake + golden vignette
 //   0.0s — Grant materials, queue rep/XP gains
 //   0.0s — Toast (7s duration, locked)
 //   3.5s — Stop shake
-//   7.0s — Clear vignette, unlock UI
+//   7.0s — Clear vignette, unlock UI, endSelf
 //
-// SCOPE: "manual" — persists until triggered by sleep or
-// mid-forge check. endSelf() called after sequence completes.
+// SCOPE: "manual" — lives until the deferred trigger fires.
 //
 // Replaces: dynamicEvents.js → mysteryGood()
 // ============================================================
@@ -23,6 +27,48 @@ import EVENT_TAGS from "../../config/eventTags.js";
 import GameConstants from "../../modules/constants.js";
 
 var MATS = GameConstants.MATS;
+var FORGE_AMBUSH_CHANCE = 0.20;
+
+// ============================================================
+// VFX sequence — extracted so both triggers call the same code
+// ============================================================
+
+function fireVisitorSequence(bus, state, endSelf) {
+    var matKey = Math.random() < 0.5 ? "mithril" : "orichalcum";
+    var qty = Math.floor(Math.random() * 2) + 5;
+    var matName = (MATS[matKey] && MATS[matKey].name) || matKey;
+
+    bus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {});
+    bus.emit(EVENT_TAGS.UI_SET_LOCK, { locked: true });
+    bus.emit(EVENT_TAGS.VFX_SHAKE_MYSTERY, { active: true });
+    bus.emit(EVENT_TAGS.VFX_SET_VIGNETTE, { color: "#fbbf24", opacity: 1 });
+
+    bus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: qty });
+    bus.emit(EVENT_TAGS.PLAYER_CHANGE_REP, { delta: 1, delay: 7000 });
+    bus.emit(EVENT_TAGS.PLAYER_GAIN_XP, { percent: 0.10 });
+
+    bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+        msg: "A DIVINE PRESENCE\nA luminous figure drifted through the forge and vanished. It left " + qty + " " + matName + ".",
+        icon: "\uD83C\uDF1F",
+        color: "#fbbf24",
+        duration: 7000,
+        locked: true,
+    });
+
+    setTimeout(function() {
+        bus.emit(EVENT_TAGS.VFX_SHAKE_MYSTERY, { active: false });
+    }, 3500);
+
+    setTimeout(function() {
+        bus.emit(EVENT_TAGS.VFX_SET_VIGNETTE, { color: null, opacity: 0 });
+        bus.emit(EVENT_TAGS.UI_SET_LOCK, { locked: false });
+        endSelf();
+    }, 7000);
+}
+
+// ============================================================
+// Ability Definition
+// ============================================================
 
 var MysteryVisitorAbility = {
     // --- Identity ---
@@ -31,69 +77,66 @@ var MysteryVisitorAbility = {
     scope:       "manual",
     stackable:   false,
 
+    // --- Morning Roll ---
+    morningPool: true,
+    chance:      0.03,
+
     // --- Activation ---
-    // Trigger: morning phase, but only activates as a pending
-    // mystery — the actual VFX fires later via manual activation
-    // or endWhen. For now, triggered by morning phase with low
-    // chance. The "pending" deferral pattern will be wired in M-7.
-    trigger:     "game.day.morning_phase",
+    trigger:     null,
 
     canActivate: function(payload, manager, state) {
-        // Mystery pool: ~3% chance for visitor specifically
-        // (old system: mystery 3/total weight, then 15% visitor variant)
         if (manager.isActive("mystery_visitor") || manager.isActive("mystery_shadow")) return false;
-        return Math.random() < 0.03;
+        return true;
     },
 
-    // --- Behavior ---
+    // --- Behavior: Silent foreshadow + deferred trigger wiring ---
     onActivate: function(ctx) {
-        // --- Compute rewards ---
-        var matKey = Math.random() < 0.5 ? "mithril" : "orichalcum";
-        var qty = Math.floor(Math.random() * 2) + 5; // 5-6
-        var matName = (MATS[matKey] && MATS[matKey].name) || matKey;
+        var bus = ctx.bus;
+        var endSelf = ctx.endSelf;
+        var fired = false;
 
-        // --- FX cue ---
-        ctx.bus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {});
-
-        // --- Lock UI during sequence ---
-        ctx.bus.emit(EVENT_TAGS.UI_SET_LOCK, { locked: true });
-
-        // --- VFX: shake + golden vignette ---
-        ctx.bus.emit(EVENT_TAGS.VFX_SHAKE_MYSTERY, { active: true });
-        ctx.bus.emit(EVENT_TAGS.VFX_SET_VIGNETTE, { color: "#fbbf24", opacity: 1 });
-
-        // --- State mutations ---
-        ctx.bus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: qty });
-        ctx.bus.emit(EVENT_TAGS.PLAYER_CHANGE_REP, { delta: 1, delay: 7000 });
-        ctx.bus.emit(EVENT_TAGS.PLAYER_GAIN_XP, { percent: 0.10 });
-
-        // --- Toast ---
-        ctx.bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
-            msg: "A DIVINE PRESENCE\nA luminous figure drifted through the forge and vanished. It left " + qty + " " + matName + ".",
-            icon: "\uD83C\uDF1F",
+        // Foreshadow toast
+        bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+            msg: "SOMETHING STIRS\nA warm light flickers at the edge of your vision...",
+            icon: "\u2728",
             color: "#fbbf24",
-            duration: 7000,
-            locked: true,
+            duration: 3000,
         });
 
-        // --- Timed cleanup ---
-        var endSelf = ctx.endSelf;
+        function onSleep() {
+            if (fired) return;
+            fired = true;
+            cleanup();
+            fireVisitorSequence(bus, ctx.state, endSelf);
+        }
 
-        setTimeout(function() {
-            ctx.bus.emit(EVENT_TAGS.VFX_SHAKE_MYSTERY, { active: false });
-        }, 3500);
+        function onForgeComplete() {
+            if (fired) return;
+            if (Math.random() > FORGE_AMBUSH_CHANCE) return;
+            fired = true;
+            cleanup();
+            fireVisitorSequence(bus, ctx.state, endSelf);
+        }
 
-        setTimeout(function() {
-            ctx.bus.emit(EVENT_TAGS.VFX_SET_VIGNETTE, { color: null, opacity: 0 });
-            ctx.bus.emit(EVENT_TAGS.UI_SET_LOCK, { locked: false });
-            endSelf();
-        }, 7000);
+        bus.on(EVENT_TAGS.DAY_SLEEP_START, onSleep);
+        bus.on(EVENT_TAGS.FORGE_SESSION_COMPLETE, onForgeComplete);
+
+        function cleanup() {
+            bus.off(EVENT_TAGS.DAY_SLEEP_START, onSleep);
+            bus.off(EVENT_TAGS.FORGE_SESSION_COMPLETE, onForgeComplete);
+        }
+
+        // Stash cleanup ref for external end
+        ctx._mysteryCleanup = cleanup;
     },
 
     // --- End ---
     endWhen:  null,
     duration: null,
-    onEnd:    null,
+
+    onEnd: function(ctx) {
+        if (ctx._mysteryCleanup) ctx._mysteryCleanup();
+    },
 };
 
 export default MysteryVisitorAbility;

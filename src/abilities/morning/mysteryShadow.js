@@ -3,26 +3,30 @@
 // "The Shadow" — dark presence destroys materials, steals gold,
 // removes a finished weapon, and may destroy WIP.
 //
-// This is a COMPLEX ability — it owns choreographed timing,
-// live state damage computation, and conditional WIP destruction.
-// Cannot be expressed as a data table row.
+// DEFERRED-FIRE LIFECYCLE:
+//   Morning roll → onActivate (silent foreshadow, no VFX)
+//   Waits for:
+//     - DAY_SLEEP_START (guaranteed fire at end of day)
+//     - FORGE_SESSION_COMPLETE (25% chance to ambush mid-forge)
+//   When triggered → full VFX + damage sequence (7s)
+//   After VFX → endSelf()
 //
-// DAMAGE COMPUTATION (from live state at activation):
+// DAMAGE COMPUTATION (from live state at fire time):
 //   1. Destroy highest-value material stack entirely
 //   2. Lose 15-20% of current gold
 //   3. Remove one finished weapon (if any)
 //   4. -1 reputation
 //   5. -15% XP
-//   6. Destroy WIP if player was forging
+//   6. Destroy WIP if player was forging (checked via state.phase)
 //
 // VFX SEQUENCE (7s total):
-//   0.0s — Lock UI, start shake + red vignette
+//   0.0s — FX cue, lock UI, shake + red vignette
 //   0.0s — Apply all damage, queue rep loss
 //   0.0s — Toast with loss summary (7s, locked)
 //   3.5s — Stop shake
-//   7.0s — Clear vignette, unlock UI
+//   7.0s — Clear vignette, unlock UI, endSelf
 //
-// SCOPE: "manual" — persists until triggered.
+// SCOPE: "manual" — lives until the deferred trigger fires.
 //
 // Replaces: dynamicEvents.js → mysteryBad()
 // ============================================================
@@ -33,6 +37,7 @@ import GameUtils from "../../modules/utilities.js";
 
 var MATS = GameConstants.MATS;
 var rand = GameUtils.rand;
+var FORGE_AMBUSH_CHANCE = 0.25;
 
 // --- Find the most valuable owned material stack ---
 function findMostValuableStack(inv) {
@@ -44,6 +49,79 @@ function findMostValuableStack(inv) {
     });
 }
 
+// ============================================================
+// VFX + damage sequence — called by both triggers
+// ============================================================
+
+function fireShadowSequence(bus, stateProvider, endSelf) {
+    // Read LIVE state at fire time (not morning snapshot)
+    var state = typeof stateProvider === "function" ? stateProvider() : stateProvider;
+    var inv = state.inv || {};
+    var gold = state.gold || 0;
+    var finished = state.finished || [];
+
+    // --- Compute damage ---
+    var worstKey = findMostValuableStack(inv);
+    var newInv = Object.assign({}, inv);
+    if (worstKey) newInv[worstKey] = 0;
+
+    var goldLost = Math.floor(gold * rand(0.15, 0.20));
+    var finishedLost = finished.length > 0;
+    var newFinished = finishedLost ? finished.slice(0, -1) : finished;
+
+    var phase = state.phase || "idle";
+    var wasForging = phase !== "idle" && phase !== "select" && phase !== "select_mat";
+
+    // --- FX cue ---
+    bus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {});
+    bus.emit(EVENT_TAGS.UI_SET_LOCK, { locked: true });
+    bus.emit(EVENT_TAGS.VFX_SHAKE_MYSTERY, { active: true });
+    bus.emit(EVENT_TAGS.VFX_SET_VIGNETTE, { color: "#ef4444", opacity: 1 });
+
+    // --- State mutations ---
+    if (goldLost > 0) {
+        bus.emit(EVENT_TAGS.ECONOMY_SPEND_GOLD, { amount: goldLost });
+    }
+    bus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { inv: newInv });
+    if (finishedLost) {
+        bus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { finished: newFinished });
+    }
+    bus.emit(EVENT_TAGS.PLAYER_CHANGE_REP, { delta: -1, delay: 7000 });
+    bus.emit(EVENT_TAGS.PLAYER_LOSE_XP, { percent: 0.15 });
+
+    if (wasForging) {
+        bus.emit(EVENT_TAGS.FORGE_DESTROY_WIP, {});
+    }
+
+    // --- Toast ---
+    var lostDesc = [];
+    if (worstKey) lostDesc.push("all " + (MATS[worstKey] && MATS[worstKey].name || worstKey));
+    if (goldLost > 0) lostDesc.push(goldLost + "g");
+    if (finishedLost) lostDesc.push("a finished weapon");
+
+    bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+        msg: "A DARK PRESENCE\nA shadow swept through the forge. Lost " + lostDesc.join(", ") + ".",
+        icon: "\uD83C\uDF11",
+        color: "#ef4444",
+        duration: 7000,
+        locked: true,
+    });
+
+    setTimeout(function() {
+        bus.emit(EVENT_TAGS.VFX_SHAKE_MYSTERY, { active: false });
+    }, 3500);
+
+    setTimeout(function() {
+        bus.emit(EVENT_TAGS.VFX_SET_VIGNETTE, { color: null, opacity: 0 });
+        bus.emit(EVENT_TAGS.UI_SET_LOCK, { locked: false });
+        endSelf();
+    }, 7000);
+}
+
+// ============================================================
+// Ability Definition
+// ============================================================
+
 var MysteryShadowAbility = {
     // --- Identity ---
     id:          "mystery_shadow",
@@ -51,94 +129,69 @@ var MysteryShadowAbility = {
     scope:       "manual",
     stackable:   false,
 
+    // --- Morning Roll ---
+    morningPool: true,
+    chance:      0.05,
+
     // --- Activation ---
-    trigger:     "game.day.morning_phase",
+    trigger:     null,
 
     canActivate: function(payload, manager, state) {
-        // ~5% chance for shadow specifically
-        // (old system: mystery 3/total weight, then 25% shadow variant)
         if (manager.isActive("mystery_visitor") || manager.isActive("mystery_shadow")) return false;
-        return Math.random() < 0.05;
+        return true;
     },
 
-    // --- Behavior ---
+    // --- Behavior: Silent foreshadow + deferred trigger wiring ---
     onActivate: function(ctx) {
-        var state = ctx.state;
-        var inv = state.inv || {};
-        var gold = state.gold || 0;
-        var finished = state.finished || [];
+        var bus = ctx.bus;
+        var endSelf = ctx.endSelf;
+        // Capture manager ref so we can read live state at fire time
+        // ctx.state is a snapshot from activation — stale by sleep time
+        var manager = ctx.manager;
+        var getState = ctx.getState;
+        var fired = false;
 
-        // --- Compute damage ---
-        var worstKey = findMostValuableStack(inv);
-        var newInv = Object.assign({}, inv);
-        if (worstKey) newInv[worstKey] = 0;
-
-        var goldLost = Math.floor(gold * rand(0.15, 0.20));
-        var finishedLost = finished.length > 0;
-        var newFinished = finishedLost ? finished.slice(0, -1) : finished;
-
-        // Check if player is currently forging (phase is not idle/select)
-        var phase = state.phase || "idle";
-        var wasForging = phase !== "idle" && phase !== "select" && phase !== "select_mat";
-
-        // --- FX cue ---
-        ctx.bus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {});
-
-        // --- Lock UI during sequence ---
-        ctx.bus.emit(EVENT_TAGS.UI_SET_LOCK, { locked: true });
-
-        // --- VFX: shake + red vignette ---
-        ctx.bus.emit(EVENT_TAGS.VFX_SHAKE_MYSTERY, { active: true });
-        ctx.bus.emit(EVENT_TAGS.VFX_SET_VIGNETTE, { color: "#ef4444", opacity: 1 });
-
-        // --- State mutations ---
-        if (goldLost > 0) {
-            ctx.bus.emit(EVENT_TAGS.ECONOMY_SPEND_GOLD, { amount: goldLost });
-        }
-        ctx.bus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { inv: newInv });
-        if (finishedLost) {
-            ctx.bus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { finished: newFinished });
-        }
-        ctx.bus.emit(EVENT_TAGS.PLAYER_CHANGE_REP, { delta: -1, delay: 7000 });
-        ctx.bus.emit(EVENT_TAGS.PLAYER_LOSE_XP, { percent: 0.15 });
-
-        // --- Destroy WIP if forging ---
-        if (wasForging) {
-            ctx.bus.emit(EVENT_TAGS.FORGE_DESTROY_WIP, {});
-        }
-
-        // --- Toast ---
-        var lostDesc = [];
-        if (worstKey) lostDesc.push("all " + (MATS[worstKey] && MATS[worstKey].name || worstKey));
-        if (goldLost > 0) lostDesc.push(goldLost + "g");
-        if (finishedLost) lostDesc.push("a finished weapon");
-
-        ctx.bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
-            msg: "A DARK PRESENCE\nA shadow swept through the forge. Lost " + lostDesc.join(", ") + ".",
-            icon: "\uD83C\uDF11",
-            color: "#ef4444",
-            duration: 7000,
-            locked: true,
+        // Foreshadow toast
+        bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+            msg: "SOMETHING STIRS\nA cold draft chills the forge...",
+            icon: "\uD83C\uDF19",
+            color: "#8a7a64",
+            duration: 3000,
         });
 
-        // --- Timed cleanup ---
-        var endSelf = ctx.endSelf;
+        function onSleep() {
+            if (fired) return;
+            fired = true;
+            cleanup();
+            fireShadowSequence(bus, getState, endSelf);
+        }
 
-        setTimeout(function() {
-            ctx.bus.emit(EVENT_TAGS.VFX_SHAKE_MYSTERY, { active: false });
-        }, 3500);
+        function onForgeComplete() {
+            if (fired) return;
+            if (Math.random() > FORGE_AMBUSH_CHANCE) return;
+            fired = true;
+            cleanup();
+            fireShadowSequence(bus, getState, endSelf);
+        }
 
-        setTimeout(function() {
-            ctx.bus.emit(EVENT_TAGS.VFX_SET_VIGNETTE, { color: null, opacity: 0 });
-            ctx.bus.emit(EVENT_TAGS.UI_SET_LOCK, { locked: false });
-            endSelf();
-        }, 7000);
+        bus.on(EVENT_TAGS.DAY_SLEEP_START, onSleep);
+        bus.on(EVENT_TAGS.FORGE_SESSION_COMPLETE, onForgeComplete);
+
+        function cleanup() {
+            bus.off(EVENT_TAGS.DAY_SLEEP_START, onSleep);
+            bus.off(EVENT_TAGS.FORGE_SESSION_COMPLETE, onForgeComplete);
+        }
+
+        ctx._mysteryCleanup = cleanup;
     },
 
     // --- End ---
     endWhen:  null,
     duration: null,
-    onEnd:    null,
+
+    onEnd: function(ctx) {
+        if (ctx._mysteryCleanup) ctx._mysteryCleanup();
+    },
 };
 
 export default MysteryShadowAbility;

@@ -213,7 +213,12 @@ function startDay(dayNumber) {
         day: _day,
     });
 
-    // 3. DAY_OPEN — customers can arrive, gameplay begins
+    // 3. MORNING ROLL — pick one weighted morning event via AbilityManager
+    if (_abilityManager && _abilityManager.rollMorning) {
+        _abilityManager.rollMorning({ day: _day });
+    }
+
+    // 4. DAY_OPEN — customers can arrive, gameplay begins
     _dayPhase = "open";
     _bus.emit(EVENT_TAGS.DAY_SHOP_OPEN, {
         day: _day,
