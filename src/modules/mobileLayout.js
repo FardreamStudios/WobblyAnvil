@@ -362,7 +362,7 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
                 WebkitUserSelect: "none",
                 userSelect: "none",
             }}>
-                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} style={{ width: imgSize || 44, height: imgSize || 44, objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />}
+                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} style={{ width: imgSize || 40, height: imgSize || 40, objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />}
                 {!imgSrc && icon && <span style={{ fontSize: T.fontSize.xxl, lineHeight: 1, pointerEvents: "none" }}>{icon}</span>}
                 {!imgSrc && label && <span style={{ pointerEvents: "none" }}>{label}</span>}
             </button>
@@ -1007,16 +1007,19 @@ function MobileLayout(props) {
                     <span style={{ fontFamily: "'Cinzel', serif", color: T.colors.textLabel, fontSize: 18, letterSpacing: 2, fontWeight: "bold", textShadow: "0 1px 4px rgba(0,0,0,0.9)", lineHeight: 1 }}>DAY</span>
                     <span style={{ fontFamily: "'Cinzel', serif", fontSize: 28, color: T.colors.textLight, fontWeight: "bold", textShadow: "0 1px 4px rgba(0,0,0,0.9)", lineHeight: 1 }}>{props.day || 1}</span>
                 </div>
-                {/* Action strip — with sidebar bg image */}
+                {/* Action strip — absolute overlay, does not push background */}
                 <div style={{
-                    position: "relative",
-                    flexShrink: 0,
-                    width: 100,
+                    position: "absolute",
+                    top: 0,
+                    bottom: 0,
+                    right: isLeftHanded ? "auto" : 0,
+                    left: isLeftHanded ? 0 : "auto",
+                    width: 90,
                     display: "flex",
                     flexDirection: "column",
                     zIndex: T.z.ui,
                     background: "transparent",
-                    overflow: "hidden",
+                    overflow: "visible",
                 }}>
                     <img src={IC.sidebar} alt="" draggable={false} style={{
                         position: "absolute",
@@ -1024,10 +1027,9 @@ function MobileLayout(props) {
                         right: isLeftHanded ? "auto" : 0,
                         left: isLeftHanded ? 0 : "auto",
                         height: "100%",
-                        width: "100%",
+                        width: "110%",
                         objectFit: "cover",
-                        opacity: 0.50,
-                        filter: "brightness(0.3)",
+                        opacity: 0.30,
                         transform: isLeftHanded ? "scaleX(-1)" : "none",
                         pointerEvents: "none",
                         zIndex: 1,
