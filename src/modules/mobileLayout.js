@@ -279,7 +279,7 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
             zIndex: 9999,
             width: popW,
             maxHeight: vh - margin * 2,
-            overflowY: "auto",
+            overflowY: "hidden",
         };
 
         // Horizontal
@@ -329,7 +329,7 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
 
     var textColor = disabled ? T.colors.bgHighlight : danger ? T.colors.red : color || T.colors.gold;
     var hasImg = !!imgSrc;
-    var borderColor = disabled ? T.colors.borderDark : danger ? T.colors.red : color || T.colors.gold;
+    var borderColor = disabled ? T.colors.borderDark : danger ? T.colors.red : T.colors.gold;
     var bgColor = disabled ? T.colors.bgDeep : danger ? T.colors.bgDanger : T.colors.bgWarm;
     var iconFilter = disabled ? "brightness(0.3)" : "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 2px rgba(0,0,0,0.6))";
 
@@ -362,7 +362,7 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
                 WebkitUserSelect: "none",
                 userSelect: "none",
             }}>
-                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} style={{ width: imgSize || 40, height: imgSize || 40, objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />}
+                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} style={{ width: imgSize || 36, height: imgSize || 36, objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />}
                 {!imgSrc && icon && <span style={{ fontSize: T.fontSize.xxl, lineHeight: 1, pointerEvents: "none" }}>{icon}</span>}
                 {!imgSrc && label && <span style={{ pointerEvents: "none" }}>{label}</span>}
             </button>
@@ -470,7 +470,7 @@ function DecreeBtn({ quest, questNum }) {
             zIndex: 9999,
             width: popW,
             maxHeight: vh - margin * 2,
-            overflowY: "auto",
+            overflowY: "hidden",
         };
 
         if (goLeft) {
@@ -899,7 +899,7 @@ function MobileLayout(props) {
     // --- Action strip ---
     var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
     var actionStrip = (
-        <div className={actionStripClass} style={{ justifyContent: "space-evenly", height: "100%", padding: "8% 4px" }}>
+        <div className={actionStripClass} style={{ justifyContent: "space-evenly", height: "100%", padding: "8% 10px" }}>
             {isForging && phase === "sess_result" ? (
                 <>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
@@ -1015,9 +1015,9 @@ function MobileLayout(props) {
                     right: isLeftHanded ? "auto" : 0,
                     left: isLeftHanded ? 0 : "auto",
                     height: "100%",
-                    width: 150,
+                    width: 160,
                     objectFit: "cover",
-                    opacity: 0.80,
+                    opacity: 1.02,
                     transform: isLeftHanded ? "scaleX(-1)" : "none",
                     pointerEvents: "none",
                     zIndex: T.z.ui - 1,
