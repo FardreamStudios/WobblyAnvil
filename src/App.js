@@ -425,7 +425,7 @@ export default function App() {
 
     // --- Build QTE + forge UI for center zone ---
     var mobileForgeUI = (
-        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: "5%", gap: 4, width: "100%", flex: 1, paddingLeft: handedness === "left" ? 0 : 240, paddingRight: handedness === "left" ? 240 : 0, boxSizing: "border-box" }}>
+        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: "5%", gap: 4, width: "100%", flex: 1, paddingLeft: handedness === "left" ? 0 : 160, paddingRight: handedness === "left" ? 160 : 0, boxSizing: "border-box" }}>
           {/* Forge bubble */}
           {forgeBubble && (
               <div onClick={function(e) { e.stopPropagation(); setForgeBubble(null); }} style={{ position: "absolute", top: 4, right: 4, zIndex: 60, background: "#0c0905", border: "2px solid " + forgeBubble.color, borderRadius: 10, padding: "10px 12px", width: 120, boxShadow: "0 4px 16px rgba(0,0,0,0.97)", cursor: "pointer", fontSize: 9 }}>
@@ -561,7 +561,8 @@ export default function App() {
               level={level}
               gold={gold}
               day={day}
-              royalQuest={royalQuest}questNum={questNum}
+              royalQuest={royalQuest}
+              questNum={questNum}
 
               /* Data strip props — forging */
               qualScore={qualScore}
