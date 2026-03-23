@@ -755,17 +755,6 @@ function MobileBottomBar(props) {
                 {props.gold || 0}g
             </W.Label>
 
-            {/* Options gear button */}
-            <W.Btn onClick={props.onOptions} icon={"\u2699"}
-                   color="textLabel" bg="bgWarm" size={20} radius="md"
-                   w={32} h={32} bold={false} upper={false}
-                   style={{ padding: 0, flexShrink: 0, border: T.borders.thin }} />
-
-            {/* Fullscreen toggle */}
-            <W.Btn onClick={props.onToggleFullscreen} icon={props.isFull ? "\u2716" : "\u26F6"}
-                   color="textLabel" bg="bgWarm" size={16} radius="md"
-                   w={32} h={32} bold={false} upper={false}
-                   style={{ padding: 0, flexShrink: 0, border: T.borders.thin }} />
         </W.Strip>
     );
 }
@@ -899,7 +888,7 @@ function MobileLayout(props) {
     // --- Action strip ---
     var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
     var actionStrip = (
-        <div className={actionStripClass} style={{ justifyContent: "space-evenly", height: "100%", padding: "8% 4px", gap: "1.5vh" }}>
+        <div className={actionStripClass} style={{ height: "100%", padding: "8% 4px", gap: "1.5vh" }}>
             {isForging && phase === "sess_result" ? (
                 <>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
@@ -919,6 +908,18 @@ function MobileLayout(props) {
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
                 </>
             )}
+            {/* Utility row — options + fullscreen, always visible, tappable during QTE */}
+            <div style={{ flex: 0.6, display: "flex", gap: "1.5vh", flexShrink: 0, pointerEvents: "auto" }}>
+                <div style={{ flex: 1, display: "flex" }}>
+                    <MobileBtn icon={"\u2699"} onClick={props.onOptions} holdContent="Open game settings" />
+                </div>
+                <div style={{ flex: 1, display: "flex" }}>
+                    <MobileBtn icon={isFull ? "\u2716" : "\u26F6"} onClick={function() {
+                        if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); }
+                        else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); }
+                    }} holdContent="Toggle fullscreen mode" />
+                </div>
+            </div>
         </div>
     );
 
