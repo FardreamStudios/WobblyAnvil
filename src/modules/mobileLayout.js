@@ -339,9 +339,9 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
     return (
         <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1 }}>
             <button {...btnProps} disabled={disabled} style={{
-                background: hasImg ? "transparent" : (press.isHolding ? T.colors.bgHighlight : bgColor),
-                border: hasImg ? "none" : ("1px solid " + borderColor),
-                borderRadius: hasImg ? 0 : T.radius.md,
+                background: press.isHolding ? T.colors.bgHighlight : bgColor,
+                border: "1px solid " + borderColor,
+                borderRadius: T.radius.md,
                 color: textColor,
                 cursor: disabled ? "not-allowed" : "pointer",
                 fontFamily: T.fonts.body,
@@ -354,7 +354,7 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
                 alignItems: "center",
                 justifyContent: "center",
                 gap: T.spacing.xxs,
-                padding: hasImg ? 0 : "4px 4px",
+                padding: "4px 4px",
                 width: "100%",
                 height: "100%",
                 flex: 1,
@@ -1016,6 +1016,7 @@ function MobileLayout(props) {
                     flexDirection: "column",
                     zIndex: T.z.ui,
                     background: "transparent",
+                    overflow: "hidden",
                 }}>
                     <img src={IC.sidebar} alt="" draggable={false} style={{
                         position: "absolute",
@@ -1023,7 +1024,8 @@ function MobileLayout(props) {
                         right: isLeftHanded ? "auto" : 0,
                         left: isLeftHanded ? 0 : "auto",
                         height: "100%",
-                        width: "auto",
+                        width: "100%",
+                        objectFit: "cover",
                         opacity: 0.50,
                         filter: "brightness(0.3)",
                         transform: isLeftHanded ? "scaleX(-1)" : "none",
