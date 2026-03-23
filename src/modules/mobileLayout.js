@@ -713,21 +713,21 @@ function MobileLayout(props) {
         <div className={actionStripClass} style={{ justifyContent: "stretch" }}>
             {isForging && phase === "sess_result" ? (
                 <>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u2696"} label="NORM" onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDCA7"} label="QUENCH" onClick={props.onQuench} disabled={props.quenchDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scrap} onClick={props.onScrap} color="#8a7a64" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u23F8"} label="LEAVE" onClick={props.onLeave} color="#60a5fa" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u2696"} label="NORM" onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" holdContent="Reduce stress at the cost of some quality" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\uD83D\uDCA7"} label="QUENCH" onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon — lock in your work" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scrap} onClick={props.onScrap} color="#8a7a64" holdContent="Destroy this weapon and recover the material" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn icon={"\u23F8"} label="LEAVE" onClick={props.onLeave} color="#60a5fa" holdContent="Walk away — weapon stays on the anvil" /></div>
                 </>
             ) : isQTEActive ? (
                 <div style={{ flex: 1 }} />
             ) : (
                 <>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} holdContent="Browse weapons, materials, and upgrades" /></div>
+                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
                 </>
             )}
         </div>
