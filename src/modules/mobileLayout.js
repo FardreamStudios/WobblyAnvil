@@ -46,7 +46,7 @@ var IC = {
 };
 
 // --- Mobile CSS ---
-var MOBILE_CSS = "\n @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Josefin+Sans:wght@400;600;700&display=swap');\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; -webkit-tap-highlight-color: transparent; } .mobile-shell {\n    width: 100vw;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: 'Josefin Sans', sans-serif;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n    padding-left: env(safe-area-inset-left);\n    padding-right: env(safe-area-inset-right);\n    padding-top: env(safe-area-inset-top);\n    padding-bottom: env(safe-area-inset-bottom);\n    box-sizing: border-box;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Cinzel', serif;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n    background: #1e160d;\n  }\n  .mobile-action-strip {\n    width: 100px;\n    display: flex;\n    flex-direction: column;\n    gap: 4px;\n    padding: 4px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    flex-shrink: 0;\n    background: transparent;\n    position: relative;\n    z-index: 2;\n  }\n  .mobile-action-strip-qte {\n    background: transparent;\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-backdrop {\n    position: absolute;\n    inset: 0;\n    z-index: 90;\n    background: rgba(0, 0, 0, 0.55);\n  }\n  .mobile-drawer {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    width: 240px;\n    z-index: 95;\n    background: rgba(18, 14, 8, 0.55);\n    backdrop-filter: blur(4px);\n    -webkit-backdrop-filter: blur(4px);\n    border-right: 1px solid #3d2e0f;\n    display: flex;\n    flex-direction: column;\n    gap: 6px;\n    padding: 8px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    box-shadow: 4px 0 20px rgba(0,0,0,0.8);\n    transition: transform 0.2s ease;\n  }\n  .mobile-drawer-left {\n    left: 0;\n    border-right: 1px solid #3d2e0f;\n    border-left: none;\n  }\n  .mobile-drawer-right {\n    right: 0;\n    left: auto;\n    border-left: 1px solid #3d2e0f;\n    border-right: none;\n    box-shadow: -4px 0 20px rgba(0,0,0,0.8);\n  }\n  .mobile-drawer::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-drawer::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-tab {\n    position: absolute;\n    top: 50%;\n    transform: translateY(-50%);\n    z-index: 85;\n    width: 20px;\n    height: 48px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #16100a;\n    border: 1px solid #3d2e0f;\n    cursor: pointer;\n    font-size: 12px;\n    color: #8a7a64;\n  }\n  .mobile-drawer-tab-left {\n    left: 0;\n    border-radius: 0 6px 6px 0;\n    border-left: none;\n  }\n  .mobile-drawer-tab-right {\n    right: 0;\n    left: auto;\n    border-radius: 6px 0 0 6px;\n    border-right: none;\n  }\n  .mobile-drawer-tab:active {\n    background: #2a1f0a;\n  }\n  .mobile-drawer-forge {\n    width: 160px;\n  }\n  .mobile-portrait-overlay {\n    position: fixed;\n    inset: 0;\n    z-index: 9999;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    background: rgba(10, 7, 4, 0.92);\n    pointer-events: none;\n    font-family: 'Cinzel', serif;\n  }\n  @keyframes rotateHint {\n    0%, 100% { transform: rotate(0deg); }\n    25% { transform: rotate(-20deg); }\n    75% { transform: rotate(20deg); }\n  }\n  .rotate-hint-icon {\n    font-size: 48px;\n    animation: rotateHint 2s ease-in-out infinite;\n    margin-bottom: 16px;\n  }\n  @keyframes decreeGlow {\n    0%, 100% { box-shadow: 0 0 6px 2px rgba(245, 158, 11, 0.3); }\n    50% { box-shadow: 0 0 18px 6px rgba(245, 158, 11, 0.7); }\n  }\n  .decree-glow {\n    animation: decreeGlow 1.8s ease-in-out infinite;\n  }\n";
+var MOBILE_CSS = "\n @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Josefin+Sans:wght@400;600;700&display=swap');\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; -webkit-tap-highlight-color: transparent; } .mobile-shell {\n    width: 100vw;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: 'Josefin Sans', sans-serif;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n    padding-left: env(safe-area-inset-left);\n    padding-right: env(safe-area-inset-right);\n    padding-top: env(safe-area-inset-top);\n    padding-bottom: env(safe-area-inset-bottom);\n    box-sizing: border-box;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Cinzel', serif;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n    background: #1e160d;\n  }\n  .mobile-action-strip {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    flex-direction: column;\n    gap: 0;\n    padding: 0;\n    overflow: hidden;\n    flex-shrink: 0;\n    background: transparent;\n    position: relative;\n    z-index: 2;\n  }\n  .mobile-action-strip-qte {\n    background: transparent;\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-backdrop {\n    position: absolute;\n    inset: 0;\n    z-index: 90;\n    background: rgba(0, 0, 0, 0.55);\n  }\n  .mobile-drawer {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    width: 240px;\n    z-index: 95;\n    background: rgba(18, 14, 8, 0.55);\n    backdrop-filter: blur(4px);\n    -webkit-backdrop-filter: blur(4px);\n    border-right: 1px solid #3d2e0f;\n    display: flex;\n    flex-direction: column;\n    gap: 6px;\n    padding: 8px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    box-shadow: 4px 0 20px rgba(0,0,0,0.8);\n    transition: transform 0.2s ease;\n  }\n  .mobile-drawer-left {\n    left: 0;\n    border-right: 1px solid #3d2e0f;\n    border-left: none;\n  }\n  .mobile-drawer-right {\n    right: 0;\n    left: auto;\n    border-left: 1px solid #3d2e0f;\n    border-right: none;\n    box-shadow: -4px 0 20px rgba(0,0,0,0.8);\n  }\n  .mobile-drawer::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-drawer::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-tab {\n    position: absolute;\n    top: 50%;\n    transform: translateY(-50%);\n    z-index: 85;\n    width: 20px;\n    height: 48px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #16100a;\n    border: 1px solid #3d2e0f;\n    cursor: pointer;\n    font-size: 12px;\n    color: #8a7a64;\n  }\n  .mobile-drawer-tab-left {\n    left: 0;\n    border-radius: 0 6px 6px 0;\n    border-left: none;\n  }\n  .mobile-drawer-tab-right {\n    right: 0;\n    left: auto;\n    border-radius: 6px 0 0 6px;\n    border-right: none;\n  }\n  .mobile-drawer-tab:active {\n    background: #2a1f0a;\n  }\n  .mobile-drawer-forge {\n    width: 160px;\n  }\n  .mobile-portrait-overlay {\n    position: fixed;\n    inset: 0;\n    z-index: 9999;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    background: rgba(10, 7, 4, 0.92);\n    pointer-events: none;\n    font-family: 'Cinzel', serif;\n  }\n  @keyframes rotateHint {\n    0%, 100% { transform: rotate(0deg); }\n    25% { transform: rotate(-20deg); }\n    75% { transform: rotate(20deg); }\n  }\n  .rotate-hint-icon {\n    font-size: 48px;\n    animation: rotateHint 2s ease-in-out infinite;\n    margin-bottom: 16px;\n  }\n  @keyframes decreeGlow {\n    0%, 100% { box-shadow: 0 0 6px 2px rgba(245, 158, 11, 0.3); }\n    50% { box-shadow: 0 0 18px 6px rgba(245, 158, 11, 0.7); }\n  }\n  .decree-glow {\n    animation: decreeGlow 1.8s ease-in-out infinite;\n  }\n";
 function isFullscreenActive() {
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
 }
@@ -339,9 +339,9 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
     return (
         <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1 }}>
             <button {...btnProps} disabled={disabled} style={{
-                background: press.isHolding ? T.colors.bgHighlight : bgColor,
-                border: "1px solid " + borderColor,
-                borderRadius: T.radius.md,
+                background: hasImg ? "transparent" : (press.isHolding ? T.colors.bgHighlight : bgColor),
+                border: hasImg ? "none" : ("1px solid " + borderColor),
+                borderRadius: hasImg ? 0 : T.radius.md,
                 color: textColor,
                 cursor: disabled ? "not-allowed" : "pointer",
                 fontFamily: T.fonts.body,
@@ -354,7 +354,7 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
                 alignItems: "center",
                 justifyContent: "center",
                 gap: T.spacing.xxs,
-                padding: "4px 4px",
+                padding: hasImg ? 0 : "4px 4px",
                 width: "100%",
                 height: "100%",
                 flex: 1,
@@ -362,7 +362,7 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
                 WebkitUserSelect: "none",
                 userSelect: "none",
             }}>
-                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} style={{ width: imgSize || 40, height: imgSize || 40, objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />}
+                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} style={{ width: imgSize || 44, height: imgSize || 44, objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />}
                 {!imgSrc && icon && <span style={{ fontSize: T.fontSize.xxl, lineHeight: 1, pointerEvents: "none" }}>{icon}</span>}
                 {!imgSrc && label && <span style={{ pointerEvents: "none" }}>{label}</span>}
             </button>
@@ -527,29 +527,21 @@ function DecreeBtn({ quest, questNum }) {
     return (
         <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1 }}>
             <button {...press.handlers} className={glowClass} style={{
-                background: T.colors.bgWarm,
-                border: "1px solid " + borderGlow,
-                borderRadius: T.radius.md,
+                background: "transparent",
+                border: "none",
+                borderRadius: 0,
                 color: accentColor,
                 cursor: "pointer",
-                fontFamily: T.fonts.body,
-                fontWeight: "bold",
-                fontSize: T.fontSize.xs,
-                letterSpacing: T.letterSpacing.tight,
-                textTransform: "uppercase",
                 display: "flex",
-                flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: T.spacing.xxs,
-                padding: "4px 4px",
+                padding: 0,
                 width: "100%",
                 height: "100%",
-                flex: 1,
                 WebkitUserSelect: "none",
                 userSelect: "none",
             }}>
-                <img src={IC.decree} alt="Decree" draggable={false} style={{ width: 48, height: 48, objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />
+                <img src={IC.decree} alt="Decree" draggable={false} style={{ width: "90%", height: "90%", objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />
             </button>
 
             {showPop && (
@@ -907,7 +899,7 @@ function MobileLayout(props) {
     // --- Action strip ---
     var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
     var actionStrip = (
-        <div className={actionStripClass} style={{ justifyContent: "space-evenly", paddingBottom: "10%" }}>
+        <div className={actionStripClass} style={{ justifyContent: "space-evenly", height: "100%", padding: "8% 4px" }}>
             {isForging && phase === "sess_result" ? (
                 <>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
@@ -938,8 +930,8 @@ function MobileLayout(props) {
             left: isLeftHanded ? "auto" : "6%",
             right: isLeftHanded ? "6%" : "auto",
             zIndex: T.z.ui + 1,
-            width: 56,
-            height: 56,
+            width: 112,
+            height: 112,
         }}>
             <DecreeBtn quest={Object.assign({}, props.royalQuest, { _currentDay: props.day || 1 })} questNum={props.questNum} />
         </div>
@@ -996,39 +988,35 @@ function MobileLayout(props) {
             <div className="mobile-middle" style={{ flexDirection: middleDirection }}>
                 {center}
                 {decreeFloat}
-                <div style={{ position: "relative", flexShrink: 0, width: 140 }}>
-                    <img src={IC.sidebar} alt="" draggable={false} style={{
-                        position: "absolute",
-                        top: 0,
-                        right: isLeftHanded ? "auto" : 0,
-                        left: isLeftHanded ? 0 : "auto",
-                        height: "100%",
-                        width: "auto",
-                        opacity: 0.50,
-                        filter: "brightness(0.3)",
-                        transform: isLeftHanded ? "scaleX(-1)" : "none",
-                        pointerEvents: "none",
-                        zIndex: 1,
-                    }} />
-                    <div style={{
-                        position: "absolute",
-                        top: "1%",
-                        left: 0,
-                        right: 0,
-                        zIndex: 3,
-                        fontFamily: "'Cinzel', serif",
-                        color: T.colors.textLabel,
-                        fontSize: 15,
-                        letterSpacing: 2,
-                        fontWeight: "bold",
-                        textShadow: "0 1px 4px rgba(0,0,0,0.9)",
-                        lineHeight: 1,
-                        textAlign: "center",
-                        pointerEvents: "none",
-                    }}>
-                        DAY<br/>
-                        <span style={{ fontSize: 32, color: T.colors.textLight, letterSpacing: 0 }}>{props.day || 1}</span>
-                    </div>
+                {/* DAY label — dead center top of screen */}
+                <div style={{
+                    position: "absolute",
+                    top: "2%",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: T.z.ui + 2,
+                    fontFamily: "'Cinzel', serif",
+                    color: T.colors.textLabel,
+                    fontSize: 15,
+                    letterSpacing: 2,
+                    fontWeight: "bold",
+                    textShadow: "0 1px 4px rgba(0,0,0,0.9)",
+                    lineHeight: 1,
+                    textAlign: "center",
+                    pointerEvents: "none",
+                }}>
+                    DAY<br/>
+                    <span style={{ fontSize: 32, color: T.colors.textLight, letterSpacing: 0 }}>{props.day || 1}</span>
+                </div>
+                {/* Action strip — independent column, no sidebar box */}
+                <div style={{
+                    position: "relative",
+                    flexShrink: 0,
+                    width: 100,
+                    display: "flex",
+                    flexDirection: "column",
+                    zIndex: T.z.ui,
+                }}>
                     {actionStrip}
                 </div>
                 {drawer}
