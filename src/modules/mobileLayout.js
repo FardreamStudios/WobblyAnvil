@@ -759,6 +759,17 @@ function MobileBottomBar(props) {
                 {props.gold || 0}g
             </W.Label>
 
+            {/* Options gear button */}
+            <W.Btn onClick={props.onOptions} icon={"\u2699"}
+                   color="textLabel" bg="bgWarm" size={20} radius="md"
+                   w={32} h={32} bold={false} upper={false}
+                   style={{ padding: 0, flexShrink: 0, border: T.borders.thin }} />
+
+            {/* Fullscreen toggle */}
+            <W.Btn onClick={props.onToggleFullscreen} icon={props.isFull ? "\u2716" : "\u26F6"}
+                   color="textLabel" bg="bgWarm" size={16} radius="md"
+                   w={32} h={32} bold={false} upper={false}
+                   style={{ padding: 0, flexShrink: 0, border: T.borders.thin }} />
         </W.Strip>
     );
 }
@@ -892,7 +903,7 @@ function MobileLayout(props) {
     // --- Action strip ---
     var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
     var actionStrip = (
-        <div className={actionStripClass} style={{ height: "100%", padding: "8% 4px", gap: "1.5vh" }}>
+        <div className={actionStripClass} style={{ height: "100%", padding: "2vh 4px", gap: "1.5vh", overflow: "hidden" }}>
             {isForging && phase === "sess_result" ? (
                 <>
                     <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
@@ -919,7 +930,7 @@ function MobileLayout(props) {
                 </>
             )}
             {/* Utility row — options + fullscreen, always visible, tappable during QTE */}
-            <div style={{ flex: 0.6, display: "flex", gap: "1.5vh", flexShrink: 0, pointerEvents: "auto" }}>
+            <div style={{ flex: 0.6, display: "flex", gap: "1.5vh", flexShrink: 0, maxHeight: "10vh", pointerEvents: "auto" }}>
                 <div style={{ flex: 1, display: "flex" }}>
                     <MobileBtn icon={"\u2699"} onClick={props.onOptions} />
                 </div>
@@ -979,20 +990,14 @@ function MobileLayout(props) {
         </div>
     );
 
-    // --- Bottom bar ---
-    var bottomBar = <MobileBottomBar
-        timeLabel={props.timeLabel} timeColor={props.timeColor} timePct={props.timePct}
-        stamina={props.stamina} maxStam={props.maxStam}
-        staminaColor={props.staminaColor} staminaPct={props.staminaPct}
-        finished={finished} gold={props.gold} onOptions={props.onOptions}
-        isFull={isFull} onToggleFullscreen={function() {
-        if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); }
-        else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); }
-    }}
-    />;
-
     // --- Assemble ---
     var middleDirection = isLeftHanded ? "row-reverse" : "row";
+    var barBoxStyle = {
+        background: "rgba(0,0,0,0.50)",
+        border: "1px solid " + T.colors.borderDark,
+        borderRadius: T.radius.md,
+        pointerEvents: "none",
+    };
 
     return (
         <MobileShell className={props.className}>
@@ -1009,15 +1014,87 @@ function MobileLayout(props) {
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
-                    background: "rgba(0,0,0,0.20)",
-                    border: "1px solid " + T.colors.borderDark,
-                    borderRadius: T.radius.md,
+                    background: barBoxStyle.background,
+                    border: barBoxStyle.border,
+                    borderRadius: barBoxStyle.borderRadius,
                     padding: "4px 14px",
                     pointerEvents: "none",
                 }}>
                     <span style={{ fontFamily: "'Cinzel', serif", color: T.colors.textLabel, fontSize: 18, letterSpacing: 2, fontWeight: "bold", textShadow: "0 1px 4px rgba(0,0,0,0.9)", lineHeight: 1 }}>DAY</span>
                     <span style={{ fontFamily: "'Cinzel', serif", fontSize: 28, color: T.colors.textLight, fontWeight: "bold", textShadow: "0 1px 4px rgba(0,0,0,0.9)", lineHeight: 1 }}>{props.day || 1}</span>
                 </div>
+
+                {/* --- Time + Stamina — center bottom, 40% width --- */}
+                <div style={{
+                    position: "absolute",
+                    bottom: "2%",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: T.z.ui + 2,
+                    width: "45%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 24,
+                    padding: "4px 14px",
+                    background: barBoxStyle.background,
+                    border: barBoxStyle.border,
+                    borderRadius: barBoxStyle.borderRadius,
+                    pointerEvents: "none",
+                }}>
+                    {/* Time bar */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                        <W.Label size="xxs" color="textLabel" spacing="tight" bold font="heading" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>TIME</W.Label>
+                        <div style={{ width: "100%", height: 10, background: T.colors.bgDeep, borderRadius: T.radius.sm, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: (props.timePct || 100) + "%", background: props.timeColor || T.colors.green, borderRadius: T.radius.sm, transition: "width 0.3s" }} />
+                        </div>
+                        <W.Label size="xxs" color={props.timeColor || T.colors.green} bold style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>{props.timeLabel || "8:00AM"}</W.Label>
+                    </div>
+                    {/* Stamina bar */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                        <W.Label size="xxs" color="textLabel" spacing="tight" bold font="heading" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>STAM</W.Label>
+                        <div style={{ width: "100%", height: 10, background: T.colors.bgDeep, borderRadius: T.radius.sm, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: (props.staminaPct || 100) + "%", background: props.staminaColor || T.colors.gold, borderRadius: T.radius.sm, transition: "width 0.3s" }} />
+                        </div>
+                        <W.Label size="xxs" color={props.staminaColor || T.colors.gold} bold style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>{(props.stamina || 0) + "/" + (props.maxStam || 5)}</W.Label>
+                    </div>
+                </div>
+
+                {/* --- Shelf icons — floating over time+stamina area --- */}
+                {finished.length > 0 && (
+                    <div style={{
+                        position: "absolute",
+                        bottom: "12%",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        zIndex: T.z.ui + 3,
+                        display: "flex",
+                        gap: 4,
+                        pointerEvents: "auto",
+                    }}>
+                        {finished.map(function(w, i) {
+                            return <ShelfItem key={w.id} item={w} index={i} />;
+                        })}
+                    </div>
+                )}
+
+                {/* --- Gold — bottom left (flips for left-handed) --- */}
+                <div style={{
+                    position: "absolute",
+                    bottom: "2%",
+                    left: isLeftHanded ? "auto" : "2%",
+                    right: isLeftHanded ? "2%" : "auto",
+                    zIndex: T.z.ui + 2,
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "4px 12px",
+                    background: barBoxStyle.background,
+                    border: barBoxStyle.border,
+                    borderRadius: barBoxStyle.borderRadius,
+                    pointerEvents: "none",
+                }}>
+                    <W.Label size={21} color="gold" bold font="heading" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>{props.gold || 0}g</W.Label>
+                </div>
+
                 {/* Sidebar background image — free-floating, not clipped by action strip */}
                 <img src={IC.sidebar} alt="" draggable={false} style={{
                     position: "absolute",
@@ -1026,9 +1103,9 @@ function MobileLayout(props) {
                     right: isLeftHanded ? "auto" : 0,
                     left: isLeftHanded ? 0 : "auto",
                     height: "100%",
-                    width: 180,
+                    width: 340,
                     objectFit: "cover",
-                    opacity: .95,
+                    opacity: .8,
                     transform: isLeftHanded ? "scaleX(-1)" : "none",
                     pointerEvents: "none",
                     zIndex: T.z.ui - 1,
@@ -1037,9 +1114,10 @@ function MobileLayout(props) {
                 <div style={{
                     position: "absolute",
                     top: 0,
-                    bottom: 0,
+                    bottom: "3%",
                     right: isLeftHanded ? "auto" : "3%",
                     left: isLeftHanded ? "3%" : "auto",
+                    bottom: "3%",
                     width: 110,
                     display: "flex",
                     flexDirection: "column",
@@ -1051,7 +1129,6 @@ function MobileLayout(props) {
                 </div>
                 {drawer}
             </div>
-            {bottomBar}
         </MobileShell>
     );
 }
