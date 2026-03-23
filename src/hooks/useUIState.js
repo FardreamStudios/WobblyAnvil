@@ -19,10 +19,18 @@ function useUIState() {
     var [showOptions, setShowOptions] = useState(false);
     var [showRhythmTest, setShowRhythmTest] = useState(false);
 
-    // --- Settings ---
-    var [handedness, setHandedness] = useState("right");
-    var [sfxVol, setSfxVol] = useState(0.25);
-    var [musicVol, setMusicVol] = useState(0.25);
+    // --- Settings (persisted via localStorage) ---
+    var _saved = (function() {
+        try { var raw = localStorage.getItem("wobbly_anvil_settings"); return raw ? JSON.parse(raw) : {}; } catch(e) { return {}; }
+    })();
+    var [handedness, setHandedness] = useState(_saved.handedness || "right");
+    var [sfxVol, setSfxVol] = useState(typeof _saved.sfxVol === "number" ? _saved.sfxVol : 0.25);
+    var [musicVol, setMusicVol] = useState(typeof _saved.musicVol === "number" ? _saved.musicVol : 0.25);
+
+    // --- Persist settings on change ---
+    useEffect(function() {
+        try { localStorage.setItem("wobbly_anvil_settings", JSON.stringify({ handedness: handedness, sfxVol: sfxVol, musicVol: musicVol })); } catch(e) {}
+    }, [handedness, sfxVol, musicVol]);
 
     // --- Toast System ---
     var [toasts, setToasts] = useState([]);

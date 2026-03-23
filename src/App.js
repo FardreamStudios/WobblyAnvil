@@ -117,6 +117,8 @@ var useLayoutMode = GameLayout.useLayoutMode;
 
 // --- Destructure Mobile Layout ---
 var MobileLayout = MobileLayoutModule.MobileLayout;
+var requestFullscreen = MobileLayoutModule.requestFullscreen;
+var isFullscreenActive = MobileLayoutModule.isFullscreenActive;
 
 // ============================================================
 // Main App Component
@@ -140,6 +142,25 @@ export default function App() {
 
   // --- FX Cue Router ---
   useFXCues({ sfx: sfx, fxRef: vfx.fxRef });
+
+  // --- Mobile: request fullscreen on landscape (all screens) ---
+  useEffect(function() {
+    if (!isMobile) return;
+    function onOrientationChange() {
+      setTimeout(function() {
+        var w = window.innerWidth, h = window.innerHeight;
+        if (w > h && !isFullscreenActive()) {
+          requestFullscreen(document.documentElement);
+        }
+      }, 500);
+    }
+    window.addEventListener("orientationchange", onOrientationChange);
+    window.addEventListener("resize", onOrientationChange);
+    return function() {
+      window.removeEventListener("orientationchange", onOrientationChange);
+      window.removeEventListener("resize", onOrientationChange);
+    };
+  }, [isMobile]);
 
   // --- UI State (from useUIState) ---
   var screen = ui.screen, setScreen = ui.setScreen;
@@ -389,7 +410,7 @@ export default function App() {
   // ============================================================
 
   if (gameOver) return <ScaleWrapper><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScaleWrapper>;
-  if (screen === "splash") return <ScaleWrapper><SplashScreen onEnter={function() { sfx.warmup(); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
+  if (screen === "splash") return <ScaleWrapper><SplashScreen onEnter={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
   if (screen === "menu") return <ScaleWrapper><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 
   // ============================================================

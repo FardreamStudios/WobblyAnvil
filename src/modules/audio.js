@@ -205,12 +205,12 @@ function useAudio() {
             _mode = mode;
             _modeTimer = setTimeout(function() {
                 if (_mode !== mode) return;
-                if (mode === "idle" && !audioRef.current.idleMuted && !_idlePlayed) {
+                if (mode === "idle" && !_idlePlayed) {
                     _idlePlayed = true;
                     _idleMelodyIndex = (_idleMelodyIndex + 1) % IDLE_MELODIES.length;
                     playIdleOnce();
                 }
-                if (mode === "forge" && !audioRef.current.forgeMuted) {
+                if (mode === "forge") {
                     loopMusic("forge", FORGE_LOOP, 0.12);
                 }
             }, 500);
@@ -221,13 +221,11 @@ function useAudio() {
         audioRef.current = {
             // Mode control
             setMode: setMode,
-            idleMuted: false,
-            forgeMuted: false,
 
             // Day reset
             resetDay: function() {
                 _idlePlayed = false;
-                if (_mode === "idle" && !audioRef.current.idleMuted) {
+                if (_mode === "idle") {
                     stopMusic();
                     _idleMelodyIndex = (_idleMelodyIndex + 1) % IDLE_MELODIES.length;
                     _idlePlayed = true;
