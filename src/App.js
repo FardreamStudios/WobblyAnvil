@@ -4,7 +4,7 @@
 // All data, utilities, components, and systems imported from modules.
 // ============================================================
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 
 // --- Module Imports ---
 import GameConstants from "./modules/constants.js";
@@ -25,6 +25,7 @@ import DevRouter from "./dev/DevRouter.js";
 import GameplayEventBus from "./logic/gameplayEventBus.js";
 import EVENT_TAGS from "./config/eventTags.js";
 import AbilityManager from "./abilities/abilityManager.js";
+import CustomerManager from "./logic/customerManager.js";
 
 // --- State Hooks ---
 import useUIState from "./hooks/useUIState.js";
@@ -48,7 +49,6 @@ import useAmbientAudio from "./hooks/useAmbientAudio.js";
 var PHASES = GameConstants.PHASES;
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
-var CUST_TYPES = GameConstants.CUST_TYPES;
 var STATS_DEF = GameConstants.STATS_DEF;
 var TAG_COLORS = GameConstants.TAG_COLORS;
 var LATE_TOASTS = GameConstants.LATE_TOASTS;
@@ -189,9 +189,6 @@ export default function App() {
   var priceDebuff = economy.priceDebuff, setPriceDebuff = economy.setPriceDebuff;
   var matDiscount = economy.matDiscount, setMatDiscount = economy.setMatDiscount;
   var globalMatMult = economy.globalMatMult, setGlobalMatMult = economy.setGlobalMatMult;
-  var guaranteedCustomers = economy.guaranteedCustomers, setGuaranteedCustomers = economy.setGuaranteedCustomers;
-  var custVisitsToday = economy.custVisitsToday, setCustVisitsToday = economy.setCustVisitsToday;
-  var maxCustToday = economy.maxCustToday, setMaxCustToday = economy.setMaxCustToday;
 
   // --- Day State (from useDayState) ---
   var day = dayState.day, setDay = dayState.setDay;
@@ -202,8 +199,7 @@ export default function App() {
   var gameOver = dayState.gameOver, setGameOver = dayState.setGameOver;
 
   // --- Quest State (from useQuestState) ---
-  var activeCustomer = quest.activeCustomer, setActiveCustomer = quest.setActiveCustomer;
-  var setHasSoldWeapon = quest.setHasSoldWeapon;
+  var activeCustomer = quest.activeCustomer;
 
   // --- Market State (already destructured above from useEconomyState) ---
 
@@ -264,20 +260,35 @@ export default function App() {
 
   // --- Refs ---
   var finishedRef = useRef(finished);
-  var custVisRef = useRef(custVisitsToday);
-  var maxCustRef = useRef(maxCustToday);
-  var guaranteedCustomersRef = useRef(false);
   var phaseRef = useRef(phase);
+  var hourRef = useRef(hour);
+  var activeCustomerRef = useRef(activeCustomer);
   var royalQuestRef = useRef(royalQuest);
   var gameStarted = useRef(false);
 
   // Keep refs current
-  guaranteedCustomersRef.current = guaranteedCustomers;
   finishedRef.current = finished;
-  custVisRef.current = custVisitsToday;
-  maxCustRef.current = maxCustToday;
   phaseRef.current = phase;
+  hourRef.current = hour;
+  activeCustomerRef.current = activeCustomer;
   royalQuestRef.current = royalQuest;
+
+  // --- Customer Manager Init (pure JS, bus-driven) ---
+  useEffect(function() {
+    CustomerManager.init(
+        GameplayEventBus,
+        function() {
+          return {
+            finished: finishedRef.current,
+            phase: phaseRef.current,
+            hour: hourRef.current,
+            activeCustomer: activeCustomerRef.current,
+          };
+        },
+        AbilityManager
+    );
+    return function() { CustomerManager.reset(); };
+  }, []);
 
 
   // --- Toast System ---
@@ -296,24 +307,14 @@ export default function App() {
   function removeToast(id) { setToasts(function(t) { return t.filter(function(x) { return x.id !== id; }); }); }
 
   // --- Customer System ---
-  var trySpawnCustomer = useCallback(function(newHour, nf) {
-    var items = nf || finishedRef.current;
-    if (!items.length || custVisRef.current >= maxCustRef.current) return;
-    if (newHour < 9 || newHour > 21) return;
-    if (phaseRef.current !== PHASES.IDLE && phaseRef.current !== PHASES.SESS_RESULT) return;
-    var resolvedChance = AbilityManager.resolveValue("customerChance", 0.42);
-    if (!guaranteedCustomersRef.current && Math.random() > resolvedChance) return;    var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
-    shuffled.some(function(ct) {
-      var match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
-      if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); GameplayEventBus.emit(EVENT_TAGS.FX_DOORBELL, {}); return true; }
-      return false;
-    });
-  }, [sfx]);
+  // Customer spawning now handled by CustomerManager (src/logic/customerManager.js).
+  // It listens to DAY_ADVANCE_HOUR, ECONOMY_WEAPON_SOLD, CUSTOMER_REFUSE,
+  // CUSTOMER_WALKOUT, and day lifecycle tags. No spawn logic in App.js.
 
 
   // --- Time & Actions ---
   function advanceTime(hrs, nf, useStam) {
-    setHour(function(h) { var next = h + hrs; setTimeout(function() { trySpawnCustomer(next, nf); }, 200); return next; });
+    setHour(function(h) { return h + hrs; });
     if (useStam) { setStamina(function(s) { return Math.max(0, s - 1); }); gainXp(6); }
   }
 
@@ -329,7 +330,7 @@ export default function App() {
   // --- Economy ViewModel ---
   var economyVM = useEconomyVM({
     economy: economy, quest: quest, sfx: sfx,
-    addToast: addToast, trySpawnCustomer: trySpawnCustomer, hour: hour
+    addToast: addToast
   });
   var earnGold = economyVM.earnGold, spendGold = economyVM.spendGold, popGold = economyVM.popGold, removeGoldPop = economyVM.removeGoldPop, handleSell = economyVM.handleSell, handleRefuse = economyVM.handleRefuse;
 
@@ -344,7 +345,7 @@ export default function App() {
   var forgeVM = useForgeVM({
     forge: forge, sfx: sfx, addToast: addToast, advanceTime: advanceTime,
     spendGold: spendGold, gainXp: gainXp,
-    trySpawnCustomer: trySpawnCustomer, setInv: setInv, setFinished: setFinished,
+    setInv: setInv, setFinished: setFinished,
     setRoyalQuest: setRoyalQuest, setWeaponShake: setWeaponShake,
     gold: gold, inv: inv, finished: finished, hour: hour, stamina: stamina,
     forcedExhaustion: forcedExhaustion, stats: stats, upgrades: upgrades,
@@ -372,7 +373,7 @@ export default function App() {
   var dayVM = useDayVM({
     dayState: dayState, economy: economy, quest: quest, gm: gm,
     sfx: sfx, addToast: addToast, setToastQueue: setToastQueue, setActiveToast: setActiveToast,
-    trySpawnCustomer: trySpawnCustomer, earnGold: earnGold, changeRep: changeRep,
+    earnGold: earnGold, changeRep: changeRep,
     forgeOnSleep: forgeVM.onSleep,
     maxStam: maxStam, advanceTime: advanceTime, unlockedBP: unlockedBP, setUnlockedBP: setUnlockedBP, reputation: reputation,
     level: level

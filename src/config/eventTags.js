@@ -39,6 +39,12 @@ var EVENT_TAGS = {
     // --- Quest ---
     QUEST_FAILED:           "event.quest.failed",
 
+    // --- Customer ---
+    CUSTOMER_SPAWN:         "event.customer.spawn",
+    CUSTOMER_CLEAR:         "event.customer.clear",
+    CUSTOMER_WALKOUT:       "event.customer.walkout",
+    CUSTOMER_REFUSE:        "event.customer.refuse",
+
     // --- Day ---
     DAY_SET_STAMINA:        "event.day.stamina.set",
     DAY_ADVANCE_HOUR:       "event.day.hour.advance",

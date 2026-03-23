@@ -21,8 +21,6 @@ function useEconomyVM(deps) {
     var quest = deps.quest;
     var sfx = deps.sfx;
     var addToast = deps.addToast;
-    var trySpawnCustomer = deps.trySpawnCustomer;
-    var hour = deps.hour;
 
     // --- Economy state ---
     var setGold = economy.setGold;
@@ -31,7 +29,6 @@ function useEconomyVM(deps) {
     var setFinished = economy.setFinished;
 
     // --- Quest state ---
-    var setActiveCustomer = quest.setActiveCustomer;
     var setHasSoldWeapon = quest.setHasSoldWeapon;
 
     // --- Gold Pop Helpers ---
@@ -62,15 +59,19 @@ function useEconomyVM(deps) {
     }
 
     // --- Sell / Refuse ---
+    // CustomerManager listens to ECONOMY_WEAPON_SOLD and emits
+    // CUSTOMER_CLEAR + re-spawn attempt. No direct state calls needed.
     function handleSell(price, weaponId) {
         earnGold(price);
         GameplayEventBus.emit(EVENT_TAGS.ECONOMY_WEAPON_SOLD, { price: price, weaponId: weaponId });
-        setFinished(function(f) { var nf = f.filter(function(w) { return w.id !== weaponId; }); setTimeout(function() { trySpawnCustomer(hour, nf); }, 500); return nf; });
-        setHasSoldWeapon(true); setActiveCustomer(null);
+        setFinished(function(f) { return f.filter(function(w) { return w.id !== weaponId; }); });
+        setHasSoldWeapon(true);
         setTimeout(function() { addToast("SOLD!\n+" + price + "g", "", "#4ade80"); GameplayEventBus.emit(EVENT_TAGS.FX_TOAST, {}); }, 100);
     }
 
-    function handleRefuse() { setActiveCustomer(null); }
+    function handleRefuse() {
+        GameplayEventBus.emit(EVENT_TAGS.CUSTOMER_REFUSE, {});
+    }
 
     // --- Bus: Economy Subscriptions ---
     // Note: applyEventResult overloads ECONOMY_EARN_GOLD with modifier

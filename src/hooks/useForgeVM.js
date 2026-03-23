@@ -60,7 +60,6 @@ function useForgeVM(deps) {
     var spendGold = deps.spendGold;
     var gainXp = deps.gainXp;
     // (GEB-5: applyMystery removed — mystery events now fire via bus)
-    var trySpawnCustomer = deps.trySpawnCustomer;
     var setInv = deps.setInv;
     var setFinished = deps.setFinished;
     var setRoyalQuest = deps.setRoyalQuest;
@@ -284,7 +283,6 @@ function useForgeVM(deps) {
         GameplayEventBus.emit(EVENT_TAGS.FORGE_SESSION_COMPLETE, { quality: nq, weaponKey: wKey, matKey: matKey });
         stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null);
         ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE);
-        if (!isQuestDelivery) setTimeout(function() { trySpawnCustomer(hour, nf); }, 400);
     }
 
     function handleQuenchFire(pos) {

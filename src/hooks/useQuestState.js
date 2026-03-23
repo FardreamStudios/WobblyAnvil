@@ -36,13 +36,25 @@ function useQuestState() {
         function onDayStart() {
             setMEvent(null);
         }
+        function onCustomerSpawn(payload) {
+            if (payload && payload.type && payload.weapon) {
+                setActiveCustomer({ type: payload.type, weapon: payload.weapon });
+            }
+        }
+        function onCustomerClear() {
+            setActiveCustomer(null);
+        }
         GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
         GameplayEventBus.on(EVENT_TAGS.DAY_MORNING_EVENT_DISPLAY, onMorningEvent);
         GameplayEventBus.on(EVENT_TAGS.DAY_CYCLE_START, onDayStart);
+        GameplayEventBus.on(EVENT_TAGS.CUSTOMER_SPAWN, onCustomerSpawn);
+        GameplayEventBus.on(EVENT_TAGS.CUSTOMER_CLEAR, onCustomerClear);
         return function() {
             GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
             GameplayEventBus.off(EVENT_TAGS.DAY_MORNING_EVENT_DISPLAY, onMorningEvent);
             GameplayEventBus.off(EVENT_TAGS.DAY_CYCLE_START, onDayStart);
+            GameplayEventBus.off(EVENT_TAGS.CUSTOMER_SPAWN, onCustomerSpawn);
+            GameplayEventBus.off(EVENT_TAGS.CUSTOMER_CLEAR, onCustomerClear);
         };
     }, []);
 

@@ -39,7 +39,6 @@ function useDayVM(deps) {
     var addToast = deps.addToast;
     var setToastQueue = deps.setToastQueue;
     var setActiveToast = deps.setActiveToast;
-    var trySpawnCustomer = deps.trySpawnCustomer;
     var gm = deps.gm;
     var earnGold = deps.earnGold;
     var changeRep = deps.changeRep;
@@ -80,7 +79,7 @@ function useDayVM(deps) {
     var level = deps.level;
 
     // --- Quest state (promote) ---
-    var setActiveCustomer = quest.setActiveCustomer;
+    // setActiveCustomer removed — promote now emits CUSTOMER_SPAWN via bus
 
     // --- Time Helpers ---
     function waitHour() {
@@ -142,7 +141,6 @@ function useDayVM(deps) {
             var dayQueue = buildDayQueue(newDay, state, spawnQuestNum);
             var fullQueue = resolutionToast ? [{ id: "res_" + newDay, msg: resolutionToast.msg, icon: resolutionToast.icon, color: resolutionToast.color }].concat(dayQueue) : dayQueue;
             setToastQueue(fullQueue);
-            setTimeout(function() { trySpawnCustomer(9, finished); }, 600);
         }, 300);
     }
 
@@ -179,7 +177,11 @@ function useDayVM(deps) {
         var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
         shuffled.some(function(ct) {
             var match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
-            if (match) { setActiveCustomer({ type: ct, weapon: match }); setCustVisitsToday(function(v) { return v + 1; }); sfx.doorbell(); return true; }
+            if (match) {
+                GameplayEventBus.emit(EVENT_TAGS.CUSTOMER_SPAWN, { type: ct, weapon: match });
+                GameplayEventBus.emit(EVENT_TAGS.FX_DOORBELL, {});
+                return true;
+            }
             return false;
         });
     }
