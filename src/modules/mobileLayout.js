@@ -669,12 +669,12 @@ function EventBanner({ mEvent }) {
             background: "rgba(0,0,0,0.60)",
             border: "1px solid " + evtColor + "55",
             borderRadius: T.radius.md,
-            padding: "3px 14px",
+            padding: "6px 28px",
             cursor: "pointer",
             maxWidth: "60%",
         }}>
-            <span style={{ fontSize: 14, lineHeight: 1 }}>{mEvent.icon || "\u2728"}</span>
-            <span style={{ fontFamily: "'Cinzel', serif", color: evtColor, fontSize: 11, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mEvent.title || "Daily Event"}</span>
+            <span style={{ fontSize: 28, lineHeight: 1 }}>{mEvent.icon || "\u2728"}</span>
+            <span style={{ fontFamily: "'Cinzel', serif", color: evtColor, fontSize: 22, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mEvent.title || "Daily Event"}</span>
 
             {/* Tooltip popover */}
             {showPop && mEvent.desc && (
@@ -781,7 +781,7 @@ function RepFloat({ reputation, isLeftHanded }) {
             left: isLeftHanded ? "auto" : "2%",
             right: isLeftHanded ? "2%" : "auto",
             zIndex: T.z.ui + 1,
-            width: 78,
+            width: 160,
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -789,15 +789,16 @@ function RepFloat({ reputation, isLeftHanded }) {
             cursor: "pointer",
         }}>
             {/* 10 pips — position-colored like desktop */}
-            <div style={{ display: "flex", gap: 2, width: "100%" }}>
+            <div style={{ display: "flex", gap: 3, width: "100%" }}>
                 {Array.from({ length: 10 }).map(function(_, i) {
                     var filled = i < rep;
                     var pipColor = i < 3 ? "#ef4444" : i < 6 ? "#fb923c" : i < 8 ? "#4ade80" : "#22c55e";
                     return <div key={i} style={{
-                        flex: 1, height: 8, borderRadius: 2,
+                        flex: 1, height: 16, borderRadius: 2,
                         background: filled ? pipColor : "#1a1209",
-                        border: "1px solid " + (filled ? pipColor + "88" : "#2a1f0a"),
-                        transition: "background 0.2s",
+                        border: "1px solid " + (filled ? pipColor : "#5a4a38"),
+                        boxShadow: filled ? "0 0 6px " + pipColor + "88, inset 0 0 4px " + pipColor + "44" : "none",
+                        transition: "background 0.2s, box-shadow 0.2s",
                     }} />;
                 })}
             </div>
@@ -1254,9 +1255,9 @@ function MobileLayout(props) {
     var decreeFloat = props.royalQuest && !isForging && !isQTEActive ? (
         <div style={{
             position: "absolute",
-            top: "7%",
-            left: isLeftHanded ? "auto" : "2%",
-            right: isLeftHanded ? "2%" : "auto",
+            top: "9%",
+            left: isLeftHanded ? "auto" : "6%",
+            right: isLeftHanded ? "6%" : "auto",
             zIndex: T.z.ui + 1,
             width: 78,
             height: 78,
@@ -1344,12 +1345,12 @@ function MobileLayout(props) {
                 {props.mEvent && (
                     <EventBanner mEvent={props.mEvent} />
                 )}
-                {/* DAY label — below event bar */}
+                {/* DAY label — bottom left (flips for left-handed) */}
                 <div style={{
                     position: "absolute",
-                    top: props.mEvent ? "7%" : "2%",
-                    left: "50%",
-                    transform: "translateX(-50%)",
+                    bottom: "2%",
+                    left: isLeftHanded ? "auto" : "2%",
+                    right: isLeftHanded ? "2%" : "auto",
                     zIndex: T.z.ui + 2,
                     display: "flex",
                     alignItems: "center",
@@ -1417,12 +1418,12 @@ function MobileLayout(props) {
                     </div>
                 </div>
 
-                {/* --- Gold — bottom left (flips for left-handed) --- */}
+                {/* --- Gold — bottom, right of center-left (flips for left-handed) --- */}
                 <div style={{
                     position: "absolute",
                     bottom: "2%",
-                    left: isLeftHanded ? "auto" : "2%",
-                    right: isLeftHanded ? "2%" : "auto",
+                    left: isLeftHanded ? "auto" : "14%",
+                    right: isLeftHanded ? "14%" : "auto",
                     zIndex: T.z.ui + 2,
                     display: "flex",
                     alignItems: "center",
