@@ -289,7 +289,7 @@ var S={
 };
 
 // All dropdown sections default to closed
-var DEFAULT_COLLAPSED={identity:true,lifetime:true,size:true,color:true,opacity:true,motion:true,distribution:true,rotation:true,spawn:true,effects:true,system:true};
+var DEFAULT_COLLAPSED={identity:true,lifetime:true,size:true,color:true,opacity:true,motion:true,distribution:true,rotation:true,spawn:true,effects:true,system:false};
 
 // ============================================
 // COMPONENT
@@ -307,6 +307,7 @@ function ParticleEditor(){
     var [panX,setPanX]=useState(0);var [panY,setPanY]=useState(0);
     var panRef=useRef(false),panStart=useRef({x:0,y:0,px:0,py:0});
     var [palMode,setPalMode]=useState(false);var [palIdx,setPalIdx]=useState(0);
+    var [palPickKey,setPalPickKey]=useState(null);
     var [collapsed,setCollapsed]=useState(DEFAULT_COLLAPSED);
 
     var pausedR=useRef(paused),selIdR=useRef(selId),sysDurR=useRef(sysDur),sysModeR=useRef(sysMode);
@@ -427,7 +428,19 @@ function ParticleEditor(){
         var v=gv(selEm.pcfg,def.key);
         if(def.type==="text")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input style={S.tin} value={v} onChange={function(e){setPcfg(def.key,e.target.value);}}/></div>;
         if(def.type==="slider")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input type="range" style={S.sli} min={def.min} max={def.max} step={def.step} value={v} onChange={function(e){setPcfg(def.key,def.step<1?parseFloat(e.target.value):parseInt(e.target.value));}}/><span style={S.val}>{v}</span></div>;
-        if(def.type==="color")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input type="color" style={S.cin} value={v} onChange={function(e){var c=e.target.value;if(palMode)c=snapToPal(c,palIdx);setPcfg(def.key,c);}}/><span style={S.val}>{v}</span></div>;
+        if(def.type==="color"){
+            if(palMode){
+                var isOpen=palPickKey===def.key;
+                return <div key={def.key} style={{...S.row,position:"relative",flexWrap:"wrap"}}>
+                    <span style={S.lab}>{def.label}</span>
+                    <div style={{width:32,height:22,background:v,border:isOpen?"2px solid #00e5ff":"1px solid #333",borderRadius:3,cursor:"pointer",boxSizing:"border-box"}} onClick={function(){setPalPickKey(isOpen?null:def.key);}}/>
+                    <span style={S.val}>{v}</span>
+                    {isOpen&&<div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:100,background:"#1a1a1a",border:"1px solid #333",borderRadius:4,padding:6,marginTop:2,display:"flex",flexWrap:"wrap",gap:2}}>
+                        {PALETTES[palIdx].colors.map(function(c,ci){return <div key={ci} style={{width:20,height:20,background:c,borderRadius:2,cursor:"pointer",border:c===v?"2px solid #fff":"1px solid #333",boxSizing:"border-box"}} onClick={function(){setPcfg(def.key,c);setPalPickKey(null);}}/>;})}</div>}
+                </div>;
+            }
+            return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><input type="color" style={S.cin} value={v} onChange={function(e){setPcfg(def.key,e.target.value);}}/><span style={S.val}>{v}</span></div>;
+        }
         if(def.type==="toggle")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><button style={{...S.tog,background:v?"#00ffaa":"#333",width:36}} onClick={function(){setPcfg(def.key,!v);}}><div style={{...S.knob,left:v?20:2}}/></button></div>;
         if(def.type==="select")return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><select style={S.sel2} value={v} onChange={function(e){setPcfg(def.key,e.target.value);}}>{def.options.map(function(o){return <option key={o} value={o}>{o}</option>;})}</select></div>;
         if(def.type==="curve"){var intKey=def.key+"Int";var inten=selEm.pcfg[intKey]!==undefined?selEm.pcfg[intKey]:1;return <div key={def.key} style={S.row}><span style={S.lab}>{def.label}</span><select style={S.cs} value={v||"none"} onChange={function(e){setPcfg(def.key,e.target.value);}}>{CURVES.map(function(c){return <option key={c} value={c}>{CURVE_LBL[c]}</option>;})}</select><CurveSVG c={v||"none"} inten={inten}/></div>;}
@@ -438,9 +451,9 @@ function ParticleEditor(){
     function sec(name,label,children,color){
         var isOpen=!collapsed[name];
         return <div key={name} style={{borderBottom:"2px solid #2a2a2a"}}>
-            <div style={{...S.st,padding:"10px 14px",marginBottom:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",userSelect:"none",borderLeft:isOpen?"3px solid #00ffaa":"3px solid transparent"}} onClick={function(){togSec(name);}}>
+            <div style={{...S.st,padding:"10px 14px",marginBottom:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",userSelect:"none",borderLeft:isOpen?"3px solid #00e5ff":"3px solid transparent"}} onClick={function(){togSec(name);}}>
                 <span style={color?{color:color}:null}>{label}</span>
-                <span style={{fontSize:"9px",color:"#00ffaa",transform:isOpen?"rotate(90deg)":"rotate(0deg)",transition:"transform 0.15s"}}>{"\u25B6"}</span>
+                <span style={{fontSize:"9px",color:"#00e5ff",transform:isOpen?"rotate(90deg)":"rotate(0deg)",transition:"transform 0.15s"}}>{"\u25B6"}</span>
             </div>
             {isOpen&&<div style={{padding:"0 14px 10px"}}>{children}</div>}
         </div>;
@@ -568,7 +581,7 @@ function ParticleEditor(){
                     {sec("spawn","Spawn Area",rg("spawn"))}
                     {sec("effects","Shape & Effects",rg("effects"))}
                     <div style={S.sec}>
-                        {actTpl!==null&&<button style={S.btn} onClick={saveTpl}>Save to "{tpls[actTpl]?tpls[actTpl].name:""}"</button>}
+                        {actTpl!==null&&<button style={S.btn} onClick={saveTpl}>Save to "{selEm?selEm.pcfg.name:"template"}"</button>}
                         <button style={{...S.rbtn,color:"#00ffaa",borderColor:"#00ffaa44"}} onClick={saveNew}>Save as New Template</button>
                     </div>
                 </>):<div style={S.ns}>Select an emitter to edit, or add one.</div>}
@@ -576,9 +589,19 @@ function ParticleEditor(){
                     {selEm&&<button style={S.btn} onClick={expSel}>Export Selected</button>}
                     <button style={{...S.btn,background:"#f59e0b",marginTop:4}} onClick={expScene}>Export Full Scene</button>
                     <button style={S.rbtn} onClick={clearScene}>Clear Scene</button>
-                    {showExp&&<div><textarea style={S.ea} value={expJSON} readOnly rows={10}/><button style={{...S.rbtn,marginTop:4,color:"#00ffaa",borderColor:"#00ffaa"}} onClick={cpExp}>Copy to Clipboard</button></div>}
                 </div>
             </div>
+
+            {showExp&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono','Fira Code','Consolas',monospace"}} onClick={function(e){if(e.target===e.currentTarget)setShowExp(false);}}>
+                <div style={{background:"#111",border:"1px solid #333",borderRadius:8,padding:"24px 28px",width:520,maxHeight:"80vh",display:"flex",flexDirection:"column",gap:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{fontSize:"13px",fontWeight:700,color:"#00ffaa",letterSpacing:2,textTransform:"uppercase"}}>Export JSON</span>
+                        <button onClick={function(){setShowExp(false);}} style={{background:"#222",border:"1px solid #333",color:"#888",padding:"4px 10px",cursor:"pointer",borderRadius:4,fontFamily:"inherit",fontSize:"11px"}}>Close</button>
+                    </div>
+                    <textarea style={{...S.ea,flex:1,minHeight:200,marginTop:0}} value={expJSON} readOnly/>
+                    <button style={{...S.btn,marginTop:0}} onClick={function(){cpExp();}}>{"\uD83D\uDCCB"} Copy to Clipboard</button>
+                </div>
+            </div>}
 
             {showHelp&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'JetBrains Mono','Fira Code','Consolas',monospace"}} onClick={function(e){if(e.target===e.currentTarget)setShowHelp(false);}}>
                 <div style={{background:"#111",border:"1px solid #333",borderRadius:8,padding:"24px 28px",maxWidth:520,maxHeight:"80vh",overflowY:"auto",color:"#ccc",fontSize:"12px",lineHeight:1.7}}>
