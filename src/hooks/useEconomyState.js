@@ -1,6 +1,7 @@
 // ============================================================
 // useEconomyState.js — Wobbly Anvil Economy State Hook
 // Owns: gold, inventory, finished weapons, market modifiers.
+// Customer tracking (visits, caps, guaranteed) moved to CustomerManager.
 // ============================================================
 
 import { useState, useEffect } from "react";
@@ -9,7 +10,6 @@ import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
 
 var STARTING_GOLD = GameConstants.STARTING_GOLD;
-var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
 
 var DEFAULT_INV = { bronze: 10, iron: 4, steel: 0, damascus: 0, titanium: 0, iridium: 0, tungsten: 0, mithril: 0, orichalcum: 0 };
 
@@ -26,9 +26,7 @@ function useEconomyState() {
     var [priceDebuff, setPriceDebuff] = useState(1.0);
     var [matDiscount, setMatDiscount] = useState(null);
     var [globalMatMult, setGlobalMatMult] = useState(1.0);
-    var [guaranteedCustomers, setGuaranteedCustomers] = useState(false);
-    var [custVisitsToday, setCustVisitsToday] = useState(0);
-    var [maxCustToday, setMaxCustToday] = useState(BASE_DAILY_CUSTOMERS);
+
 
     // --- Bus: Reset on New Game ---
     useEffect(function() {
@@ -36,7 +34,7 @@ function useEconomyState() {
             setGold(STARTING_GOLD); setTotalGoldEarned(0); setGoldPops([]);
             setInv(Object.assign({}, DEFAULT_INV)); setFinished([]);
             setPriceBonus(1.0); setPriceDebuff(1.0); setMatDiscount(null); setGlobalMatMult(1.0);
-            setGuaranteedCustomers(false); setCustVisitsToday(0); setMaxCustToday(BASE_DAILY_CUSTOMERS);
+
         }
         GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
         return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
@@ -64,12 +62,7 @@ function useEconomyState() {
         setMatDiscount: setMatDiscount,
         globalMatMult: globalMatMult,
         setGlobalMatMult: setGlobalMatMult,
-        guaranteedCustomers: guaranteedCustomers,
-        setGuaranteedCustomers: setGuaranteedCustomers,
-        custVisitsToday: custVisitsToday,
-        setCustVisitsToday: setCustVisitsToday,
-        maxCustToday: maxCustToday,
-        setMaxCustToday: setMaxCustToday,
+
     };
 }
 

@@ -32,7 +32,6 @@ function useEconomyVM(deps) {
     var setGold = economy.setGold;
     var setTotalGoldEarned = economy.setTotalGoldEarned;
     var setGoldPops = economy.setGoldPops;
-    var setFinished = economy.setFinished;
 
     // --- Quest state ---
     var setHasSoldWeapon = quest.setHasSoldWeapon;
@@ -71,7 +70,7 @@ function useEconomyVM(deps) {
     function handleSell(price, weaponId) {
         earnGold(price);
         GameplayEventBus.emit(EVENT_TAGS.ECONOMY_WEAPON_SOLD, { price: price, weaponId: weaponId });
-        setFinished(function(f) { return f.filter(function(w) { return w.id !== weaponId; }); });
+        GameplayEventBus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { removeWeaponId: weaponId });
         setHasSoldWeapon(true);
         setTimeout(function() { addToast("SOLD!\n+" + price + "g", "", "#4ade80"); GameplayEventBus.emit(EVENT_TAGS.FX_TOAST, {}); }, 100);
     }
@@ -87,8 +86,7 @@ function useEconomyVM(deps) {
     var busEarnGold = useCallback(function(payload) {
         if (payload.amount) earnGold(payload.amount);
         if (payload.priceBonus) economy.setPriceBonus(payload.priceBonus);
-        if (payload.guaranteedCustomers) economy.setGuaranteedCustomers(true);
-        if (payload.extraCustomers) economy.setMaxCustToday(function(c) { return c + payload.extraCustomers; });
+        // guaranteedCustomers + extraCustomers now handled by CustomerManager via bus
     }, []);
 
     var busSpendGold = useCallback(function(payload) {
@@ -99,6 +97,8 @@ function useEconomyVM(deps) {
     var busSetInventory = useCallback(function(payload) {
         if (payload.inv !== undefined) economy.setInv(payload.inv);
         if (payload.finished !== undefined) economy.setFinished(payload.finished);
+        if (payload.removeWeaponId) economy.setFinished(function(f) { return f.filter(function(w) { return w.id !== payload.removeWeaponId; }); });
+        if (payload.addFinished) economy.setFinished(function(f) { return f.concat([payload.addFinished]); });
     }, []);
 
     var busAddMaterial = useCallback(function(payload) {

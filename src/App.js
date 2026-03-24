@@ -186,11 +186,10 @@ export default function App() {
   var activeToast = ui.activeToast, setActiveToast = ui.setActiveToast;
 
   // --- Economy State (from useEconomyState) ---
-  var gold = economy.gold, setGold = economy.setGold;
+  var gold = economy.gold;
   var totalGoldEarned = economy.totalGoldEarned, setTotalGoldEarned = economy.setTotalGoldEarned;
-  var goldPops = economy.goldPops, setGoldPops = economy.setGoldPops;
-  var inv = economy.inv, setInv = economy.setInv;
-  var finished = economy.finished, setFinished = economy.setFinished;
+  var inv = economy.inv;
+  var finished = economy.finished;
   var priceBonus = economy.priceBonus, setPriceBonus = economy.setPriceBonus;
   var priceDebuff = economy.priceDebuff, setPriceDebuff = economy.setPriceDebuff;
   var matDiscount = economy.matDiscount, setMatDiscount = economy.setMatDiscount;
@@ -361,7 +360,6 @@ export default function App() {
   var forgeVM = useForgeVM({
     forge: forge, sfx: sfx, addToast: addToast, advanceTime: advanceTime,
     spendGold: spendGold, gainXp: gainXp,
-    setInv: setInv, setFinished: setFinished,
     setRoyalQuest: setRoyalQuest, setWeaponShake: setWeaponShake,
     gold: gold, inv: inv, finished: finished, hour: hour, stamina: stamina,
     forcedExhaustion: forcedExhaustion, stats: stats, upgrades: upgrades,

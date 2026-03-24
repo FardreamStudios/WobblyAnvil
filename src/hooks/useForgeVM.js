@@ -60,8 +60,7 @@ function useForgeVM(deps) {
     var spendGold = deps.spendGold;
     var gainXp = deps.gainXp;
     // (GEB-5: applyMystery removed — mystery events now fire via bus)
-    var setInv = deps.setInv;
-    var setFinished = deps.setFinished;
+    // (DES-1.1: setInv/setFinished removed — all inventory mutations route through bus)
     var setRoyalQuest = deps.setRoyalQuest;
     var setWeaponShake = deps.setWeaponShake;
 
@@ -179,13 +178,13 @@ function useForgeVM(deps) {
     function scrapWip() {
         if (!wipWeapon) return;
         sfx.click();
-        setInv(function(i) { var n = Object.assign({}, i), w = WEAPONS[wipWeapon.wKey]; n[wipWeapon.matKey] = (n[wipWeapon.matKey] || 0) + Math.floor(w.materialCost * MAT_SCRAP_RECOVERY); return n; });
+        GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: wipWeapon.matKey, qty: Math.floor(WEAPONS[wipWeapon.wKey].materialCost * MAT_SCRAP_RECOVERY) });
         addToast(randScrapToast(), "", "#a0a0a0");
         setWipWeapon(null);
     }
 
     function scrapWeapon() {
-        setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.floor(weapon.materialCost * MAT_SCRAP_RECOVERY); return n; });
+        GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.floor(weapon.materialCost * MAT_SCRAP_RECOVERY) });
         addToast(randScrapToast(), "", "#a0a0a0");
         resetForge();
     }
@@ -195,7 +194,7 @@ function useForgeVM(deps) {
         var have = inv[matKey] || 0, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[matKey].price * needed;
         if (have < weapon.materialCost && gold < buyPrice) return;
         if (needed > 0) spendGold(buyPrice);
-        setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + needed - weapon.materialCost; return n; });
+        GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: needed - weapon.materialCost });
         qualRef.current = 20; stressRef.current = 0; setQualScore(20); setStress(0);
         setForgeSess(0); setSessResult(null); setQteFlash(null); qteProcessing.current = false;
         ForgeMode.transitionTo(PHASES.HEAT); setPhase(PHASES.HEAT);
@@ -236,7 +235,7 @@ function useForgeVM(deps) {
         setTimeout(function() {
             qteLog("HAMMER", "RESULT", "pts=" + actualDelta + " newQ=" + newQ + " flashMs=" + QTE_FLASH_MS);
             setQteFlash(null); qteProcessing.current = false;
-            if (newQ <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
+            if (newQ <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
             if (newL <= 0) finishHammerSession();
         }, QTE_FLASH_MS);
     }
@@ -255,7 +254,7 @@ function useForgeVM(deps) {
     function attemptForge() {
         if (stress >= STRESS_MAX - 1) {
             var chance = stress >= STRESS_MAX ? BALANCE.shatterChanceMax : BALANCE.shatterChanceHigh;
-            if (Math.random() < chance) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
+            if (Math.random() < chance) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
         }
         ForgeMode.transitionTo(PHASES.HEAT); setPhase(PHASES.HEAT);
     }
@@ -289,7 +288,7 @@ function useForgeVM(deps) {
             }
         }
         var nf = finished;
-        if (!isQuestDelivery) { nf = finished.concat([item]); setFinished(nf); }
+        if (!isQuestDelivery) { nf = finished.concat([item]); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { addFinished: item }); }
         var toastMsg = isQuestDelivery ? (questComplete ? "DECREE FULFILLED\n" + q.label + " " + weapon.name : "DELIVERED " + deliveredSoFar + "/" + questQty + "\n" + q.label + " " + weapon.name) : q.label.toUpperCase() + " " + weapon.name + "\n~" + val + "g added to shelf";
         addToast(toastMsg, "", questComplete ? "#4ade80" : isQuestDelivery ? "#f59e0b" : q.weaponColor);
         GameplayEventBus.emit(EVENT_TAGS.FORGE_SESSION_COMPLETE, { quality: nq, weaponKey: wKey, matKey: matKey });
@@ -310,9 +309,9 @@ function useForgeVM(deps) {
             else if (good) { var nq2 = clamp(qualRef.current, 0, 100); qualRef.current = nq2; advanceTime(sessCost, undefined, true); finishWeapon(nq2); }
             else if (poor) {
                 var loss = randInt(10, 20), nq3 = clamp(qualRef.current - loss, 0, 100); qualRef.current = nq3; advanceTime(sessCost, undefined, true);
-                if (nq3 <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
+                if (nq3 <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
                 else finishWeapon(nq3);
-            } else { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
+            } else { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
         }, QTE_FLASH_MS);
     }
 

@@ -2,10 +2,10 @@
 // useShopVM.js — Wobbly Anvil Shop ViewModel Hook
 // Owns: onBuy (materials), onUpgrade (equipment), onBuyBP
 //       (blueprints), onSellMaterial (material selling).
-// Consumes: useEconomyState (inv, setInv), usePlayerState
+// Consumes: useEconomyState (gold, inv read-only), usePlayerState
 //           (upgrades, setUpgrades, unlockedBP, setUnlockedBP),
 //           useEconomyVM (earnGold, spendGold), sfx.
-// Returns: Action handlers for all shop transactions.
+// Inventory mutations routed through bus (ECONOMY_ADD_MATERIAL).
 // ============================================================
 
 import GameConstants from "../modules/constants.js";
@@ -25,7 +25,6 @@ function useShopVM(deps) {
 
     // --- State accessors ---
     var gold = economy.gold;
-    var setInv = economy.setInv;
     var upgrades = player.upgrades;
     var setUpgrades = player.setUpgrades;
     var setUnlockedBP = player.setUnlockedBP;
@@ -38,11 +37,7 @@ function useShopVM(deps) {
         if (gold < cost) return;
         GameplayEventBus.emit(EVENT_TAGS.FX_COIN_EARN, {});
         spendGold(cost);
-        setInv(function(i) {
-            var n = Object.assign({}, i);
-            n[mat] = (n[mat] || 0) + qty;
-            return n;
-        });
+        GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: mat, qty: qty });
     }
 
     // --- Buy Equipment Upgrade ---
@@ -74,11 +69,7 @@ function useShopVM(deps) {
     function onSellMaterial(mat, qty) {
         GameplayEventBus.emit(EVENT_TAGS.FX_COIN_EARN, {});
         var price = Math.floor(MATS[mat].price / 2) * qty;
-        setInv(function(i) {
-            var n = Object.assign({}, i);
-            n[mat] = Math.max(0, (n[mat] || 0) - qty);
-            return n;
-        });
+        GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: mat, qty: -qty });
         earnGold(price);
     }
 
