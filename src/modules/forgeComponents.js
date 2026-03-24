@@ -17,15 +17,17 @@ var QTE_W = GameConstants.QTE_W;
 var HAMMER_WIN = GameConstants.HAMMER_WIN;
 var QUENCH_WIN = GameConstants.QUENCH_WIN;
 var PHASES = GameConstants.PHASES;
+var BALANCE = GameConstants.BALANCE;
 var positionToColumn = GameUtils.positionToColumn;
 
-// --- QTE Speed Constants (tune these to adjust feel) ---
-var HEAT_SPEED_BASE = 60;
-var HEAT_SPEED_RANGE = 15;
-var HAMMER_SPEED_BASE = 210;
-var HAMMER_SPEED_RANGE = 50;
-var QUENCH_SPEED_BASE = 175;
-var QUENCH_SPEED_RANGE = 30;
+// --- QTE Speed Constants (sourced from BALANCE in constants.js) ---
+var HEAT_SPEED_BASE = BALANCE.heatSpeedBase;
+var HEAT_SPEED_RANGE = BALANCE.heatSpeedRange;
+var HEAT_ACCEL_EXP = BALANCE.heatAccelExponent;
+var HAMMER_SPEED_BASE = BALANCE.hammerSpeedBase;
+var HAMMER_SPEED_RANGE = BALANCE.hammerSpeedRange;
+var QUENCH_SPEED_BASE = BALANCE.quenchSpeedBase;
+var QUENCH_SPEED_RANGE = BALANCE.quenchSpeedRange;
 
 // --- Sprite Paths ---
 var PUB = process.env.PUBLIC_URL || "";
@@ -247,7 +249,7 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
                 if (dt > 0.1) dt = 0.1;
                 if (!processingRef.current) {
                     var n = heatNeedle.current;
-                    n.pos = Math.min(100, n.pos + n.speed * Math.pow(1 + n.pos / 100, 1.8) * dt);
+                    n.pos = Math.min(100, n.pos + n.speed * Math.pow(1 + n.pos / 100, HEAT_ACCEL_EXP) * dt);
                     posRef.current = n.pos;
                     setHeatPos(n.pos);
                     if (n.pos >= 100) { done = true; onAutoFire(n.pos); return; }

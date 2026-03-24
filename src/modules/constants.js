@@ -349,8 +349,17 @@ var BALANCE = {
     sessCostExhausted: 4,
 
     // Heat QTE win zone (position %)
-    heatWinLo: 80,
-    heatWinHi: 88,
+    heatWinLo: 75,
+    heatWinHi: 93,
+
+    // QTE needle speeds (base + random range)
+    heatSpeedBase: 60,
+    heatSpeedRange: 15,
+    heatAccelExponent: 1.8,
+    hammerSpeedBase: 210,
+    hammerSpeedRange: 50,
+    quenchSpeedBase: 175,
+    quenchSpeedRange: 30,
 
     // Base hammer strikes per session (before heat bonus)
     baseStrikes: 3,

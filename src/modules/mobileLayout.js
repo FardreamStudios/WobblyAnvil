@@ -46,7 +46,7 @@ var IC = {
 };
 
 // --- Mobile CSS ---
-var MOBILE_CSS = "\n @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Josefin+Sans:wght@400;600;700&display=swap');\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; -webkit-tap-highlight-color: transparent; } .mobile-shell {\n    width: 100vw;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: 'Josefin Sans', sans-serif;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n    padding-left: env(safe-area-inset-left);\n    padding-right: env(safe-area-inset-right);\n    padding-top: env(safe-area-inset-top);\n    padding-bottom: env(safe-area-inset-bottom);\n    box-sizing: border-box;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Cinzel', serif;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n    background: #1e160d;\n  }\n  .mobile-action-strip {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    flex-direction: column;\n    gap: 0;\n    padding: 0;\n    overflow: hidden;\n    flex-shrink: 0;\n    background: transparent;\n    position: relative;\n    z-index: 2;\n  }\n  .mobile-action-strip-qte {\n    background: transparent;\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 26px;\n    height: 26px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 14px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-backdrop {\n    position: absolute;\n    inset: 0;\n    z-index: 90;\n    background: rgba(0, 0, 0, 0.55);\n  }\n  .mobile-drawer {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    width: 240px;\n    z-index: 95;\n    background: rgba(18, 14, 8, 0.55);\n    backdrop-filter: blur(4px);\n    -webkit-backdrop-filter: blur(4px);\n    border-right: 1px solid #3d2e0f;\n    display: flex;\n    flex-direction: column;\n    gap: 6px;\n    padding: 8px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    box-shadow: 4px 0 20px rgba(0,0,0,0.8);\n    transition: transform 0.2s ease;\n  }\n  .mobile-drawer-left {\n    left: 0;\n    border-right: 1px solid #3d2e0f;\n    border-left: none;\n  }\n  .mobile-drawer-right {\n    right: 0;\n    left: auto;\n    border-left: 1px solid #3d2e0f;\n    border-right: none;\n    box-shadow: -4px 0 20px rgba(0,0,0,0.8);\n  }\n  .mobile-drawer::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-drawer::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-tab {\n    position: absolute;\n    top: 50%;\n    transform: translateY(-50%);\n    z-index: 85;\n    width: 20px;\n    height: 48px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #16100a;\n    border: 1px solid #3d2e0f;\n    cursor: pointer;\n    font-size: 12px;\n    color: #8a7a64;\n  }\n  .mobile-drawer-tab-left {\n    left: 0;\n    border-radius: 0 6px 6px 0;\n    border-left: none;\n  }\n  .mobile-drawer-tab-right {\n    right: 0;\n    left: auto;\n    border-radius: 6px 0 0 6px;\n    border-right: none;\n  }\n  .mobile-drawer-tab:active {\n    background: #2a1f0a;\n  }\n  .mobile-drawer-forge {\n    width: 160px;\n  }\n  .mobile-portrait-overlay {\n    position: fixed;\n    inset: 0;\n    z-index: 9999;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    background: rgba(10, 7, 4, 0.92);\n    pointer-events: none;\n    font-family: 'Cinzel', serif;\n  }\n  @keyframes rotateHint {\n    0%, 100% { transform: rotate(0deg); }\n    25% { transform: rotate(-20deg); }\n    75% { transform: rotate(20deg); }\n  }\n  .rotate-hint-icon {\n    font-size: 48px;\n    animation: rotateHint 2s ease-in-out infinite;\n    margin-bottom: 16px;\n  }\n  @keyframes decreeGlow {\n    0%, 100% { filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.3)) drop-shadow(0 0 2px rgba(0,0,0,0.6)); }\n    50% { filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8)) drop-shadow(0 0 20px rgba(245, 158, 11, 0.4)) drop-shadow(0 0 2px rgba(0,0,0,0.6)); }\n  }\n  .decree-glow-img {\n    animation: decreeGlow 1.8s ease-in-out infinite;\n  }\n";
+var MOBILE_CSS = "\n @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Josefin+Sans:wght@400;600;700&display=swap');\n html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; -webkit-tap-highlight-color: transparent; } .mobile-shell {\n    width: 100vw;\n    display: flex;\n    flex-direction: column;\n    background: #1e160d;\n    font-family: 'Josefin Sans', sans-serif;\n    color: #f0e6c8;\n    overflow: hidden;\n    position: relative;\n    padding-left: env(safe-area-inset-left);\n    padding-right: env(safe-area-inset-right);\n    padding-top: env(safe-area-inset-top);\n    padding-bottom: env(safe-area-inset-bottom);\n    box-sizing: border-box;\n  }\n  .mobile-banner {\n    display: flex;\n    align-items: center;\n    height: 32px;\n    padding: 0 8px;\n    background: #16100a;\n    border-bottom: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Cinzel', serif;\n  }\n  .mobile-middle {\n    flex: 1;\n    display: flex;\n    overflow: hidden;\n    position: relative;\n  }\n  .mobile-center {\n    flex: 1;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    position: relative;\n    overflow: hidden;\n    background: #1e160d;\n  }\n  .mobile-action-strip {\n    width: 100%;\n    height: 100%;\n    display: flex;\n    flex-direction: column;\n    gap: 0;\n    padding: 0;\n    overflow: hidden;\n    flex-shrink: 0;\n    background: transparent;\n    position: relative;\n    z-index: 2;\n  }\n  .mobile-action-strip-qte {\n    background: transparent;\n  }\n  .mobile-bottom-bar {\n    height: 40px;\n    display: flex;\n    align-items: center;\n    gap: 6px;\n    padding: 0 8px;\n    background: #16100a;\n    border-top: 1px solid #3d2e0f;\n    flex-shrink: 0;\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-bottom-panel {\n    display: flex;\n    align-items: center;\n    gap: 8px;\n    background: #120e08;\n    border: 1px solid #2a1f0a;\n    border-radius: 6px;\n    padding: 3px 8px;\n    height: 32px;\n  }\n  .mobile-shelf-icon {\n    width: 36px;\n    height: 36px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #1e160d;\n    border: 1px solid #3d2e0f;\n    border-radius: 4px;\n    font-size: 18px;\n    cursor: pointer;\n    flex-shrink: 0;\n    position: relative;\n  }\n  .mobile-shelf-icon:active {\n    background: #2a1f0a;\n  }\n  .mobile-shelf-popup {\n    position: absolute;\n    bottom: 44px;\n    background: #120e08;\n    border: 2px solid #f59e0b;\n    border-radius: 8px;\n    padding: 10px 12px;\n    min-width: 140px;\n    z-index: 200;\n    box-shadow: 0 4px 16px rgba(0,0,0,0.9);\n    font-family: 'Josefin Sans', sans-serif;\n  }\n  .mobile-action-strip::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-action-strip::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-backdrop {\n    position: absolute;\n    inset: 0;\n    z-index: 90;\n    background: rgba(0, 0, 0, 0.55);\n  }\n  .mobile-drawer {\n    position: absolute;\n    top: 0;\n    bottom: 0;\n    width: 240px;\n    z-index: 95;\n    background: rgba(18, 14, 8, 0.55);\n    backdrop-filter: blur(4px);\n    -webkit-backdrop-filter: blur(4px);\n    border-right: 1px solid #3d2e0f;\n    display: flex;\n    flex-direction: column;\n    gap: 6px;\n    padding: 8px;\n    overflow-y: auto;\n    overflow-x: hidden;\n    box-shadow: 4px 0 20px rgba(0,0,0,0.8);\n    transition: transform 0.2s ease;\n  }\n  .mobile-drawer-left {\n    left: 0;\n    border-right: 1px solid #3d2e0f;\n    border-left: none;\n  }\n  .mobile-drawer-right {\n    right: 0;\n    left: auto;\n    border-left: 1px solid #3d2e0f;\n    border-right: none;\n    box-shadow: -4px 0 20px rgba(0,0,0,0.8);\n  }\n  .mobile-drawer::-webkit-scrollbar {\n    width: 3px;\n  }\n  .mobile-drawer::-webkit-scrollbar-thumb {\n    background: #3d2e0f;\n    border-radius: 2px;\n  }\n  .mobile-drawer-tab {\n    position: absolute;\n    top: 50%;\n    transform: translateY(-50%);\n    z-index: 85;\n    width: 20px;\n    height: 48px;\n    display: flex;\n    align-items: center;\n    justify-content: center;\n    background: #16100a;\n    border: 1px solid #3d2e0f;\n    cursor: pointer;\n    font-size: 12px;\n    color: #8a7a64;\n  }\n  .mobile-drawer-tab-left {\n    left: 0;\n    border-radius: 0 6px 6px 0;\n    border-left: none;\n  }\n  .mobile-drawer-tab-right {\n    right: 0;\n    left: auto;\n    border-radius: 6px 0 0 6px;\n    border-right: none;\n  }\n  .mobile-drawer-tab:active {\n    background: #2a1f0a;\n  }\n  .mobile-drawer-forge {\n    width: 160px;\n  }\n  .mobile-portrait-overlay {\n    position: fixed;\n    inset: 0;\n    z-index: 9999;\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    justify-content: center;\n    background: rgba(10, 7, 4, 0.92);\n    pointer-events: none;\n    font-family: 'Cinzel', serif;\n  }\n  @keyframes rotateHint {\n    0%, 100% { transform: rotate(0deg); }\n    25% { transform: rotate(-20deg); }\n    75% { transform: rotate(20deg); }\n  }\n  .rotate-hint-icon {\n    font-size: 48px;\n    animation: rotateHint 2s ease-in-out infinite;\n    margin-bottom: 16px;\n  }\n  @keyframes decreeGlow {\n    0%, 100% { filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.3)) drop-shadow(0 0 2px rgba(0,0,0,0.6)); }\n    50% { filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8)) drop-shadow(0 0 20px rgba(245, 158, 11, 0.4)) drop-shadow(0 0 2px rgba(0,0,0,0.6)); }\n  }\n  .decree-glow-img {\n    animation: decreeGlow 1.8s ease-in-out infinite;\n  }\n  .action-icon-glow {\n    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.25)) drop-shadow(0 0 3px rgba(251, 146, 60, 0.2)) drop-shadow(0 0 1px rgba(0,0,0,0.6));\n  }\n  @keyframes decreeUrgent {\n    0%, 100% { filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.4)) drop-shadow(0 0 2px rgba(0,0,0,0.6)); }\n    50% { filter: drop-shadow(0 0 16px rgba(239, 68, 68, 1.0)) drop-shadow(0 0 30px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 2px rgba(0,0,0,0.6)); }\n  }\n  .decree-urgent-img {\n    animation: decreeUrgent 0.9s ease-in-out infinite;\n  }\n";
 function isFullscreenActive() {
     return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
 }
@@ -231,7 +231,7 @@ function weaponIcon(wKey) {
 
 // --- Mobile Action Button ---
 
-function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, danger, holdContent }) {
+function MobileBtn({ icon, iconSize, imgSrc, imgSize, label, onClick, disabled, color, danger, holdContent }) {
     var T = THEME;
     var btnRef = useRef(null);
     var popRef = useRef(null);
@@ -341,11 +341,11 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
     var btnProps = hasHold ? press.handlers : { onClick: disabled ? null : onClick };
 
     return (
-        <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1 }}>
+        <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <button {...btnProps} disabled={disabled} style={{
-                background: press.isHolding ? T.colors.bgHighlight : bgColor,
-                border: "1px solid " + borderColor,
-                borderRadius: T.radius.md,
+                background: "transparent",
+                border: "none",
+                borderRadius: 0,
                 color: textColor,
                 cursor: disabled ? "not-allowed" : "pointer",
                 fontFamily: T.fonts.body,
@@ -358,16 +358,16 @@ function MobileBtn({ icon, imgSrc, imgSize, label, onClick, disabled, color, dan
                 alignItems: "center",
                 justifyContent: "center",
                 gap: T.spacing.xxs,
-                padding: "4px 4px",
-                width: "100%",
-                height: "100%",
-                flex: 1,
-                transition: "background 0.1s ease",
+                padding: 0,
+                width: imgSrc ? (imgSize || 65) : "100%",
+                height: imgSrc ? (imgSize || 65) : "100%",
+                transition: "opacity 0.1s ease",
+                opacity: disabled ? 0.3 : 1,
                 WebkitUserSelect: "none",
                 userSelect: "none",
             }}>
-                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} style={{ width: imgSize || 36, height: imgSize || 36, objectFit: "contain", filter: iconFilter, pointerEvents: "none" }} />}
-                {!imgSrc && icon && <span style={{ fontSize: T.fontSize.xxl, lineHeight: 1, pointerEvents: "none" }}>{icon}</span>}
+                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} className="action-icon-glow" style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />}
+                {!imgSrc && icon && <span style={{ fontSize: iconSize || T.fontSize.xxl, lineHeight: 1, pointerEvents: "none" }}>{icon}</span>}
                 {!imgSrc && label && <span style={{ pointerEvents: "none" }}>{label}</span>}
             </button>
 
@@ -526,7 +526,7 @@ function DecreeBtn({ quest, questNum }) {
 
     // Due tomorrow glow check
     var dueSoon = !fulfilled && quest.deadline && quest.deadline <= (quest._currentDay || 999) + 1;
-    var glowClass = dueSoon ? "decree-glow-img" : "";
+    var glowClass = dueSoon ? "decree-urgent-img" : "decree-glow-img";
 
     return (
         <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1 }}>
@@ -545,7 +545,7 @@ function DecreeBtn({ quest, questNum }) {
                 WebkitUserSelect: "none",
                 userSelect: "none",
             }}>
-                <img src={IC.decree} alt="Decree" draggable={false} className={glowClass} style={{ width: "90%", height: "90%", objectFit: "contain", filter: dueSoon ? undefined : iconFilter, pointerEvents: "none" }} />
+                <img src={IC.decree} alt="Decree" draggable={false} className={glowClass} style={{ width: "90%", height: "90%", objectFit: "contain", pointerEvents: "none" }} />
             </button>
 
             {showPop && (
@@ -902,40 +902,60 @@ function MobileLayout(props) {
 
     // --- Action strip ---
     var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
+    var col1Nudge = isLeftHanded ? { paddingRight: "10%" } : { paddingLeft: "10%" };
+    var col1Style = { flex: 1.3, display: "flex", flexDirection: "column", gap: "0.8vh", justifyContent: "center", alignItems: "center" };
+    Object.assign(col1Style, col1Nudge);
+    var bowlDirection = isLeftHanded ? "row-reverse" : "row";
     var actionStrip = (
         <div className={actionStripClass} style={{ height: "100%", padding: "2vh 4px", gap: "1.5vh", overflow: "hidden" }}>
             {isForging && phase === "sess_result" ? (
-                <>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.normalize} onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" holdContent="Reduce stress at the cost of some quality" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.quench} onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon — lock in your work" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scrap} onClick={props.onScrap} color="#8a7a64" holdContent="Destroy this weapon and recover the material" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.leave} onClick={props.onLeave} color="#60a5fa" holdContent="Walk away — weapon stays on the anvil" /></div>
-                </>
+                <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection }}>
+                    {/* Left column — 2 bigger buttons */}
+                    <div style={col1Style}>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" imgSize={79} /></div>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.quench} onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon — lock in your work" imgSize={79} /></div>
+                    </div>
+                    {/* Right column — 3 smaller buttons */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5vh" }}>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.normalize} onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" holdContent="Reduce stress at the cost of some quality" /></div>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scrap} onClick={props.onScrap} color="#8a7a64" holdContent="Destroy this weapon and recover the material" /></div>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.leave} onClick={props.onLeave} color="#60a5fa" holdContent="Walk away — weapon stays on the anvil" /></div>
+                    </div>
+                </div>
             ) : isQTEActive ? (
-                <>
-                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.sleep} /></div>
-                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.rest} /></div>
-                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.scavenge} /></div>
-                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.shop} /></div>
-                    <div style={{ flex: 1, display: "flex", visibility: "hidden", pointerEvents: "none" }}><MobileBtn imgSrc={IC.bag} /></div>
-                </>
+                <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection, visibility: "hidden", pointerEvents: "none" }}>
+                    <div style={col1Style}>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} /></div>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} /></div>
+                    </div>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5vh" }}>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} /></div>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} /></div>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} /></div>
+                    </div>
+                </div>
             ) : (
-                <>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} holdContent="Browse weapons, materials, and upgrades" /></div>
-                    <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
-                </>
+                <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection }}>
+                    {/* Left column — 2 bigger buttons */}
+                    <div style={col1Style}>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" imgSize={79} /></div>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" imgSize={79} /></div>
+                    </div>
+                    {/* Right column — 3 smaller buttons */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5vh" }}>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} holdContent="Browse weapons, materials, and upgrades" /></div>
+                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
+                    </div>
+                </div>
             )}
             {/* Utility row — options + fullscreen, always visible, tappable during QTE */}
-            <div style={{ flex: 0.6, display: "flex", gap: "1.5vh", flexShrink: 0, maxHeight: "10vh", pointerEvents: "auto" }}>
-                <div style={{ flex: 1, display: "flex" }}>
-                    <MobileBtn icon={"\u2699"} onClick={props.onOptions} />
+            <div style={{ flex: 0.6, display: "flex", gap: "1.5vh", flexShrink: 0, maxHeight: "10vh", pointerEvents: "auto", justifyContent: isLeftHanded ? "flex-start" : "flex-end" }}>
+                <div style={{ display: "flex", width: 40 }}>
+                    <MobileBtn icon={"\u2699"} iconSize={32} onClick={props.onOptions} />
                 </div>
-                <div style={{ flex: 1, display: "flex" }}>
-                    <MobileBtn icon={isFull ? "\u2716" : "\u26F6"} onClick={function() {
+                <div style={{ display: "flex", width: 40 }}>
+                    <MobileBtn icon={isFull ? "\u2716" : "\u26F6"} iconSize={32} onClick={function() {
                         if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); }
                         else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); }
                     }} />
@@ -1004,10 +1024,32 @@ function MobileLayout(props) {
             <div className="mobile-middle" style={{ flexDirection: middleDirection }}>
                 {center}
                 {decreeFloat}
-                {/* DAY label — black box, horizontal, dead center top */}
+                {/* Daily Event bar — always visible when mEvent exists, top-most */}
+                {props.mEvent && (
+                    <div style={{
+                        position: "absolute",
+                        top: "1.5%",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        zIndex: T.z.ui + 3,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        background: "rgba(0,0,0,0.60)",
+                        border: "1px solid " + (props.mEvent.color || T.colors.gold) + "55",
+                        borderRadius: T.radius.md,
+                        padding: "3px 14px",
+                        pointerEvents: "none",
+                        maxWidth: "60%",
+                    }}>
+                        <span style={{ fontSize: 14, lineHeight: 1 }}>{props.mEvent.icon || "\u2728"}</span>
+                        <span style={{ fontFamily: "'Cinzel', serif", color: props.mEvent.color || T.colors.gold, fontSize: 11, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{props.mEvent.msg || "Daily Event"}</span>
+                    </div>
+                )}
+                {/* DAY label — below event bar */}
                 <div style={{
                     position: "absolute",
-                    top: "2%",
+                    top: props.mEvent ? "7%" : "2%",
                     left: "50%",
                     transform: "translateX(-50%)",
                     zIndex: T.z.ui + 2,
@@ -1024,7 +1066,25 @@ function MobileLayout(props) {
                     <span style={{ fontFamily: "'Cinzel', serif", fontSize: 28, color: T.colors.textLight, fontWeight: "bold", textShadow: "0 1px 4px rgba(0,0,0,0.9)", lineHeight: 1 }}>{props.day || 1}</span>
                 </div>
 
-                {/* --- Time + Stamina — center bottom, 40% width --- */}
+                {/* --- Shelf icons — separated above time+stamina --- */}
+                {finished.length > 0 && (
+                    <div style={{
+                        position: "absolute",
+                        bottom: "14%",
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        zIndex: T.z.ui + 3,
+                        display: "flex",
+                        gap: 6,
+                        pointerEvents: "auto",
+                    }}>
+                        {finished.map(function(w, i) {
+                            return <ShelfItem key={w.id} item={w} index={i} />;
+                        })}
+                    </div>
+                )}
+
+                {/* --- Time + Stamina — center bottom, 45% width, bigger text --- */}
                 <div style={{
                     position: "absolute",
                     bottom: "2%",
@@ -1043,39 +1103,21 @@ function MobileLayout(props) {
                 }}>
                     {/* Time bar */}
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-                        <W.Label size="xxs" color="textLabel" spacing="tight" bold font="heading" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>TIME</W.Label>
+                        <W.Label size="xs" color="textLabel" spacing="tight" bold font="heading" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>TIME</W.Label>
                         <div style={{ width: "100%", height: 10, background: T.colors.bgDeep, borderRadius: T.radius.sm, overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: (props.timePct || 100) + "%", background: props.timeColor || T.colors.green, borderRadius: T.radius.sm, transition: "width 0.3s" }} />
+                            <div style={{ height: "100%", width: (props.timePct || 0) + "%", background: props.timeColor || T.colors.green, borderRadius: T.radius.sm, transition: "width 0.3s" }} />
                         </div>
-                        <W.Label size="xxs" color={props.timeColor || T.colors.green} bold style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>{props.timeLabel || "8:00AM"}</W.Label>
+                        <W.Label size="xs" color={props.timeColor || T.colors.green} bold style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>{props.timeLabel || "8:00AM"}</W.Label>
                     </div>
                     {/* Stamina bar */}
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-                        <W.Label size="xxs" color="textLabel" spacing="tight" bold font="heading" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>STAM</W.Label>
+                        <W.Label size="xs" color="textLabel" spacing="tight" bold font="heading" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>STAM</W.Label>
                         <div style={{ width: "100%", height: 10, background: T.colors.bgDeep, borderRadius: T.radius.sm, overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: (props.staminaPct || 100) + "%", background: props.staminaColor || T.colors.gold, borderRadius: T.radius.sm, transition: "width 0.3s" }} />
+                            <div style={{ height: "100%", width: (props.staminaPct || 0) + "%", background: props.staminaColor || T.colors.gold, borderRadius: T.radius.sm, transition: "width 0.3s" }} />
                         </div>
-                        <W.Label size="xxs" color={props.staminaColor || T.colors.gold} bold style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>{(props.stamina || 0) + "/" + (props.maxStam || 5)}</W.Label>
+                        <W.Label size="xs" color={props.staminaColor || T.colors.gold} bold style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>{(props.stamina || 0) + "/" + (props.maxStam || 5)}</W.Label>
                     </div>
                 </div>
-
-                {/* --- Shelf icons — floating over time+stamina area --- */}
-                {finished.length > 0 && (
-                    <div style={{
-                        position: "absolute",
-                        bottom: "12%",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        zIndex: T.z.ui + 3,
-                        display: "flex",
-                        gap: 4,
-                        pointerEvents: "auto",
-                    }}>
-                        {finished.map(function(w, i) {
-                            return <ShelfItem key={w.id} item={w} index={i} />;
-                        })}
-                    </div>
-                )}
 
                 {/* --- Gold — bottom left (flips for left-handed) --- */}
                 <div style={{
@@ -1117,7 +1159,7 @@ function MobileLayout(props) {
                     bottom: "3%",
                     right: isLeftHanded ? "auto" : "3%",
                     left: isLeftHanded ? "3%" : "auto",
-                    width: 110,
+                    width: 200,
                     display: "flex",
                     flexDirection: "column",
                     zIndex: T.z.ui,
