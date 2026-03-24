@@ -487,8 +487,16 @@ function Character({ config, action, onActionComplete }) {
         var parent = charDivRef.current.closest("[data-scene-stage]");
         var parentRect = parent ? parent.getBoundingClientRect() : rect;
 
-        var sparkX = rect.left - parentRect.left + rect.width * currentAction.fxOrigin.xPct;
-        var sparkY = rect.top - parentRect.top + rect.height * currentAction.fxOrigin.yPct;
+        // getBoundingClientRect returns screen-space (post CSS transform: scale),
+        // but CanvasFXLayer canvas dimensions use layout-space (clientWidth/Height).
+        // Derive the scale factor so spark coords land correctly on desktop.
+        var scaleCorr = 1;
+        if (parent && parentRect.width > 0) {
+            scaleCorr = parent.clientWidth / parentRect.width;
+        }
+
+        var sparkX = (rect.left - parentRect.left + rect.width * currentAction.fxOrigin.xPct) * scaleCorr;
+        var sparkY = (rect.top - parentRect.top + rect.height * currentAction.fxOrigin.yPct) * scaleCorr;
 
         GameplayEventBus.emit(EVENT_TAGS.FX_ANVIL_SPARK, { x: sparkX, y: sparkY });
     }, [action, currentAction]);
@@ -602,9 +610,19 @@ function CanvasFXLayer({ z, fxRef }) {
                 var alpha = Math.min(1, p.life / (p.maxLife * 0.3));
                 ctx.globalAlpha = alpha * (p.opacity || 1);
                 ctx.fillStyle = p.color || "#f59e0b";
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size || 2, 0, Math.PI * 2);
-                ctx.fill();
+                if (p.glow) {
+                    var grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+                    grad.addColorStop(0, p.color || "#f59e0b");
+                    grad.addColorStop(1, "transparent");
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size || 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 alive.push(p);
             }
             ctx.globalAlpha = 1;
@@ -629,6 +647,16 @@ function CanvasFXLayer({ z, fxRef }) {
         var newParticles = [];
 
         if (effectType === "sparks") {
+            // Flash glow — single big translucent circle, dies fast
+            newParticles.push({
+                x: cx, y: cy,
+                vx: 0, vy: 0,
+                gravity: 0,
+                size: 18 + Math.random() * 8,
+                color: opts.color || "#f59e0b",
+                life: 0.12, maxLife: 0.12, opacity: 0.45,
+                glow: true,
+            });
             for (var i = 0; i < count; i++) {
                 var angle = Math.random() * Math.PI * 2;
                 var speed = 1 + Math.random() * 3;

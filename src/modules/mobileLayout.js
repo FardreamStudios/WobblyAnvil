@@ -41,7 +41,7 @@ var IC = {
     decree: PUB + "/images/icons/waIconPennant.png",
     leave: PUB + "/images/icons/waIconDoor1.png",
     normalize: PUB + "/images/icons/waIconFire.png",
-    quench: PUB + "/images/icons/waIconSword.png",
+    quench: PUB + "/images/icons/waIconSword1.png",
     sidebar: PUB + "/images/ui/waSideBar.png",
 };
 

@@ -159,6 +159,7 @@ function DesktopLayout(props) {
     var sceneActionOverride = vfx.sceneActionOverride, setSceneActionOverride = vfx.setSceneActionOverride;
     var propOverrides = vfx.propOverrides;
     var fxRef = vfx.fxRef;
+    var sceneFxRef = props.sceneFxRef;
 
     // --- ForgeVM ---
     var weapon = forgeVM.weapon;
@@ -319,9 +320,9 @@ function DesktopLayout(props) {
 
                     {/* FORGE AREA */}
                     {!activeCustomer && (
-                        <div onClick={onForgeClick} style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 10, padding: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative", cursor: isQTEActive ? "pointer" : "default", flex: 1, minHeight: 280, overflow: "hidden" }}>
+                        <div onMouseDown={isQTEActive ? onForgeClick : null} style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 10, padding: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative", cursor: isQTEActive ? "pointer" : "default", flex: 1, minHeight: 280, overflow: "hidden" }}>
                             {/* SCENE */}
-                            {(function() { var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides }); return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} />; })()}
+                            {(function() { var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides }); return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} sceneFxRef={sceneFxRef} />; })()}
                             <ForgeFireFX active={forgeVM.isForging} />
 
                             {/* UI LAYER */}

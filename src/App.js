@@ -712,6 +712,7 @@ export default function App() {
           addToast={addToast}
           setGameOver={setGameOver}
           setStamina={setStamina}
+          sceneFxRef={sceneFxRef}
           onDebugGoodEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); setGoodEventUsed(true); setPendingMystery({ severity: "good" }); }}
           onDebugBadEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, false); setPendingMystery({ severity: "bad" }); }}
       />
