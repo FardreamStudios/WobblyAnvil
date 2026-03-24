@@ -82,10 +82,9 @@ function EventBanner(props) {
             borderRadius: T.radius.md,
             padding: "6px 28px",
             cursor: "pointer",
-            maxWidth: "60%",
         }}>
             <span style={{ fontSize: 28, lineHeight: 1 }}>{mEvent.icon || "\u2728"}</span>
-            <span style={{ fontFamily: "'Cinzel', serif", color: evtColor, fontSize: 21, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mEvent.title || "Daily Event"}</span>
+            <span style={{ fontFamily: "'Cinzel', serif", color: evtColor, fontSize: mEvent.fontSize || 21, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "normal" }}>{mEvent.title || "Daily Event"}</span>
 
             {/* Tooltip popover */}
             {showPop && mEvent.desc && (
