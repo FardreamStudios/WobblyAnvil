@@ -130,7 +130,7 @@ var CHARACTER_CONFIG = {
             anchor: "bottom-center",
         },
         hammering: {
-            sheet: "/images/anim/waSmithForgeSS.png",
+            sheet: "/images/anim/waSmithForgeSS1.png",
             frames: 4,
             fps: 7,
             frameWidth: 380,
