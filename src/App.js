@@ -318,7 +318,8 @@ export default function App() {
 
   // --- Time & Actions ---
   function advanceTime(hrs, nf, useStam) {
-    setHour(function(h) { return h + hrs; });
+    var newHour = hour + hrs;
+    GameplayEventBus.emit(EVENT_TAGS.DAY_ADVANCE_HOUR, { hour: newHour });
     if (useStam) { setStamina(function(s) { return Math.max(0, s - 1); }); gainXp(6); }
   }
 
@@ -552,7 +553,13 @@ export default function App() {
         <>
           {toasts.map(function(t) { return <Toast key={t.id} msg={t.msg} icon={t.icon} color={t.color} duration={t.duration} locked={t.locked} onDone={function() { removeToast(t.id); }} />; })}
           {activeToast && <Toast key={activeToast.id} msg={activeToast.msg} icon={activeToast.icon} color={activeToast.color} duration={activeToast.duration} locked={activeToast.locked} onDone={onActiveToastDone} />}
-          {activeCustomer && <CustomerPanel customer={activeCustomer} weapon={activeCustomer.weapon} onSell={function(price) { handleSell(price, activeCustomer.weapon.id); }} onRefuse={handleRefuse} silverTongue={stats.silverTongue} priceBonus={priceBonus} priceDebuff={priceDebuff} sfx={sfx} />}
+          {activeCustomer && (
+              <div style={{ position: "absolute", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", pointerEvents: "auto" }}>
+                <div style={{ width: "min(420px, 92%)", maxHeight: "90%" }}>
+                  <CustomerPanel customer={activeCustomer} weapon={activeCustomer.weapon} onSell={function(price) { handleSell(price, activeCustomer.weapon.id); }} onRefuse={handleRefuse} silverTongue={stats.silverTongue} priceBonus={priceBonus} priceDebuff={priceDebuff} sfx={sfx} />
+                </div>
+              </div>
+          )}
         </>
     );
 
@@ -599,7 +606,7 @@ export default function App() {
               repColor={reputation >= 7 ? "#4ade80" : reputation >= 4 ? "#fb923c" : "#ef4444"}
               rankName={smithRank.name}
               upgrades={upgrades}
-              onAllocate={allocateStat}
+              onAllocate={function(k) { sfx.click(); allocateStat(k); }}
               statLocked={input.statAlloc.disabled}
               finished={finished}
               stats={stats}

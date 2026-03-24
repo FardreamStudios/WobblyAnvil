@@ -44,6 +44,7 @@ var EVENT_TAGS = {
     CUSTOMER_CLEAR:         "event.customer.clear",
     CUSTOMER_WALKOUT:       "event.customer.walkout",
     CUSTOMER_REFUSE:        "event.customer.refuse",
+    CUSTOMER_PROMOTE:       "event.customer.promote",
 
     // --- Day ---
     DAY_SET_STAMINA:        "event.day.stamina.set",

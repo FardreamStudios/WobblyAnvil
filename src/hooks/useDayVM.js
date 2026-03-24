@@ -18,7 +18,6 @@ import AbilityManager from "../abilities/abilityManager.js";
 
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
-var CUST_TYPES = GameConstants.CUST_TYPES;
 var STARTING_GOLD = GameConstants.STARTING_GOLD;
 var BASE_STAMINA = GameConstants.BASE_STAMINA;
 var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
@@ -28,7 +27,6 @@ var generateRoyalQuest = QuestLogic.generateRoyalQuest;
 
 var randInt = GameUtils.randInt;
 var weightedPick = GameUtils.weightedPick;
-var getQualityTier = GameUtils.getQualityTier;
 
 function useDayVM(deps) {
     // --- Unpack dependencies from App.js ---
@@ -173,17 +171,8 @@ function useDayVM(deps) {
     // --- Promote (DAY-2) ---
     function promote() {
         sfx.click(); advanceTime(1, undefined, true); setPromoteUses(function(p) { return p + 1; });
-        var items = finished;
-        var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
-        shuffled.some(function(ct) {
-            var match = items.find(function(w) { return getQualityTier(w.score).scoreMin >= ct.minQuality || ct.minQuality === 0; });
-            if (match) {
-                GameplayEventBus.emit(EVENT_TAGS.CUSTOMER_SPAWN, { type: ct, weapon: match });
-                GameplayEventBus.emit(EVENT_TAGS.FX_DOORBELL, {});
-                return true;
-            }
-            return false;
-        });
+        // Delegate to CustomerManager — it owns spawn decisions
+        GameplayEventBus.emit(EVENT_TAGS.CUSTOMER_PROMOTE, {});
     }
 
     return {

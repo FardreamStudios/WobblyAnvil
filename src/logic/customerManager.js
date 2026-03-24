@@ -18,7 +18,7 @@
 // COMMUNICATION:
 //   Listens: DAY_ADVANCE_HOUR, DAY_CYCLE_START, DAY_CYCLE_END,
 //            ECONOMY_WEAPON_SOLD, CUSTOMER_REFUSE,
-//            CUSTOMER_WALKOUT, GAME_SESSION_NEW
+//            CUSTOMER_WALKOUT, CUSTOMER_PROMOTE, GAME_SESSION_NEW
 //   Emits:   CUSTOMER_SPAWN, CUSTOMER_CLEAR, FX_DOORBELL
 //
 // INIT:
@@ -114,6 +114,9 @@ function init(bus, stateProvider, abilityManager, config) {
     // Bus-driven modifiers for daily caps
     _bus.on(EVENT_TAGS.ECONOMY_EARN_GOLD, _onEarnGold);
 
+    // Promote — guaranteed spawn request from player action
+    _bus.on(EVENT_TAGS.CUSTOMER_PROMOTE, _onPromote);
+
     _initialized = true;
 }
 
@@ -182,6 +185,39 @@ function _onEarnGold(payload) {
     if (payload && payload.extraCustomers) {
         _maxCustToday = _maxCustToday + payload.extraCustomers;
     }
+}
+
+function _onPromote() {
+    // Promote = guaranteed spawn, skip chance roll and hour guards.
+    // Still respect: no active customer, need finished weapons.
+    if (!_initialized) return;
+    if (_hasActiveCustomer) return;
+
+    var state = _stateProvider ? _stateProvider() : {};
+    if (state.activeCustomer) return;
+
+    var items = state.finished || [];
+    if (!items.length) return;
+
+    var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
+
+    shuffled.some(function(ct) {
+        var match = items.find(function(w) {
+            return getQualityTierScoreMin(w.score) >= ct.minQuality || ct.minQuality === 0;
+        });
+        if (match) {
+            _hasActiveCustomer = true;
+            _custVisitsToday = _custVisitsToday + 1;
+
+            _bus.emit(EVENT_TAGS.CUSTOMER_SPAWN, {
+                type: ct,
+                weapon: match,
+            });
+            _bus.emit(EVENT_TAGS.FX_DOORBELL, {});
+            return true;
+        }
+        return false;
+    });
 }
 
 // ============================================================
@@ -272,6 +308,7 @@ function reset() {
         _bus.off(EVENT_TAGS.DAY_CYCLE_END, _onDayEnd);
         _bus.off(EVENT_TAGS.GAME_SESSION_NEW, _onNewGame);
         _bus.off(EVENT_TAGS.ECONOMY_EARN_GOLD, _onEarnGold);
+        _bus.off(EVENT_TAGS.CUSTOMER_PROMOTE, _onPromote);
     }
 
     _bus = null;

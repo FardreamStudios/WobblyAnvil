@@ -680,7 +680,7 @@ function EventBanner({ mEvent }) {
             maxWidth: "60%",
         }}>
             <span style={{ fontSize: 28, lineHeight: 1 }}>{mEvent.icon || "\u2728"}</span>
-            <span style={{ fontFamily: "'Cinzel', serif", color: evtColor, fontSize: 22, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mEvent.title || "Daily Event"}</span>
+            <span style={{ fontFamily: "'Cinzel', serif", color: evtColor, fontSize: 21, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mEvent.title || "Daily Event"}</span>
 
             {/* Tooltip popover */}
             {showPop && mEvent.desc && (
@@ -699,7 +699,7 @@ function EventBanner({ mEvent }) {
                     color: T.colors.textBody,
                     lineHeight: 1.5,
                     whiteSpace: "nowrap",
-                    zIndex: T.z.ui + 4,
+                    zIndex: 10000,
                     pointerEvents: "auto",
                 }}>
                     {/* Arrow nub */}
@@ -786,7 +786,7 @@ function RepFloat({ reputation, isLeftHanded }) {
             top: "2%",
             left: isLeftHanded ? "auto" : "2%",
             right: isLeftHanded ? "2%" : "auto",
-            zIndex: T.z.ui + 1,
+            zIndex: 10000,
             width: 160,
             display: "flex",
             flexDirection: "column",
@@ -829,7 +829,7 @@ function RepFloat({ reputation, isLeftHanded }) {
                     fontSize: 9,
                     color: "#c8b89a",
                     lineHeight: 1.7,
-                    zIndex: T.z.ui + 5,
+                    zIndex: 10000,
                     width: 190,
                     boxShadow: "0 4px 16px rgba(0,0,0,0.95)",
                     pointerEvents: "auto",
@@ -1135,7 +1135,7 @@ function MobileLayout(props) {
                                         borderRadius: 6, padding: "6px 10px", marginTop: 2,
                                         fontSize: 11, color: "#c8b89a", lineHeight: 1.5,
                                         boxShadow: "0 4px 12px rgba(0,0,0,0.9)",
-                                        zIndex: 50,
+                                        zIndex: 10000,
                                     }}>
                                         <div style={{ color: s[2], fontWeight: "bold", marginBottom: 2, fontSize: 10 }}>{meta.label.toUpperCase()}</div>
                                         {meta.desc}
@@ -1264,7 +1264,7 @@ function MobileLayout(props) {
             top: "9%",
             left: isLeftHanded ? "auto" : "6%",
             right: isLeftHanded ? "6%" : "auto",
-            zIndex: T.z.ui + 1,
+            zIndex: 10001,
             width: 78,
             height: 78,
         }}>
@@ -1277,27 +1277,20 @@ function MobileLayout(props) {
         <RepFloat reputation={props.reputation} isLeftHanded={isLeftHanded} />
     );
 
-    // --- Notification badge — appears next to decree when stat points available ---
-    var notifyBadge = !isForging && !isQTEActive && (props.statPoints || 0) > 0 ? (
-        <div onClick={function() { setDrawerOpen(true); }} style={{
+    // --- Notification badge — exclamation icon next to drawer tab when stat points available ---
+    var hasStatPoints = !isForging && !isQTEActive && (props.statPoints || 0) > 0;
+    var notifyBadge = hasStatPoints ? (
+        <img src={process.env.PUBLIC_URL + "/images/icons/waIconExclamation.png"} alt="!" onClick={function() { setDrawerOpen(true); }} style={{
             position: "absolute",
-            top: props.royalQuest ? "21%" : "7%",
-            left: isLeftHanded ? "auto" : "2%",
-            right: isLeftHanded ? "2%" : "auto",
-            zIndex: T.z.ui + 2,
-            width: 28,
-            height: 28,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "#2a1f0a",
-            border: "2px solid #4ade80",
-            borderRadius: "50%",
+            top: "calc(50% - 36px)",
+            left: isLeftHanded ? "auto" : 21,
+            right: isLeftHanded ? 21 : "auto",
+            zIndex: T.z.drawerTab + 1,
+            width: 22,
+            height: 22,
             cursor: "pointer",
-            boxShadow: "0 0 8px rgba(74, 222, 128, 0.4)",
-        }}>
-            <span style={{ color: "#4ade80", fontSize: 16, fontWeight: "bold", lineHeight: 1 }}>!</span>
-        </div>
+            filter: "drop-shadow(0 0 6px rgba(74, 222, 128, 0.6))",
+        }} />
     ) : null;
 
     // --- Center content ---
@@ -1348,7 +1341,15 @@ function MobileLayout(props) {
                 {repFloat}
                 {notifyBadge}
                 {/* Daily Event bar — tap/hold for description tooltip */}
-                {props.mEvent && (
+                {props.mEvent && !isForging && (
+                    <EventBanner mEvent={props.mEvent} />
+                )}
+                {/* During forging, show decree weapon needed if active and not fulfilled */}
+                {isForging && props.royalQuest && !props.royalQuest.fulfilled && (
+                    <EventBanner mEvent={{ icon: "\uD83D\uDCDC", title: props.royalQuest.weaponName + " needed", desc: props.royalQuest.minQualityLabel + "+ " + props.royalQuest.materialRequired.toUpperCase(), color: "#f59e0b" }} />
+                )}
+                {/* During forging with no decree, still show daily event */}
+                {isForging && (!props.royalQuest || props.royalQuest.fulfilled) && props.mEvent && (
                     <EventBanner mEvent={props.mEvent} />
                 )}
                 {/* DAY label — bottom left (flips for left-handed) */}
