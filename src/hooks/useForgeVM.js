@@ -116,7 +116,7 @@ function useForgeVM(deps) {
     var effDiff = weapon.difficulty + matDiffMod;
     var isExhausted = stamina <= 0 || forcedExhaustion;
     var sessCost = isExhausted ? BALANCE.sessCostExhausted : BALANCE.sessCostNormal;
-    var maxStam = BASE_STAMINA + stats.brawn;
+    var maxStam = Math.max(1, AbilityManager.resolveValue("maxStamina", BASE_STAMINA + stats.brawn));
     var baseZoneW = BALANCE.heatWinHi - BALANCE.heatWinLo;
     var resolvedZoneW = AbilityManager.resolveValue("heatPerfectZone", baseZoneW);
     var zoneMid = (BALANCE.heatWinLo + BALANCE.heatWinHi) / 2;var heatWinLo = Math.max(0, Math.round(zoneMid - resolvedZoneW / 2));var heatWinHi = Math.min(100, Math.round(zoneMid + resolvedZoneW / 2));

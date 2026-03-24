@@ -6,12 +6,18 @@
 //      economy.set.inventory, economy.add.material.
 // Consumes: useEconomyState + cross-domain deps passed in.
 // Returns: Action handlers for gold flow and selling.
+//
+// MODIFIER CONSUMER: goldEarned
+//   earnGold resolves "goldEarned" through AbilityManager
+//   before applying to state. Momentum ability stacks
+//   multiply modifiers on this attribute.
 // ============================================================
 
 import { useEffect, useCallback } from "react";
 import GameUtils from "../modules/utilities.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
+import AbilityManager from "../abilities/abilityManager.js";
 
 var getSmithRank = GameUtils.getSmithRank;
 
@@ -43,10 +49,11 @@ function useEconomyVM(deps) {
     // --- Gold Flow ---
     function earnGold(amount) {
         if (amount === 0) return;
-        popGold(amount); GameplayEventBus.emit(EVENT_TAGS.FX_COIN_EARN, {});
-        setGold(function(g) { return g + amount; });
+        var resolved = Math.round(AbilityManager.resolveValue("goldEarned", amount));
+        popGold(resolved); GameplayEventBus.emit(EVENT_TAGS.FX_COIN_EARN, {});
+        setGold(function(g) { return g + resolved; });
         setTotalGoldEarned(function(t) {
-            var nt = t + amount, or = getSmithRank(t), nr = getSmithRank(nt);
+            var nt = t + resolved, or = getSmithRank(t), nr = getSmithRank(nt);
             if (nr.name !== or.name) { GameplayEventBus.emit(EVENT_TAGS.FX_LEVEL_UP, {}); setTimeout(function() { addToast("RANK UP!\n" + nr.name, "", "#fbbf24"); }, 100); }
             return nt;
         });

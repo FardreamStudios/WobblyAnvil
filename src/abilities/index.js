@@ -34,6 +34,8 @@ import MysteryShadowAbility from "./morning/mysteryShadow.js";
 import HotStreakAbility from "./reactive/hotStreak.js";
 import ShameDebuffAbility from "./reactive/shameDebuff.js";
 import RoyalAttentionAbility from "./reactive/royalAttention.js";
+import MomentumAbility from "./reactive/momentum.js";
+import OverworkedAbility from "./reactive/overworked.js";
 
 var morningAbilities = MORNING_EVENTS.map(function(row) {
     return createMorningAbility(row);
@@ -45,6 +47,8 @@ var COMPLEX_ABILITIES = [
     HotStreakAbility,
     ShameDebuffAbility,
     RoyalAttentionAbility,
+    MomentumAbility,
+    OverworkedAbility,
 ];
 
 // ============================================================
