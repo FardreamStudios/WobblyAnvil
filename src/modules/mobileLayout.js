@@ -598,6 +598,122 @@ function DecreeBtn({ quest, questNum }) {
     );
 }
 
+// --- Daily Event Banner with hold-to-show tooltip ---
+
+function EventBanner({ mEvent }) {
+    var T = THEME;
+    var btnRef = useRef(null);
+    var popRef = useRef(null);
+    var dismissTimer = useRef(null);
+    var [showPop, setShowPop] = useState(false);
+    var [holding, setHolding] = useState(false);
+
+    // Auto-dismiss after 3s on tap (not hold)
+    useEffect(function() {
+        if (showPop && !holding) {
+            dismissTimer.current = setTimeout(function() {
+                setShowPop(false);
+            }, 3000);
+            return function() { clearTimeout(dismissTimer.current); };
+        }
+    }, [showPop, holding]);
+
+    var press = usePressHold({
+        onClick: function() { setHolding(false); setShowPop(true); },
+        onHold: function() { setHolding(true); setShowPop(true); },
+        disabled: false,
+    });
+
+    // On hold release — start the 3s dismiss
+    useEffect(function() {
+        if (!holding) return;
+        function onUp() { setHolding(false); }
+        document.addEventListener("touchend", onUp);
+        document.addEventListener("mouseup", onUp);
+        return function() {
+            document.removeEventListener("touchend", onUp);
+            document.removeEventListener("mouseup", onUp);
+        };
+    }, [holding]);
+
+    // Dismiss on outside tap
+    useEffect(function() {
+        if (!showPop) return;
+        function dismiss(e) {
+            if (popRef.current && !popRef.current.contains(e.target) &&
+                btnRef.current && !btnRef.current.contains(e.target)) {
+                setShowPop(false);
+                setHolding(false);
+            }
+        }
+        document.addEventListener("touchstart", dismiss);
+        document.addEventListener("mousedown", dismiss);
+        return function() {
+            document.removeEventListener("touchstart", dismiss);
+            document.removeEventListener("mousedown", dismiss);
+        };
+    }, [showPop]);
+
+    var evtColor = mEvent.color || T.colors.gold;
+
+    return (
+        <div ref={btnRef} {...press.handlers} style={{
+            position: "absolute",
+            top: "1.5%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: T.z.ui + 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            background: "rgba(0,0,0,0.60)",
+            border: "1px solid " + evtColor + "55",
+            borderRadius: T.radius.md,
+            padding: "3px 14px",
+            cursor: "pointer",
+            maxWidth: "60%",
+        }}>
+            <span style={{ fontSize: 14, lineHeight: 1 }}>{mEvent.icon || "\u2728"}</span>
+            <span style={{ fontFamily: "'Cinzel', serif", color: evtColor, fontSize: 11, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mEvent.title || "Daily Event"}</span>
+
+            {/* Tooltip popover */}
+            {showPop && mEvent.desc && (
+                <div ref={popRef} style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    background: T.colors.bgMid,
+                    border: "1px solid " + evtColor + "55",
+                    borderRadius: T.radius.lg,
+                    padding: "10px 14px",
+                    boxShadow: "0 6px 24px rgba(0,0,0,0.85)",
+                    fontFamily: T.fonts.body,
+                    fontSize: T.fontSize.md,
+                    color: T.colors.textBody,
+                    lineHeight: 1.5,
+                    whiteSpace: "nowrap",
+                    zIndex: T.z.ui + 4,
+                    pointerEvents: "auto",
+                }}>
+                    {/* Arrow nub */}
+                    <div style={{
+                        position: "absolute",
+                        top: -6,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        width: 0, height: 0,
+                        borderLeft: "6px solid transparent",
+                        borderRight: "6px solid transparent",
+                        borderBottom: "6px solid " + T.colors.bgMid,
+                    }} />
+                    {mEvent.desc}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // --- Shelf Icon with popup ---
 
 function ShelfItem({ item, index }) {
@@ -903,7 +1019,7 @@ function MobileLayout(props) {
     // --- Action strip ---
     var actionStripClass = "mobile-action-strip" + (isQTEActive ? " mobile-action-strip-qte" : "");
     var col1Nudge = isLeftHanded ? { paddingRight: "10%" } : { paddingLeft: "10%" };
-    var col1Style = { flex: 1.3, display: "flex", flexDirection: "column", gap: "0.8vh", justifyContent: "center", alignItems: "center" };
+    var col1Style = { flex: 1.3, display: "flex", flexDirection: "column", gap: "8vh", justifyContent: "center", alignItems: "center" };
     Object.assign(col1Style, col1Nudge);
     var bowlDirection = isLeftHanded ? "row-reverse" : "row";
     var actionStrip = (
@@ -912,8 +1028,8 @@ function MobileLayout(props) {
                 <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection }}>
                     {/* Left column — 2 bigger buttons */}
                     <div style={col1Style}>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" imgSize={79} /></div>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.quench} onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon — lock in your work" imgSize={79} /></div>
+                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" imgSize={79} /></div>
+                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.quench} onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon — lock in your work" imgSize={79} /></div>
                     </div>
                     {/* Right column — 3 smaller buttons */}
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5vh" }}>
@@ -925,8 +1041,8 @@ function MobileLayout(props) {
             ) : isQTEActive ? (
                 <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection, visibility: "hidden", pointerEvents: "none" }}>
                     <div style={col1Style}>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} /></div>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} /></div>
+                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.sleep} /></div>
+                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.rest} /></div>
                     </div>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5vh" }}>
                         <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} /></div>
@@ -938,8 +1054,8 @@ function MobileLayout(props) {
                 <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection }}>
                     {/* Left column — 2 bigger buttons */}
                     <div style={col1Style}>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" imgSize={79} /></div>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" imgSize={79} /></div>
+                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" imgSize={79} /></div>
+                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" imgSize={79} /></div>
                     </div>
                     {/* Right column — 3 smaller buttons */}
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5vh" }}>
@@ -950,7 +1066,7 @@ function MobileLayout(props) {
                 </div>
             )}
             {/* Utility row — options + fullscreen, always visible, tappable during QTE */}
-            <div style={{ flex: 0.6, display: "flex", gap: "1.5vh", flexShrink: 0, maxHeight: "10vh", pointerEvents: "auto", justifyContent: isLeftHanded ? "flex-start" : "flex-end" }}>
+            <div style={{ flex: 0.6, display: "flex", flexDirection: isLeftHanded ? "row-reverse" : "row", gap: "1.5vh", flexShrink: 0, maxHeight: "10vh", pointerEvents: "auto", justifyContent: isLeftHanded ? "flex-start" : "flex-end" }}>
                 <div style={{ display: "flex", width: 40 }}>
                     <MobileBtn icon={"\u2699"} iconSize={32} onClick={props.onOptions} />
                 </div>
@@ -1024,27 +1140,9 @@ function MobileLayout(props) {
             <div className="mobile-middle" style={{ flexDirection: middleDirection }}>
                 {center}
                 {decreeFloat}
-                {/* Daily Event bar — always visible when mEvent exists, top-most */}
+                {/* Daily Event bar — tap/hold for description tooltip */}
                 {props.mEvent && (
-                    <div style={{
-                        position: "absolute",
-                        top: "1.5%",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        zIndex: T.z.ui + 3,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        background: "rgba(0,0,0,0.60)",
-                        border: "1px solid " + (props.mEvent.color || T.colors.gold) + "55",
-                        borderRadius: T.radius.md,
-                        padding: "3px 14px",
-                        pointerEvents: "none",
-                        maxWidth: "60%",
-                    }}>
-                        <span style={{ fontSize: 14, lineHeight: 1 }}>{props.mEvent.icon || "\u2728"}</span>
-                        <span style={{ fontFamily: "'Cinzel', serif", color: props.mEvent.color || T.colors.gold, fontSize: 11, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{props.mEvent.msg || "Daily Event"}</span>
-                    </div>
+                    <EventBanner mEvent={props.mEvent} />
                 )}
                 {/* DAY label — below event bar */}
                 <div style={{
