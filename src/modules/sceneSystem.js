@@ -115,7 +115,7 @@ var CHARACTER_CONFIG = {
     z: 1,
     imageRendering: "auto",
     defaultAction: "idle",
-    visiblePhases: ["HEAT", "HAMMER", "QUENCH", "SESS_RESULT", "SELECT", "SELECT_MAT"],
+    visiblePhases: ["IDLE", "HEAT", "HAMMER", "QUENCH", "SESS_RESULT", "SELECT", "SELECT_MAT"],
     fadeDuration: 0.6,
 
     actions: {

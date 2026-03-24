@@ -328,17 +328,20 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
                 : "#fbbf24";
 
     // Compute sweet zone columns for each phase
+    // When processingRef is true, snap to the frozen posRef value
+    // to eliminate visual overshoot (rAF may update state 1-2 frames after click)
     var barPos, barSweetLow, barSweetHigh;
+    var frozenPos = processingRef.current ? posRef.current : null;
     if (phase === PHASES.HEAT) {
-        barPos = heatPos;
+        barPos = frozenPos !== null ? frozenPos : heatPos;
         barSweetLow = positionToColumn(heatWinLo);
         barSweetHigh = positionToColumn(heatWinHi);
     } else if (phase === PHASES.HAMMER) {
-        barPos = needlePos;
+        barPos = frozenPos !== null ? frozenPos : needlePos;
         barSweetLow = positionToColumn(50 - HAMMER_WIN);
         barSweetHigh = positionToColumn(50 + HAMMER_WIN);
     } else {
-        barPos = quenchPos;
+        barPos = frozenPos !== null ? frozenPos : quenchPos;
         barSweetLow = positionToColumn(50 - QUENCH_WIN);
         barSweetHigh = positionToColumn(50 + QUENCH_WIN);
     }

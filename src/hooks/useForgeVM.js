@@ -98,6 +98,16 @@ function useForgeVM(deps) {
     var stressRef = useRef(0);
     var sessionStartQual = useRef(0);
     var fbTimerRef = useRef(null);
+    var qteClickTime = useRef(0);
+
+    // --- QTE Diagnostic Logger ---
+    function qteLog(phase, event, extra) {
+        var now = performance.now();
+        var delta = qteClickTime.current ? Math.round(now - qteClickTime.current) : 0;
+        if (delta > 100 || event === "CLICK") {
+            console.log("[QTE:" + phase + "] " + event + " | delta=" + delta + "ms" + (extra ? " | " + extra : ""));
+        }
+    }
 
     // --- Derived Values ---
     var weapon = WEAPONS[wKey] || WEAPONS.dagger;
@@ -195,10 +205,11 @@ function useForgeVM(deps) {
     function onForgeClick() {
         if (!isQTEActive || qteProcessing.current) return;
         qteProcessing.current = true;
+        qteClickTime.current = performance.now();
         var pos = qtePosRef.current;
-        if (phase === PHASES.HEAT) handleHeatFire(pos, false);
-        else if (phase === PHASES.HAMMER) handleHammerFire(pos);
-        else if (phase === PHASES.QUENCH) handleQuenchFire(pos);
+        if (phase === PHASES.HEAT) { qteLog("HEAT", "CLICK", "pos=" + pos); handleHeatFire(pos, false); }
+        else if (phase === PHASES.HAMMER) { qteLog("HAMMER", "CLICK", "pos=" + pos); handleHammerFire(pos); }
+        else if (phase === PHASES.QUENCH) { qteLog("QUENCH", "CLICK", "pos=" + pos); handleQuenchFire(pos); }
     }
 
     function handleAutoFire(pos) {
@@ -213,7 +224,7 @@ function useForgeVM(deps) {
         setQteFlash(tier.label);
         var bs = tier.bonusStrikes, strikeTotal = BALANCE.baseStrikes + bs;
         showForgeBubbleFn("HEAT RESULT", [{ text: strikeTotal + " strikes", color: bs > 0 ? "#4ade80" : tier.id === "poor" ? "#f87171" : "#c8b89a", bold: true }], tier.color);
-        setTimeout(function() { setQteFlash(null); qteProcessing.current = false; setBonusStrikes(bs); setStrikesLeft(strikeTotal); sessionStartQual.current = qualRef.current; ForgeMode.transitionTo(PHASES.HAMMER); setPhase(PHASES.HAMMER); }, QTE_FLASH_MS);
+        setTimeout(function() { qteLog("HEAT", "RESULT", "tier=" + tier.id + " flashMs=" + QTE_FLASH_MS); setQteFlash(null); qteProcessing.current = false; setBonusStrikes(bs); setStrikesLeft(strikeTotal); sessionStartQual.current = qualRef.current; ForgeMode.transitionTo(PHASES.HAMMER); setPhase(PHASES.HAMMER); }, QTE_FLASH_MS);
     }
 
     function handleHammerFire(pos) {
@@ -223,6 +234,7 @@ function useForgeVM(deps) {
         var newL = strikesLeft - 1; setStrikesLeft(newL);
         setQteFlash(tier.label + " " + (actualDelta >= 0 ? "+" : "") + actualDelta);
         setTimeout(function() {
+            qteLog("HAMMER", "RESULT", "pts=" + actualDelta + " newQ=" + newQ + " flashMs=" + QTE_FLASH_MS);
             setQteFlash(null); qteProcessing.current = false;
             if (newQ <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); setInv(function(i) { var n = Object.assign({}, i); n[matKey] = (n[matKey] || 0) + Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY); return n; }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
             if (newL <= 0) finishHammerSession();
@@ -292,6 +304,7 @@ function useForgeVM(deps) {
         var flashLabel = perfect ? "PERFECT! +5" : good ? "SOLID \u2014 NO CHANGE" : poor ? "ROUGH \u2014 QUALITY LOSS" : "MISS - DESTROYED";
         setQteFlash(flashLabel);
         setTimeout(function() {
+            qteLog("QUENCH", "RESULT", "label=" + flashLabel + " flashMs=" + QTE_FLASH_MS);
             setQteFlash(null); qteProcessing.current = false;
             if (perfect) { var nq = clamp(qualRef.current + 5, 0, 100); qualRef.current = nq; advanceTime(sessCost, undefined, true); finishWeapon(nq); }
             else if (good) { var nq2 = clamp(qualRef.current, 0, 100); qualRef.current = nq2; advanceTime(sessCost, undefined, true); finishWeapon(nq2); }
