@@ -864,7 +864,7 @@ function ShelfItem({ item, index }) {
     return (
         <div ref={ref} className="mobile-shelf-icon" onClick={function(e) { e.stopPropagation(); setShowPopup(function(s) { return !s; }); }}
              style={ showPopup ? { background: "#2a1f0a", borderColor: "#f59e0b" } : undefined }>
-            <span>{weaponIcon(item.wKey)}</span>
+            <img src={process.env.PUBLIC_URL + "/images/icons/waIconShield1.png"} alt="" draggable={false} style={{ width: "80%", height: "80%", objectFit: "contain", pointerEvents: "none" }} />
             {showPopup && (
                 <div className="mobile-shelf-popup" onClick={function(e) { e.stopPropagation(); }} style={{ right: 0, left: "auto" }}>
                     <div style={{ fontSize: 10, color: item.color || "#f59e0b", letterSpacing: 1, fontWeight: "bold", marginBottom: 3 }}>{item.label}</div>
