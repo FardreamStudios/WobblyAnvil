@@ -44,6 +44,8 @@ import useFXCues from "./hooks/useFXCues.js";
 import useInputRouter from "./hooks/useInputRouter.js";
 import useShopVM from "./hooks/useShopVM.js";
 import useAmbientAudio from "./hooks/useAmbientAudio.js";
+import useLeaderboard from "./hooks/useLeaderboard.js";
+import RunStats from "./logic/runStats.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -294,6 +296,15 @@ export default function App() {
     return function() { CustomerManager.reset(); };
   }, []);
 
+  // --- Run Stats Init (pure JS, bus-driven) ---
+  useEffect(function() {
+    RunStats.init(GameplayEventBus);
+    return function() { RunStats.destroy(); };
+  }, []);
+
+  // --- Leaderboard ---
+  var leaderboard = useLeaderboard();
+
 
   // --- Toast System ---
   useEffect(function() {
@@ -421,7 +432,7 @@ export default function App() {
     return <DevRouter />;
   }
 
-  if (gameOver) return <ScaleWrapper key="sw"><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} /></ScaleWrapper>;
+  if (gameOver) return <ScaleWrapper key="sw"><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} leaderboardEntries={leaderboard.entries} copied={leaderboard.copied} runStats={RunStats.getStats()} onCopyScore={function(name) { leaderboard.copyScore(name, { day: day, gold: gold, totalGoldEarned: totalGoldEarned, reputation: reputation, level: level }, RunStats.getStats()); }} /></ScaleWrapper>;
   if (screen === "splash") return <ScaleWrapper key="sw"><SplashScreen onEnter={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
   if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 

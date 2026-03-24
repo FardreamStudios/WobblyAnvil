@@ -18,7 +18,6 @@ var UPGRADES = GameConstants.UPGRADES;
 var UPGRADE_COLORS = GameConstants.UPGRADE_COLORS;
 var MOODS = GameConstants.MOODS;
 var EPITAPHS = GameConstants.EPITAPHS;
-var FAKE_SMITHS = GameConstants.FAKE_SMITHS;
 
 var rand = GameUtils.rand;
 var randInt = GameUtils.randInt;
@@ -463,14 +462,22 @@ function ShopModal({ gold, inv, upgrades, unlockedBP, matDiscount, globalMatMult
 
 // --- Game Over Screen ---
 
-function GameOverScreen({ day, gold, totalGoldEarned, onReset }) {
+function GameOverScreen({ day, gold, totalGoldEarned, onReset, leaderboardEntries, onCopyScore, copied, runStats }) {
     var rank = getSmithRank(totalGoldEarned);
     var next = getNextRank(totalGoldEarned);
     var rankPercent = next ? Math.round((totalGoldEarned - rank.threshold) / (next.threshold - rank.threshold) * 100) : 100;
-    var playerEntry = { name: "You", gold: totalGoldEarned, isPlayer: true };
-    var merged = FAKE_SMITHS.concat([playerEntry]).sort(function(a, b) { return b.gold - a.gold; });
+
+    // --- Name input state ---
+    var [playerName, setPlayerName] = useState("");
+    var nameRef = useRef(null);
+
+    // --- Leaderboard merge: entries from hook (already has fakes when sparse) + player ---
+    var lbEntries = leaderboardEntries || [];
+    var playerEntry = { name: playerName || "You", gold: totalGoldEarned, isPlayer: true };
+    var merged = lbEntries.concat([playerEntry]).sort(function(a, b) { return b.gold - a.gold; });
     var top10 = merged.slice(0, 10);
     var playerPlaced = top10.some(function(e) { return e.isPlayer; });
+    var playerRank = merged.findIndex(function(e) { return e.isPlayer; }) + 1;
 
     return (
         <div style={{ width: "100%", minHeight: "100vh", background: "#0a0704", display: "flex", alignItems: "flex-start", justifyContent: "center", fontFamily: "monospace", overflowY: "auto" }}>
@@ -497,7 +504,7 @@ function GameOverScreen({ day, gold, totalGoldEarned, onReset }) {
                             )}
                         </Panel>
                         <Panel style={{ padding: "14px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
-                            {[["DAYS SURVIVED", day, "#f59e0b"], ["GOLD ON HAND", gold + "g", "#fbbf24"], ["TOTAL GOLD EARNED", totalGoldEarned + "g", "#4ade80"]].map(function(row) {
+                            {[["DAYS SURVIVED", day, "#f59e0b"], ["GOLD ON HAND", gold + "g", "#fbbf24"], ["TOTAL GOLD EARNED", totalGoldEarned + "g", "#4ade80"], ["WEAPONS FORGED", (runStats && runStats.weaponsForged) || 0, "#c8b89a"], ["BEST QUALITY", (runStats && runStats.bestQuality) || 0, "#c8b89a"]].map(function(row) {
                                 return <div key={row[0]} style={{ borderBottom: "1px solid #1a1209", paddingBottom: 8 }}><InfoRow label={row[0]} value={row[1]} color={row[2]} /></div>;
                             })}
                             <InfoRow label="EPITAPH" color="#c8b89a" valueStyle={{ fontStyle: "italic", fontSize: 10, maxWidth: 180, textAlign: "right" }} value={(EPITAPHS.find(function(e) { return totalGoldEarned >= e.threshold; }) || EPITAPHS[EPITAPHS.length - 1]).text} />
@@ -510,10 +517,10 @@ function GameOverScreen({ day, gold, totalGoldEarned, onReset }) {
                             var entryRank = getSmithRank(entry.gold);
                             var medalColor = i === 0 ? "#fbbf24" : i === 1 ? "#a0a0a0" : i === 2 ? "#fb923c" : "#3d2e0f";
                             return (
-                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: isPlayer ? "#1a1500" : "#0a0704", border: "1px solid " + (isPlayer ? "#f59e0b" : "#2a1f0a"), borderRadius: 7, padding: "7px 10px", marginBottom: 5 }}>
+                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: isPlayer ? "#1a1500" : (entry.isReal ? "#0d0804" : "#0a0704"), border: "1px solid " + (isPlayer ? "#f59e0b" : (entry.isReal ? "#3d2e0f" : "#2a1f0a")), borderRadius: 7, padding: "7px 10px", marginBottom: 5 }}>
                                     <div style={{ width: 20, height: 20, borderRadius: 4, background: medalColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: "bold", color: i < 3 ? "#0a0704" : "#8a7a64", flexShrink: 0 }}>{i + 1}</div>
                                     <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: 12, color: isPlayer ? "#fbbf24" : "#f0e6c8", fontWeight: isPlayer ? "bold" : "normal", letterSpacing: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isPlayer ? "YOU" : entry.name}</div>
+                                        <div style={{ fontSize: 12, color: isPlayer ? "#fbbf24" : (entry.isReal ? "#f0e6c8" : "#8a7a64"), fontWeight: isPlayer ? "bold" : "normal", letterSpacing: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{isPlayer ? (playerName || "YOU") : entry.name}</div>
                                         <SectionLabel>{entryRank.name}</SectionLabel>
                                     </div>
                                     <div style={{ fontSize: 13, color: isPlayer ? "#fbbf24" : "#f59e0b", fontWeight: "bold", flexShrink: 0 }}>{entry.gold.toLocaleString()}g</div>
@@ -522,11 +529,11 @@ function GameOverScreen({ day, gold, totalGoldEarned, onReset }) {
                         })}
                         {!playerPlaced && (
                             <div style={{ marginTop: 8, borderTop: "1px solid #2a1f0a", paddingTop: 8 }}>
-                                <SectionLabel style={{ marginBottom: 5, textAlign: "center" }}>YOUR RUN</SectionLabel>
+                                <SectionLabel style={{ marginBottom: 5, textAlign: "center" }}>YOUR RUN — #{playerRank}</SectionLabel>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#1a1500", border: "1px solid #f59e0b", borderRadius: 7, padding: "7px 10px" }}>
-                                    <div style={{ width: 20, height: 20, borderRadius: 4, background: "#2a1f0a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: "bold", color: "#8a7a64", flexShrink: 0 }}>{merged.findIndex(function(e) { return e.isPlayer; }) + 1}</div>
+                                    <div style={{ width: 20, height: 20, borderRadius: 4, background: "#2a1f0a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: "bold", color: "#8a7a64", flexShrink: 0 }}>{playerRank}</div>
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: 12, color: "#fbbf24", fontWeight: "bold", letterSpacing: 1 }}>YOU</div>
+                                        <div style={{ fontSize: 12, color: "#fbbf24", fontWeight: "bold", letterSpacing: 1 }}>{playerName || "YOU"}</div>
                                         <SectionLabel color="#f59e0b">{rank.name}</SectionLabel>
                                     </div>
                                     <div style={{ fontSize: 13, color: "#fbbf24", fontWeight: "bold" }}>{totalGoldEarned.toLocaleString()}g</div>
@@ -535,6 +542,55 @@ function GameOverScreen({ day, gold, totalGoldEarned, onReset }) {
                         )}
                     </Panel>
                 </div>
+                <Panel style={{ width: "100%", padding: "14px 20px", marginBottom: 14, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                    <SectionLabel color="#f59e0b" style={{ letterSpacing: 2 }}>SUBMIT YOUR SCORE</SectionLabel>
+                    <input
+                        ref={nameRef}
+                        type="text"
+                        inputMode="text"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        spellCheck="false"
+                        maxLength={24}
+                        placeholder="Enter your name..."
+                        value={playerName}
+                        onChange={function(e) { setPlayerName(e.target.value); }}
+                        style={{
+                            width: "100%",
+                            maxWidth: 280,
+                            padding: "10px 14px",
+                            fontSize: 14,
+                            fontFamily: "monospace",
+                            background: "#0a0704",
+                            border: "2px solid #2a1f0a",
+                            borderRadius: 8,
+                            color: "#fbbf24",
+                            textAlign: "center",
+                            letterSpacing: 2,
+                            outline: "none",
+                        }}
+                        onFocus={function(e) { e.target.style.borderColor = "#f59e0b"; }}
+                        onBlur={function(e) { e.target.style.borderColor = "#2a1f0a"; }}
+                    />
+                    <button
+                        onClick={function() { if (onCopyScore) onCopyScore(playerName); }}
+                        disabled={!playerName.trim()}
+                        style={{
+                            background: !playerName.trim() ? "#0a0704" : "#2a1f0a",
+                            border: "2px solid " + (!playerName.trim() ? "#1a1209" : "#f59e0b"),
+                            borderRadius: 8,
+                            color: !playerName.trim() ? "#2a1f0a" : "#f59e0b",
+                            padding: "10px 32px",
+                            fontSize: 13,
+                            cursor: !playerName.trim() ? "not-allowed" : "pointer",
+                            letterSpacing: 2,
+                            textTransform: "uppercase",
+                            fontFamily: "monospace",
+                            fontWeight: "bold",
+                        }}
+                    >{copied ? "COPIED!" : "COPY SCORE"}</button>
+                    {copied && <SectionLabel color="#4ade80" style={{ fontSize: 10 }}>Payload copied — send to director</SectionLabel>}
+                </Panel>
                 <DangerBtn onClick={onReset}>Try Again</DangerBtn>
             </div>
         </div>
