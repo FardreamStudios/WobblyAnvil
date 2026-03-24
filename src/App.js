@@ -120,6 +120,7 @@ var useLayoutMode = GameLayout.useLayoutMode;
 var MobileLayout = MobileLayoutModule.MobileLayout;
 var requestFullscreen = MobileLayoutModule.requestFullscreen;
 var isFullscreenActive = MobileLayoutModule.isFullscreenActive;
+var userExitedFullscreen = MobileLayoutModule.userExitedFullscreen;
 
 // ============================================================
 // Main App Component
@@ -150,7 +151,7 @@ export default function App() {
     function onOrientationChange() {
       setTimeout(function() {
         var w = window.innerWidth, h = window.innerHeight;
-        if (w > h && !isFullscreenActive()) {
+        if (w > h && !isFullscreenActive() && !userExitedFullscreen.current) {
           requestFullscreen(document.documentElement);
         }
       }, 500);
@@ -570,6 +571,7 @@ export default function App() {
               day={day}
               royalQuest={royalQuest}
               questNum={questNum}
+              mEvent={mEvent}
 
               /* Data strip props — forging */
               qualScore={qualScore}

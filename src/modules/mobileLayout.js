@@ -1281,6 +1281,7 @@ var MobileLayoutModule = {
     MobileBtn: MobileBtn,
     requestFullscreen: requestFullscreen,
     isFullscreenActive: isFullscreenActive,
+    userExitedFullscreen: userExitedFullscreen,
 };
 
 export default MobileLayoutModule;
