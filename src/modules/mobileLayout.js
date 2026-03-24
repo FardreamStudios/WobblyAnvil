@@ -1254,7 +1254,7 @@ function MobileLayout(props) {
     var decreeFloat = props.royalQuest && !isForging && !isQTEActive ? (
         <div style={{
             position: "absolute",
-            top: "6%",
+            top: "7%",
             left: isLeftHanded ? "auto" : "2%",
             right: isLeftHanded ? "2%" : "auto",
             zIndex: T.z.ui + 1,
@@ -1274,7 +1274,7 @@ function MobileLayout(props) {
     var notifyBadge = !isForging && !isQTEActive && (props.statPoints || 0) > 0 ? (
         <div onClick={function() { setDrawerOpen(true); }} style={{
             position: "absolute",
-            top: props.royalQuest ? "20%" : "6%",
+            top: props.royalQuest ? "21%" : "7%",
             left: isLeftHanded ? "auto" : "2%",
             right: isLeftHanded ? "2%" : "auto",
             zIndex: T.z.ui + 2,
