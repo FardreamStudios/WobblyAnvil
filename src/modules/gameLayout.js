@@ -70,11 +70,13 @@ function GameShell({ className, children }) {
     return (
         <div ref={outerRef} className="game-shell-outer">
             <style>{LAYOUT_CSS}</style>
-            <div
-                className={"game-shell" + (className ? " " + className : "")}
-                style={{ transform: "scale(" + scale + ")" }}
-            >
-                {children}
+            <div className={className || ""}>
+                <div
+                    className="game-shell"
+                    style={{ transform: "scale(" + scale + ")" }}
+                >
+                    {children}
+                </div>
             </div>
         </div>
     );
