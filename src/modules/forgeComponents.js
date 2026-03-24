@@ -20,11 +20,11 @@ var PHASES = GameConstants.PHASES;
 var positionToColumn = GameUtils.positionToColumn;
 
 // --- QTE Speed Constants (tune these to adjust feel) ---
-var HEAT_SPEED_BASE = 65;
+var HEAT_SPEED_BASE = 60;
 var HEAT_SPEED_RANGE = 15;
-var HAMMER_SPEED_BASE = 230;
+var HAMMER_SPEED_BASE = 210;
 var HAMMER_SPEED_RANGE = 50;
-var QUENCH_SPEED_BASE = 190;
+var QUENCH_SPEED_BASE = 175;
 var QUENCH_SPEED_RANGE = 30;
 
 // --- Sprite Paths ---
@@ -53,21 +53,28 @@ var HUE_VARIANTS = {
     red:    { filter: "hue-rotate(-105deg) saturate(1.5)" },
 };
 
-// --- Color Picker: sweet zone = cyan, then gradient outward from center ---
-// Perfect zone (sweetLow–sweetHigh) is always cyan.
-// Color gradient peaks at given peak column. Cyan at peak, gradient outward.
-// sweetLow/sweetHigh kept in signature for future use but not used.
+// --- Color Picker: aligned to scoring zones ---
+// Colors reflect actual game scoring. The sweet zone (sweetLow–sweetHigh)
+// defines the "GOOD" zone. Within that, colors grade from cyan (perfect)
+// outward. Outside it, colors continue to orange/red (miss territory).
+// This matches the proportions in HAMMER_TIERS.percentOfHalf:
+//   PERFECT = 15% of half-zone, GREAT = 45%, GOOD = 100%, MISS = beyond
 
 function pickBarColor(index, sweetLow, sweetHigh, totalCols, peakCol) {
     var peak = peakCol !== undefined ? peakCol : (totalCols - 1) / 2;
-    var maxDist = Math.max(peak, totalCols - 1 - peak) || 1;
-    var dist = Math.abs(index - peak) / maxDist; // 0 at peak, 1 at far edge
-    if (dist < 0.08) return "cyan";
-    if (dist < 0.20) return "green";
-    if (dist < 0.38) return "lime";
-    if (dist < 0.55) return "yellow";
-    if (dist < 0.75) return "orange";
-    return "red";
+    var halfZone = Math.max((sweetHigh - sweetLow) / 2, 1);
+    var dist = Math.abs(index - peak);
+
+    // Distance as ratio of the sweet zone half-width
+    var ratio = dist / halfZone;
+
+    // Match HAMMER_TIERS percentOfHalf thresholds
+    if (ratio <= 0.15) return "cyan";      // PERFECT zone
+    if (ratio <= 0.45) return "green";     // GREAT zone
+    if (ratio <= 1.0)  return "lime";      // GOOD zone (within sweet)
+    if (ratio <= 1.6)  return "yellow";    // near miss
+    if (ratio <= 2.4)  return "orange";    // far miss
+    return "red";                           // way off
 }
 
 // --- Height Curve: power curve peaking at given peak column ---
@@ -269,7 +276,8 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
             if (!processingRef.current) {
                 var n = hammerNeedle.current;
                 n.pos += n.dir * n.speed * dt;
-                if (n.pos >= 100 || n.pos <= 0) n.dir *= -1;
+                if (n.pos >= 100) { n.pos = 100 - (n.pos - 100); n.dir = -1; }
+                else if (n.pos <= 0) { n.pos = -n.pos; n.dir = 1; }
                 posRef.current = n.pos;
                 setNeedlePos(n.pos);
             }
@@ -296,7 +304,8 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
             if (!processingRef.current) {
                 var n = quenchNeedle.current;
                 n.pos += n.dir * n.speed * dt;
-                if (n.pos >= 100 || n.pos <= 0) n.dir *= -1;
+                if (n.pos >= 100) { n.pos = 100 - (n.pos - 100); n.dir = -1; }
+                else if (n.pos <= 0) { n.pos = -n.pos; n.dir = 1; }
                 posRef.current = n.pos;
                 setQuenchPos(n.pos);
             }
