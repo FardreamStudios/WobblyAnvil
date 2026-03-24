@@ -236,6 +236,7 @@ function MobileBtn({ icon, iconSize, imgSrc, imgSize, label, onClick, disabled, 
     var btnRef = useRef(null);
     var popRef = useRef(null);
     var [showPop, setShowPop] = useState(false);
+    var [isPressed, setIsPressed] = useState(false);
 
     // --- Press-hold gesture ---
     var hasHold = !!holdContent;
@@ -340,12 +341,17 @@ function MobileBtn({ icon, iconSize, imgSrc, imgSize, label, onClick, disabled, 
     // If holdContent exists, use press handlers instead of plain onClick
     var btnProps = hasHold ? press.handlers : { onClick: disabled ? null : onClick };
 
+    // --- Press glow handlers (track finger/mouse down on wrapper) ---
+    var glowOn = function() { if (!disabled) setIsPressed(true); };
+    var glowOff = function() { setIsPressed(false); };
+    var pressGlow = !disabled && isPressed;
+
     return (
-        <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div ref={btnRef} onTouchStart={glowOn} onTouchEnd={glowOff} onTouchCancel={glowOff} onMouseDown={glowOn} onMouseUp={glowOff} onMouseLeave={glowOff} style={{ position: "relative", width: "100%", height: "100%", flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <button {...btnProps} disabled={disabled} style={{
                 background: "transparent",
                 border: "none",
-                borderRadius: 0,
+                borderRadius: 8,
                 color: textColor,
                 cursor: disabled ? "not-allowed" : "pointer",
                 fontFamily: T.fonts.body,
@@ -366,7 +372,7 @@ function MobileBtn({ icon, iconSize, imgSrc, imgSize, label, onClick, disabled, 
                 WebkitUserSelect: "none",
                 userSelect: "none",
             }}>
-                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} className="action-icon-glow" style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} />}
+                {imgSrc && <img src={imgSrc} alt={label || ""} draggable={false} className={pressGlow ? "" : "action-icon-glow"} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none", filter: pressGlow ? "drop-shadow(0 0 6px rgba(255,255,255,0.7)) drop-shadow(0 0 12px rgba(255,255,255,0.35))" : iconFilter, transition: "filter 0.1s ease" }} />}
                 {!imgSrc && icon && <span style={{ fontSize: iconSize || T.fontSize.xxl, lineHeight: 1, pointerEvents: "none" }}>{icon}</span>}
                 {!imgSrc && label && <span style={{ pointerEvents: "none" }}>{label}</span>}
             </button>
