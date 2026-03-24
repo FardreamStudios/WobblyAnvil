@@ -100,6 +100,7 @@ var EVENT_TAGS = {
     FX_MYSTERY_GOOD:        "fx.mystery.good",
     FX_MYSTERY_BAD:         "fx.mystery.bad",
     FX_FANFARE:             "fx.ui.fanfare",
+    FX_ANVIL_SPARK:         "fx.forge.anvil.spark",
 };
 
 export default EVENT_TAGS;

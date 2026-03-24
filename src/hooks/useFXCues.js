@@ -1,14 +1,14 @@
 // ============================================================
 // useFXCues.js — Wobbly Anvil FX Cue Router
 // Subscribes to all tags in the FX Cue Registry and calls
-// each cue's execute(sfx, fxRef, payload) when fired.
+// each cue's execute(sfx, fxRef, payload, sceneFxRef) when fired.
 //
 // UE ANALOGY: GameplayCueManager — dumb plumbing that routes
 // tags to self-contained cue objects. Knows nothing about
 // what any cue actually does.
 //
-// WIRING: Called once in App.js with sfx + fxRef.
-//   useFXCues({ sfx: sfx, fxRef: fxRef });
+// WIRING: Called once in App.js with sfx + fxRef + sceneFxRef.
+//   useFXCues({ sfx: sfx, fxRef: fxRef, sceneFxRef: sceneFxRef });
 //
 // ADDING CUES: Add to fxCueRegistry.js — this file never
 // needs to change.
@@ -21,18 +21,21 @@ import FX_CUES from "../config/fxCueRegistry.js";
 function useFXCues(deps) {
     var sfx = deps.sfx;
     var fxRef = deps.fxRef;
+    var sceneFxRef = deps.sceneFxRef || null;
 
     // Keep stable refs so subscriptions don't churn
     var sfxRef = useRef(sfx);
     sfxRef.current = sfx;
     var fxRefRef = useRef(fxRef);
     fxRefRef.current = fxRef;
+    var sceneFxRefRef = useRef(sceneFxRef);
+    sceneFxRefRef.current = sceneFxRef;
 
     useEffect(function() {
         // Build handler for each registered cue
         var handlers = FX_CUES.map(function(cue) {
             var handler = function(payload) {
-                cue.execute(sfxRef.current, fxRefRef.current, payload || {});
+                cue.execute(sfxRef.current, fxRefRef.current, payload || {}, sceneFxRefRef.current);
             };
             GameplayEventBus.on(cue.tag, handler);
             return { tag: cue.tag, handler: handler };

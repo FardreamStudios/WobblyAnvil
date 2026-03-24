@@ -12,6 +12,8 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 // ============================================================
 // SCENES CONFIG
@@ -141,6 +143,8 @@ var CHARACTER_CONFIG = {
             position: { x: "42%", y: "109%" },
             scale: 0.55,
             anchor: "bottom-center",
+            impactFrame: 2,
+            fxOrigin: { xPct: 0.14, yPct: .75 },
         },
         quenching: {
             sheet: "/images/smithQuench.png",
@@ -348,10 +352,12 @@ function Background({ config, phase }) {
 // Supports loop and one-shot modes.
 // ============================================================
 
-function SpriteSheet({ sheet, frames, fps, frameWidth, frameHeight, loop, imageRendering, onComplete, colCount }) {
+function SpriteSheet({ sheet, frames, fps, frameWidth, frameHeight, loop, imageRendering, onComplete, colCount, onFrame }) {
     var [frame, setFrame] = useState(0);
     var frameRef = useRef(0);
     var intervalRef = useRef(null);
+    var onFrameRef = useRef(onFrame);
+    onFrameRef.current = onFrame;
 
     useEffect(function() {
         frameRef.current = 0;
@@ -372,6 +378,7 @@ function SpriteSheet({ sheet, frames, fps, frameWidth, frameHeight, loop, imageR
             }
             frameRef.current = next;
             setFrame(next);
+            if (onFrameRef.current) onFrameRef.current(next);
         }, msPerFrame);
 
         return function() { clearInterval(intervalRef.current); };
@@ -468,6 +475,23 @@ function Character({ config, action, onActionComplete }) {
     var currentAction = actions[action] || actions[config.defaultAction] || {};
     var prevActionRef = useRef(action);
     var [transitioning, setTransitioning] = useState(false);
+    var charDivRef = useRef(null);
+
+    // Fire FX_ANVIL_SPARK on impact frame
+    var handleFrame = useCallback(function(frameIndex) {
+        if (currentAction.impactFrame === undefined) return;
+        if (frameIndex !== currentAction.impactFrame) return;
+        if (!currentAction.fxOrigin || !charDivRef.current) return;
+
+        var rect = charDivRef.current.getBoundingClientRect();
+        var parent = charDivRef.current.closest("[data-scene-stage]");
+        var parentRect = parent ? parent.getBoundingClientRect() : rect;
+
+        var sparkX = rect.left - parentRect.left + rect.width * currentAction.fxOrigin.xPct;
+        var sparkY = rect.top - parentRect.top + rect.height * currentAction.fxOrigin.yPct;
+
+        GameplayEventBus.emit(EVENT_TAGS.FX_ANVIL_SPARK, { x: sparkX, y: sparkY });
+    }, [action, currentAction]);
 
     // Handle translate movement on action change
     useEffect(function() {
@@ -517,7 +541,7 @@ function Character({ config, action, onActionComplete }) {
     var fullTransition = transitionStr === "none" ? fadeTransition : transitionStr + ", " + fadeTransition;
 
     return (
-        <div style={{
+        <div ref={charDivRef} style={{
             position: "absolute",
             left: pos.x,
             top: pos.y,
@@ -538,6 +562,7 @@ function Character({ config, action, onActionComplete }) {
                     loop={currentAction.loop !== false}
                     imageRendering={config.imageRendering || "auto"}
                     onComplete={currentAction.movement === "authored" ? handleSpriteComplete : null}
+                    onFrame={currentAction.impactFrame !== undefined ? handleFrame : null}
                 />
             )}
         </div>
@@ -690,7 +715,7 @@ function CanvasFXLayer({ z, fxRef }) {
 // Drop-in replacement for old ForgeScene.
 // ============================================================
 
-function SceneStage({ scene, phase, characterAction, onCharacterActionComplete, propOverrides, fxRef }) {
+function SceneStage({ scene, phase, characterAction, onCharacterActionComplete, propOverrides, fxRef, sceneFxRef }) {
     var sceneConfig = SCENES[scene] || SCENES.forge;
 
     // Build sorted props with overrides
@@ -705,7 +730,7 @@ function SceneStage({ scene, phase, characterAction, onCharacterActionComplete, 
     }).sort(function(a, b) { return (a.z || 0) - (b.z || 0); });
 
     return (
-        <div style={{
+        <div data-scene-stage style={{
             position: "absolute",
             inset: 0,
             overflow: "hidden",
@@ -720,6 +745,9 @@ function SceneStage({ scene, phase, characterAction, onCharacterActionComplete, 
                 return <Prop key={prop.id} config={prop} phase={phase} />;
             })}
 
+            {/* Scene-level FX Canvas (above props z:2, below character z:5) */}
+            <CanvasFXLayer z={3} fxRef={sceneFxRef} />
+
             {/* Character */}
             <Character
                 config={CHARACTER_CONFIG}
@@ -727,7 +755,7 @@ function SceneStage({ scene, phase, characterAction, onCharacterActionComplete, 
                 onActionComplete={onCharacterActionComplete}
             />
 
-            {/* FX Canvas (always top) */}
+            {/* UI-level FX Canvas (always top) */}
             <CanvasFXLayer z={100} fxRef={fxRef} />
         </div>
     );

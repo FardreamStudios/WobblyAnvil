@@ -62,6 +62,23 @@ var FX_CUES = [
     },
 
     {
+        tag: EVENT_TAGS.FX_ANVIL_SPARK,
+        execute: function(sfx, fxRef, payload, sceneFxRef) {
+            // Cosmetic spark burst synced to smith animation impact frame
+            // payload: { x, y } — screen-relative position within scene stage
+            var ref = sceneFxRef || fxRef;
+            if (ref && ref.current && ref.current.trigger) {
+                ref.current.trigger("sparks", {
+                    x: payload.x,
+                    y: payload.y,
+                    count: 14,
+                    color: "#fbbf24",
+                });
+            }
+        },
+    },
+
+    {
         tag: EVENT_TAGS.FX_FINISH_WEAPON,
         execute: function(sfx, fxRef, payload) {
             // Reserved — add finish SFX here when ready

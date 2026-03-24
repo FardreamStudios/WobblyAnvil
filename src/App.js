@@ -139,11 +139,14 @@ export default function App() {
   var quest = useQuestState();
   var vfx = useVFXState();
 
+  // --- Scene-level FX ref (renders behind character, above props) ---
+  var sceneFxRef = useRef(null);
+
   // --- GameMode Hook (owns init, sub-mode registration, lifecycle) ---
   var gm = useGameMode({ bus: GameplayEventBus });
 
   // --- FX Cue Router ---
-  useFXCues({ sfx: sfx, fxRef: vfx.fxRef });
+  useFXCues({ sfx: sfx, fxRef: vfx.fxRef, sceneFxRef: sceneFxRef });
 
   // --- Mobile: request fullscreen on landscape (all screens) ---
   useEffect(function() {
@@ -428,7 +431,7 @@ export default function App() {
     // --- Build scene for center zone ---
     var mobileScene = (function() {
       var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides });
-      return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} />;
+      return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} sceneFxRef={sceneFxRef} />;
     })();
 
     // --- Build QTE + forge UI for center zone ---
