@@ -595,6 +595,9 @@ export default function App() {
               reputation={reputation}
               repColor={reputation >= 7 ? "#4ade80" : reputation >= 4 ? "#fb923c" : "#ef4444"}
               rankName={smithRank.name}
+              upgrades={upgrades}
+              onAllocate={allocateStat}
+              statLocked={input.statAlloc.disabled}
               finished={finished}
               stats={stats}
               statPoints={statPoints}

@@ -714,6 +714,131 @@ function EventBanner({ mEvent }) {
     );
 }
 
+// --- Reputation Float — always visible, press-and-hold tooltip ---
+
+function RepFloat({ reputation, isLeftHanded }) {
+    var T = THEME;
+    var btnRef = useRef(null);
+    var popRef = useRef(null);
+    var dismissTimer = useRef(null);
+    var [showPop, setShowPop] = useState(false);
+    var [holding, setHolding] = useState(false);
+
+    // Auto-dismiss after 3s on tap (not hold)
+    useEffect(function() {
+        if (showPop && !holding) {
+            dismissTimer.current = setTimeout(function() {
+                setShowPop(false);
+            }, 3000);
+            return function() { clearTimeout(dismissTimer.current); };
+        }
+    }, [showPop, holding]);
+
+    var press = usePressHold({
+        onClick: function() { setHolding(false); setShowPop(true); },
+        onHold: function() { setHolding(true); setShowPop(true); },
+        disabled: false,
+    });
+
+    // On hold release — start the 3s dismiss
+    useEffect(function() {
+        if (!holding) return;
+        function onUp() { setHolding(false); }
+        document.addEventListener("touchend", onUp);
+        document.addEventListener("mouseup", onUp);
+        return function() {
+            document.removeEventListener("touchend", onUp);
+            document.removeEventListener("mouseup", onUp);
+        };
+    }, [holding]);
+
+    // Dismiss on outside tap
+    useEffect(function() {
+        if (!showPop) return;
+        function dismiss(e) {
+            if (popRef.current && !popRef.current.contains(e.target) &&
+                btnRef.current && !btnRef.current.contains(e.target)) {
+                setShowPop(false);
+                setHolding(false);
+            }
+        }
+        document.addEventListener("touchstart", dismiss);
+        document.addEventListener("mousedown", dismiss);
+        return function() {
+            document.removeEventListener("touchstart", dismiss);
+            document.removeEventListener("mousedown", dismiss);
+        };
+    }, [showPop]);
+
+    var rep = reputation || 0;
+    var color = rep >= 7 ? "#22c55e" : rep >= 4 ? "#fb923c" : rep >= 2 ? "#ef4444" : "#7f1d1d";
+    var status = rep >= 7 ? "ROYAL FAVOUR" : rep >= 4 ? "KING GROWS WARY" : rep >= 2 ? "ARREST IMMINENT" : "EXECUTION IMMINENT";
+
+    return (
+        <div ref={btnRef} {...press.handlers} style={{
+            position: "absolute",
+            top: "2%",
+            left: isLeftHanded ? "auto" : "2%",
+            right: isLeftHanded ? "2%" : "auto",
+            zIndex: T.z.ui + 1,
+            width: 78,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 3,
+            cursor: "pointer",
+        }}>
+            {/* 10 pips — position-colored like desktop */}
+            <div style={{ display: "flex", gap: 2, width: "100%" }}>
+                {Array.from({ length: 10 }).map(function(_, i) {
+                    var filled = i < rep;
+                    var pipColor = i < 3 ? "#ef4444" : i < 6 ? "#fb923c" : i < 8 ? "#4ade80" : "#22c55e";
+                    return <div key={i} style={{
+                        flex: 1, height: 8, borderRadius: 2,
+                        background: filled ? pipColor : "#1a1209",
+                        border: "1px solid " + (filled ? pipColor + "88" : "#2a1f0a"),
+                        transition: "background 0.2s",
+                    }} />;
+                })}
+            </div>
+            {/* Status text */}
+            <div className={rep <= 1 ? "blink" : ""} style={{
+                fontSize: 7, color: color, letterSpacing: 1, fontWeight: "bold",
+                fontFamily: "'Cinzel', serif", textShadow: "0 1px 3px rgba(0,0,0,0.9)",
+                textAlign: "center", whiteSpace: "nowrap",
+            }}>{status}</div>
+
+            {/* Tooltip popover */}
+            {showPop && (
+                <div ref={popRef} style={{
+                    position: "absolute",
+                    top: "calc(100% + 6px)",
+                    left: isLeftHanded ? "auto" : 0,
+                    right: isLeftHanded ? 0 : "auto",
+                    background: "#0a0704",
+                    border: "1px solid #ef444455",
+                    borderRadius: 6,
+                    padding: "8px 10px",
+                    fontSize: 9,
+                    color: "#c8b89a",
+                    lineHeight: 1.7,
+                    zIndex: T.z.ui + 5,
+                    width: 190,
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.95)",
+                    pointerEvents: "auto",
+                }}>
+                    <div style={{ color: "#ef4444", fontWeight: "bold", marginBottom: 4, fontFamily: "'Cinzel', serif" }}>THE KING'S FAVOUR</div>
+                    <span style={{ color: "#22c55e" }}>7-10</span>: Royal favour<br />
+                    <span style={{ color: "#fb923c" }}>4-6</span>: King grows wary<br />
+                    <span style={{ color: "#ef4444" }}>2-3</span>: Arrest imminent<br />
+                    <span style={{ color: "#7f1d1d" }}>1</span>: Execution imminent<br /><br />
+                    <span style={{ color: "#ef4444", fontWeight: "bold" }}>HIT ZERO AND THE KING'S GUARDS PAY YOU A VISIT.</span>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // --- Shelf Icon with popup ---
 
 function ShelfItem({ item, index }) {
@@ -906,6 +1031,7 @@ function MobileLayout(props) {
 
     // --- Drawer state ---
     var [drawerOpen, setDrawerOpen] = useState(false);
+    var [heldStat, setHeldStat] = useState(null);
 
     // Auto-open when entering any forge phase, auto-close when returning to idle
     var prevInForgeFlow = useRef(false);
@@ -963,28 +1089,72 @@ function MobileLayout(props) {
     ) : (
         <W.Box gap="sm" style={{ padding: "4px 0" }}>
             <W.Strip gap="xs" center style={{ marginBottom: 4 }}>
-                <W.Label size="md" color="textLabel" spacing="tight" bold font="heading">LV</W.Label>
+                <W.Label size="xl" color="textLabel" spacing="tight" bold font="heading">LV</W.Label>
                 <W.Label size="h2" color="gold" bold font="heading">{props.level || 1}</W.Label>
-                <W.Label size="xl" color="goldBright" bold font="heading" style={{ marginLeft: 8 }}>{props.rankName || ""}</W.Label>
+                <W.Label size="h3" color="goldBright" bold font="heading" style={{ marginLeft: 8 }}>{props.rankName || ""}</W.Label>
             </W.Strip>
             <W.Divider />
-            <W.Label size="sm" color="textLabel" spacing="tight" align="center" font="heading">REP</W.Label>
-            <W.PipRow count={8} filled={props.reputation || 0} color={props.repColor || T.colors.orange} wrap center style={{ marginTop: 2 }} />
             {props.stats && (
-                <W.Box gap="sm" style={{ marginTop: 8, borderTop: T.borders.thinMid, paddingTop: 8 }}>
-                    {[["BRN", "brawn", T.colors.gold], ["PRC", "precision", T.colors.blue], ["TEC", "technique", T.colors.green], ["SLV", "silverTongue", T.colors.purple]].map(function(s) {
+                <W.Box gap="md" style={{ alignItems: "center" }}>
+                    {[["BRAWN", "brawn", T.colors.gold], ["PRECISION", "precision", T.colors.blue], ["TECHNIQUE", "technique", T.colors.green], ["SILVER TONGUE", "silverTongue", T.colors.purple]].map(function(s) {
+                        var statKey = s[1];
+                        var value = props.stats[statKey] || 0;
+                        var cost = value < 3 ? 1 : value < 6 ? 2 : 3;
+                        var points = props.statPoints || 0;
+                        var canAfford = points >= cost;
+                        var locked = props.statLocked;
+                        var meta = GameConstants.STAT_META[statKey];
+                        var isHeld = heldStat === statKey;
+                        var showBtn = points > 0 && !locked;
                         return (
-                            <W.Box key={s[0]}>
-                                <W.Label size="xs" color={s[2]} spacing="tight" bold font="heading" style={{ marginBottom: 2 }}>{s[0]}</W.Label>
-                                <W.PipRow count={8} filled={props.stats[s[1]] || 0} color={s[2]} />
+                            <W.Box key={s[0]} style={{ position: "relative", width: "100%" }}>
+                                <W.Strip justify="space-between" gap="xs" center
+                                         style={{ cursor: "pointer", paddingRight: 4 }}
+                                         onClick={function() { setHeldStat(function(h) { return h === statKey ? null : statKey; }); }}>
+                                    <W.Label size="lg" color={s[2]} spacing="tight" bold font="heading">{s[0]}</W.Label>
+                                    <button onClick={function(e) { e.stopPropagation(); if (canAfford && props.onAllocate) props.onAllocate(statKey); }} style={{
+                                        background: "#2a1f0a", border: "1px solid " + (canAfford ? "#f59e0b" : "#3d2e0f"),
+                                        borderRadius: 4, color: canAfford ? "#f59e0b" : "#4a3c2c",
+                                        padding: "2px 8px", fontSize: 11, cursor: canAfford ? "pointer" : "default",
+                                        letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold",
+                                        flexShrink: 0, visibility: showBtn ? "visible" : "hidden",
+                                    }}>{cost}pt</button>
+                                </W.Strip>
+                                <W.PipRow count={10} filled={value} color={s[2]} size={14} />
+                                {isHeld && meta && (
+                                    <div style={{
+                                        position: "absolute", left: 0, right: 0, top: "100%",
+                                        background: "#0a0704", border: "1px solid " + s[2] + "55",
+                                        borderRadius: 6, padding: "6px 10px", marginTop: 2,
+                                        fontSize: 11, color: "#c8b89a", lineHeight: 1.5,
+                                        boxShadow: "0 4px 12px rgba(0,0,0,0.9)",
+                                        zIndex: 50,
+                                    }}>
+                                        <div style={{ color: s[2], fontWeight: "bold", marginBottom: 2, fontSize: 10 }}>{meta.label.toUpperCase()}</div>
+                                        {meta.desc}
+                                        <div style={{ marginTop: 3, color: "#8a7a64", fontSize: 9 }}>Level {value} · Next: {cost}pt</div>
+                                    </div>
+                                )}
                             </W.Box>
                         );
                     })}
-                    {(props.statPoints || 0) > 0 && (
-                        <W.Label size="xs" color="gold" align="center" spacing="tight" bold style={{ marginTop: 2 }}>+{props.statPoints} PTS</W.Label>
-                    )}
                 </W.Box>
             )}
+            <W.Divider />
+            {/* Forge Upgrades */}
+            <W.Label size="xl" color="gold" spacing="tight" bold font="heading" align="center" style={{ marginBottom: 2 }}>FORGE UPGRADES</W.Label>
+            {props.upgrades && [["anvil", "Anvil"], ["hammer", "Hammer"], ["forge", "Forge"], ["quench", "Quench"], ["furnace", "Furnace"]].map(function(pair) {
+                var key = pair[0], label = pair[1];
+                var lvl = (props.upgrades[key] || 0);
+                var upgradeData = GameConstants.UPGRADES[key][lvl];
+                var upgradeColor = GameConstants.UPGRADE_COLORS[lvl] || "#a0a0a0";
+                return (
+                    <W.Strip key={key} justify="space-between" gap="xs" style={{ minHeight: 22 }}>
+                        <W.Label size="lg" color="textLabel" spacing="tight" bold font="heading">{label.toUpperCase()}</W.Label>
+                        <W.Label size="lg" color={upgradeColor} bold style={{ textAlign: "right" }}>{upgradeData ? upgradeData.name : "—"}</W.Label>
+                    </W.Strip>
+                );
+            })}
         </W.Box>
     );
 
@@ -1085,13 +1255,41 @@ function MobileLayout(props) {
         <div style={{
             position: "absolute",
             top: "6%",
-            left: isLeftHanded ? "auto" : "6%",
-            right: isLeftHanded ? "6%" : "auto",
+            left: isLeftHanded ? "auto" : "2%",
+            right: isLeftHanded ? "2%" : "auto",
             zIndex: T.z.ui + 1,
             width: 78,
             height: 78,
         }}>
             <DecreeBtn quest={Object.assign({}, props.royalQuest, { _currentDay: props.day || 1 })} questNum={props.questNum} />
+        </div>
+    ) : null;
+
+    // --- Rep float — always visible, above decree area ---
+    var repFloat = (
+        <RepFloat reputation={props.reputation} isLeftHanded={isLeftHanded} />
+    );
+
+    // --- Notification badge — appears next to decree when stat points available ---
+    var notifyBadge = !isForging && !isQTEActive && (props.statPoints || 0) > 0 ? (
+        <div onClick={function() { setDrawerOpen(true); }} style={{
+            position: "absolute",
+            top: props.royalQuest ? "20%" : "6%",
+            left: isLeftHanded ? "auto" : "2%",
+            right: isLeftHanded ? "2%" : "auto",
+            zIndex: T.z.ui + 2,
+            width: 28,
+            height: 28,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#2a1f0a",
+            border: "2px solid #4ade80",
+            borderRadius: "50%",
+            cursor: "pointer",
+            boxShadow: "0 0 8px rgba(74, 222, 128, 0.4)",
+        }}>
+            <span style={{ color: "#4ade80", fontSize: 16, fontWeight: "bold", lineHeight: 1 }}>!</span>
         </div>
     ) : null;
 
@@ -1140,6 +1338,8 @@ function MobileLayout(props) {
             <div className="mobile-middle" style={{ flexDirection: middleDirection }}>
                 {center}
                 {decreeFloat}
+                {repFloat}
+                {notifyBadge}
                 {/* Daily Event bar — tap/hold for description tooltip */}
                 {props.mEvent && (
                     <EventBanner mEvent={props.mEvent} />
