@@ -9,6 +9,10 @@
 // Inner div = spritesheet window (never touched by animations)
 // PoofFX = absolute inside container, not affected by fairy scale
 // Shuffle-deck loop: plays all 6 actions, reshuffles, repeats.
+//
+// TAP INTERACTION: During center poofs, fairy is tappable.
+// Taps escalate irritation (5 tiers), trigger dodges at higher
+// tiers, and culminate in a nuclear exit at max. Spam-guarded.
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -17,7 +21,7 @@ import { createPortal } from "react-dom";
 var PUB = process.env.PUBLIC_URL || "";
 var FAIRY_POP_SRC = PUB + "/audio/sFairyPop.mp3";
 var FAIRY_POP_VOL = 0.35;
-var FAIRY_POP_RATE_MIN = 0.55;   // pitch range — biased low (deeper)
+var FAIRY_POP_RATE_MIN = 0.55;
 var FAIRY_POP_RATE_MAX = 1.05;
 
 // ============================================================
@@ -29,7 +33,7 @@ var SPRITE_CFG = {
     frameW:   380,
     frameH:   380,
     fps:      1.0,
-    sizePct:  12,         // base display width as % of container
+    sizePct:  12,
 };
 
 // ============================================================
@@ -40,13 +44,14 @@ var PEEK_SLIDE_IN_MS = 1200;
 var PEEK_HOLD_MS = 2500;
 var PEEK_SLIDE_OUT_MS = 1000;
 
-// How far she peeks in from the edge (%)
-var PEEK_INSET_TB = 7;   // top/bottom peek depth (%)
-var PEEK_INSET_LR = 16;  // left/right peek depth (%)
-// How far past the edge for off-screen start (%)
+var PEEK_INSET_TB = 7;
+var PEEK_INSET_LR = 16;
 var PEEK_MARGIN = 30;
 
-// Sprite size at peek scale as % of container
+// Peek position variance — randomizes along the edge
+var PEEK_VARIANCE_TB = 15;   // top/bottom: horizontal offset range (+/- %)
+var PEEK_VARIANCE_LR = 12;   // left/right: vertical offset range (+/- %)
+
 var PEEK_SPRITE_PCT = SPRITE_CFG.sizePct * PEEK_SCALE;
 var PEEK_HALF = PEEK_SPRITE_PCT / 2;
 
@@ -96,23 +101,126 @@ var BETWEEN_DELAY_MIN = 1500;
 var BETWEEN_DELAY_MAX = 4000;
 
 // ============================================================
+// Speech Bubble Config
+// ============================================================
+var BUBBLE_SHOW_DELAY = 600;
+var BUBBLE_HIDE_BEFORE = 800;
+var BUBBLE_OFFSET_Y = -8;
+
+// ============================================================
+// Tap Interaction Config
+// ============================================================
+var TAP_COOLDOWN_MS = 1200;      // min ms between accepted taps
+var TAP_HOLD_MS = 5000;          // how long she stays after a tap
+var DODGE_PAUSE_MS = 300;        // gap between vanish and reappear
+var MIN_READ_MS = 2500;          // minimum time speech stays up
+var MS_PER_CHAR = 80;            // extra read time per character
+
+// Dodge positions — avoid center, spread around screen
+var DODGE_SPOTS = [
+    { x: 20, y: 25 }, { x: 80, y: 25 },
+    { x: 15, y: 70 }, { x: 85, y: 70 },
+    { x: 25, y: 80 }, { x: 75, y: 20 },
+    { x: 15, y: 40 }, { x: 85, y: 60 },
+];
+
+// Scale options for dodge — tier 3+ can go tiny
+var DODGE_SCALES_NORMAL = [0.8, 1.0, 1.0, 0.9];
+var DODGE_SCALES_TINY = [0.35, 0.4, 0.45];
+
+// ============================================================
+// Fairy Quips — ambient poof commentary
+// ============================================================
+var FAIRY_QUIPS = [
+    "you call that a sword?",
+    "i've seen better steel in a spoon",
+    "the anvil deserves an apology",
+    "...is it supposed to bend like that",
+    "i'm not mad. just disappointed.",
+    "that customer is lying to you btw",
+    "do you even know what quenching means",
+    "i used to work with real blacksmiths",
+    "this is fine. everything is fine.",
+    "the forge god weeps",
+    "hey. hey. look at me. do better.",
+    "i could fix that but i choose not to",
+    "you're being watched. by me. right now.",
+    "plot twist: the anvil was the hero all along",
+    "are you speedrunning failure",
+    "bold strategy. let's see if it pays off.",
+    "i'm going to pretend i didn't see that",
+    "your grandma could hammer better. mine could too.",
+    "wait... do you actually not have a plan",
+    "i can never turn left because im always right",
+    "when chuck norris gets grounded his parents arent allowed to leave his room",
+    "when chuck norris cooks, he makes the onion cry",
+    "chuck norris counted to infinity twice",
+    "florpna gleek shunta mivvel ek",
+    "weh briska tohn fleemu gratzig nok",
+    "skibba rontu fehh plunka dvessa rii",
+    "gahtu mep skweela bornf tchikka luu",
+];
+
+// ============================================================
+// Irritation Lines — 5 tiers x 5 lines
+// Tier 0: amused  |  1: annoyed  |  2: angry (dodges)
+// 3: furious (dodges, sometimes tiny)  |  4: nuclear (leaves)
+// ============================================================
+var IRRITATION_LINES = [
+    [
+        "hey! personal space!",
+        "rude.",
+        "do you poke everyone you meet",
+        "that tickled. don't do it again.",
+        "i was trying to look mysterious",
+    ],
+    [
+        "okay seriously stop that",
+        "i will remember this",
+        "you're testing divine patience here",
+        "my hair is NOT a toy",
+        "i have a laser. don't test me.",
+    ],
+    [
+        "TOO SLOW",
+        "over here, genius",
+        "you'll never catch me",
+        "i am LITERALLY a god",
+        "pathetic mortal reflexes",
+    ],
+    [
+        "can't catch me at ANY size",
+        "down here, dummy",
+        "getting tired yet?",
+        "i could do this forever. can you?",
+        "this is beneath me. and yet.",
+    ],
+    [
+        "ENOUGH. i'm leaving.",
+        "you've lost fairy privileges.",
+        "i hope your next sword shatters.",
+        "the forge god has LEFT.",
+        "don't come crying when you need help.",
+    ],
+];
+
+// ============================================================
 // Fairy Dust Poof FX — 3-layer: core flash + spark ring + dust motes
 // ============================================================
-var POOF_FX_SIZE_VW = 18;        // base size in vw
+var POOF_FX_SIZE_VW = 18;
 var POOF_FX_DURATION_MS = 1400;
 
-// Spark mote positions — 8 points around a circle, randomised per mount
 function makeSparkOffsets() {
     var count = 8;
     var arr = [];
     for (var i = 0; i < count; i++) {
         var angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-        var dist = 3.5 + Math.random() * 3;   // vw from center
+        var dist = 3.5 + Math.random() * 3;
         arr.push({
             x: Math.cos(angle) * dist,
             y: Math.sin(angle) * dist,
-            size: 0.4 + Math.random() * 0.6,  // vw
-            delay: Math.random() * 120,        // ms stagger
+            size: 0.4 + Math.random() * 0.6,
+            delay: Math.random() * 120,
         });
     }
     return arr;
@@ -123,9 +231,7 @@ function PoofFX(props) {
     var sparksRef = useRef(makeSparkOffsets());
 
     useEffect(function() {
-        // flash → burst (core expands, sparks fly out)
         var t1 = setTimeout(function() { setPhase("burst"); }, 60);
-        // burst → fade (everything dissolves)
         var t2 = setTimeout(function() { setPhase("fade"); }, 400);
         return function() { clearTimeout(t1); clearTimeout(t2); };
     }, []);
@@ -134,7 +240,6 @@ function PoofFX(props) {
     var isFade = phase === "fade";
     var sparks = sparksRef.current;
 
-    // --- Layer 1: Core flash — bright opaque blob that hides the sprite ---
     var coreScale = isFlash ? 0.3 : (isFade ? 1.6 : 1.0);
     var coreOpacity = isFade ? 0 : 1;
     var coreStyle = {
@@ -155,7 +260,6 @@ function PoofFX(props) {
         zIndex: 3,
     };
 
-    // --- Layer 2: Spark ring — small bright dots that fly outward ---
     var sparkElements = sparks.map(function(s, i) {
         var sx = isFade ? s.x * 1.8 : (isFlash ? 0 : s.x);
         var sy = isFade ? s.y * 1.8 : (isFlash ? 0 : s.y);
@@ -182,7 +286,6 @@ function PoofFX(props) {
         );
     });
 
-    // --- Layer 3: Soft outer glow ring that expands ---
     var ringScale = isFlash ? 0.4 : (isFade ? 2.0 : 1.2);
     var ringOpacity = isFade ? 0 : (isFlash ? 0.3 : 0.6);
     var ringStyle = {
@@ -216,13 +319,100 @@ function PoofFX(props) {
 }
 
 // ============================================================
-// Pop Sound — with random pitch (biased lower/deeper)
+// Speech Bubble — pixel-art cartoon style
+// ============================================================
+var BUBBLE_ANIM_IN_MS = 200;
+var BUBBLE_ANIM_OUT_MS = 150;
+
+function SpeechBubble(props) {
+    var [show, setShow] = useState(false);
+    var [displaying, setDisplaying] = useState(false);
+
+    useEffect(function() {
+        if (props.visible) {
+            setDisplaying(true);
+            var t = setTimeout(function() { setShow(true); }, 30);
+            return function() { clearTimeout(t); };
+        } else {
+            setShow(false);
+            var t2 = setTimeout(function() { setDisplaying(false); }, BUBBLE_ANIM_OUT_MS);
+            return function() { clearTimeout(t2); };
+        }
+    }, [props.visible]);
+
+    if (!displaying || !props.text) return null;
+
+    // Scale-compensated offset — bubble stays near her head at any size
+    var fairyScale = props.scale || 1;
+    var offsetY = BUBBLE_OFFSET_Y * fairyScale;
+
+    return (
+        <div style={{
+            position: "absolute",
+            left: props.x + "%",
+            top: "calc(" + props.y + "% + " + offsetY + "vw)",
+            transform: "translate(-50%, -100%) scale(" + (show ? 1 : 0) + ")",
+            transformOrigin: "bottom center",
+            transition: show
+                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1)"
+                : "transform " + BUBBLE_ANIM_OUT_MS + "ms ease-in",
+            pointerEvents: "none",
+            zIndex: 5,
+        }}>
+            <div style={{
+                background: "#1a1220",
+                border: "3px solid #c89aff",
+                borderRadius: 8,
+                padding: "6px 12px",
+                maxWidth: "42vw",
+                boxShadow: "0 0 12px 2px rgba(160, 80, 240, 0.25), inset 0 0 8px rgba(180, 120, 255, 0.1)",
+                position: "relative",
+            }}>
+                <div style={{
+                    fontFamily: "monospace",
+                    fontSize: "clamp(10px, 1.8vw, 14px)",
+                    color: "#e8d5ff",
+                    lineHeight: 1.3,
+                    textAlign: "center",
+                    letterSpacing: 0.5,
+                    textShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                    whiteSpace: "nowrap",
+                    imageRendering: "pixelated",
+                }}>
+                    {props.text}
+                </div>
+            </div>
+            <div style={{
+                position: "absolute",
+                left: "50%",
+                bottom: -9,
+                transform: "translateX(-50%)",
+                width: 0, height: 0,
+                borderLeft: "8px solid transparent",
+                borderRight: "8px solid transparent",
+                borderTop: "10px solid #c89aff",
+            }} />
+            <div style={{
+                position: "absolute",
+                left: "50%",
+                bottom: -5,
+                transform: "translateX(-50%)",
+                width: 0, height: 0,
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderTop: "8px solid #1a1220",
+            }} />
+        </div>
+    );
+}
+
+// ============================================================
+// Pop Sound
 // ============================================================
 function playPop() {
     try {
         var audio = new Audio(FAIRY_POP_SRC);
         audio.volume = FAIRY_POP_VOL;
-        // Random playbackRate biased toward lower pitch
         var range = FAIRY_POP_RATE_MAX - FAIRY_POP_RATE_MIN;
         audio.playbackRate = FAIRY_POP_RATE_MIN + Math.random() * range;
         var promise = audio.play();
@@ -236,11 +426,28 @@ function playPop() {
     }
 }
 
+// Lighter pop for tap feedback — same sound, lower volume, higher pitch
+function playTapPop() {
+    try {
+        var audio = new Audio(FAIRY_POP_SRC);
+        audio.volume = 0.20;
+        audio.playbackRate = 1.3 + Math.random() * 0.4;
+        var promise = audio.play();
+        if (promise && promise.catch) {
+            promise.catch(function() {});
+        }
+    } catch (e) {}
+}
+
 // ============================================================
 // Helpers
 // ============================================================
 function randInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randFloat(min, max) {
+    return min + Math.random() * (max - min);
 }
 
 function shuffle(arr) {
@@ -254,6 +461,32 @@ function shuffle(arr) {
     return a;
 }
 
+function pickRandom(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function readTimeMs(text) {
+    if (!text) return MIN_READ_MS;
+    return Math.max(MIN_READ_MS, text.length * MS_PER_CHAR + 1000);
+}
+
+// Pick a dodge spot far from current position
+function pickDodgeSpot(currentX, currentY) {
+    var best = DODGE_SPOTS[0];
+    var bestDist = 0;
+    for (var i = 0; i < 3; i++) {
+        var spot = pickRandom(DODGE_SPOTS);
+        var dx = spot.x - currentX;
+        var dy = spot.y - currentY;
+        var dist = dx * dx + dy * dy;
+        if (dist > bestDist) {
+            bestDist = dist;
+            best = spot;
+        }
+    }
+    return best;
+}
+
 // ============================================================
 // Component
 // ============================================================
@@ -262,10 +495,26 @@ function FairyAnim() {
     var [frame, setFrame] = useState(0);
     var [pos, setPos] = useState(null);
     var [poofAt, setPoofAt] = useState(null);
+    var [speechText, setSpeechText] = useState(null);
+    var [tappable, setTappable] = useState(false);
+
+    // Deck refs (action + quip shufflers)
     var deckRef = useRef([]);
     var deckIndexRef = useRef(0);
-    var timeoutsRef = useRef([]);
+    var quipDeckRef = useRef([]);
+    var quipIndexRef = useRef(0);
+
+    // Timeout tracking
+    var timeoutsRef = useRef([]);        // all timeouts (unmount cleanup)
+    var exitTimeoutsRef = useRef([]);    // cancellable exit group
+
     var mountedRef = useRef(true);
+
+    // Tap interaction state (refs to avoid re-render churn)
+    var irritationRef = useRef(0);       // 0-4 tier
+    var lastTapRef = useRef(0);          // timestamp for cooldown
+    var ignoreTapsRef = useRef(false);   // true at max irritation
+    var onDoneRef = useRef(null);        // stored callback for rescheduling
 
     // --- Safe timeout that auto-cleans on unmount ---
     var schedule = useCallback(function(fn, ms) {
@@ -275,6 +524,18 @@ function FairyAnim() {
         timeoutsRef.current.push(id);
         return id;
     }, []);
+
+    // --- Exit-specific scheduling (cancellable on tap) ---
+    function scheduleExit(fn, ms) {
+        var id = schedule(fn, ms);
+        exitTimeoutsRef.current.push(id);
+        return id;
+    }
+
+    function clearExitTimeouts() {
+        exitTimeoutsRef.current.forEach(function(id) { clearTimeout(id); });
+        exitTimeoutsRef.current = [];
+    }
 
     // --- Spritesheet tick (always runs) ---
     useEffect(function() {
@@ -286,7 +547,7 @@ function FairyAnim() {
         return function() { clearInterval(id); };
     }, []);
 
-    // --- Get next action from shuffled deck ---
+    // --- Shuffled deck pickers ---
     function nextAction() {
         if (deckRef.current.length === 0 || deckIndexRef.current >= deckRef.current.length) {
             deckRef.current = shuffle(EDGE_PEEKS.concat(CENTER_POOFS));
@@ -297,16 +558,193 @@ function FairyAnim() {
         return action;
     }
 
-    // --- Run an edge peek action ---
+    function nextQuip() {
+        if (quipDeckRef.current.length === 0 || quipIndexRef.current >= quipDeckRef.current.length) {
+            quipDeckRef.current = shuffle(FAIRY_QUIPS);
+            quipIndexRef.current = 0;
+        }
+        var quip = quipDeckRef.current[quipIndexRef.current];
+        quipIndexRef.current++;
+        return quip;
+    }
+
+    // ============================================================
+    // EXIT SEQUENCE — reusable, called from poof + tap handler
+    // ============================================================
+    function beginExit(x, y, scale, onDone) {
+        setTappable(false);
+
+        scheduleExit(function() {
+            setSpeechText(null);
+        }, 0);
+
+        scheduleExit(function() {
+            setPoofAt({ x: x, y: y });
+            playPop();
+        }, 200);
+
+        scheduleExit(function() {
+            setPos({ x: x, y: y, scale: POOF_SCALE_START, rot: 0, transition: POOF_SNAP_OUT_MS });
+        }, 200 + POOF_FX_LEAD_MS);
+
+        scheduleExit(function() {
+            setPoofAt(null);
+            setPos(null);
+            setSpeechText(null);
+            setTappable(false);
+            if (onDone) onDone();
+        }, 200 + POOF_FX_LEAD_MS + POOF_SNAP_OUT_MS + 150);
+    }
+
+    // ============================================================
+    // DODGE — vanish + reappear at new position with scale variance
+    // ============================================================
+    function doDodge(currentX, currentY, tier, onDone) {
+        var spot = pickDodgeSpot(currentX, currentY);
+        var isTiny = tier >= 3 && Math.random() < 0.4;
+        var newScale = isTiny
+            ? pickRandom(DODGE_SCALES_TINY)
+            : pickRandom(DODGE_SCALES_NORMAL);
+
+        setTappable(false);
+        setSpeechText(null);
+
+        // Vanish from current spot
+        setPoofAt({ x: currentX, y: currentY });
+        playPop();
+        setPos(null);
+
+        // Reappear at new spot after pause
+        schedule(function() {
+            setPoofAt({ x: spot.x, y: spot.y });
+            playPop();
+
+            schedule(function() {
+                setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_START * newScale, rot: 0, transition: 0 });
+                schedule(function() {
+                    setPos({ x: spot.x, y: spot.y, scale: newScale, rot: 0, transition: POOF_SNAP_IN_MS });
+                }, 50);
+            }, POOF_FX_LEAD_MS);
+
+            // Clear FX, show taunt, re-enable taps
+            schedule(function() {
+                setPoofAt(null);
+                setTappable(true);
+
+                var line = isTiny
+                    ? pickRandom(IRRITATION_LINES[3])
+                    : pickRandom(IRRITATION_LINES[tier]);
+                setSpeechText(line);
+
+                var readMs = readTimeMs(line);
+
+                // Hide text after reading, then schedule exit
+                scheduleExit(function() {
+                    setSpeechText(null);
+                }, readMs);
+
+                scheduleExit(function() {
+                    beginExit(spot.x, spot.y, newScale, onDone);
+                }, readMs + TAP_HOLD_MS);
+
+            }, POOF_FX_LEAD_MS + POOF_SNAP_IN_MS + 200);
+
+        }, DODGE_PAUSE_MS);
+    }
+
+    // ============================================================
+    // TAP HANDLER
+    // ============================================================
+    function handleFairyTap() {
+        var now = Date.now();
+        if (now - lastTapRef.current < TAP_COOLDOWN_MS) return;
+        if (ignoreTapsRef.current) return;
+        if (!tappable) return;
+
+        lastTapRef.current = now;
+        playTapPop();
+
+        var tier = irritationRef.current;
+        var currentPos = pos;
+        if (!currentPos) return;
+
+        var cx = currentPos.x;
+        var cy = currentPos.y;
+        var currentScale = currentPos.scale || POOF_SCALE_END;
+        var onDone = onDoneRef.current;
+
+        // Cancel any pending exit
+        clearExitTimeouts();
+        setSpeechText(null);
+
+        // --- Tier 4: Nuclear — final words, ignore taps, leave ---
+        if (tier >= 4) {
+            ignoreTapsRef.current = true;
+            setTappable(false);
+            var nuclearLine = pickRandom(IRRITATION_LINES[4]);
+            setSpeechText(nuclearLine);
+            var nuclearReadMs = readTimeMs(nuclearLine);
+
+            scheduleExit(function() {
+                beginExit(cx, cy, currentScale, function() {
+                    irritationRef.current = 0;
+                    ignoreTapsRef.current = false;
+                    if (onDone) onDone();
+                });
+            }, nuclearReadMs);
+            return;
+        }
+
+        // --- Tier 2-3: Dodge to new position ---
+        if (tier >= 2) {
+            irritationRef.current = Math.min(tier + 1, 4);
+            doDodge(cx, cy, tier, onDone);
+            return;
+        }
+
+        // --- Tier 0-1: Stay in place, show reaction ---
+        var reactionLine = pickRandom(IRRITATION_LINES[tier]);
+        setSpeechText(reactionLine);
+        var reactionReadMs = readTimeMs(reactionLine);
+
+        irritationRef.current = Math.min(tier + 1, 4);
+
+        scheduleExit(function() {
+            setSpeechText(null);
+        }, reactionReadMs);
+
+        scheduleExit(function() {
+            beginExit(cx, cy, currentScale, onDone);
+        }, reactionReadMs + TAP_HOLD_MS);
+    }
+
+    // ============================================================
+    // RUN PEEK — with position variance
+    // ============================================================
     function runPeek(edge, onDone) {
-        setPos({ x: edge.offX, y: edge.offY, scale: PEEK_SCALE, rot: edge.rot, transition: 0 });
+        var varPeekX = edge.peekX;
+        var varPeekY = edge.peekY;
+        var varOffX = edge.offX;
+        var varOffY = edge.offY;
+
+        if (edge.name === "top" || edge.name === "bottom") {
+            var offsetH = randFloat(-PEEK_VARIANCE_TB, PEEK_VARIANCE_TB);
+            varPeekX = edge.peekX + offsetH;
+            varOffX = edge.offX + offsetH;
+        } else {
+            var offsetV = randFloat(-PEEK_VARIANCE_LR, PEEK_VARIANCE_LR);
+            varPeekY = edge.peekY + offsetV;
+            varOffY = edge.offY + offsetV;
+        }
+
+        setPos({ x: varOffX, y: varOffY, scale: PEEK_SCALE, rot: edge.rot, transition: 0 });
 
         schedule(function() {
-            setPos({ x: edge.peekX, y: edge.peekY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_IN_MS });
+            setPos({ x: varPeekX, y: varPeekY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_IN_MS });
         }, 50);
 
         schedule(function() {
-            setPos({ x: edge.offX, y: edge.offY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_OUT_MS });
+            setPos({ x: varOffX, y: varOffY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_OUT_MS });
         }, 50 + PEEK_SLIDE_IN_MS + PEEK_HOLD_MS);
 
         schedule(function() {
@@ -315,9 +753,15 @@ function FairyAnim() {
         }, 50 + PEEK_SLIDE_IN_MS + PEEK_HOLD_MS + PEEK_SLIDE_OUT_MS);
     }
 
-    // --- Run a center poof action ---
+    // ============================================================
+    // RUN POOF — with interruptible exit
+    // ============================================================
     function runPoof(spot, onDone) {
         var holdMs = randInt(POOF_HOLD_MS_MIN, POOF_HOLD_MS_MAX);
+        var quip = nextQuip();
+
+        // Store onDone so tap handler can reschedule
+        onDoneRef.current = onDone;
 
         // T+0: FX fires, sound plays
         setPoofAt({ x: spot.x, y: spot.y });
@@ -336,23 +780,23 @@ function FairyAnim() {
             setPoofAt(null);
         }, POOF_FX_LEAD_MS + POOF_SNAP_IN_MS + 150);
 
-        // Exit sequence
+        // Show quip + enable taps after fully in
+        var idleStart = POOF_FX_LEAD_MS + POOF_SNAP_IN_MS + BUBBLE_SHOW_DELAY;
+        schedule(function() {
+            setSpeechText(quip);
+            setTappable(true);
+        }, idleStart);
+
+        // === EXIT GROUP (cancellable on tap) ===
         var exitStart = POOF_FX_LEAD_MS + POOF_SNAP_IN_MS + holdMs;
 
-        schedule(function() {
-            setPoofAt({ x: spot.x, y: spot.y });
-            playPop();
+        scheduleExit(function() {
+            setSpeechText(null);
+        }, exitStart - BUBBLE_HIDE_BEFORE);
+
+        scheduleExit(function() {
+            beginExit(spot.x, spot.y, POOF_SCALE_END, onDone);
         }, exitStart);
-
-        schedule(function() {
-            setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_START, rot: 0, transition: POOF_SNAP_OUT_MS });
-        }, exitStart + POOF_FX_LEAD_MS);
-
-        schedule(function() {
-            setPoofAt(null);
-            setPos(null);
-            if (onDone) onDone();
-        }, exitStart + POOF_FX_LEAD_MS + POOF_SNAP_OUT_MS + 150);
     }
 
     // --- Run next action from deck ---
@@ -379,10 +823,11 @@ function FairyAnim() {
             mountedRef.current = false;
             timeoutsRef.current.forEach(function(id) { clearTimeout(id); });
             timeoutsRef.current = [];
+            exitTimeoutsRef.current = [];
         };
     }, []);
 
-    // --- Sprite sizing (% of container) ---
+    // --- Sprite sizing ---
     var spriteW = SPRITE_CFG.sizePct + "vw";
 
     // --- Don't render when nothing is active ---
@@ -392,7 +837,6 @@ function FairyAnim() {
 
     var transMs = showFairy ? (pos.transition || 0) : 0;
 
-    // --- Full-screen container — all children positioned as % of this ---
     return createPortal(
         <div style={{
             position: "fixed",
@@ -404,17 +848,20 @@ function FairyAnim() {
             {showFX && <PoofFX x={poofAt.x} y={poofAt.y} />}
 
             {showFairy && (
-                <div style={{
-                    position: "absolute",
-                    left: pos.x + "%",
-                    top: pos.y + "%",
-                    transform: "translate(-50%, -50%) scale(" + pos.scale + ") rotate(" + pos.rot + "deg)",
-                    transition: transMs > 0
-                        ? "left " + transMs + "ms ease-in-out, top " + transMs + "ms ease-in-out, transform " + transMs + "ms ease-in-out"
-                        : "none",
-                    pointerEvents: "none",
-                    zIndex: 1,
-                }}>
+                <div
+                    onClick={tappable ? handleFairyTap : undefined}
+                    style={{
+                        position: "absolute",
+                        left: pos.x + "%",
+                        top: pos.y + "%",
+                        transform: "translate(-50%, -50%) scale(" + pos.scale + ") rotate(" + pos.rot + "deg)",
+                        transition: transMs > 0
+                            ? "left " + transMs + "ms ease-in-out, top " + transMs + "ms ease-in-out, transform " + transMs + "ms ease-in-out"
+                            : "none",
+                        pointerEvents: tappable ? "auto" : "none",
+                        cursor: tappable ? "pointer" : "default",
+                        zIndex: 1,
+                    }}>
                     <div style={{
                         width: spriteW,
                         aspectRatio: SPRITE_CFG.frameW + "/" + SPRITE_CFG.frameH,
@@ -425,6 +872,10 @@ function FairyAnim() {
                         imageRendering: "pixelated",
                     }} />
                 </div>
+            )}
+
+            {showFairy && pos && (
+                <SpeechBubble x={pos.x} y={pos.y} text={speechText} visible={speechText !== null} scale={pos.scale} />
             )}
         </div>,
         document.body
