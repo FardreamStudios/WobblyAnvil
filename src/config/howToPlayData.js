@@ -39,13 +39,13 @@ var HOW_TO_PLAY_SECTIONS = [
         cards: [
             {
                 title: "Your Workshop",
-                icon: "\u2692\uFE0F",
+                icon: null,
                 lines: [
                     "You are the Royal Blacksmith. Your job is to forge weapons and sell them.",
                     "Each weapon goes through three steps: Heat, Hammer, and Quench.",
                     "How well you do at each step decides the quality of the blade.",
                 ],
-                visual: null,
+                visual: { type: "image", src: "/images/icons/waIconHammer.png", width: 64, pixelated: true },
             },
         ],
     },
@@ -56,13 +56,13 @@ var HOW_TO_PLAY_SECTIONS = [
         cards: [
             {
                 title: "Heat the Metal",
-                icon: "\uD83C\uDF21\uFE0F",
+                icon: null,
                 lines: [
                     "A bar appears with a moving needle. Tap when the needle is in the sweet spot.",
                     "Hitting the center gives you more hammer strikes. Missing gives you fewer.",
                     "Better equipment slows the needle down, giving you more time.",
                 ],
-                visual: null, // Future: { type: "spritesheet", sheet: "/images/ui/heatBarDemo.png", ... }
+                visual: { type: "image", src: "/images/icons/waIconFire.png", width: 64, pixelated: true },
             },
         ],
     },
@@ -73,21 +73,21 @@ var HOW_TO_PLAY_SECTIONS = [
         cards: [
             {
                 title: "Shape the Blade",
-                icon: "\u2692\uFE0F",
+                icon: null,
                 lines: [
                     "Tap when the needle is near the center. Closer to center means better quality.",
                     "You get a few strikes — each one adds or removes quality depending on accuracy.",
                 ],
-                visual: null,
+                visual: { type: "image", src: "/images/icons/waIconHammer.png", width: 64, pixelated: true },
             },
             {
                 title: "Stress & Sessions",
-                icon: "\uD83D\uDCA2",
+                icon: null,
                 lines: [
                     "Each hammering session adds stress to the weapon. Too much stress and it can shatter.",
                     "Use Normalize to ease the stress and keep forging safely. Or quench early with what you have.",
                 ],
-                visual: null,
+                visual: { type: "image", src: "/images/icons/waIconFire.png", width: 64, pixelated: true },
             },
         ],
     },
@@ -98,12 +98,12 @@ var HOW_TO_PLAY_SECTIONS = [
         cards: [
             {
                 title: "Finish the Weapon",
-                icon: "\u2744\uFE0F",
+                icon: null,
                 lines: [
                     "The final step. Tap when the needle hits the sweet spot to lock in quality.",
                     "A good quench adds a bonus. A bad one loses quality. Miss completely and the weapon is destroyed.",
                 ],
-                visual: null,
+                visual: { type: "image", src: "/images/icons/waIconSword1.png", width: 64, pixelated: true },
             },
         ],
     },
@@ -114,21 +114,21 @@ var HOW_TO_PLAY_SECTIONS = [
         cards: [
             {
                 title: "Selling Your Work",
-                icon: "\uD83D\uDCB0",
+                icon: null,
                 lines: [
                     "Customers visit your shop daily — adventurers, knights, nobles.",
                     "They make an offer based on the weapon's quality. You can haggle for more or accept.",
                 ],
-                visual: null,
+                visual: { type: "image", src: "/images/icons/waIconShop.png", width: 64, pixelated: true },
             },
             {
                 title: "Royal Decrees",
-                icon: "\uD83D\uDC51",
+                icon: null,
                 lines: [
                     "The crown may send orders for specific weapons. These pay well but have deadlines.",
                     "Missing a decree costs your reputation. Lose all your reputation and it's game over.",
                 ],
-                visual: null,
+                visual: { type: "image", src: "/images/icons/waIconCrown.png", width: 64, pixelated: true },
             },
         ],
     },
@@ -139,12 +139,12 @@ var HOW_TO_PLAY_SECTIONS = [
         cards: [
             {
                 title: "Materials & Upgrades",
-                icon: "\uD83D\uDCE6",
+                icon: null,
                 lines: [
                     "Open the Market to buy materials and unlock new weapon blueprints.",
                     "Upgrade your forge, anvil, hammer, and quench tank to improve your forging.",
                 ],
-                visual: null,
+                visual: { type: "image", src: "/images/icons/waIconBag.png", width: 64, pixelated: true },
             },
         ],
     },
@@ -155,13 +155,13 @@ var HOW_TO_PLAY_SECTIONS = [
         cards: [
             {
                 title: "Time & Stamina",
-                icon: "\u23F0",
+                icon: null,
                 lines: [
                     "Every action costs time — forging, resting, promoting. The day ends when you sleep.",
                     "Stamina limits how many forge sessions you can do. Rest to recover, or sleep to start fresh.",
                     "Once midnight passes, you can only sleep. Plan ahead.",
                 ],
-                visual: null,
+                visual: { type: "image", src: "/images/icons/waIconHourglass.png", width: 64, pixelated: true },
             },
         ],
     },

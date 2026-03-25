@@ -318,6 +318,7 @@ function HowToPlay(props) {
                         fontWeight: "bold",
                         letterSpacing: THEME.letterSpacing.wide,
                         textTransform: "uppercase",
+                        fontFamily: THEME.fonts.heading,
                     }}>How to Play</div>
                     <button
                         onClick={function () { if (sfx) sfx.click(); onClose(); }}
@@ -344,7 +345,7 @@ function HowToPlay(props) {
                 />
 
                 {/* Divider */}
-                <div style={{ borderTop: THEME.borders.thinMid, flexShrink: 0 }} />
+                <div style={{ borderTop: THEME.borders.thinMid, flexShrink: 0, marginBottom: THEME.spacing.xs }} />
 
                 {/* Content Area — fixed, no scroll, click to advance */}
                 <div
@@ -374,27 +375,28 @@ function HowToPlay(props) {
                         )}
                     </div>
 
-                    {/* Right — title + lines */}
+                    {/* Right — title anchored top, lines below */}
                     <div style={{
                         flex: 1,
                         display: "flex",
                         flexDirection: "column",
-                        justifyContent: "center",
+                        justifyContent: "flex-start",
                         overflow: "hidden",
-                        gap: THEME.spacing.md,
                     }}>
-                        {/* Card title */}
+                        {/* Card title — anchored, same position for every card */}
                         <div style={{
                             display: "flex",
                             alignItems: "center",
                             gap: THEME.spacing.sm,
                             flexShrink: 0,
+                            marginBottom: THEME.spacing.lg,
                         }}>
                             <span style={{
                                 fontSize: THEME.fontSize.xl,
                                 color: THEME.colors.gold,
                                 fontWeight: "bold",
                                 letterSpacing: THEME.letterSpacing.wide,
+                                fontFamily: THEME.fonts.heading,
                             }}>{card.title}</span>
                             {cardProgress && (
                                 <span style={{
