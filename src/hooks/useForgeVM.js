@@ -24,6 +24,8 @@ var PHASES = GameConstants.PHASES;
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
 var HEAT_TIERS = GameConstants.HEAT_TIERS;
+var HAMMER_TIERS = GameConstants.HAMMER_TIERS;
+var QUENCH_TIERS = GameConstants.QUENCH_TIERS;
 var BALANCE = GameConstants.BALANCE;
 var QTE_FLASH_MS = GameConstants.QTE_FLASH_MS;
 var STRESS_MAX = GameConstants.STRESS_MAX;
@@ -39,13 +41,18 @@ var getQualityTier = GameUtils.getQualityTier;
 var qualityValue = GameUtils.qualityValue;
 var calcSpeedMultiplier = GameUtils.calcSpeedMultiplier;
 var calcStrikeMultiplier = GameUtils.calcStrikeMultiplier;
-var calcHeatResult = GameUtils.calcHeatResult;
-var calcHammerResult = GameUtils.calcHammerResult;
+var calcQteResult = GameUtils.calcQteResult;
 var columnToPosition = GameUtils.columnToPosition;
 var positionToColumn = GameUtils.positionToColumn;
 var qualityGainMultiplier = GameUtils.qualityGainMultiplier;
 var randScrapToast = GameUtils.randScrapToast;
 var canAffordTime = GameUtils.canAffordTime;
+
+// --- Heat gameplay mapping (tier.id → bonus strikes) ---
+var HEAT_STRIKE_MAP = { perfect: 2, great: 1, good: 0, poor: 0, bad: 0 };
+
+// --- Hammer gameplay mapping (tier.id → quality points) ---
+var HAMMER_POINTS_MAP = { perfect: 12, great: 8, good: 5, poor: -3, bad: -5 };
 
 // ============================================================
 // Hook
@@ -116,9 +123,8 @@ function useForgeVM(deps) {
     var baseCost = isExhausted ? BALANCE.sessCostExhausted : BALANCE.sessCostNormal;
     var sessCost = Math.round(AbilityManager.resolveValue("forgeCostMult", 1.0) * baseCost);
     var maxStam = Math.max(1, AbilityManager.resolveValue("maxStamina", BASE_STAMINA + stats.brawn));
-    var baseZoneW = BALANCE.heatWinHi - BALANCE.heatWinLo;
-    var resolvedZoneW = AbilityManager.resolveValue("heatPerfectZone", baseZoneW);
-    var zoneMid = (BALANCE.heatWinLo + BALANCE.heatWinHi) / 2;var heatWinLo = Math.max(0, Math.round(zoneMid - resolvedZoneW / 2));var heatWinHi = Math.min(100, Math.round(zoneMid + resolvedZoneW / 2));
+    // heatPerfectZone modifier scales PERFECT + GREAT zone widths in HEAT_TIERS
+    var heatModifierScale = AbilityManager.resolveValue("heatPerfectZone", 1.0);
     var heatSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.forge, effDiff);
     var hammerSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.anvil, effDiff);
     var quenchSpeedMult = calcSpeedMultiplier(stats.precision + upgrades.quench, effDiff);
@@ -218,17 +224,18 @@ function useForgeVM(deps) {
     }
 
     function handleHeatFire(pos, isAuto) {
-        var tier = isAuto ? HEAT_TIERS[4] : calcHeatResult(pos, heatWinLo, heatWinHi);
+        var tier = calcQteResult(pos, HEAT_TIERS, isAuto ? undefined : heatModifierScale);
+        if (isAuto) tier = HEAT_TIERS.tiers[HEAT_TIERS.tiers.length - 1]; // auto-fire = worst tier
         if (!isAuto) GameplayEventBus.emit(EVENT_TAGS.FX_HEAT_RESULT, { quality: tier.id });
         setQteFlash(tier.label);
-        var bs = tier.bonusStrikes, strikeTotal = BALANCE.baseStrikes + bs;
-        showForgeBubbleFn("HEAT RESULT", [{ text: strikeTotal + " strikes", color: bs > 0 ? "#4ade80" : tier.id === "poor" ? "#f87171" : "#c8b89a", bold: true }], tier.color);
+        var bs = HEAT_STRIKE_MAP[tier.id] || 0, strikeTotal = BALANCE.baseStrikes + bs;
+        showForgeBubbleFn("HEAT RESULT", [{ text: strikeTotal + " strikes", color: bs > 0 ? "#4ade80" : tier.id === "poor" || tier.id === "bad" ? "#f87171" : "#c8b89a", bold: true }], tier.color);
         setTimeout(function() { qteLog("HEAT", "RESULT", "tier=" + tier.id + " flashMs=" + QTE_FLASH_MS); setQteFlash(null); qteProcessing.current = false; setBonusStrikes(bs); setStrikesLeft(strikeTotal); sessionStartQual.current = qualRef.current; ForgeMode.transitionTo(PHASES.HAMMER); setPhase(PHASES.HAMMER); }, QTE_FLASH_MS);
     }
 
     function handleHammerFire(pos) {
-        var tier = calcHammerResult(pos); GameplayEventBus.emit(EVENT_TAGS.FX_HAMMER_HIT, { quality: tier.sfxKey });
-        var rawPts = tier.points, actualDelta = rawPts < 0 ? rawPts : Math.round(rawPts * strikeMult * qualityGainMultiplier(qualRef.current) * AbilityManager.resolveValue("qualityGainRate", 1.0));
+        var tier = calcQteResult(pos, HAMMER_TIERS); GameplayEventBus.emit(EVENT_TAGS.FX_HAMMER_HIT, { quality: tier.id });
+        var rawPts = HAMMER_POINTS_MAP[tier.id] || 0, actualDelta = rawPts < 0 ? rawPts : Math.round(rawPts * strikeMult * qualityGainMultiplier(qualRef.current) * AbilityManager.resolveValue("qualityGainRate", 1.0));
         var newQ = clamp(qualRef.current + actualDelta, 0, 100); qualRef.current = newQ; setQualScore(newQ);
         var newL = strikesLeft - 1; setStrikesLeft(newL);
         setQteFlash(tier.label + " " + (actualDelta >= 0 ? "+" : "") + actualDelta);
@@ -297,20 +304,20 @@ function useForgeVM(deps) {
     }
 
     function handleQuenchFire(pos) {
-        var dist = Math.abs(columnToPosition(positionToColumn(pos)) - 50);
-        var perfect = dist <= GameConstants.QUENCH_WIN * BALANCE.quenchPerfect, good = !perfect && dist <= GameConstants.QUENCH_WIN * BALANCE.quenchGood, poor = !perfect && !good && dist <= GameConstants.QUENCH_WIN + BALANCE.quenchPoorExtra;
-        if (perfect || good || poor) GameplayEventBus.emit(EVENT_TAGS.FX_QUENCH_SUCCESS, {}); else GameplayEventBus.emit(EVENT_TAGS.FX_QUENCH_FAIL, {});
-        var flashLabel = perfect ? "PERFECT! +5" : good ? "SOLID \u2014 NO CHANGE" : poor ? "ROUGH \u2014 QUALITY LOSS" : "MISS - DESTROYED";
-        setQteFlash(flashLabel);
+        var tier = calcQteResult(pos, QUENCH_TIERS);
+        var isSuccess = tier.id === "perfect" || tier.id === "great" || tier.id === "good" || tier.id === "poor";
+        if (isSuccess) GameplayEventBus.emit(EVENT_TAGS.FX_QUENCH_SUCCESS, {}); else GameplayEventBus.emit(EVENT_TAGS.FX_QUENCH_FAIL, {});
+        setQteFlash(tier.label);
         setTimeout(function() {
-            qteLog("QUENCH", "RESULT", "label=" + flashLabel + " flashMs=" + QTE_FLASH_MS);
+            qteLog("QUENCH", "RESULT", "tier=" + tier.id + " flashMs=" + QTE_FLASH_MS);
             setQteFlash(null); qteProcessing.current = false;
-            if (perfect) { var nq = clamp(qualRef.current + 5, 0, 100); qualRef.current = nq; advanceTime(sessCost, undefined, true); finishWeapon(nq); }
-            else if (good) { var nq2 = clamp(qualRef.current, 0, 100); qualRef.current = nq2; advanceTime(sessCost, undefined, true); finishWeapon(nq2); }
-            else if (poor) {
-                var loss = randInt(10, 20), nq3 = clamp(qualRef.current - loss, 0, 100); qualRef.current = nq3; advanceTime(sessCost, undefined, true);
-                if (nq3 <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
-                else finishWeapon(nq3);
+            if (tier.id === "perfect") { var nq = clamp(qualRef.current + 5, 0, 100); qualRef.current = nq; advanceTime(sessCost, undefined, true); finishWeapon(nq); }
+            else if (tier.id === "great") { var nq2 = clamp(qualRef.current, 0, 100); qualRef.current = nq2; advanceTime(sessCost, undefined, true); finishWeapon(nq2); }
+            else if (tier.id === "good") { var nq3 = clamp(qualRef.current, 0, 100); qualRef.current = nq3; advanceTime(sessCost, undefined, true); finishWeapon(nq3); }
+            else if (tier.id === "poor") {
+                var loss = randInt(10, 20), nq4 = clamp(qualRef.current - loss, 0, 100); qualRef.current = nq4; advanceTime(sessCost, undefined, true);
+                if (nq4 <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
+                else finishWeapon(nq4);
             } else { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
         }, QTE_FLASH_MS);
     }
@@ -387,8 +394,7 @@ function useForgeVM(deps) {
         isExhausted: isExhausted,
         sessCost: sessCost,
         maxStam: maxStam,
-        heatWinLo: heatWinLo,
-        heatWinHi: heatWinHi,
+        heatModifierScale: heatModifierScale,
         heatSpeedMult: heatSpeedMult,
         hammerSpeedMult: hammerSpeedMult,
         quenchSpeedMult: quenchSpeedMult,

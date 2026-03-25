@@ -250,9 +250,9 @@ function useAudio() {
             click: function() { tone(900, "square", 0.03, 0.07); },
 
             heat: function(quality) {
-                if (quality === "poor" || quality === "over") { tone(120, "square", 0.08, 0.12); noise(0.1, 0.06, 200); return; }
-                var f1 = quality === "perfect" ? 880 : quality === "good" ? 660 : 520;
-                var f2 = quality === "perfect" ? 1100 : quality === "good" ? 825 : 650;
+                if (quality === "poor" || quality === "bad") { tone(120, "square", 0.08, 0.12); noise(0.1, 0.06, 200); return; }
+                var f1 = quality === "perfect" ? 880 : quality === "great" ? 660 : 520;
+                var f2 = quality === "perfect" ? 1100 : quality === "great" ? 825 : 650;
                 tone(f1, "sine", 0.30, 0.18);
                 tone(f2, "sine", 0.30 * 0.75, 0.10);
             },

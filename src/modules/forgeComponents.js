@@ -14,11 +14,13 @@ import GameUtils from "./utilities.js";
 
 var QTE_COLS = GameConstants.QTE_COLS;
 var QTE_W = GameConstants.QTE_W;
-var HAMMER_WIN = GameConstants.HAMMER_WIN;
-var QUENCH_WIN = GameConstants.QUENCH_WIN;
+var HEAT_TIERS = GameConstants.HEAT_TIERS;
+var HAMMER_TIERS = GameConstants.HAMMER_TIERS;
+var QUENCH_TIERS = GameConstants.QUENCH_TIERS;
 var PHASES = GameConstants.PHASES;
 var BALANCE = GameConstants.BALANCE;
 var positionToColumn = GameUtils.positionToColumn;
+var calcQteResult = GameUtils.calcQteResult;
 
 // --- QTE Speed Constants (sourced from BALANCE in constants.js) ---
 var HEAT_SPEED_BASE = BALANCE.heatSpeedBase;
@@ -40,12 +42,9 @@ var BAR_MAX_W = 480;  // fits inside QTE_W
 var BAR_HEIGHT = 52;  // matches old bar height
 var HEIGHT_EXPONENT = 2.4;  // power curve for column heights
 
-// --- Hue Rotation Map ---
+// --- Hue Rotation Map (kept for needle/empty sprite styling) ---
 // Base sprite is green (#4ade80-ish). These CSS hue-rotate values
 // shift it into each target color. Tuned by eye for pixel art.
-// Pre-built CSS filter strings per color variant.
-// hue-rotate alone can't hit true red from a green source — red uses
-// sepia + saturate + hue-rotate chain to force it.
 var HUE_VARIANTS = {
     cyan:   { filter: "hue-rotate(60deg)" },
     green:  { filter: "hue-rotate(0deg)" },
@@ -55,28 +54,80 @@ var HUE_VARIANTS = {
     red:    { filter: "hue-rotate(-105deg) saturate(1.5)" },
 };
 
-// --- Color Picker: aligned to scoring zones ---
-// Colors reflect actual game scoring. The sweet zone (sweetLow–sweetHigh)
-// defines the "GOOD" zone. Within that, colors grade from cyan (perfect)
-// outward. Outside it, colors continue to orange/red (miss territory).
-// This matches the proportions in HAMMER_TIERS.percentOfHalf:
-//   PERFECT = 15% of half-zone, GREAT = 45%, GOOD = 100%, MISS = beyond
+// --- Universal QTE Bar Color Picker ---
+// Computes an HSL color string for each bar column based on tier zone boundaries.
+// Uses the universal tier table format { peak, tiers[] }.
+//
+// RULES:
+//   - 0 width zone = skipped entirely
+//   - 1 column zone = median color (midpoint of hueStart↔hueEnd)
+//   - 2+ column zone = gradient ramp from hueStart → hueEnd
+//   - Boundary columns belong to the ENTERING (worse) zone
+//
+// Returns a CSS hsl() string, or null if column is outside all zones (shouldn't happen
+// since the last tier always has width 999).
 
-function pickBarColor(index, sweetLow, sweetHigh, totalCols, peakCol) {
-    var peak = peakCol !== undefined ? peakCol : (totalCols - 1) / 2;
-    var halfZone = Math.max((sweetHigh - sweetLow) / 2, 1);
-    var dist = Math.abs(index - peak);
+function pickQteBarColor(barIndex, tierTable, totalBarCols, modifierScale) {
+    var peak = tierTable.peak;
+    var tiers = tierTable.tiers;
+    var scale = modifierScale || 1.0;
+    var scaleCount = 2; // scale PERFECT + GREAT only
 
-    // Distance as ratio of the sweet zone half-width
-    var ratio = dist / halfZone;
+    // Map peak from position space (0–100) to bar column space (0–totalBarCols-1)
+    var peakCol = positionToColumn(peak) / (QTE_COLS - 1) * (totalBarCols - 1);
+    var dist = Math.abs(barIndex - peakCol);
+    var side = barIndex < peakCol ? "left" : "right";
 
-    // Match HAMMER_TIERS percentOfHalf thresholds
-    if (ratio <= 0.15) return "cyan";      // PERFECT zone
-    if (ratio <= 0.45) return "green";     // GREAT zone
-    if (ratio <= 1.0)  return "lime";      // GOOD zone (within sweet)
-    if (ratio <= 1.6)  return "yellow";    // near miss
-    if (ratio <= 2.4)  return "orange";    // far miss
-    return "red";                           // way off
+    // Convert tier position-% widths to bar-column widths
+    // and find which zone this column falls into
+    var cumCols = 0;
+    for (var i = 0; i < tiers.length; i++) {
+        var t = tiers[i];
+        var rawWidth = t[side];
+        if (rawWidth === 0) continue; // skipped zone
+        var scaledWidth = i < scaleCount ? rawWidth * scale : rawWidth;
+        // Convert position-% width to bar columns
+        var zoneCols = scaledWidth / 100 * (QTE_COLS - 1) / (QTE_COLS - 1) * (totalBarCols - 1);
+        // Simpler: scaledWidth is in position-%, bar has totalBarCols across 0–100 position range
+        zoneCols = scaledWidth / 100 * (totalBarCols - 1);
+        var zoneStart = cumCols;
+        var zoneEnd = cumCols + zoneCols;
+
+        if (dist <= zoneEnd || i === tiers.length - 1) {
+            // Column is in this zone — compute interpolated color
+            var colsInZone = Math.max(Math.round(zoneCols), 1);
+            var localIndex = dist - zoneStart; // how far into this zone
+            var ratio;
+            if (colsInZone <= 1) {
+                // Single column = median color
+                ratio = 0.5;
+            } else {
+                ratio = Math.min(1, Math.max(0, localIndex / zoneCols));
+            }
+            var hue = Math.round(t.hueStart + (t.hueEnd - t.hueStart) * ratio);
+            return "hsl(" + hue + ", " + t.sat + "%, " + t.lit + "%)";
+        }
+        cumCols = zoneEnd;
+    }
+    // Fallback — last tier
+    var last = tiers[tiers.length - 1];
+    return "hsl(" + last.hueEnd + ", " + last.sat + "%, " + last.lit + "%)";
+}
+
+// Helper: convert HSL string to a CSS filter for the green base sprite.
+// We approximate by computing the hue rotation needed from the base green (~120deg).
+function hslToSpriteFilter(hslString) {
+    // Parse hue from "hsl(H, S%, L%)"
+    var match = hslString.match(/hsl\((\-?\d+)/);
+    if (!match) return HUE_VARIANTS.green.filter;
+    var targetHue = parseInt(match[1], 10);
+    // Base sprite is green ≈ hue 120
+    var rotation = targetHue - 120;
+    // For hues near red (0–30, 330–360) we need the saturate trick
+    if (targetHue <= 30 || targetHue >= 330) {
+        return "hue-rotate(" + rotation + "deg) saturate(1.5)";
+    }
+    return "hue-rotate(" + rotation + "deg)";
 }
 
 // --- Height Curve: power curve peaking at given peak column ---
@@ -98,37 +149,36 @@ var STRIP_W = BAR_COLS * 10 + (BAR_COLS - 1) * 3; // 30*10 + 29*3 = 387px
 // Renders BAR_COLS sprite divs. During freeze: hit column stays full,
 // all others swap to empty. After freeze clears, all light back up.
 
-function SpriteBar({ pos, sweetLow, sweetHigh, frozen, hitCols, needleColor }) {
+function SpriteBar({ pos, tierTable, modifierScale, frozen, hitCols }) {
     var needleCol = positionToColumn(pos);
     // Map QTE_COLS range to BAR_COLS range
     var mappedNeedle = Math.round(needleCol / (QTE_COLS - 1) * (BAR_COLS - 1));
-    var mappedSweetLow = Math.round(sweetLow / (QTE_COLS - 1) * (BAR_COLS - 1));
-    var mappedSweetHigh = Math.round(sweetHigh / (QTE_COLS - 1) * (BAR_COLS - 1));
-    var peakCol = Math.round((mappedSweetLow + mappedSweetHigh) / 2);
+    // Peak column for height curve
+    var peakCol = Math.round(positionToColumn(tierTable.peak) / (QTE_COLS - 1) * (BAR_COLS - 1));
 
     var cols = [];
     for (var i = 0; i < BAR_COLS; i++) {
         var isNeedle = i === mappedNeedle;
         var isHit = hitCols && hitCols.has(i);
         var height = colHeight(i, BAR_COLS, peakCol);
-        var colorKey = pickBarColor(i, mappedSweetLow, mappedSweetHigh, BAR_COLS, peakCol);
-        var variant = HUE_VARIANTS[colorKey];
+        var hslColor = pickQteBarColor(i, tierTable, BAR_COLS, modifierScale);
+        var filter = hslToSpriteFilter(hslColor);
 
         // During freeze: hit column stays full, everything else goes empty
         // When not frozen: all columns show full
         var showEmpty = frozen && !isHit;
         var spriteUrl = showEmpty ? SPRITE_EMPTY : SPRITE_FULL;
 
-        // Build filter string from variant
-        var filter;
+        // Build filter string
+        var finalFilter;
         if (isNeedle && !frozen) {
-            filter = "brightness(3) saturate(0)";
+            finalFilter = "brightness(3) saturate(0)";
         } else if (isNeedle && frozen) {
-            filter = variant.filter + " brightness(1.4)";
+            finalFilter = filter + " brightness(1.4)";
         } else if (showEmpty) {
-            filter = "brightness(0.5)";
+            finalFilter = "brightness(0.5)";
         } else {
-            filter = variant.filter;
+            finalFilter = filter;
         }
 
         cols.push(
@@ -140,7 +190,7 @@ function SpriteBar({ pos, sweetLow, sweetHigh, frozen, hitCols, needleColor }) {
                 backgroundSize: "100% " + height + "px",
                 backgroundRepeat: "no-repeat",
                 imageRendering: "pixelated",
-                filter: filter,
+                filter: finalFilter,
                 transition: frozen ? "filter 0.15s" : "none",
             }} />
         );
@@ -166,12 +216,12 @@ function SpriteBar({ pos, sweetLow, sweetHigh, frozen, hitCols, needleColor }) {
 var SPRITE_POINTER = PUB + "/images/ui/waPixelPointer.png";
 
 function DiamondMarker({ pos, frozen, hitCols }) {
-    // Map position to a pixel offset within the column strip
+    // Snap to discrete bar column — never between columns
     var colIndex;
     if (frozen && hitCols && hitCols.size > 0) {
         colIndex = hitCols.values().next().value;
     } else {
-        colIndex = positionToColumn(pos) / (QTE_COLS - 1) * (BAR_COLS - 1);
+        colIndex = Math.round(positionToColumn(pos) / (QTE_COLS - 1) * (BAR_COLS - 1));
     }
     // Each column center = index * (colWidth + gap) + colWidth/2
     var leftPx = colIndex * 13 + 5; // 13 = 10px col + 3px gap, 5 = half col width
@@ -203,7 +253,7 @@ function DiamondMarker({ pos, frozen, hitCols }) {
 
 // --- QTE Panel (manages needle animation and renders the active QTE) ---
 
-function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTotal, heatSpeedMult, hammerSpeedMult, quenchSpeedMult, posRef, processingRef, onAutoFire }) {
+function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heatSpeedMult, hammerSpeedMult, quenchSpeedMult, posRef, processingRef, onAutoFire }) {
     var [heatPos, setHeatPos] = useState(0);
     var [needlePos, setNeedlePos] = useState(50);
     var [quenchPos, setQuenchPos] = useState(50);
@@ -327,23 +377,20 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
             : (flash.indexOf("MISS") >= 0 || flash.indexOf("DESTROY") >= 0 || flash.indexOf("ROUGH") >= 0) ? "#f87171"
                 : "#fbbf24";
 
-    // Compute sweet zone columns for each phase
-    // When processingRef is true, snap to the frozen posRef value
-    // to eliminate visual overshoot (rAF may update state 1-2 frames after click)
-    var barPos, barSweetLow, barSweetHigh;
+    // Determine active tier table for this phase
+    var activeTierTable = phase === PHASES.HEAT ? HEAT_TIERS : phase === PHASES.QUENCH ? QUENCH_TIERS : HAMMER_TIERS;
+    // Only Heat uses the modifier scale (blessing_of_flame etc.)
+    var activeModScale = phase === PHASES.HEAT ? (modifierScale || 1.0) : 1.0;
+
+    // Compute bar position — snap to frozen posRef when processing
+    var barPos;
     var frozenPos = processingRef.current ? posRef.current : null;
     if (phase === PHASES.HEAT) {
         barPos = frozenPos !== null ? frozenPos : heatPos;
-        barSweetLow = positionToColumn(heatWinLo);
-        barSweetHigh = positionToColumn(heatWinHi);
     } else if (phase === PHASES.HAMMER) {
         barPos = frozenPos !== null ? frozenPos : needlePos;
-        barSweetLow = positionToColumn(50 - HAMMER_WIN);
-        barSweetHigh = positionToColumn(50 + HAMMER_WIN);
     } else {
         barPos = frozenPos !== null ? frozenPos : quenchPos;
-        barSweetLow = positionToColumn(50 - QUENCH_WIN);
-        barSweetHigh = positionToColumn(50 + QUENCH_WIN);
     }
 
     return (
@@ -369,8 +416,8 @@ function QTEPanel({ phase, heatWinLo, heatWinHi, flash, strikesLeft, strikesTota
             <div style={{ width: "100%", overflow: "hidden" }}>
                 <SpriteBar
                     pos={barPos}
-                    sweetLow={barSweetLow}
-                    sweetHigh={barSweetHigh}
+                    tierTable={activeTierTable}
+                    modifierScale={activeModScale}
                     frozen={frozen}
                     hitCols={hitCols}
                 />

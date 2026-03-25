@@ -10,8 +10,7 @@ var QTE_FLASH_MS = 700;
 var QTE_W = 480;
 var COL_W = 170;
 var STRESS_MAX = 3;
-var HAMMER_WIN = 10;
-var QUENCH_WIN = 10;
+// (HAMMER_WIN / QUENCH_WIN removed — zone widths now live in tier tables)
 
 // --- Pressure System ---
 var PRESSURE_PER_DAY = 0.7;
@@ -29,22 +28,71 @@ var MAT_SCRAP_RECOVERY = 0.25;
 var REST_HOUR_LIMIT = 99;
 var MAX_HOUR = 30;
 
-// --- Heat Tiers ---
-var HEAT_TIERS = [
-    { id: "perfect", label: "PERFECT HEAT", bonusStrikes: 2, color: "#fbbf24" },
-    { id: "good",    label: "GOOD HEAT",    bonusStrikes: 1, color: "#4ade80" },
-    { id: "warm",    label: "WARM HEAT",    bonusStrikes: 0, color: "#fbbf24" },
-    { id: "poor",    label: "POOR HEAT",    bonusStrikes: 0, color: "#f87171" },
-    { id: "over",    label: "OVERHEAT!",    bonusStrikes: 0, color: "#fb923c" },
-];
+// ============================================================
+// Universal QTE Tier Tables
+// All QTEs share the same 5-tier shape (PERFECT → GREAT → GOOD → POOR → BAD).
+// Each tier defines its scoring zone width and bar color ramp.
+//
+// FIELDS:
+//   id        — String key used by scoring, SFX, and bus payloads
+//   label     — Flash text shown to player on hit
+//   color     — Accent color for UI (bubbles, flash border)
+//   left      — Zone width in absolute position % (0–100), left of peak
+//   right     — Zone width in absolute position % (0–100), right of peak
+//   hueStart  — HSL hue degree at zone inner edge (closest to peak)
+//   hueEnd    — HSL hue degree at zone outer edge (farthest from peak)
+//   sat       — Saturation % for this zone's color ramp
+//   lit       — Lightness % for this zone's color ramp
+//
+// RULES:
+//   - 0 width = zone skipped (no columns rendered)
+//   - 1 column = median color (midpoint of hueStart↔hueEnd)
+//   - 2+ columns = gradient ramp from hueStart → hueEnd
+//   - Boundary columns belong to the ENTERING (worse) zone
+//   - peak is absolute position on the 0–100 scale
+// ============================================================
 
-// --- Hammer Tiers ---
-var HAMMER_TIERS = [
-    { label: "PERFECT!", sfxKey: "perfect", percentOfHalf: 0.15,  points: 12 },
-    { label: "GREAT",    sfxKey: "great",   percentOfHalf: 0.45,  points: 8 },
-    { label: "GOOD",     sfxKey: "good",    percentOfHalf: 1.0,   points: 5 },
-    { label: "MISS",     sfxKey: "miss",    percentOfHalf: 999,   points: -5 },
-];
+// --- Heat QTE Tiers ---
+// Needle sweeps left→right, sweet spot near the end.
+// peak: 84 — center of the old heatWinLo(75)–heatWinHi(93) zone.
+var HEAT_TIERS = {
+    peak: 84,                                       // absolute position (0–100)
+    tiers: [
+        { id: "perfect", label: "PERFECT HEAT", color: "#fbbf24", left: 1.5,  right: 1.5,  hueStart: 180, hueEnd: 180, sat: 70, lit: 55 },
+        { id: "great",   label: "GREAT HEAT",   color: "#4ade80", left: 4.5,  right: 4.5,  hueStart: 140, hueEnd: 100, sat: 65, lit: 55 },
+        { id: "good",    label: "GOOD HEAT",    color: "#60a5fa", left: 9,    right: 9,    hueStart: 90,  hueEnd: 60,  sat: 60, lit: 55 },
+        { id: "poor",    label: "POOR HEAT",    color: "#f87171", left: 14,   right: 14,   hueStart: 45,  hueEnd: 20,  sat: 65, lit: 50 },
+        { id: "bad",     label: "BAD HEAT",     color: "#fb923c", left: 999,  right: 999,  hueStart: 10,  hueEnd: 0,   sat: 70, lit: 50 },
+    ],
+};
+
+// --- Hammer QTE Tiers ---
+// Needle bounces left↔right, sweet spot at center.
+// POOR is 0/0 (skipped) — goes straight from GOOD to BAD.
+var HAMMER_TIERS = {
+    peak: 50,                                       // center of bar
+    tiers: [
+        { id: "perfect", label: "PERFECT!", color: "#fbbf24", left: 1.5,  right: 1.5,  hueStart: 180, hueEnd: 180, sat: 70, lit: 55 },
+        { id: "great",   label: "GREAT",    color: "#4ade80", left: 4.5,  right: 4.5,  hueStart: 140, hueEnd: 100, sat: 65, lit: 55 },
+        { id: "good",    label: "GOOD",     color: "#60a5fa", left: 10,   right: 10,   hueStart: 90,  hueEnd: 60,  sat: 60, lit: 55 },
+        { id: "poor",    label: "POOR",     color: "#f87171", left: 0,    right: 0,    hueStart: 45,  hueEnd: 20,  sat: 65, lit: 50 },
+        { id: "bad",     label: "MISS",     color: "#f87171", left: 999,  right: 999,  hueStart: 10,  hueEnd: 0,   sat: 70, lit: 50 },
+    ],
+};
+
+// --- Quench QTE Tiers ---
+// Needle bounces left↔right, sweet spot at center.
+// POOR is 0/0 (skipped) — goes straight from GOOD to BAD.
+var QUENCH_TIERS = {
+    peak: 50,                                       // center of bar
+    tiers: [
+        { id: "perfect", label: "PERFECT! +5",  color: "#fbbf24", left: 1.5,  right: 1.5,  hueStart: 180, hueEnd: 180, sat: 70, lit: 55 },
+        { id: "great",   label: "SOLID",         color: "#4ade80", left: 4.5,  right: 4.5,  hueStart: 140, hueEnd: 100, sat: 65, lit: 55 },
+        { id: "good",    label: "GOOD",          color: "#60a5fa", left: 10,   right: 10,   hueStart: 90,  hueEnd: 60,  sat: 60, lit: 55 },
+        { id: "poor",    label: "ROUGH",         color: "#f87171", left: 0,    right: 0,    hueStart: 45,  hueEnd: 20,  sat: 65, lit: 50 },
+        { id: "bad",     label: "DESTROYED",     color: "#fb923c", left: 999,  right: 999,  hueStart: 10,  hueEnd: 0,   sat: 70, lit: 50 },
+    ],
+};
 
 // --- Game Phases ---
 var PHASES = {
@@ -348,9 +396,8 @@ var BALANCE = {
     sessCostNormal: 2,
     sessCostExhausted: 4,
 
-    // Heat QTE win zone (position %)
-    heatWinLo: 75,
-    heatWinHi: 93,
+    // (heatWinLo / heatWinHi removed — peak + zone widths now in HEAT_TIERS)
+    // (quenchPerfect / quenchGood / quenchPoorExtra removed — zone widths now in QUENCH_TIERS)
 
     // QTE needle speeds (base + random range)
     heatSpeedBase: 60,
@@ -368,10 +415,7 @@ var BALANCE = {
     finishXpBase: 15,
     finishXpPerDiff: 5,
 
-    // Quench zone multipliers (applied to QUENCH_WIN)
-    quenchPerfect: 0.15,
-    quenchGood: 0.45,
-    quenchPoorExtra: 1.2,
+    // (quench zone multipliers removed — zone widths now in QUENCH_TIERS)
 
     // Normalize quality loss per furnace level [index = upgrades.furnace]
     normalizeLossLo: [0.18, 0.16, 0.14, 0.12, 0.11, 0.10, 0.09, 0.08, 0.07],
@@ -395,8 +439,7 @@ var GameConstants = {
     QTE_W: QTE_W,
     COL_W: COL_W,
     STRESS_MAX: STRESS_MAX,
-    HAMMER_WIN: HAMMER_WIN,
-    QUENCH_WIN: QUENCH_WIN,
+    // (HAMMER_WIN / QUENCH_WIN removed — zone widths in tier tables)
 
     // Pressure
     PRESSURE_PER_DAY: PRESSURE_PER_DAY,
@@ -417,6 +460,7 @@ var GameConstants = {
     // Data Tables
     HEAT_TIERS: HEAT_TIERS,
     HAMMER_TIERS: HAMMER_TIERS,
+    QUENCH_TIERS: QUENCH_TIERS,
     PHASES: PHASES,
     SMITH_RANKS: SMITH_RANKS,
     TIERS: TIERS,

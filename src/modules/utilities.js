@@ -12,8 +12,8 @@ var WEAPONS = GameConstants.WEAPONS;
 var MATS = GameConstants.MATS;
 var HEAT_TIERS = GameConstants.HEAT_TIERS;
 var HAMMER_TIERS = GameConstants.HAMMER_TIERS;
+var QUENCH_TIERS = GameConstants.QUENCH_TIERS;
 var QTE_COLS = GameConstants.QTE_COLS;
-var HAMMER_WIN = GameConstants.HAMMER_WIN;
 var MAX_HOUR = GameConstants.MAX_HOUR;
 var SCRAP_TOASTS = GameConstants.SCRAP_TOASTS;
 
@@ -124,23 +124,31 @@ function columnToPosition(column) {
     return column / (QTE_COLS - 1) * 100;
 }
 
-function calcHeatResult(position, winLow, winHigh) {
-    var column = positionToColumn(position);
-    var sweetLow = positionToColumn(winLow);
-    var sweetHigh = positionToColumn(winHigh);
-    var sweetPeak = Math.round((sweetLow + sweetHigh) / 2);
-    if (column === sweetPeak) return HEAT_TIERS[0];
-    if (column >= sweetLow && column <= sweetHigh) return HEAT_TIERS[1];
-    if (column >= Math.round(sweetLow * 0.55)) return HEAT_TIERS[2];
-    return HEAT_TIERS[3];
-}
+// --- Universal QTE Scoring ---
+// Works with any tier table in the universal format { peak, tiers[] }.
+// modifierScaleTiers: optional modifier value that scales the first N tier widths.
+// modifierTierCount: how many tiers (from index 0) the modifier scales (default 2 = PERFECT + GREAT).
+function calcQteResult(position, tierTable, modifierScale, modifierTierCount) {
+    var peak = tierTable.peak;
+    var tiers = tierTable.tiers;
+    var scale = modifierScale || 1.0;
+    var scaleCount = modifierTierCount || 2;
+    var col = positionToColumn(position);
+    var peakCol = positionToColumn(peak);
+    var dist = columnToPosition(Math.abs(col - peakCol));
+    var side = col < peakCol ? "left" : "right";
 
-function calcHammerResult(position) {
-    var distance = Math.abs(columnToPosition(positionToColumn(position)) - 50);
-    for (var i = 0; i < HAMMER_TIERS.length; i++) {
-        if (distance <= HAMMER_WIN * HAMMER_TIERS[i].percentOfHalf) return HAMMER_TIERS[i];
+    // Walk tiers — accumulate zone boundaries as absolute position distances from peak
+    var cumulative = 0;
+    for (var i = 0; i < tiers.length; i++) {
+        var t = tiers[i];
+        var width = t[side];
+        if (width === 0) continue; // skipped zone
+        var scaledWidth = i < scaleCount ? width * scale : width;
+        cumulative += scaledWidth;
+        if (dist <= cumulative || i === tiers.length - 1) return t;
     }
-    return HAMMER_TIERS[HAMMER_TIERS.length - 1];
+    return tiers[tiers.length - 1];
 }
 
 // --- Time ---
@@ -189,8 +197,7 @@ var GameUtils = {
     // QTE Helpers
     positionToColumn: positionToColumn,
     columnToPosition: columnToPosition,
-    calcHeatResult: calcHeatResult,
-    calcHammerResult: calcHammerResult,
+    calcQteResult: calcQteResult,
 
     // Time
     formatTime: formatTime,
