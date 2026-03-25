@@ -8,9 +8,13 @@ import { useState, useEffect, useRef } from "react";
 import GameConstants from "./constants.js";
 import UIComponents from "./uiComponents.js";
 import HowToPlay from "../components/HowToPlay.js";
+import FairyAnim from "../components/FairyAnim.js";
 
 var FTUE_TOASTS = GameConstants.FTUE_TOASTS;
 var SectionLabel = UIComponents.SectionLabel;
+
+var PUB = process.env.PUBLIC_URL || "";
+var MENU_BG = PUB + "/images/menu/menuBg.png";
 
 // --- Splash Screen ---
 
@@ -30,56 +34,48 @@ function SplashScreen({ onEnter }) {
     );
 }
 
+// --- MenuSprite ---
+// Lightweight inline spritesheet animator.
+// All sizing in viewport units — scales with screen.
+// Accepts a cfg object: { sheet, frames, frameW, frameH, fps, sizeVw, xVw, yVh }
+
+function MenuSprite(props) {
+    var cfg = props.cfg;
+    var frameRef = useRef(0);
+    var [frame, setFrame] = useState(0);
+
+    useEffect(function() {
+        var ms = Math.round(1000 / (cfg.fps || 8));
+        var id = setInterval(function() {
+            frameRef.current = (frameRef.current + 1) % cfg.frames;
+            setFrame(frameRef.current);
+        }, ms);
+        return function() { clearInterval(id); };
+    }, [cfg.frames, cfg.fps]);
+
+    var aspect = cfg.frameH / cfg.frameW;
+    var widthStr = cfg.sizeVw + "vw";
+    var heightStr = (cfg.sizeVw * aspect) + "vw";
+
+    var style = {
+        width: widthStr,
+        height: heightStr,
+        backgroundImage: "url(" + cfg.sheet + ")",
+        backgroundPosition: -(frame * 100) + "% 0%",
+        backgroundSize: (cfg.frames * 100) + "% 100%",
+        backgroundRepeat: "no-repeat",
+        imageRendering: "pixelated",
+        transform: "translate(" + cfg.xVw + "vw, " + cfg.yVh + "vh)",
+    };
+    if (props.style) { Object.assign(style, props.style); }
+
+    return <div style={style} />;
+}
+
 // --- Main Menu ---
 // Background image: drop a dark atmospheric image at /images/menu/menuBg.png
 // Falls back to solid dark if image is missing. Vignette overlay ensures
 // text readability regardless of art.
-
-var PUB = process.env.PUBLIC_URL || "";
-var MENU_BG = PUB + "/images/menu/menuBg.png";
-var FAIRY_SHEET = PUB + "/images/anim/waFairyIdleSS.png";
-var FAIRY_FRAMES = 5;
-var FAIRY_FRAME_W = 380;
-var FAIRY_FRAME_H = 380;
-var FAIRY_FPS = 1.0;
-var FAIRY_DISPLAY_SIZE = 120;
-
-// --- Inline Spritesheet for Menu ---
-// Lightweight — no scene system dependency.
-// x/y are in vw/vh units for responsive positioning.
-// Example: x={2} y={-3} = translate(2vw, -3vh)
-
-function MenuSprite(props) {
-    var frameRef = useRef(0);
-    var [frame, setFrame] = useState(0);
-    var x = props.x || 0;
-    var y = props.y || 0;
-
-    useEffect(function() {
-        var ms = Math.round(1000 / (props.fps || 8));
-        var id = setInterval(function() {
-            frameRef.current = (frameRef.current + 1) % props.frames;
-            setFrame(frameRef.current);
-        }, ms);
-        return function() { clearInterval(id); };
-    }, [props.frames, props.fps]);
-
-    var baseStyle = {
-        width: props.displaySize,
-        height: props.displaySize,
-        backgroundImage: "url(" + props.sheet + ")",
-        backgroundPosition: -(frame * props.frameW) * (props.displaySize / props.frameW) + "px 0px",
-        backgroundSize: (props.frames * props.displaySize) + "px " + props.displaySize + "px",
-        backgroundRepeat: "no-repeat",
-        imageRendering: "pixelated",
-        transform: "translate(" + x + "vw, " + y + "vh)",
-    };
-    if (props.style) { Object.assign(baseStyle, props.style); }
-
-    return (
-        <div style={baseStyle} />
-    );
-}
 
 function MainMenu({ onStart, sfx }) {
     var [flicker, setFlicker] = useState(false);
@@ -149,16 +145,8 @@ function MainMenu({ onStart, sfx }) {
                     <SectionLabel style={{ letterSpacing: 3 }}>A ROYAL BLACKSMITH'S TALE</SectionLabel>
                 </div>
 
-                {/* Fairy idle animation — dead center, x/y in vw/vh */}
-                <MenuSprite
-                    sheet={FAIRY_SHEET}
-                    frames={FAIRY_FRAMES}
-                    frameW={FAIRY_FRAME_W}
-                    fps={FAIRY_FPS}
-                    displaySize={FAIRY_DISPLAY_SIZE}
-                    x={0}
-                    y={0}
-                />
+                {/* Fairy idle animation — fixed position, free from layout */}
+                <FairyAnim />
 
                 {/* Buttons */}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
