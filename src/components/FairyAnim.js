@@ -1,14 +1,23 @@
 // ============================================================
 // FairyAnim.js — Reusable Fairy Animation Component
-// Position: fixed (viewport-free, no layout impact)
+//
+// POSITIONING: Everything lives inside a full-screen container
+// div (position:fixed, inset:0). All x/y values are PERCENTAGES
+// of that container. 50/50 = dead center on every screen size.
+//
 // Outer div = position/scale/rotation (timeline target)
 // Inner div = spritesheet window (never touched by animations)
+// PoofFX = absolute inside container, not affected by fairy scale
 // Shuffle-deck loop: plays all 6 actions, reshuffles, repeats.
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from "react";
 
 var PUB = process.env.PUBLIC_URL || "";
+var FAIRY_POP_SRC = PUB + "/audio/sFairyPop.mp3";
+var FAIRY_POP_VOL = 0.35;
+var FAIRY_POP_RATE_MIN = 0.55;   // pitch range — biased low (deeper)
+var FAIRY_POP_RATE_MAX = 1.05;
 
 // ============================================================
 // Sprite Params
@@ -19,37 +28,63 @@ var SPRITE_CFG = {
     frameW:   380,
     frameH:   380,
     fps:      1.0,
-    sizeVw:   18,         // base display width in vw
+    sizePct:  12,         // base display width as % of container
 };
 
 // ============================================================
-// Timeline Definitions — tune positions here
+// Edge Peek Params — all values in container %
 // ============================================================
-
-// Edge peeks: fairy at scale 4, slides from off-screen to peek position
 var PEEK_SCALE = 4;
 var PEEK_SLIDE_IN_MS = 1200;
 var PEEK_HOLD_MS = 2500;
 var PEEK_SLIDE_OUT_MS = 1000;
 
+// How far she peeks in from the edge (%)
+var PEEK_INSET = 4;
+// How far past the edge for off-screen start (%)
+var PEEK_MARGIN = 30;
+
+// Sprite size at peek scale as % of container
+var PEEK_SPRITE_PCT = SPRITE_CFG.sizePct * PEEK_SCALE;
+var PEEK_HALF = PEEK_SPRITE_PCT / 2;
+
 var EDGE_PEEKS = [
-    { name: "bottom", type: "peek", offX: 50, offY: 165, peekX: 50, peekY: 125, rot: 0 },
-    { name: "top",    type: "peek", offX: 50, offY: -60, peekX: 50, peekY: -25, rot: 180 },
-    { name: "left",   type: "peek", offX: -35, offY: 50, peekX: -10, peekY: 50, rot: 90 },
-    { name: "right",  type: "peek", offX: 155, offY: 50, peekX: 130, peekY: 50, rot: -90 },
+    {
+        name: "bottom", type: "peek", rot: 0,
+        offX: 50, offY: 100 + PEEK_HALF + PEEK_MARGIN,
+        peekX: 50, peekY: 100 + PEEK_HALF - PEEK_INSET,
+    },
+    {
+        name: "top", type: "peek", rot: 180,
+        offX: 50, offY: 0 - PEEK_HALF - PEEK_MARGIN,
+        peekX: 50, peekY: 0 - PEEK_HALF + PEEK_INSET,
+    },
+    {
+        name: "left", type: "peek", rot: 90,
+        offX: 0 - PEEK_HALF - PEEK_MARGIN, offY: 50,
+        peekX: 0 - PEEK_HALF + PEEK_INSET, peekY: 50,
+    },
+    {
+        name: "right", type: "peek", rot: -90,
+        offX: 100 + PEEK_HALF + PEEK_MARGIN, offY: 50,
+        peekX: 100 + PEEK_HALF - PEEK_INSET, peekY: 50,
+    },
 ];
 
-// Center poof: fairy at normal scale, appears with purple FX
+// ============================================================
+// Center Poof Params — all values in container %
+// ============================================================
 var POOF_SCALE_START = 0.1;
 var POOF_SCALE_END = 1;
 var POOF_SNAP_IN_MS = 250;
 var POOF_HOLD_MS_MIN = 4000;
 var POOF_HOLD_MS_MAX = 6000;
 var POOF_SNAP_OUT_MS = 200;
+var POOF_FX_LEAD_MS = 100;
 
 var CENTER_POOFS = [
     { name: "poofLeft",  type: "poof", x: 25, y: 50 },
-    { name: "poofRight", type: "poof", x: 90, y: 50 },
+    { name: "poofRight", type: "poof", x: 75, y: 50 },
 ];
 
 // Loop timing
@@ -59,14 +94,14 @@ var BETWEEN_DELAY_MIN = 1500;
 var BETWEEN_DELAY_MAX = 4000;
 
 // ============================================================
-// Purple Bubble Pop FX — attached to wrapper, offset tunable
+// Purple Bubble Pop FX
 // ============================================================
-var POOF_FX_SIZE_VW = 28;
-var POOF_FX_DURATION_MS = 400;
-var POOF_FX_OFFSET_X = "50%";   // horizontal offset within wrapper
-var POOF_FX_OFFSET_Y = "50%";   // vertical offset within wrapper
+var POOF_FX_SIZE_PCT = 20;       // % of container width
+var POOF_FX_DURATION_MS = 1400;
+var POOF_FX_OFFSET_X = 0;       // offset from fairy center (%)
+var POOF_FX_OFFSET_Y = 0;
 
-function PoofFX() {
+function PoofFX(props) {
     var [phase, setPhase] = useState("grow");
 
     useEffect(function() {
@@ -74,23 +109,44 @@ function PoofFX() {
         return function() { clearTimeout(t); };
     }, []);
 
-    var size = POOF_FX_SIZE_VW + "vw";
     var style = {
         position: "absolute",
-        left: POOF_FX_OFFSET_X,
-        top: POOF_FX_OFFSET_Y,
-        width: size,
-        height: size,
+        left: (props.x + POOF_FX_OFFSET_X) + "%",
+        top: (props.y + POOF_FX_OFFSET_Y) + "%",
+        width: POOF_FX_SIZE_PCT + "%",
+        height: POOF_FX_SIZE_PCT + "%",
         transform: "translate(-50%, -50%) scale(" + (phase === "grow" ? 0.2 : 1.2) + ")",
         borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(180, 100, 255, 0.7) 0%, rgba(140, 60, 220, 0.4) 40%, rgba(100, 30, 180, 0) 70%)",
-        boxShadow: "0 0 40px 15px rgba(160, 80, 240, 0.3)",
-        opacity: phase === "grow" ? 0.9 : 0,
+        background: "radial-gradient(circle, rgba(180, 100, 255, 0.95) 0%, rgba(140, 60, 220, 0.7) 35%, rgba(100, 30, 180, 0.2) 60%, rgba(80, 20, 160, 0) 75%)",
+        boxShadow: "0 0 50px 20px rgba(160, 80, 240, 0.5)",
+        opacity: phase === "grow" ? 1 : 0,
         transition: "transform " + POOF_FX_DURATION_MS + "ms ease-out, opacity " + POOF_FX_DURATION_MS + "ms ease-out",
         pointerEvents: "none",
+        zIndex: 2,
     };
 
     return <div style={style} />;
+}
+
+// ============================================================
+// Pop Sound — with random pitch (biased lower/deeper)
+// ============================================================
+function playPop() {
+    try {
+        var audio = new Audio(FAIRY_POP_SRC);
+        audio.volume = FAIRY_POP_VOL;
+        // Random playbackRate biased toward lower pitch
+        var range = FAIRY_POP_RATE_MAX - FAIRY_POP_RATE_MIN;
+        audio.playbackRate = FAIRY_POP_RATE_MIN + Math.random() * range;
+        var promise = audio.play();
+        if (promise && promise.catch) {
+            promise.catch(function(e) {
+                console.warn("[FairyAnim] pop audio blocked:", e.message);
+            });
+        }
+    } catch (e) {
+        console.warn("[FairyAnim] pop audio error:", e.message);
+    }
 }
 
 // ============================================================
@@ -118,7 +174,7 @@ function FairyAnim() {
     var frameRef = useRef(0);
     var [frame, setFrame] = useState(0);
     var [pos, setPos] = useState(null);
-    var [showPoof, setShowPoof] = useState(false);
+    var [poofAt, setPoofAt] = useState(null);
     var deckRef = useRef([]);
     var deckIndexRef = useRef(0);
     var timeoutsRef = useRef([]);
@@ -156,20 +212,16 @@ function FairyAnim() {
 
     // --- Run an edge peek action ---
     function runPeek(edge, onDone) {
-        // Start off-screen
         setPos({ x: edge.offX, y: edge.offY, scale: PEEK_SCALE, rot: edge.rot, transition: 0 });
 
-        // Slide to peek
         schedule(function() {
             setPos({ x: edge.peekX, y: edge.peekY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_IN_MS });
         }, 50);
 
-        // Slide back out
         schedule(function() {
             setPos({ x: edge.offX, y: edge.offY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_OUT_MS });
         }, 50 + PEEK_SLIDE_IN_MS + PEEK_HOLD_MS);
 
-        // Done — hide
         schedule(function() {
             setPos(null);
             if (onDone) onDone();
@@ -180,32 +232,40 @@ function FairyAnim() {
     function runPoof(spot, onDone) {
         var holdMs = randInt(POOF_HOLD_MS_MIN, POOF_HOLD_MS_MAX);
 
-        // Start tiny at position, show FX
-        setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_START, rot: 0, transition: 0 });
-        setShowPoof(true);
+        // T+0: FX fires, sound plays
+        setPoofAt({ x: spot.x, y: spot.y });
+        playPop();
 
-        // Snap to full size
+        // T+LEAD: fairy starts scaling in
         schedule(function() {
-            setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_END, rot: 0, transition: POOF_SNAP_IN_MS });
-        }, 50);
+            setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_START, rot: 0, transition: 0 });
+            schedule(function() {
+                setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_END, rot: 0, transition: POOF_SNAP_IN_MS });
+            }, 50);
+        }, POOF_FX_LEAD_MS);
 
         // Clear appear FX
         schedule(function() {
-            setShowPoof(false);
-        }, POOF_SNAP_IN_MS + 100);
+            setPoofAt(null);
+        }, POOF_FX_LEAD_MS + POOF_SNAP_IN_MS + 150);
 
-        // Start exit — show FX, shrink
+        // Exit sequence
+        var exitStart = POOF_FX_LEAD_MS + POOF_SNAP_IN_MS + holdMs;
+
         schedule(function() {
-            setShowPoof(true);
+            setPoofAt({ x: spot.x, y: spot.y });
+            playPop();
+        }, exitStart);
+
+        schedule(function() {
             setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_START, rot: 0, transition: POOF_SNAP_OUT_MS });
-        }, POOF_SNAP_IN_MS + holdMs);
+        }, exitStart + POOF_FX_LEAD_MS);
 
-        // Done — hide
         schedule(function() {
-            setShowPoof(false);
+            setPoofAt(null);
             setPos(null);
             if (onDone) onDone();
-        }, POOF_SNAP_IN_MS + holdMs + POOF_SNAP_OUT_MS + 100);
+        }, exitStart + POOF_FX_LEAD_MS + POOF_SNAP_OUT_MS + 150);
     }
 
     // --- Run next action from deck ---
@@ -235,44 +295,52 @@ function FairyAnim() {
         };
     }, []);
 
-    // --- Don't render when off-screen ---
-    if (!pos) return null;
-
-    // --- Sizing (sprite window) ---
+    // --- Sprite sizing (% of container) ---
     var aspect = SPRITE_CFG.frameH / SPRITE_CFG.frameW;
-    var spriteW = SPRITE_CFG.sizeVw + "vw";
-    var spriteH = (SPRITE_CFG.sizeVw * aspect) + "vw";
+    var spriteW = SPRITE_CFG.sizePct + "%";
+    var spriteH = (SPRITE_CFG.sizePct * aspect) + "%";
 
-    var transMs = pos.transition || 0;
+    // --- Don't render when nothing is active ---
+    var showFairy = pos !== null;
+    var showFX = poofAt !== null;
+    if (!showFairy && !showFX) return null;
 
-    // --- Wrapper: position, scale, rotation ---
-    var wrapperStyle = {
-        position: "fixed",
-        left: pos.x + "vw",
-        top: pos.y + "vh",
-        transform: "translate(-50%, -50%) scale(" + pos.scale + ") rotate(" + pos.rot + "deg)",
-        transition: transMs > 0
-            ? "left " + transMs + "ms ease-in-out, top " + transMs + "ms ease-in-out, transform " + transMs + "ms ease-in-out"
-            : "none",
-        pointerEvents: "none",
-        zIndex: 10,
-    };
+    var transMs = showFairy ? (pos.transition || 0) : 0;
 
-    // --- Sprite: spritesheet window ---
-    var spriteStyle = {
-        width: spriteW,
-        height: spriteH,
-        backgroundImage: "url(" + SPRITE_CFG.sheet + ")",
-        backgroundPosition: -(frame * SPRITE_CFG.sizeVw) + "vw 0",
-        backgroundSize: (SPRITE_CFG.sizeVw * SPRITE_CFG.frames) + "vw " + spriteH,
-        backgroundRepeat: "no-repeat",
-        imageRendering: "pixelated",
-    };
-
+    // --- Full-screen container — all children positioned as % of this ---
     return (
-        <div style={wrapperStyle}>
-            {showPoof && <PoofFX />}
-            <div style={spriteStyle} />
+        <div style={{
+            position: "fixed",
+            inset: 0,
+            pointerEvents: "none",
+            zIndex: 10,
+            overflow: "hidden",
+        }}>
+            {showFX && <PoofFX x={poofAt.x} y={poofAt.y} />}
+
+            {showFairy && (
+                <div style={{
+                    position: "absolute",
+                    left: pos.x + "%",
+                    top: pos.y + "%",
+                    transform: "translate(-50%, -50%) scale(" + pos.scale + ") rotate(" + pos.rot + "deg)",
+                    transition: transMs > 0
+                        ? "left " + transMs + "ms ease-in-out, top " + transMs + "ms ease-in-out, transform " + transMs + "ms ease-in-out"
+                        : "none",
+                    pointerEvents: "none",
+                    zIndex: 1,
+                }}>
+                    <div style={{
+                        width: spriteW,
+                        height: spriteH,
+                        backgroundImage: "url(" + SPRITE_CFG.sheet + ")",
+                        backgroundPosition: -(frame * SPRITE_CFG.sizePct) + "% 0",
+                        backgroundSize: (SPRITE_CFG.frames * 100) + "% 100%",
+                        backgroundRepeat: "no-repeat",
+                        imageRendering: "pixelated",
+                    }} />
+                </div>
+            )}
         </div>
     );
 }
