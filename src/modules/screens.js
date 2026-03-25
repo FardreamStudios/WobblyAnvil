@@ -41,15 +41,19 @@ var FAIRY_SHEET = PUB + "/images/anim/waFairyIdleSS.png";
 var FAIRY_FRAMES = 5;
 var FAIRY_FRAME_W = 380;
 var FAIRY_FRAME_H = 380;
-var FAIRY_FPS = 8;
+var FAIRY_FPS = 1.0;
 var FAIRY_DISPLAY_SIZE = 120;
 
 // --- Inline Spritesheet for Menu ---
 // Lightweight — no scene system dependency.
+// x/y are in vw/vh units for responsive positioning.
+// Example: x={2} y={-3} = translate(2vw, -3vh)
 
 function MenuSprite(props) {
     var frameRef = useRef(0);
     var [frame, setFrame] = useState(0);
+    var x = props.x || 0;
+    var y = props.y || 0;
 
     useEffect(function() {
         var ms = Math.round(1000 / (props.fps || 8));
@@ -60,16 +64,20 @@ function MenuSprite(props) {
         return function() { clearInterval(id); };
     }, [props.frames, props.fps]);
 
+    var baseStyle = {
+        width: props.displaySize,
+        height: props.displaySize,
+        backgroundImage: "url(" + props.sheet + ")",
+        backgroundPosition: -(frame * props.frameW) * (props.displaySize / props.frameW) + "px 0px",
+        backgroundSize: (props.frames * props.displaySize) + "px " + props.displaySize + "px",
+        backgroundRepeat: "no-repeat",
+        imageRendering: "pixelated",
+        transform: "translate(" + x + "vw, " + y + "vh)",
+    };
+    if (props.style) { Object.assign(baseStyle, props.style); }
+
     return (
-        <div style={{
-            width: props.displaySize,
-            height: props.displaySize,
-            backgroundImage: "url(" + props.sheet + ")",
-            backgroundPosition: -(frame * props.frameW) * (props.displaySize / props.frameW) + "px 0px",
-            backgroundSize: (props.frames * props.displaySize) + "px " + props.displaySize + "px",
-            backgroundRepeat: "no-repeat",
-            imageRendering: "pixelated",
-        }} />
+        <div style={baseStyle} />
     );
 }
 
@@ -141,13 +149,15 @@ function MainMenu({ onStart, sfx }) {
                     <SectionLabel style={{ letterSpacing: 3 }}>A ROYAL BLACKSMITH'S TALE</SectionLabel>
                 </div>
 
-                {/* Fairy idle animation — dead center */}
+                {/* Fairy idle animation — dead center, x/y in vw/vh */}
                 <MenuSprite
                     sheet={FAIRY_SHEET}
                     frames={FAIRY_FRAMES}
                     frameW={FAIRY_FRAME_W}
                     fps={FAIRY_FPS}
                     displaySize={FAIRY_DISPLAY_SIZE}
+                    x={0}
+                    y={0}
                 />
 
                 {/* Buttons */}
