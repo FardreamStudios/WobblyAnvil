@@ -360,7 +360,7 @@ function DesktopLayout(props) {
                                                     {stamina <= 0 && <div style={{ fontSize: 10, color: "#fb923c", letterSpacing: 1, textAlign: "center", marginTop: 6 }}>EXHAUSTED — REST BEFORE RESUMING</div>}
                                                 </div>
                                             ) : (
-                                                <><div style={{ fontSize: 16, letterSpacing: 3, color: "#f59e0b", fontWeight: "bold" }}>FORGE READY</div><SectionLabel>{isExhausted ? "EXHAUSTED — 4HR/SESSION" : "2HR/SESSION"}</SectionLabel>
+                                                <><div style={{ fontSize: 16, letterSpacing: 3, color: "#f59e0b", fontWeight: "bold" }}>FORGE READY</div><SectionLabel>{sessCost + "HR/SESSION"}</SectionLabel>
                                                     <button onClick={input.beginForge.redirectToRest ? waitHour : input.beginForge.disabled ? null : function(e) { e.stopPropagation(); sfx.click(); setPhase(PHASES.SELECT); }} disabled={input.beginForge.disabled} style={{ background: "#2a1f0a", border: "2px solid #f59e0b", borderRadius: 8, color: "#f59e0b", padding: "14px 40px", fontSize: 18, cursor: "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", position: "relative" }}><span style={{ opacity: input.beginForge.redirectToRest ? 0.65 : 1 }}>Begin Forging</span>{input.beginForge.redirectToRest && <span className="blink-slow" style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, pointerEvents: "none", zIndex: 2 }}>{"\u23F3"}</span>}</button></>
                                             )}
                                         </div>

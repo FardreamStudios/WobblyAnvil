@@ -87,17 +87,18 @@ var MORNING_EVENTS = [
         ],
     },
 
-    // --- BACKPAIN (forced exhaustion) ---
+    // --- BACKPAIN (forge cost multiplier, per-variant severity) ---
     {
         id: "backpain",
         chance: 0.04,
         icon: "\uD83E\uDD15",
         color: "#fb923c",
         tags: ["event", "hazard", "stamina"],
+        scope: "day",
         variants: [
-            { title: "Mild Ache",   desc: "Slight discomfort. Sessions cost 4hr.",                     weight: 50, effects: [{ tag: "DAY_FORCE_EXHAUSTION", payload: {} }] },
-            { title: "Bad Back",    desc: "All sessions cost 4hr today.",                              weight: 35, effects: [{ tag: "DAY_FORCE_EXHAUSTION", payload: {} }] },
-            { title: "Thrown Back", desc: "Sessions cost 4hr and -1 stamina.",                          weight: 15, effects: [{ tag: "DAY_FORCE_EXHAUSTION", payload: {} }, { tag: "DAY_SET_STAMINA", payload: { delta: -1 } }] },
+            { title: "Mild Ache",   desc: "Slight discomfort. Forge sessions cost 3hr today.",   weight: 50, effects: [], modifiers: [{ attribute: "forgeCostMult", operation: "multiply", value: 1.5 }] },
+            { title: "Bad Back",    desc: "All forge sessions cost 4hr today.",                  weight: 35, effects: [], modifiers: [{ attribute: "forgeCostMult", operation: "multiply", value: 2.0 }] },
+            { title: "Thrown Back", desc: "Forge sessions cost 5hr and -1 stamina.",             weight: 15, effects: [{ tag: "DAY_SET_STAMINA", payload: { delta: -1 } }], modifiers: [{ attribute: "forgeCostMult", operation: "multiply", value: 2.5 }] },
         ],
     },
 
@@ -264,12 +265,6 @@ var MORNING_EVENTS = [
         modifiers: [
             { attribute: "heatPerfectZone", operation: "multiply", value: 1.5 },
         ],
-        onEndToast: {
-            msg: "BLESSING FADES\nThe forge returns to normal.",
-            icon: "\u2728",
-            color: "#8a7a64",
-            duration: 3000,
-        },
     },
 
     // --- SUPPLY CARAVAN (material prices drop 30% all day) ---
@@ -286,12 +281,6 @@ var MORNING_EVENTS = [
         modifiers: [
             { attribute: "materialPrice", operation: "multiply", value: 0.7 },
         ],
-        onEndToast: {
-            msg: "CARAVAN DEPARTS\nPrices return to normal.",
-            icon: "\uD83D\uDED2",
-            color: "#8a7a64",
-            duration: 3000,
-        },
     },
 
     // --- TRAVELING SMITH (customer chance halved all day) ---
@@ -308,12 +297,6 @@ var MORNING_EVENTS = [
         modifiers: [
             { attribute: "customerChance", operation: "multiply", value: 0.5 },
         ],
-        onEndToast: {
-            msg: "RIVAL LEAVES\nCustomers return to normal.",
-            icon: "\u2694",
-            color: "#4ade80",
-            duration: 3000,
-        },
     },
 
     // --- ROYAL INSPECTION (double rep gain until next sale) ---
@@ -332,12 +315,6 @@ var MORNING_EVENTS = [
         ],
         endWhen: {
             tag: "ECONOMY_EARN_GOLD",
-        },
-        onEndToast: {
-            msg: "INSPECTOR SATISFIED\nThe royal inspector nods and leaves.",
-            icon: "\uD83D\uDC51",
-            color: "#4ade80",
-            duration: 3000,
         },
     },
 

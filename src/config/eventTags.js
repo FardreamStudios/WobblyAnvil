@@ -49,7 +49,6 @@ var EVENT_TAGS = {
     // --- Day ---
     DAY_SET_STAMINA:        "event.day.stamina.set",
     DAY_ADVANCE_HOUR:       "event.day.hour.advance",
-    DAY_FORCE_EXHAUSTION:   "event.day.exhaustion.force",
 
     // --- UI ---
     UI_ADD_TOAST:           "event.ui.toast.add",

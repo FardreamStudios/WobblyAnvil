@@ -199,7 +199,6 @@ export default function App() {
   var day = dayState.day, setDay = dayState.setDay;
   var hour = dayState.hour, setHour = dayState.setHour;
   var stamina = dayState.stamina, setStamina = dayState.setStamina;
-  var forcedExhaustion = dayState.forcedExhaustion, setForcedExhaustion = dayState.setForcedExhaustion;
   var lateToastShown = dayState.lateToastShown, setLateToastShown = dayState.setLateToastShown;
   var gameOver = dayState.gameOver, setGameOver = dayState.setGameOver;
 
@@ -362,7 +361,7 @@ export default function App() {
     spendGold: spendGold, gainXp: gainXp,
     setRoyalQuest: setRoyalQuest, setWeaponShake: setWeaponShake,
     gold: gold, inv: inv, finished: finished, hour: hour, stamina: stamina,
-    forcedExhaustion: forcedExhaustion, stats: stats, upgrades: upgrades,
+    stats: stats, upgrades: upgrades,
     pendingMystery: pendingMystery, royalQuestRef: royalQuestRef
   });
   var takeBreak = forgeVM.takeBreak, resumeWip = forgeVM.resumeWip, scrapWip = forgeVM.scrapWip, scrapWeapon = forgeVM.scrapWeapon, confirmSelect = forgeVM.confirmSelect, onForgeClick = forgeVM.onForgeClick, handleAutoFire = forgeVM.handleAutoFire, attemptForge = forgeVM.attemptForge, doNormalize = forgeVM.doNormalize;

@@ -40,12 +40,11 @@
 //       tag: "ECONOMY_WEAPON_SOLD",     // EVENT_TAGS key or raw tag string
 //       condition: null,                // optional fn(payload, ctx) → bool
 //     },
-//     onEndToast: {                     // optional toast shown when ability ends
-//       msg:   "BLESSING FADES\nThe forge returns to normal.",
-//       icon:  "✨",
-//       color: "#4ade80",
-//       duration: 3000,
-//     },
+//     // (onEndToast removed — modifier effects communicated via morning event toast)
+//
+//     // --- PER-VARIANT MODIFIERS (optional) ---
+//     // If a variant has a .modifiers array, it overrides row-level modifiers.
+//     // Use for per-severity scaling (e.g. backpain: mild=1.5x, bad=2x, severe=2.5x).
 //   }
 //
 // EFFECTS:
@@ -229,7 +228,8 @@ function createMorningAbility(row) {
             }
 
             // Register modifiers (persistent abilities)
-            var modifiers = row.modifiers || [];
+            // Variant-level modifiers override row-level (e.g. per-severity backpain)
+            var modifiers = variant.modifiers || row.modifiers || [];
             for (var m = 0; m < modifiers.length; m++) {
                 ctx.manager.addModifier({
                     source:    ctx.instanceId,
@@ -268,14 +268,7 @@ function createMorningAbility(row) {
         endWhen:  endWhenDef,
         duration: row.duration || null,
 
-        onEnd: row.onEndToast ? function(ctx) {
-            ctx.manager.queueToast({
-                msg:      row.onEndToast.msg    || "Effect ended.",
-                icon:     row.onEndToast.icon   || "",
-                color:    row.onEndToast.color  || "#4ade80",
-                duration: row.onEndToast.duration || 3000,
-            });
-        } : null,
+        onEnd: null,
     };
 }
 

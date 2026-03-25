@@ -70,7 +70,6 @@ function useForgeVM(deps) {
     var finished = deps.finished;
     var hour = deps.hour;
     var stamina = deps.stamina;
-    var forcedExhaustion = deps.forcedExhaustion;
     var stats = deps.stats;
     var upgrades = deps.upgrades;
     var pendingMystery = deps.pendingMystery;
@@ -113,8 +112,9 @@ function useForgeVM(deps) {
     var matData = MATS[matKey] || MATS.bronze;
     var matDiffMod = matData.difficultyModifier;
     var effDiff = weapon.difficulty + matDiffMod;
-    var isExhausted = stamina <= 0 || forcedExhaustion;
-    var sessCost = isExhausted ? BALANCE.sessCostExhausted : BALANCE.sessCostNormal;
+    var isExhausted = stamina <= 0;
+    var baseCost = isExhausted ? BALANCE.sessCostExhausted : BALANCE.sessCostNormal;
+    var sessCost = Math.round(AbilityManager.resolveValue("forgeCostMult", 1.0) * baseCost);
     var maxStam = Math.max(1, AbilityManager.resolveValue("maxStamina", BASE_STAMINA + stats.brawn));
     var baseZoneW = BALANCE.heatWinHi - BALANCE.heatWinLo;
     var resolvedZoneW = AbilityManager.resolveValue("heatPerfectZone", baseZoneW);
