@@ -15,7 +15,7 @@
 // tiers, and culminate in a nuclear exit at max. Spam-guarded.
 // ============================================================
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { createPortal } from "react-dom";
 
 var PUB = process.env.PUBLIC_URL || "";
@@ -504,7 +504,7 @@ function pickDodgeSpot(currentX, currentY) {
 // ============================================================
 // Component
 // ============================================================
-function FairyAnim() {
+var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
     var frameRef = useRef(0);
     var [frame, setFrame] = useState(0);
     var [pos, setPos] = useState(null);
@@ -529,6 +529,19 @@ function FairyAnim() {
     var lastTapRef = useRef(0);          // timestamp for cooldown
     var ignoreTapsRef = useRef(false);   // true at max irritation
     var onDoneRef = useRef(null);        // stored callback for rescheduling
+
+    // --- FairyHelper command queue (triggered lines override ambient quips) ---
+    var commandQueueRef = useRef([]);
+
+    // --- Expose speak() to parent via ref ---
+    useImperativeHandle(ref, function() {
+        return {
+            speak: function(line) {
+                if (!mountedRef.current) return;
+                commandQueueRef.current.push(line);
+            }
+        };
+    });
 
     // --- Safe timeout that auto-cleans on unmount ---
     var schedule = useCallback(function(fn, ms) {
@@ -792,7 +805,9 @@ function FairyAnim() {
     // ============================================================
     function runPoof(spot, onDone) {
         var holdMs = randInt(POOF_HOLD_MS_MIN, POOF_HOLD_MS_MAX);
-        var quip = nextQuip();
+        var quip = commandQueueRef.current.length > 0
+            ? commandQueueRef.current.shift()
+            : nextQuip();
 
         // Store onDone so tap handler can reschedule
         onDoneRef.current = onDone;
@@ -835,7 +850,9 @@ function FairyAnim() {
 
     // --- Run next action from deck ---
     function runNext() {
-        var action = nextAction();
+        // If FairyHelper queued a line, force a center poof to display it
+        var hasCommand = commandQueueRef.current.length > 0;
+        var action = hasCommand ? pickRandom(CENTER_POOFS) : nextAction();
         var onDone = function() {
             var delay = randInt(BETWEEN_DELAY_MIN, BETWEEN_DELAY_MAX);
             schedule(runNext, delay);
@@ -914,6 +931,6 @@ function FairyAnim() {
         </div>,
         document.body
     );
-}
+});
 
 export default FairyAnim;

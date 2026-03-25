@@ -26,6 +26,8 @@ import GameplayEventBus from "./logic/gameplayEventBus.js";
 import EVENT_TAGS from "./config/eventTags.js";
 import AbilityManager from "./abilities/abilityManager.js";
 import CustomerManager from "./logic/customerManager.js";
+import FairyHelper from "./modules/fairyHelper.js";
+import FairyAnim from "./components/FairyAnim.js";
 
 // --- State Hooks ---
 import useUIState from "./hooks/useUIState.js";
@@ -270,12 +272,27 @@ export default function App() {
   var royalQuestRef = useRef(royalQuest);
   var gameStarted = useRef(false);
 
+  // --- Fairy Anim ref (for FairyHelper → speech bubble bridge) ---
+  var fairyAnimRef = useRef(null);
+
+  // --- Fairy state provider refs (read by FairyHelper.stateProvider) ---
+  var goldRef = useRef(gold);
+  var reputationRef = useRef(reputation);
+  var dayRef = useRef(day);
+  var matKeyRef = useRef(matKey);
+  var wipWeaponRef = useRef(wipWeapon);
+
   // Keep refs current
   finishedRef.current = finished;
   phaseRef.current = phase;
   hourRef.current = hour;
   activeCustomerRef.current = activeCustomer;
   royalQuestRef.current = royalQuest;
+  goldRef.current = gold;
+  reputationRef.current = reputation;
+  dayRef.current = day;
+  matKeyRef.current = matKey;
+  wipWeaponRef.current = wipWeapon;
 
   // --- Customer Manager Init (pure JS, bus-driven) ---
   useEffect(function() {
@@ -298,6 +315,37 @@ export default function App() {
   useEffect(function() {
     RunStats.init(GameplayEventBus);
     return function() { RunStats.destroy(); };
+  }, []);
+
+  // --- Fairy Helper Init (pure JS, bus-driven) ---
+  useEffect(function() {
+    FairyHelper.init({
+      bus: GameplayEventBus,
+      stateProvider: function() {
+        var rq = royalQuestRef.current;
+        var wip = wipWeaponRef.current;
+        var mk = matKeyRef.current;
+        return {
+          gold:             goldRef.current,
+          rep:              reputationRef.current,
+          day:              dayRef.current,
+          hour:             hourRef.current,
+          phase:            phaseRef.current,
+          selectedMaterial: mk,
+          materialName:     mk && MATS[mk] ? MATS[mk].name : null,
+          weaponName:       wip ? wip.name : null,
+          activeDecree:     !!(rq && !rq.fulfilled),
+          daysLeft:         rq ? rq.daysLeft : null,
+          totalForges:      RunStats.getStats().forgeSessions,
+        };
+      },
+      onSpeak: function(line) {
+        if (fairyAnimRef.current && fairyAnimRef.current.speak) {
+          fairyAnimRef.current.speak(line);
+        }
+      },
+    });
+    return function() { FairyHelper.destroy(); };
   }, []);
 
   // --- Leaderboard ---
@@ -408,7 +456,7 @@ export default function App() {
 
   // --- Reset ---
   function resetGame() {
-    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame();
+    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame(); FairyHelper.reset();
     setScreen("splash");
   }
 
@@ -686,6 +734,7 @@ export default function App() {
               </div>
             </div>
           </div>)}
+          <FairyAnim ref={fairyAnimRef} />
           <DevBanner />
         </>
     );
@@ -699,37 +748,40 @@ export default function App() {
   var DesktopLayout = DesktopLayoutModule.DesktopLayout;
 
   return (
-      <DesktopLayout
-          sfx={sfx}
-          ui={ui}
-          economy={economy}
-          dayState={dayState}
-          player={player}
-          quest={quest}
-          forge={forge}
-          vfx={vfx}
-          forgeVM={forgeVM}
-          playerVM={playerVM}
-          economyVM={{ earnGold: earnGold, spendGold: spendGold, popGold: popGold, removeGoldPop: removeGoldPop, handleSell: handleSell, handleRefuse: handleRefuse, onSellMaterial: onSellMaterial }}
-          shopVM={shopVM}
-          dayVM={{ waitHour: waitHour, sleep: sleep, scavenge: scavenge, promote: promote }}
-          input={input}
-          derived={{
-            smithRank: smithRank,
-            nextRank: nextRank,
-            timeColor: timeColor,
-            timeBarPct: timeBarPct,
-            timeBarClass: timeBarClass,
-            totalGoldEarned: totalGoldEarned,
-          }}
-          onActiveToastDone={onActiveToastDone}
-          removeToast={removeToast}
-          addToast={addToast}
-          setGameOver={setGameOver}
-          setStamina={setStamina}
-          sceneFxRef={sceneFxRef}
-          onDebugGoodEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); setGoodEventUsed(true); setPendingMystery({ severity: "good" }); }}
-          onDebugBadEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, false); setPendingMystery({ severity: "bad" }); }}
-      />
+      <>
+        <DesktopLayout
+            sfx={sfx}
+            ui={ui}
+            economy={economy}
+            dayState={dayState}
+            player={player}
+            quest={quest}
+            forge={forge}
+            vfx={vfx}
+            forgeVM={forgeVM}
+            playerVM={playerVM}
+            economyVM={{ earnGold: earnGold, spendGold: spendGold, popGold: popGold, removeGoldPop: removeGoldPop, handleSell: handleSell, handleRefuse: handleRefuse, onSellMaterial: onSellMaterial }}
+            shopVM={shopVM}
+            dayVM={{ waitHour: waitHour, sleep: sleep, scavenge: scavenge, promote: promote }}
+            input={input}
+            derived={{
+              smithRank: smithRank,
+              nextRank: nextRank,
+              timeColor: timeColor,
+              timeBarPct: timeBarPct,
+              timeBarClass: timeBarClass,
+              totalGoldEarned: totalGoldEarned,
+            }}
+            onActiveToastDone={onActiveToastDone}
+            removeToast={removeToast}
+            addToast={addToast}
+            setGameOver={setGameOver}
+            setStamina={setStamina}
+            sceneFxRef={sceneFxRef}
+            onDebugGoodEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); setGoodEventUsed(true); setPendingMystery({ severity: "good" }); }}
+            onDebugBadEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, false); setPendingMystery({ severity: "bad" }); }}
+        />
+        <FairyAnim ref={fairyAnimRef} />
+      </>
   );
 }
