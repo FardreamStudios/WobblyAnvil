@@ -25,7 +25,7 @@ var FX_CUES = [
     {
         tag: EVENT_TAGS.FX_HEAT_RESULT,
         execute: function(sfx, fxRef, payload) {
-            // payload: { quality: "perfect"|"good"|"fair"|"poor"|"over" }
+            // payload: { quality: "perfect"|"great"|"good"|"poor"|"bad" }
             sfx.heat(payload.quality);
         },
     },

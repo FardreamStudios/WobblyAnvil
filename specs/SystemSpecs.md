@@ -58,11 +58,13 @@ Each spec below covers one system or module. Format: what it does, why we need i
 **File:** `src/modules/constants.js`  
 **Status:** ✅ Stable — Single source of truth for all game data
 
-**What it does:** Every game tuning value, data table, and named constant. Weapons, materials, tiers, upgrade costs, QTE parameters, balance values, customer types, smith ranks, etc. Zero logic, zero side effects.
+**What it does:** Every game tuning value, data table, and named constant. Weapons, materials, tiers, upgrade costs, balance values, customer types, smith ranks, etc. Zero logic, zero side effects.
 
 **Why we need it:** If a designer wants to tweak dagger damage or bronze price, there's exactly one place to look. No hunting through logic files for hardcoded numbers.
 
 **When it's used:** Imported by almost every file.
+
+**Upcoming:** QTE-specific data (tier tables, color ramp, QTE layout values, speed tuning) will be extracted to `qteConstants.js` (DES-2). constants.js will re-export through GameConstants for backward compatibility.
 
 **UE Analogy:** Data Tables + Project Settings.
 
@@ -232,13 +234,15 @@ Each spec below covers one system or module. Format: what it does, why we need i
 ## SPEC: Forge Components
 
 **File:** `src/modules/forgeComponents.js`  
-**Status:** ✅ Stable
+**Status:** ⚠️ SCHEDULED FOR SPLIT — QTE System extraction (DES-2)
 
 **What it does:** QTE-specific UI components — the QTEPanel (oscillating bar, hit zones, strike pips, flash feedback).
 
 **Why it's separate from uiComponents:** QTE components are forge-specific, not reusable base widgets. They know about heat tiers, hammer zones, and quench timing.
 
 **When it's used:** Rendered inside forge view when QTE phases are active.
+
+**Upcoming:** Bar sweep visuals + needle animation will be extracted into `barSweepQTE.js` as a QTE plugin. forgeComponents.js will retain any forge-specific non-QTE UI (or be deleted if empty). See QTE System spec.
 
 ---
 
@@ -310,13 +314,99 @@ Each spec below covers one system or module. Format: what it does, why we need i
 ## SPEC: Rhythm QTE
 
 **File:** `src/modules/rhythmQTE.js`  
-**Status:** ✅ Stable — Standalone module
+**Status:** ⚠️ SCHEDULED FOR PLUGIN CONVERSION — QTE System (DES-2)
 
 **What it does:** Self-contained rhythm-based QTE minigame. Has its own timing system, hit detection, scoring, and visual feedback. Currently accessible from the debug menu as a test mode.
 
-**Why it's separate:** It's a complete sub-system that could become a forge sub-mode or a separate activity mode. Keeping it isolated means it's ready to plug in when needed.
+**Why it's separate:** It's a complete sub-system that will become a QTE plugin under the new QTE System. Already has the right shape — self-contained component with its own input/output.
 
-**Future:** Likely becomes a forge sub-mode under GameMode, or a standalone activity mode.
+**Upcoming:** Will gain an `onComplete(result)` callback interface to conform to the QTE plugin contract. See QTE System spec.
+
+---
+
+## SPEC: QTE Constants
+
+**File (planned):** `src/config/qteConstants.js`  
+**Status:** 🔵 PLANNED — DES-2
+
+**What it does:** Single source of truth for all QTE tuning data. Owns tier tables (HEAT_TIERS, HAMMER_TIERS, QUENCH_TIERS), shared color ramp (QTE_COLOR_RAMP), layout values (QTE_COLS, QTE_W, QTE_FLASH_MS), and QTE speed tuning (heat/hammer/quench speed base + range values currently in BALANCE).
+
+**Why we need it:** QTE data is consumed by multiple independent plugins and the QTE Runner. It doesn't belong in the main constants file alongside weapons, materials, and economy data. Extracting it keeps constants.js focused on game-wide data and gives QTE plugins a clean import target.
+
+**Backward compatibility:** constants.js re-exports qteConstants through GameConstants so existing consumers don't break. New QTE code imports from qteConstants directly.
+
+**When it's used:** Imported by every QTE plugin, the QTE Runner, and any system that needs tier table references (forgeVM result handlers, FX cues).
+
+**UE Analogy:** A dedicated Data Table asset for the QTE subsystem.
+
+---
+
+## SPEC: QTE System
+
+**Files (planned):**
+- `src/config/qteConstants.js` — tier tables, color ramp, layout values, speed tuning
+- `src/components/QTERunner.js` — mounts the active QTE plugin, emits result tags
+- `src/modules/barSweepQTE.js` — bar sweep plugin (extracted from forgeComponents.js)
+- `src/modules/rhythmQTE.js` — rhythm plugin (existing, gains onComplete interface)
+
+**Status:** 🔵 PLANNED — DES-2
+
+**What it does:** Turns QTEs into black box transactions. A requester sends a config (which QTE type, which tier table, speed, modifiers). The system runs the interaction. A result tag comes back on the bus. The requester never knows how the QTE works visually. The QTE never knows what the result will be used for.
+
+**Why we need it:** Today the bar sweep QTE is wired directly into forgeVM — refs, click routing, animation hooks, and scoring all live there. Adding a second QTE type (rhythm) means threading another code path through forgeVM. A third type makes it worse. The QTE System decouples the interaction from the consumer so new QTE types drop in without touching forge code.
+
+**Architecture:**
+
+**QTE Runner** — A single component that sits where QTEPanel currently lives in the layout. Receives the active QTE config. Mounts the correct plugin. When the plugin calls `onComplete(result)`, the Runner emits a `QTE_RESULT` tag on the bus with `{ phase, tier, position }`. When no QTE is active, renders nothing. This is the only new boundary crossing — it replaces the direct QTEPanel mount in layout files.
+
+**QTE Plugins** — Each is a self-contained component that:
+- Receives a config object (tier table, speed, modifiers, type-specific settings)
+- Runs its own animation and interaction loop internally
+- Calls `onComplete({ tier, position })` when the player acts
+- Owns zero gameplay knowledge — doesn't know about quality, strikes, or stress
+
+**Plugin contract:**
+```
+Props in:  { config, onComplete }
+config:    { tierTable, speedMult, modifierScale, ...typeSpecific }
+onComplete({ tier, position })  — tier is the full tier object from the table
+```
+
+**Result handling** — Stays in useForgeVM. The handlers (`handleHeatFire`, `handleHammerFire`, `handleQuenchFire`) are forge gameplay logic, not QTE logic. They receive a tier result from the bus instead of computing it from a raw position. The `onForgeClick` routing, `qtePosRef`, and `qteProcessing` refs move into the bar sweep plugin.
+
+**Bus flow:**
+```
+ForgeVM sets phase → QTE Runner sees config → mounts plugin
+Player interacts → plugin calls onComplete({ tier, position })
+QTE Runner emits QTE_RESULT → { phase, tier, position }
+ForgeVM listener catches QTE_RESULT → runs phase-specific handler
+```
+
+**What moves, what stays:**
+
+| Thing | Today | After |
+|-------|-------|-------|
+| Needle animation + bar rendering | forgeComponents.js | barSweepQTE.js (plugin) |
+| Rhythm QTE | rhythmQTE.js | Same file — gains onComplete interface |
+| Click → tier lookup | useForgeVM | Moves into barSweepQTE plugin |
+| Tier → gameplay effect | useForgeVM | Stays — listens for QTE_RESULT tag |
+| `onForgeClick` routing | useForgeVM | Removed — each plugin handles its own input |
+| `qtePosRef`, `qteProcessing` refs | useForgeVM | Move into barSweepQTE (internal state) |
+| QTEPanel mount in layouts | App.js / desktopLayout.js | Replaced with QTERunner (same slot) |
+| Tier tables + color ramp | constants.js | Extracted to qteConstants.js, re-exported through GameConstants |
+| `calcQteResult` | utilities.js | Stays — barSweepQTE imports it |
+
+**What this enables:**
+- New QTE type: write a component, register it in the Runner, point a forge phase config at it. Done.
+- Non-forge consumers: quests, shop haggling, or any system can request a QTE by emitting a start config and listening for QTE_RESULT. No forge coupling.
+- Mix and match: heat could be bar sweep, hammer could be rhythm, quench could be something new. Each phase just declares its QTE type.
+
+**What this does NOT change:**
+- Forge gameplay logic (quality, strikes, stress, shatter) stays in forgeVM
+- Scene system, FX cues, audio — all untouched
+- Layout structure — QTERunner drops into the same slot QTEPanel occupies today
+
+**UE Analogy:** An Ability System for minigames — each QTE type is a Gameplay Ability with its own montage/animation, and the system provides a common activation + result contract.
 
 ---
 
@@ -450,3 +540,5 @@ GameMode emits GAME.DAY.END → CustomerManager resets daily counters
 ---
 
 *End of architecture audit. Systems marked ❌ have been replaced (delete from disk if still present). Systems marked 🔵 are planned builds.*
+
+*For gameplay and UX feature specs (Fairy Helper, How to Play, etc.), see `FeatureSpecs.md`.*

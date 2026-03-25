@@ -366,7 +366,7 @@ export default function App() {
   });
   var takeBreak = forgeVM.takeBreak, resumeWip = forgeVM.resumeWip, scrapWip = forgeVM.scrapWip, scrapWeapon = forgeVM.scrapWeapon, confirmSelect = forgeVM.confirmSelect, onForgeClick = forgeVM.onForgeClick, handleAutoFire = forgeVM.handleAutoFire, attemptForge = forgeVM.attemptForge, doNormalize = forgeVM.doNormalize;
   var weapon = forgeVM.weapon, matData = forgeVM.matData, matDiffMod = forgeVM.matDiffMod, effDiff = forgeVM.effDiff, isExhausted = forgeVM.isExhausted, sessCost = forgeVM.sessCost, maxStam = forgeVM.maxStam;
-  var heatWinLo = forgeVM.heatWinLo, heatWinHi = forgeVM.heatWinHi, heatSpeedMult = forgeVM.heatSpeedMult, hammerSpeedMult = forgeVM.hammerSpeedMult, quenchSpeedMult = forgeVM.quenchSpeedMult;
+  var heatModifierScale = forgeVM.heatModifierScale, heatSpeedMult = forgeVM.heatSpeedMult, hammerSpeedMult = forgeVM.hammerSpeedMult, quenchSpeedMult = forgeVM.quenchSpeedMult;
   var speedLabel = forgeVM.speedLabel, speedColor = forgeVM.speedColor;
   var strikeLabel = forgeVM.strikeLabel, strikeColor = forgeVM.strikeColor, stressColor = forgeVM.stressColor, stressLabel2 = forgeVM.stressLabel2;
   var showBars = forgeVM.showBars, isQTEActive = forgeVM.isQTEActive, isForging = forgeVM.isForging, diffColor = forgeVM.diffColor;
@@ -457,13 +457,13 @@ export default function App() {
           {/* QTE dark box — only during active QTE phases */}
           {isQTEActive && (
               <div style={{ width: "100%", maxWidth: 400, background: "rgba(8,5,2,0.88)", border: "1px solid #2a1f0a", borderRadius: 10, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
-                <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
+                <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
               </div>
           )}
 
           {/* QTEPanel when NOT in dark box (non-QTE forge phases that still need it) */}
           {!isQTEActive && (
-              <QTEPanel phase={phase} heatWinLo={heatWinLo} heatWinHi={heatWinHi} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
+              <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
           )}
 
           {/* MOBILE WEAPON SELECT */}

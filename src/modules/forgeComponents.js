@@ -19,6 +19,7 @@ var HAMMER_TIERS = GameConstants.HAMMER_TIERS;
 var QUENCH_TIERS = GameConstants.QUENCH_TIERS;
 var PHASES = GameConstants.PHASES;
 var BALANCE = GameConstants.BALANCE;
+var QTE_COLOR_RAMP = GameConstants.QTE_COLOR_RAMP;
 var positionToColumn = GameUtils.positionToColumn;
 var calcQteResult = GameUtils.calcQteResult;
 
@@ -86,14 +87,14 @@ function pickQteBarColor(barIndex, tierTable, totalBarCols, modifierScale) {
         var rawWidth = t[side];
         if (rawWidth === 0) continue; // skipped zone
         var scaledWidth = i < scaleCount ? rawWidth * scale : rawWidth;
-        // Convert position-% width to bar columns
-        var zoneCols = scaledWidth / 100 * (QTE_COLS - 1) / (QTE_COLS - 1) * (totalBarCols - 1);
         // Simpler: scaledWidth is in position-%, bar has totalBarCols across 0–100 position range
-        zoneCols = scaledWidth / 100 * (totalBarCols - 1);
+        var zoneCols = scaledWidth / 100 * (totalBarCols - 1);
         var zoneStart = cumCols;
         var zoneEnd = cumCols + zoneCols;
 
         if (dist <= zoneEnd || i === tiers.length - 1) {
+            // Resolve color: per-tier override wins, else fall back to shared ramp
+            var c = (t.hueStart !== undefined) ? t : (QTE_COLOR_RAMP[i] || QTE_COLOR_RAMP[QTE_COLOR_RAMP.length - 1]);
             // Column is in this zone — compute interpolated color
             var colsInZone = Math.max(Math.round(zoneCols), 1);
             var localIndex = dist - zoneStart; // how far into this zone
@@ -104,14 +105,16 @@ function pickQteBarColor(barIndex, tierTable, totalBarCols, modifierScale) {
             } else {
                 ratio = Math.min(1, Math.max(0, localIndex / zoneCols));
             }
-            var hue = Math.round(t.hueStart + (t.hueEnd - t.hueStart) * ratio);
-            return "hsl(" + hue + ", " + t.sat + "%, " + t.lit + "%)";
+            var hue = Math.round(c.hueStart + (c.hueEnd - c.hueStart) * ratio);
+            return "hsl(" + hue + ", " + c.sat + "%, " + c.lit + "%)";
         }
         cumCols = zoneEnd;
     }
     // Fallback — last tier
+    var lastRamp = QTE_COLOR_RAMP[QTE_COLOR_RAMP.length - 1];
     var last = tiers[tiers.length - 1];
-    return "hsl(" + last.hueEnd + ", " + last.sat + "%, " + last.lit + "%)";
+    var fc = (last.hueStart !== undefined) ? last : lastRamp;
+    return "hsl(" + fc.hueEnd + ", " + fc.sat + "%, " + fc.lit + "%)";
 }
 
 // Helper: convert HSL string to a CSS filter for the green base sprite.
@@ -134,7 +137,7 @@ function hslToSpriteFilter(hslString) {
 
 function colHeight(index, totalCols, peakCol) {
     var peak = peakCol !== undefined ? peakCol : (totalCols - 1) / 2;
-    var maxDist = Math.max(peak, totalCols - 1 - peak) || 1;
+    var maxDist = (index <= peak ? peak : totalCols - 1 - peak) || 1;
     var dist = Math.abs(index - peak) / maxDist; // 0 at peak, 1 at far edge
     var t = 1 - dist; // 1 at peak, 0 at far edge
     var normalized = Math.pow(t, HEIGHT_EXPONENT);
