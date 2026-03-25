@@ -12,6 +12,7 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 var PUB = process.env.PUBLIC_URL || "";
 var FAIRY_POP_SRC = PUB + "/audio/sFairyPop.mp3";
@@ -40,7 +41,8 @@ var PEEK_HOLD_MS = 2500;
 var PEEK_SLIDE_OUT_MS = 1000;
 
 // How far she peeks in from the edge (%)
-var PEEK_INSET = 4;
+var PEEK_INSET_TB = 7;   // top/bottom peek depth (%)
+var PEEK_INSET_LR = 16;  // left/right peek depth (%)
 // How far past the edge for off-screen start (%)
 var PEEK_MARGIN = 30;
 
@@ -52,22 +54,22 @@ var EDGE_PEEKS = [
     {
         name: "bottom", type: "peek", rot: 0,
         offX: 50, offY: 100 + PEEK_HALF + PEEK_MARGIN,
-        peekX: 50, peekY: 100 + PEEK_HALF - PEEK_INSET,
+        peekX: 50, peekY: 100 + PEEK_HALF - PEEK_INSET_TB,
     },
     {
         name: "top", type: "peek", rot: 180,
         offX: 50, offY: 0 - PEEK_HALF - PEEK_MARGIN,
-        peekX: 50, peekY: 0 - PEEK_HALF + PEEK_INSET,
+        peekX: 50, peekY: 0 - PEEK_HALF + PEEK_INSET_TB,
     },
     {
         name: "left", type: "peek", rot: 90,
         offX: 0 - PEEK_HALF - PEEK_MARGIN, offY: 50,
-        peekX: 0 - PEEK_HALF + PEEK_INSET, peekY: 50,
+        peekX: 0 - PEEK_HALF + PEEK_INSET_LR, peekY: 50,
     },
     {
         name: "right", type: "peek", rot: -90,
         offX: 100 + PEEK_HALF + PEEK_MARGIN, offY: 50,
-        peekX: 100 + PEEK_HALF - PEEK_INSET, peekY: 50,
+        peekX: 100 + PEEK_HALF - PEEK_INSET_LR, peekY: 50,
     },
 ];
 
@@ -94,38 +96,123 @@ var BETWEEN_DELAY_MIN = 1500;
 var BETWEEN_DELAY_MAX = 4000;
 
 // ============================================================
-// Purple Bubble Pop FX
+// Fairy Dust Poof FX — 3-layer: core flash + spark ring + dust motes
 // ============================================================
-var POOF_FX_SIZE_PCT = 20;       // % of container width
+var POOF_FX_SIZE_VW = 18;        // base size in vw
 var POOF_FX_DURATION_MS = 1400;
-var POOF_FX_OFFSET_X = 0;       // offset from fairy center (%)
-var POOF_FX_OFFSET_Y = 0;
+
+// Spark mote positions — 8 points around a circle, randomised per mount
+function makeSparkOffsets() {
+    var count = 8;
+    var arr = [];
+    for (var i = 0; i < count; i++) {
+        var angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
+        var dist = 3.5 + Math.random() * 3;   // vw from center
+        arr.push({
+            x: Math.cos(angle) * dist,
+            y: Math.sin(angle) * dist,
+            size: 0.4 + Math.random() * 0.6,  // vw
+            delay: Math.random() * 120,        // ms stagger
+        });
+    }
+    return arr;
+}
 
 function PoofFX(props) {
-    var [phase, setPhase] = useState("grow");
+    var [phase, setPhase] = useState("flash");
+    var sparksRef = useRef(makeSparkOffsets());
 
     useEffect(function() {
-        var t = setTimeout(function() { setPhase("fade"); }, 50);
-        return function() { clearTimeout(t); };
+        // flash → burst (core expands, sparks fly out)
+        var t1 = setTimeout(function() { setPhase("burst"); }, 60);
+        // burst → fade (everything dissolves)
+        var t2 = setTimeout(function() { setPhase("fade"); }, 400);
+        return function() { clearTimeout(t1); clearTimeout(t2); };
     }, []);
 
-    var style = {
+    var isFlash = phase === "flash";
+    var isFade = phase === "fade";
+    var sparks = sparksRef.current;
+
+    // --- Layer 1: Core flash — bright opaque blob that hides the sprite ---
+    var coreScale = isFlash ? 0.3 : (isFade ? 1.6 : 1.0);
+    var coreOpacity = isFade ? 0 : 1;
+    var coreStyle = {
         position: "absolute",
-        left: (props.x + POOF_FX_OFFSET_X) + "%",
-        top: (props.y + POOF_FX_OFFSET_Y) + "%",
-        width: POOF_FX_SIZE_PCT + "%",
-        height: POOF_FX_SIZE_PCT + "%",
-        transform: "translate(-50%, -50%) scale(" + (phase === "grow" ? 0.2 : 1.2) + ")",
+        left: props.x + "%",
+        top: props.y + "%",
+        width: POOF_FX_SIZE_VW + "vw",
+        height: POOF_FX_SIZE_VW + "vw",
+        transform: "translate(-50%, -50%) scale(" + coreScale + ")",
         borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(180, 100, 255, 0.95) 0%, rgba(140, 60, 220, 0.7) 35%, rgba(100, 30, 180, 0.2) 60%, rgba(80, 20, 160, 0) 75%)",
-        boxShadow: "0 0 50px 20px rgba(160, 80, 240, 0.5)",
-        opacity: phase === "grow" ? 1 : 0,
-        transition: "transform " + POOF_FX_DURATION_MS + "ms ease-out, opacity " + POOF_FX_DURATION_MS + "ms ease-out",
+        background: "radial-gradient(circle, rgba(255, 240, 255, 1) 0%, rgba(210, 160, 255, 0.95) 25%, rgba(160, 80, 240, 0.9) 50%, rgba(120, 40, 200, 0.4) 75%, rgba(80, 20, 160, 0) 100%)",
+        boxShadow: "0 0 40px 15px rgba(200, 140, 255, 0.7), 0 0 80px 30px rgba(140, 60, 220, 0.3)",
+        opacity: coreOpacity,
+        transition: isFlash
+            ? "transform 150ms ease-out, opacity 150ms ease-out"
+            : "transform " + (POOF_FX_DURATION_MS - 400) + "ms ease-out, opacity " + (POOF_FX_DURATION_MS - 400) + "ms ease-out",
+        pointerEvents: "none",
+        zIndex: 3,
+    };
+
+    // --- Layer 2: Spark ring — small bright dots that fly outward ---
+    var sparkElements = sparks.map(function(s, i) {
+        var sx = isFade ? s.x * 1.8 : (isFlash ? 0 : s.x);
+        var sy = isFade ? s.y * 1.8 : (isFlash ? 0 : s.y);
+        var sparkOpacity = isFade ? 0 : (isFlash ? 0.5 : 1);
+        return (
+            <div key={i} style={{
+                position: "absolute",
+                left: "calc(50% + " + sx + "vw)",
+                top: "calc(50% + " + sy + "vw)",
+                width: s.size + "vw",
+                height: s.size + "vw",
+                borderRadius: "50%",
+                background: "radial-gradient(circle, rgba(255, 230, 255, 1) 0%, rgba(200, 140, 255, 0.8) 50%, rgba(160, 80, 240, 0) 100%)",
+                boxShadow: "0 0 " + (s.size * 6) + "px " + (s.size * 2) + "px rgba(180, 120, 255, 0.6)",
+                opacity: sparkOpacity,
+                transform: "translate(-50%, -50%)",
+                transition: isFlash
+                    ? "none"
+                    : "left " + (POOF_FX_DURATION_MS - 200) + "ms ease-out " + s.delay + "ms, "
+                    + "top " + (POOF_FX_DURATION_MS - 200) + "ms ease-out " + s.delay + "ms, "
+                    + "opacity " + (POOF_FX_DURATION_MS - 200) + "ms ease-out " + s.delay + "ms",
+                pointerEvents: "none",
+            }} />
+        );
+    });
+
+    // --- Layer 3: Soft outer glow ring that expands ---
+    var ringScale = isFlash ? 0.4 : (isFade ? 2.0 : 1.2);
+    var ringOpacity = isFade ? 0 : (isFlash ? 0.3 : 0.6);
+    var ringStyle = {
+        position: "absolute",
+        left: props.x + "%",
+        top: props.y + "%",
+        width: (POOF_FX_SIZE_VW * 1.4) + "vw",
+        height: (POOF_FX_SIZE_VW * 1.4) + "vw",
+        transform: "translate(-50%, -50%) scale(" + ringScale + ")",
+        borderRadius: "50%",
+        border: "2px solid rgba(200, 150, 255, 0.5)",
+        background: "transparent",
+        boxShadow: "inset 0 0 20px 8px rgba(180, 120, 255, 0.15), 0 0 30px 10px rgba(160, 80, 240, 0.1)",
+        opacity: ringOpacity,
+        transition: isFlash
+            ? "transform 100ms ease-out"
+            : "transform " + POOF_FX_DURATION_MS + "ms ease-out, opacity " + POOF_FX_DURATION_MS + "ms ease-out",
         pointerEvents: "none",
         zIndex: 2,
     };
 
-    return <div style={style} />;
+    return (
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 2 }}>
+            <div style={coreStyle} />
+            <div style={ringStyle} />
+            <div style={{ position: "absolute", left: props.x + "%", top: props.y + "%", width: 0, height: 0, pointerEvents: "none", zIndex: 4 }}>
+                {sparkElements}
+            </div>
+        </div>
+    );
 }
 
 // ============================================================
@@ -296,9 +383,7 @@ function FairyAnim() {
     }, []);
 
     // --- Sprite sizing (% of container) ---
-    var aspect = SPRITE_CFG.frameH / SPRITE_CFG.frameW;
-    var spriteW = SPRITE_CFG.sizePct + "%";
-    var spriteH = (SPRITE_CFG.sizePct * aspect) + "%";
+    var spriteW = SPRITE_CFG.sizePct + "vw";
 
     // --- Don't render when nothing is active ---
     var showFairy = pos !== null;
@@ -308,7 +393,7 @@ function FairyAnim() {
     var transMs = showFairy ? (pos.transition || 0) : 0;
 
     // --- Full-screen container — all children positioned as % of this ---
-    return (
+    return createPortal(
         <div style={{
             position: "fixed",
             inset: 0,
@@ -332,16 +417,17 @@ function FairyAnim() {
                 }}>
                     <div style={{
                         width: spriteW,
-                        height: spriteH,
+                        aspectRatio: SPRITE_CFG.frameW + "/" + SPRITE_CFG.frameH,
                         backgroundImage: "url(" + SPRITE_CFG.sheet + ")",
-                        backgroundPosition: -(frame * SPRITE_CFG.sizePct) + "% 0",
+                        backgroundPosition: (frame * (100 / (SPRITE_CFG.frames - 1))) + "% 0",
                         backgroundSize: (SPRITE_CFG.frames * 100) + "% 100%",
                         backgroundRepeat: "no-repeat",
                         imageRendering: "pixelated",
                     }} />
                 </div>
             )}
-        </div>
+        </div>,
+        document.body
     );
 }
 
