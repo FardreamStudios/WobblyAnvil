@@ -162,6 +162,20 @@ var FAIRY_QUIPS = [
 ];
 
 // ============================================================
+// Peek Quips — only for bottom peek (she's poking her head up)
+// ============================================================
+var PEEK_QUIPS = [
+    "psst. down here.",
+    "you didn't see me.",
+    "just checking if you're still bad at this",
+    "boo.",
+    "i live here now",
+    "don't mind me just vibing",
+    "the view from down here is... concerning",
+    "shhh i'm hiding from the customers",
+];
+
+// ============================================================
 // Irritation Lines — 5 tiers x 5 lines
 // Tier 0: amused  |  1: annoyed  |  2: angry (dodges)
 // 3: furious (dodges, sometimes tiny)  |  4: nuclear (leaves)
@@ -737,20 +751,40 @@ function FairyAnim() {
             varOffY = edge.offY + offsetV;
         }
 
+        // Bottom peek can show a quip — extend hold to ensure read time
+        var isBottom = edge.name === "bottom";
+        var peekQuip = isBottom ? pickRandom(PEEK_QUIPS) : null;
+        var holdMs = isBottom && peekQuip
+            ? Math.max(PEEK_HOLD_MS, readTimeMs(peekQuip) + 600)
+            : PEEK_HOLD_MS;
+
         setPos({ x: varOffX, y: varOffY, scale: PEEK_SCALE, rot: edge.rot, transition: 0 });
 
         schedule(function() {
             setPos({ x: varPeekX, y: varPeekY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_IN_MS });
         }, 50);
 
-        schedule(function() {
-            setPos({ x: varOffX, y: varOffY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_OUT_MS });
-        }, 50 + PEEK_SLIDE_IN_MS + PEEK_HOLD_MS);
+        // Show quip after slide-in completes
+        if (peekQuip) {
+            schedule(function() {
+                setSpeechText(peekQuip);
+            }, 50 + PEEK_SLIDE_IN_MS + 300);
+
+            // Hide quip before slide-out
+            schedule(function() {
+                setSpeechText(null);
+            }, 50 + PEEK_SLIDE_IN_MS + holdMs - 500);
+        }
 
         schedule(function() {
+            setPos({ x: varOffX, y: varOffY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_OUT_MS });
+        }, 50 + PEEK_SLIDE_IN_MS + holdMs);
+
+        schedule(function() {
+            setSpeechText(null);
             setPos(null);
             if (onDone) onDone();
-        }, 50 + PEEK_SLIDE_IN_MS + PEEK_HOLD_MS + PEEK_SLIDE_OUT_MS);
+        }, 50 + PEEK_SLIDE_IN_MS + holdMs + PEEK_SLIDE_OUT_MS);
     }
 
     // ============================================================
