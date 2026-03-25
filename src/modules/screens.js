@@ -7,6 +7,7 @@
 import { useState, useEffect } from "react";
 import GameConstants from "./constants.js";
 import UIComponents from "./uiComponents.js";
+import HowToPlay from "../components/HowToPlay.js";
 
 var FTUE_TOASTS = GameConstants.FTUE_TOASTS;
 var SectionLabel = UIComponents.SectionLabel;
@@ -33,7 +34,7 @@ function SplashScreen({ onEnter }) {
 
 function MainMenu({ onStart, sfx }) {
     var [flicker, setFlicker] = useState(false);
-    var [ftueIndex, setFtueIndex] = useState(null);
+    var [showHtp, setShowHtp] = useState(false);
     var [flashing, setFlashing] = useState(false);
 
     useEffect(function() {
@@ -42,21 +43,13 @@ function MainMenu({ onStart, sfx }) {
         return function() { clearInterval(interval); clearTimeout(flashTimer); };
     }, []);
 
-    function openFtue() { setFlashing(false); setFtueIndex(0); }
+    function openHtp() { setFlashing(false); setShowHtp(true); }
 
     return (
         <div style={{ background: "#0a0704", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontFamily: "monospace", color: "#f0e6c8", padding: "28px 32px" }}>
 
-            {/* FTUE Overlay */}
-            {ftueIndex !== null && (
-                <div onClick={function() { setFtueIndex(function(i) { return i + 1 < FTUE_TOASTS.length ? i + 1 : null; }); }} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                    <div style={{ background: "#0c0905", border: "4px solid #f59e0b", borderRadius: 20, padding: "36px 44px", width: "min(440px,90%)", display: "flex", flexDirection: "column", gap: 16, textAlign: "center" }}>
-                        <div style={{ fontSize: 13, color: "#f59e0b", letterSpacing: 3, fontWeight: "bold" }}>{FTUE_TOASTS[ftueIndex].title}</div>
-                        <div style={{ fontSize: 14, color: "#c8b89a", lineHeight: 1.8, whiteSpace: "pre-line" }}>{FTUE_TOASTS[ftueIndex].msg}</div>
-                        <div style={{ fontSize: 10, color: "#4a3c2c", letterSpacing: 2 }}>{ftueIndex < FTUE_TOASTS.length - 1 ? "CLICK FOR NEXT" : "CLICK TO CLOSE"} · {ftueIndex + 1}/{FTUE_TOASTS.length}</div>
-                    </div>
-                </div>
-            )}
+            {/* How to Play Overlay */}
+            {showHtp && <HowToPlay onClose={function() { setShowHtp(false); }} sfx={sfx} />}
 
             {/* Title */}
             <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -97,7 +90,7 @@ function MainMenu({ onStart, sfx }) {
             {/* Buttons */}
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                 <button onClick={function() { sfx.click(); onStart(); }} style={{ background: "#2a1f0a", border: "3px solid #f59e0b", borderRadius: 10, color: "#f59e0b", padding: "16px 80px", fontSize: 18, cursor: "pointer", letterSpacing: 4, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", opacity: flicker ? 1 : 0.82, transition: "opacity 0.4s" }}>BEGIN JOURNEY</button>
-                <button onClick={function() { sfx.click(); openFtue(); }} style={{ background: "#141009", border: "2px solid " + (flashing ? "#f59e0b" : "#3d2e0f"), borderRadius: 8, color: flashing ? "#f59e0b" : "#5a4a38", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 3, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", transition: "border-color 0.4s, color 0.4s" }}>? HOW TO PLAY</button>
+                <button onClick={function() { sfx.click(); openHtp(); }} style={{ background: "#141009", border: "2px solid " + (flashing ? "#f59e0b" : "#3d2e0f"), borderRadius: 8, color: flashing ? "#f59e0b" : "#5a4a38", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 3, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", transition: "border-color 0.4s, color 0.4s" }}>? HOW TO PLAY</button>
                 <SectionLabel color="#3d2e0f" style={{ letterSpacing: 2 }}>THE FORGE AWAITS</SectionLabel>
             </div>
         </div>
