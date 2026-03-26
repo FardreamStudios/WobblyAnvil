@@ -1,7 +1,7 @@
 # Fairy System — Three-Layer Architecture Spec
 
-**Status:** ⚠️ IN PROGRESS  
-**Risk:** MEDIUM — pawn is new orchestration layer, anim refactor touches working proto  
+**Status:** ⚠️ IN PROGRESS — core pipeline live (Controller → Pawn → AnimInstance), remaining: FX, persistence, special cues  
+**Risk:** LOW — remaining milestones are additive, no refactors  
 **Character bible:** See `FairyCharacter.md` for identity, voice, pacing, abilities, and LLM design.
 
 Three-layer puppet architecture following UE conventions. Controller decides intent. Pawn translates intent into stage directions. AnimInstance executes the visual. Bus-listener architecture — read-only on game state. Day-gated pacing from FairyCharacter.md.
@@ -14,7 +14,7 @@ Three-layer puppet architecture following UE conventions. Controller decides int
 |-------|-----------|------|-----|
 | FairyController | AIController | `src/fairy/fairyController.js` | The brain. Decides WHEN to act and WHAT to say. FSM, rules evaluation, line picking, LLM routing, day-gating, pacing. |
 | FairyPawn | Pawn / Character | `src/fairy/fairyPawn.js` | The thing in the world. Decides WHERE to go and HOW. Position registry, target resolver, cue playback, action queue. |
-| FairyAnimInstance | AnimInstance | `src/components/FairyAnimInstance.js` | Pure animation player. Receives commands, plays sprite/FX/bubble. Zero decision-making. |
+| FairyAnimInstance | AnimInstance | `src/fairy/FairyAnimInstance.js` | Pure animation player. Receives commands, plays sprite/FX/bubble. Zero decision-making. |
 
 Communication flows one direction: **Controller → Pawn → AnimInstance**. Controller possesses the Pawn. Pawn owns the AnimInstance. Each layer only talks to the one below it.
 
@@ -26,25 +26,21 @@ Communication flows one direction: **Controller → Pawn → AnimInstance**. Con
 
 | File | Status |
 |------|--------|
-| `fairyController.js` | ✅ Built — FSM, bus integration, rules eval, line picking, LLM routing |
-| `fairyRulesTree.js` | ✅ Built — trigger definitions with busTag, conditions, priority, cooldowns |
+| `fairyController.js` | ✅ Built — FSM, bus integration, rules eval, line picking, LLM routing. M-9: day-gating, pacing clock, structured `onCommand` pawn bridge |
+| `fairyRulesTree.js` | ✅ Built — trigger definitions with busTag, conditions, priority, cooldowns, minDay day-gating |
 | `fairyPersonality.js` | ✅ Built — 211 lines, 25 categories, 3 fairy events, system prompt, template tokens |
 | `fairyAPI.js` | ✅ Built — LLM fetch wrapper with timeout, validation, gibberlese fallback |
 | `fairyConfig.js` | ✅ Built — environment switching (local dev vs production worker URL) |
+| `fairyPositions.js` | ✅ Built (M-5) — per-scene nav mesh, depth formula, UI targets, edge peeks, dodge paths, roam zones. `data-fairy-target` attributes on layouts |
+| `fairyCues.js` | ✅ Built (M-6) — 13 named cue timelines with layer declarations and null-resolution convention |
+| `fairyPawn.js` | ✅ Built (M-7) — cue player, position resolution (scene depth + overlay viewport), staging logic, dodge provider, feedback routing |
+| `FairyAnimInstance.js` | ✅ Built (M-8) — command API via ref, pawn callbacks (onTapExit, onTapDodge, getDodgeSpot). Stripped autonomous loop, quip decks, position data |
 
-**Built (in `src/components/`):**
+**Replaced / delete candidates:**
 
 | File | Status |
 |------|--------|
-| `FairyAnim.js` | ✅ Proto — spritesheet, portal rendering, poof FX, speech bubbles, tap interaction. Becomes `FairyAnimInstance.js` at M-8. |
-
-**Not yet built:**
-
-| File | Location | Milestone |
-|------|----------|-----------|
-| `fairyPawn.js` | `src/fairy/` | M-7 |
-| `fairyCues.js` | `src/fairy/` | M-6 |
-| `fairyPositions.js` | `src/fairy/` | M-5 |
+| `src/components/FairyAnim.js` | ❌ Replaced by `src/fairy/FairyAnimInstance.js` — delete when confirmed |
 
 ---
 
@@ -52,9 +48,7 @@ Communication flows one direction: **Controller → Pawn → AnimInstance**. Con
 
 Pure JS singleton. The brain — possesses the pawn, never touches visuals.
 
-**Current capabilities:** FSM (`off → idle → pointing → escalating → flustered → exiting → dismissed`), trigger evaluation against rules tree (bus events + ambient tick), line picking from personality data (shuffle deck), LLM routing when no static line matches, cooldowns, once-flags, escalation counts, bus subscriptions, gameplay tracking.
-
-**Gains at M-9:** Day-gating (checks current day against rule `minDay` + pacing table), pacing clock (scales ambient tick interval by day tier), pawn bridge (sends structured commands instead of raw lines).
+**Current capabilities:** FSM (`off → idle → pointing → escalating → flustered → exiting → dismissed`), trigger evaluation against rules tree (bus events + ambient tick), line picking from personality data (shuffle deck), LLM routing when no static line matches, cooldowns, once-flags, escalation counts, bus subscriptions, gameplay tracking. Day-gating (checks current day against rule `minDay` + pacing table), pacing clock (scales ambient tick interval by day tier), pawn bridge (sends structured commands via `onCommand`).
 
 **Day-Gating Pacing Table** (from FairyCharacter.md):
 
@@ -74,7 +68,7 @@ Each rule in `fairyRulesTree.js` gains a `minDay` field. Controller skips rules 
 
 ## Layer Detail: FairyPawn
 
-New file (M-7). Pure JS singleton (no React). The fairy's physical presence in the world.
+`src/fairy/fairyPawn.js` (M-7). Pure JS singleton (no React). The fairy's physical presence in the world.
 
 **Owns:** Position registry (all named positions, static and dynamic), target resolver (`data-fairy-target` → viewport % via `getBoundingClientRect`), action queue (sequential commands with timing), cue playback (reads cue definitions from `fairyCues.js`, steps through timeline), staging logic (picks approach direction, peek edge, hover offset based on target location).
 
@@ -92,17 +86,19 @@ New file (M-7). Pure JS singleton (no React). The fairy's physical presence in t
 
 ## Layer Detail: FairyAnimInstance
 
-Refactored from `FairyAnim.js` at M-8. Pure renderer — receives commands, plays sprite/FX/bubble. Zero decision-making.
+`src/fairy/FairyAnimInstance.js` (refactored from `FairyAnim.js` at M-8). Pure renderer — receives commands via ref API, plays sprite/FX/bubble. Zero decision-making.
 
-**Keeps from FairyAnim.js:** Spritesheet rendering, poof FX (3-layer), speech bubbles, tap interaction (5-tier irritation system), dodge-poof.
+**Kept from FairyAnim.js:** Spritesheet rendering, poof FX (3-layer), speech bubbles, tap interaction (5-tier irritation system), dodge-poof.
 
-**Strips:** Autonomous scheduling loop (pawn drives timing after refactor), position logic (pawn owns positions), quip decks (controller owns line picking).
+**Stripped at M-8:** Autonomous scheduling loop (pawn drives timing), position logic (pawn owns positions), quip decks (controller owns line picking).
+
+**Added at M-8:** Command API via ref, pawn callbacks (`onTapExit`, `onTapDodge`, `getDodgeSpot`).
 
 **Positioning:** Four CSS properties fully puppeted by the pawn — position absolute, left/top in %, transform (translate, scale, rotate), transition (duration, easing). Everything the pawn sends maps directly to these values.
 
 **Tap interaction stays self-contained.** On tap-to-nuclear-exit, fires an `onTapExit` callback so the pawn knows the fairy left.
 
-**Audio cleanup needed:** Currently uses `new Audio()` directly for sFairyPop.mp3 — should wire through main audio system. Blocked until M-8.
+**Audio cleanup needed:** Currently uses `new Audio()` directly for sFairyPop.mp3 — should wire through main audio system. Tracked in ToDo.md cleanup.
 
 ---
 
@@ -128,28 +124,29 @@ Controller inits first with bus, stateProvider, and an `onCommand` callback that
 | M-2 | State machine core | `src/fairy/fairyController.js` |
 | M-4 | Bus integration — gameplay tag watching | `src/fairy/fairyController.js` |
 | M-LLM | LLM client (mock mode active) | `src/fairy/fairyAPI.js`, `src/fairy/fairyConfig.js` |
-| Proto | Animation prototype | `src/components/FairyAnim.js` |
+| Proto | Animation prototype | `src/components/FairyAnim.js` (replaced by FairyAnimInstance) |
+| M-5 | Position registry + target resolver | `src/fairy/fairyPositions.js` |
+| M-6 | Cue data file | `src/fairy/fairyCues.js` |
+| M-8 | AnimInstance refactor | `src/fairy/FairyAnimInstance.js` |
+| M-7 | Pawn core | `src/fairy/fairyPawn.js` |
+| M-9 | Controller upgrade (day-gating, pawn bridge) | `src/fairy/fairyController.js` |
+| M-10 | App.js rewire | `App.js` |
 
 **Remaining:**
 
 | Order | ID | What | Risk | Dependencies |
 |-------|----|------|------|-------------|
-| 1 | M-5 | Position registry + target resolver | LOW | None |
-| 2 | M-6 | Cue data file | LOW | None |
-| 3 | M-8 | AnimInstance refactor | MEDIUM | None (can test standalone) |
-| 4 | M-7 | Pawn core | MEDIUM | M-5, M-6, M-8 |
-| 5 | M-9 | Controller upgrade (day-gating, pawn bridge) | MEDIUM | M-7 |
-| 6 | M-10 | App.js rewire | LOW | M-7, M-8, M-9 |
-| 7 | M-11 | Laser FX | MEDIUM | M-7 |
-| 8 | M-12 | Persistence + toggle | LOW | M-9 |
-| 9 | M-13 | Special cues | LOW | M-7 |
-| 10 | M-14 | Gibberish speech audio (can defer) | LOW | M-8 |
+| 1 | M-11 | Laser FX | MEDIUM | M-7 ✅ |
+| 2 | M-12 | Persistence + toggle | LOW | M-9 ✅ |
+| 3 | M-13 | Special cues | LOW | M-7 ✅ |
+| 4 | M-14 | Gibberish speech audio (can defer) | LOW | M-8 ✅ |
 
 ---
 
 ## Concerns
 
-- **AnimInstance refactor scope.** FairyAnim.js is ~860 lines. Stripping the loop, decks, and position data should drop it to ~400. Tap interaction stays but dodge positions need to come from pawn instead of hardcoded arrays.
-- **Pawn complexity.** The cue player is a timeline sequencer. Keep it simple — `setTimeout` chain, not a full animation engine.
-- **Target resolver on mobile.** `getBoundingClientRect` works differently when the game shell is scaled (desktop) vs full-viewport (mobile). Test early.
-- **Tap exit flow.** AnimInstance → pawn → controller feedback needs clean timing — no orphaned state.
+- ~~**AnimInstance refactor scope.** FairyAnim.js is ~860 lines. Stripping the loop, decks, and position data should drop it to ~400.~~ ✅ Done (M-8). Command API via ref, pawn callbacks wired.
+- ~~**Pawn complexity.** The cue player is a timeline sequencer.~~ ✅ Done (M-7). setTimeout chain, not a full animation engine.
+- **Target resolver on mobile.** `getBoundingClientRect` works differently when the game shell is scaled (desktop) vs full-viewport (mobile). Positions built (M-5) — needs real-device testing during Laser FX (M-11).
+- ~~**Tap exit flow.** AnimInstance → pawn → controller feedback needs clean timing.~~ ✅ Done. onTapExit callback wired through all three layers.
+- **FairyAnimInstance audio cleanup.** `new Audio()` direct usage should wire through main audio system for volume/mute consistency. Tracked in ToDo.md cleanup section.

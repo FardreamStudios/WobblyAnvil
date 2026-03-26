@@ -74,6 +74,10 @@ var TICK_INTERVAL_MS = 10000;
 // Tier 2 signal — returned when no static line matches
 var LLM_NEEDED = "__LLM_NEEDED__";
 
+// Persistence keys (M-12)
+var LS_KEY_ONCE_FLAGS = "wa_fairy_taught";
+var LS_KEY_ENABLED    = "wa_fairy_enabled";
+
 // ============================================================
 // DAY-GATING — Pacing Table (from FairyCharacter.md)
 // Tier determines allowed behavior, tick speed, max appearances.
@@ -146,6 +150,44 @@ var _tracked = {
 };
 
 // ============================================================
+// PERSISTENCE (M-12)
+// Taught topics survive across sessions and new games.
+// Enabled pref survives across sessions.
+// ============================================================
+
+function _loadOnceFlags() {
+    try {
+        var raw = localStorage.getItem(LS_KEY_ONCE_FLAGS);
+        if (raw) return JSON.parse(raw);
+    } catch (e) {
+        console.warn("[FairyController] Failed to load once-flags:", e.message);
+    }
+    return {};
+}
+
+function _saveOnceFlags() {
+    try {
+        localStorage.setItem(LS_KEY_ONCE_FLAGS, JSON.stringify(_onceFired));
+    } catch (e) {
+        console.warn("[FairyController] Failed to save once-flags:", e.message);
+    }
+}
+
+function _loadEnabledPref() {
+    try {
+        var raw = localStorage.getItem(LS_KEY_ENABLED);
+        if (raw === "false") return false;
+    } catch (e) {}
+    return true; // enabled by default
+}
+
+function _saveEnabledPref(enabled) {
+    try {
+        localStorage.setItem(LS_KEY_ENABLED, enabled ? "true" : "false");
+    } catch (e) {}
+}
+
+// ============================================================
 // SETUP
 // ============================================================
 
@@ -184,6 +226,14 @@ function init(config) {
 
     _fsmState = STATES.IDLE;
     _initialized = true;
+
+    // Load persisted taught topics (M-12)
+    _onceFired = _loadOnceFlags();
+
+    // Check enabled preference (M-12)
+    if (!_loadEnabledPref()) {
+        _fsmState = STATES.DISMISSED;
+    }
 
     // Wire up bus subscriptions + ambient tick
     _startWatching();
@@ -570,6 +620,7 @@ function _executeTrigger(trigger) {
     // Record once-flag
     if (trigger.once) {
         _onceFired[trigger.id] = true;
+        _saveOnceFlags();
     }
 
     // Count appearance
@@ -656,6 +707,24 @@ function enable() {
     }
 }
 
+/**
+ * Toggle fairy on/off with persistence (M-12).
+ * Called from options menu toggle.
+ */
+function setEnabled(val) {
+    var enabled = !!val;
+    _saveEnabledPref(enabled);
+    if (enabled) {
+        enable();
+    } else {
+        dismiss();
+    }
+}
+
+function isEnabled() {
+    return _fsmState !== STATES.OFF && _fsmState !== STATES.DISMISSED;
+}
+
 // ============================================================
 // QUERY
 // ============================================================
@@ -680,7 +749,7 @@ function reset() {
 
     _fsmState     = STATES.IDLE;
     _cooldowns    = {};
-    _onceFired    = {};
+    _onceFired    = _loadOnceFlags();  // reload taught topics, don't clear
     _ignoreCounts = {};
     _decks        = {};
     _appearancesToday = 0;
@@ -760,10 +829,12 @@ var FairyController = {
     // --- Player Actions ---
     dismiss:      dismiss,
     enable:       enable,
+    setEnabled:   setEnabled,
 
     // --- Query ---
     getState:     getState,
     isActive:     isActive,
+    isEnabled:    isEnabled,
     getDayTier:   function() { return _currentTier; },
     getAppearancesToday: function() { return _appearancesToday; },
     resetDailyAppearances: function() { _appearancesToday = 0; },

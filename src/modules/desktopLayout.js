@@ -102,6 +102,10 @@ function DesktopLayout(props) {
     var toasts = ui.toasts;
     var activeToast = ui.activeToast;
 
+    // --- Fairy (M-12) ---
+    var fairyEnabled = props.fairyEnabled;
+    var onFairyToggle = props.onFairyToggle;
+
     // --- Economy State ---
     var gold = economy.gold;
     var inv = economy.inv;
@@ -471,6 +475,10 @@ function DesktopLayout(props) {
                     <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
                         <SectionLabel>AUDIO</SectionLabel>
                         {[["SFX", sfxVol, function(e) { var v = parseFloat(e.target.value); setSfxVol(v); sfx.setSfxVol(v); }], ["MUSIC", musicVol, function(e) { var v = parseFloat(e.target.value); setMusicVol(v); sfx.setMusicVol(v); }]].map(function(r) { return (<label key={r[0]} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>{r[0]}<input type="range" min="0" max="1" step="0.05" value={r[1]} onChange={r[2]} style={{ width: 120, accentColor: "#f59e0b", cursor: "pointer" }} /></label>); })}
+                    </div>
+                    <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+                        <SectionLabel>FAIRY</SectionLabel>
+                        <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>Fairy Helper<input type="checkbox" checked={fairyEnabled} onChange={function() { onFairyToggle(!fairyEnabled); }} style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }} /></label>
                     </div>
                     <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                         <SectionLabel style={{ marginBottom: 4 }}>DANGER ZONE</SectionLabel>

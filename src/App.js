@@ -4,7 +4,7 @@
 // All data, utilities, components, and systems imported from modules.
 // ============================================================
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // --- Module Imports ---
 import GameConstants from "./modules/constants.js";
@@ -190,6 +190,11 @@ export default function App() {
   var handedness = ui.handedness, setHandedness = ui.setHandedness;
   var sfxVol = ui.sfxVol, setSfxVol = ui.setSfxVol;
   var musicVol = ui.musicVol, setMusicVol = ui.setMusicVol;
+
+  // --- Fairy toggle (M-12) ---
+  var [fairyEnabled, setFairyEnabled] = useState(function() {
+    try { return localStorage.getItem("wa_fairy_enabled") !== "false"; } catch(e) { return true; }
+  });
 
   // --- Toast State (from useUIState) ---
   var toasts = ui.toasts, setToasts = ui.setToasts;
@@ -746,6 +751,9 @@ export default function App() {
                 <SectionLabel>AUDIO</SectionLabel>
                 <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>SFX<input type="range" min="0" max="1" step="0.05" value={sfxVol} onChange={function(e) { var v = parseFloat(e.target.value); setSfxVol(v); sfx.setSfxVol(v); }} style={{ width: 120, accentColor: "#f59e0b", cursor: "pointer" }} /></label>
                 <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>MUSIC<input type="range" min="0" max="1" step="0.05" value={musicVol} onChange={function(e) { var v = parseFloat(e.target.value); setMusicVol(v); sfx.setMusicVol(v); }} style={{ width: 120, accentColor: "#f59e0b", cursor: "pointer" }} /></label>
+                <div style={{ borderTop: "1px solid #2a1f0a", marginTop: 12, paddingTop: 12 }} />
+                <SectionLabel>FAIRY</SectionLabel>
+                <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontSize: 12, color: "#c8b89a", letterSpacing: 1, userSelect: "none" }}>Fairy Helper<input type="checkbox" checked={fairyEnabled} onChange={function() { var next = !fairyEnabled; setFairyEnabled(next); FairyController.setEnabled(next); }} style={{ accentColor: "#f59e0b", width: 15, height: 15, cursor: "pointer" }} /></label>
               </div>
               <div style={{ borderTop: "1px solid #2a1f0a", paddingTop: 14, marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
                 <SectionLabel style={{ marginBottom: 4 }}>DANGER ZONE</SectionLabel>
@@ -799,6 +807,8 @@ export default function App() {
             sceneFxRef={sceneFxRef}
             onDebugGoodEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); setGoodEventUsed(true); setPendingMystery({ severity: "good" }); }}
             onDebugBadEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, false); setPendingMystery({ severity: "bad" }); }}
+            fairyEnabled={fairyEnabled}
+            onFairyToggle={function(val) { setFairyEnabled(val); FairyController.setEnabled(val); }}
         />
         <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} />
       </>

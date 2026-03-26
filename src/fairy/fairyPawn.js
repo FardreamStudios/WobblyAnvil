@@ -4,8 +4,9 @@
 // UE ANALOGY: Pawn / Character. The fairy's physical presence
 // in the world. Decides WHERE to go and HOW to get there.
 //
-// Pure JS singleton. No React. No DOM rendering.
+// Pure JS singleton. No React.
 // Drives AnimInstance through ref API.
+// Owns laser beam DOM element (M-11) — raw SVG, no React.
 //
 // LIFECYCLE:
 //   init(config)   — store animRef, callbacks, scene id
@@ -55,6 +56,14 @@ var PEEK_SCALE = 4.0;
 // Fallback scene when none set
 var DEFAULT_SCENE = "forge";
 
+// Laser beam (M-11)
+var LASER_GROW_MS = 200;
+var LASER_COLOR = "rgba(180, 120, 255, 0.8)";
+var LASER_GLOW_COLOR = "rgba(160, 80, 240, 0.4)";
+var LASER_WIDTH = 2;
+var LASER_DASH = "6 4";
+var LASER_DOT_RADIUS = 5;
+
 // ============================================================
 // INTERNAL STATE
 // ============================================================
@@ -74,6 +83,7 @@ var _timerIds = [];
 // Current fairy state (mirrors what we've sent to AnimInstance)
 var _currentPos = null;          // last setPos sent
 var _visible = false;            // fairy currently on screen
+var _laserEl = null;             // SVG overlay element for laser beam (M-11)
 
 // ============================================================
 // LIFECYCLE
@@ -101,6 +111,7 @@ function init(config) {
 function destroy() {
     cancelCue();
     _clearTimers();
+    _destroyLaser();
 
     _animRef = null;
     _onPawnEvent = null;
@@ -271,6 +282,9 @@ function cancelCue() {
     _cueTimerIds = [];
     _activeCue = null;
 
+    // Kill laser if active
+    _destroyLaser();
+
     // Tell AnimInstance to hide
     if (_animRef && _animRef.current) {
         _animRef.current.hide();
@@ -401,11 +415,11 @@ function _executeStep(step) {
             break;
 
         case "laser_on":
-            // Future: M-11
+            _laserOn(step);
             break;
 
         case "laser_off":
-            // Future: M-11
+            _destroyLaser();
             break;
 
         case "dodge_dash":
@@ -643,6 +657,166 @@ function _executeDodgeDash(step) {
 
     _currentPos = { x: path.entry.x, y: path.y, scale: path.scale };
     _visible = true;
+}
+
+// ============================================================
+// LASER BEAM (M-11)
+// Raw DOM SVG — pawn owns lifecycle. No React involvement.
+// Purple dashed teaching pointer from fairy to target element.
+// ============================================================
+
+/**
+ * Resolve target and create laser beam from fairy → target.
+ */
+function _laserOn(step) {
+    if (!_currentPos) return;
+
+    var targetId = step.target;
+    if (!targetId) return;
+
+    // Resolve target to viewport px
+    var resolved = FairyPositions.resolveUITarget(targetId);
+    if (!resolved) {
+        console.warn("[FairyPawn] Laser target not found: " + targetId);
+        return;
+    }
+
+    // Convert fairy % pos to viewport px
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var fromX = (_currentPos.x / 100) * vw;
+    var fromY = (_currentPos.y / 100) * vh;
+    var toX = resolved.x;
+    var toY = resolved.y;
+
+    _createLaser(fromX, fromY, toX, toY);
+}
+
+/**
+ * Build the SVG overlay and append to document.body.
+ * Beam grows from fairy to target over LASER_GROW_MS.
+ */
+function _createLaser(fromX, fromY, toX, toY) {
+    _destroyLaser();
+
+    var ns = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("class", "fairy-laser-svg");
+    svg.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:visible;";
+
+    // --- Defs: glow filter ---
+    var defs = document.createElementNS(ns, "defs");
+    var filter = document.createElementNS(ns, "filter");
+    filter.setAttribute("id", "fairy-laser-glow");
+    filter.setAttribute("x", "-50%");
+    filter.setAttribute("y", "-50%");
+    filter.setAttribute("width", "200%");
+    filter.setAttribute("height", "200%");
+
+    var blur = document.createElementNS(ns, "feGaussianBlur");
+    blur.setAttribute("stdDeviation", "4");
+    blur.setAttribute("result", "blur");
+    filter.appendChild(blur);
+
+    var merge = document.createElementNS(ns, "feMerge");
+    var mn1 = document.createElementNS(ns, "feMergeNode");
+    mn1.setAttribute("in", "blur");
+    merge.appendChild(mn1);
+    var mn2 = document.createElementNS(ns, "feMergeNode");
+    mn2.setAttribute("in", "SourceGraphic");
+    merge.appendChild(mn2);
+    filter.appendChild(merge);
+    defs.appendChild(filter);
+    svg.appendChild(defs);
+
+    // --- Glow line (wide, blurred background) ---
+    var glowLine = document.createElementNS(ns, "line");
+    glowLine.setAttribute("x1", fromX);
+    glowLine.setAttribute("y1", fromY);
+    glowLine.setAttribute("x2", fromX);
+    glowLine.setAttribute("y2", fromY);
+    glowLine.setAttribute("stroke", LASER_GLOW_COLOR);
+    glowLine.setAttribute("stroke-width", LASER_WIDTH * 4);
+    glowLine.setAttribute("filter", "url(#fairy-laser-glow)");
+    svg.appendChild(glowLine);
+
+    // --- Main beam (dashed, crisp) ---
+    var beam = document.createElementNS(ns, "line");
+    beam.setAttribute("x1", fromX);
+    beam.setAttribute("y1", fromY);
+    beam.setAttribute("x2", fromX);
+    beam.setAttribute("y2", fromY);
+    beam.setAttribute("stroke", LASER_COLOR);
+    beam.setAttribute("stroke-width", LASER_WIDTH);
+    beam.setAttribute("stroke-dasharray", LASER_DASH);
+    beam.setAttribute("stroke-linecap", "round");
+    svg.appendChild(beam);
+
+    // --- Target dot (pulsing circle at endpoint) ---
+    var dot = document.createElementNS(ns, "circle");
+    dot.setAttribute("cx", toX);
+    dot.setAttribute("cy", toY);
+    dot.setAttribute("r", 0);
+    dot.setAttribute("fill", LASER_COLOR);
+    dot.setAttribute("filter", "url(#fairy-laser-glow)");
+    svg.appendChild(dot);
+
+    // --- Inject CSS animations if not already present ---
+    if (!document.getElementById("fairy-laser-style")) {
+        var style = document.createElement("style");
+        style.id = "fairy-laser-style";
+        style.textContent =
+            "@keyframes fairy-laser-pulse { from { opacity: 0.6; } to { opacity: 1; } } " +
+            "@keyframes fairy-laser-dash { to { stroke-dashoffset: -20; } }";
+        document.head.appendChild(style);
+    }
+
+    document.body.appendChild(svg);
+    _laserEl = svg;
+
+    // --- Grow animation: beam extends from fairy → target ---
+    // rAF interpolation (SVG attribute transitions unreliable cross-browser)
+    var startTime = null;
+
+    function _growFrame(ts) {
+        if (!_laserEl) return; // destroyed mid-animation
+        if (!startTime) startTime = ts;
+        var elapsed = ts - startTime;
+        var t = Math.min(elapsed / LASER_GROW_MS, 1);
+        // ease-out curve
+        var e = 1 - Math.pow(1 - t, 2);
+
+        var cx = fromX + (toX - fromX) * e;
+        var cy = fromY + (toY - fromY) * e;
+
+        glowLine.setAttribute("x2", cx);
+        glowLine.setAttribute("y2", cy);
+        beam.setAttribute("x2", cx);
+        beam.setAttribute("y2", cy);
+        dot.setAttribute("r", LASER_DOT_RADIUS * e);
+
+        if (t < 1) {
+            requestAnimationFrame(_growFrame);
+        } else {
+            // Start looping animations after grow completes
+            beam.style.animation = "fairy-laser-dash 0.6s linear infinite";
+            dot.style.animation = "fairy-laser-pulse 0.8s ease-in-out infinite alternate";
+        }
+    }
+
+    requestAnimationFrame(_growFrame);
+}
+
+/**
+ * Remove laser SVG from DOM. Safe to call when no laser exists.
+ */
+function _destroyLaser() {
+    if (_laserEl) {
+        if (_laserEl.parentNode) {
+            _laserEl.parentNode.removeChild(_laserEl);
+        }
+        _laserEl = null;
+    }
 }
 
 // ============================================================
