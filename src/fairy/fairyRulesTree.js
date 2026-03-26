@@ -1,8 +1,8 @@
 // ============================================================
-// fairyTriggers.js — Trigger Conditions for Fairy Helper
+// fairyRulesTree.js — Trigger Conditions for Fairy Controller
 //
 // Maps game state patterns to dialogue categories.
-// fairyHelper.js evaluates these each tick / bus event.
+// fairyController.js evaluates these each tick / bus event.
 // Priority: higher number = checked first. First match wins.
 //
 // PORTABLE: Pure data. No React. No imports. No side effects.
@@ -218,7 +218,7 @@ var TRIGGERS = [
 // ============================================================
 // TEMPLATE TOKENS
 // Lines can contain {tokens} that resolve against game state.
-// fairyHelper.js runs these before display.
+// fairyController.js runs these before display.
 //
 // {weaponName}     — name of current WIP weapon
 // {materialName}   — name of selected material
@@ -234,8 +234,8 @@ var TRIGGERS = [
 // ============================================================
 // EXPORT
 // ============================================================
-var FairyTriggers = {
+var FairyRulesTree = {
     TRIGGERS: TRIGGERS,
 };
 
-export default FairyTriggers;
+export default FairyRulesTree;

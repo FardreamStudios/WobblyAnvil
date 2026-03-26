@@ -28,14 +28,14 @@
 import createMorningAbility from "./morning/morningAbilityFactory.js";
 import MORNING_EVENTS from "./morning/morningEventsTable.js";
 // --- Complex abilities (individual files) ---
-import MysteryVisitorAbility from "./morning/mysteryVisitor.js";
-import MysteryShadowAbility from "./morning/mysteryShadow.js";
+import MysteryVisitorAbility from "./morning/mysteryVisitorAbility.js";
+import MysteryShadowAbility from "./morning/mysteryShadowAbility.js";
 // --- Reactive abilities ---
-import HotStreakAbility from "./reactive/hotStreak.js";
-import ShameDebuffAbility from "./reactive/shameDebuff.js";
-import RoyalAttentionAbility from "./reactive/royalAttention.js";
-import MomentumAbility from "./reactive/momentum.js";
-import OverworkedAbility from "./reactive/overworked.js";
+import HotStreakAbility from "./reactive/hotStreakAbility.js";
+import ShameDebuffAbility from "./reactive/shameDebuffAbility.js";
+import RoyalAttentionAbility from "./reactive/royalAttentionAbility.js";
+import MomentumAbility from "./reactive/momentumAbility.js";
+import OverworkedAbility from "./reactive/overworkedAbility.js";
 
 var morningAbilities = MORNING_EVENTS.map(function(row) {
     return createMorningAbility(row);

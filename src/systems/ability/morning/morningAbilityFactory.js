@@ -59,8 +59,8 @@
 // PORTABLE: Pure JS. No React. No DOM.
 // ============================================================
 
-import EVENT_TAGS from "../../config/eventTags.js";
-import GameConstants from "../../modules/constants.js";
+import EVENT_TAGS from "../../../config/eventTags.js";
+import GameConstants from "../../../modules/constants.js";
 
 var MATS = GameConstants.MATS;
 

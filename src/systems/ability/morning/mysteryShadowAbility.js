@@ -31,9 +31,9 @@
 // Replaces: dynamicEvents.js → mysteryBad()
 // ============================================================
 
-import EVENT_TAGS from "../../config/eventTags.js";
-import GameConstants from "../../modules/constants.js";
-import GameUtils from "../../modules/utilities.js";
+import EVENT_TAGS from "../../../config/eventTags.js";
+import GameConstants from "../../../modules/constants.js";
+import GameUtils from "../../../modules/utilities.js";
 
 var MATS = GameConstants.MATS;
 var rand = GameUtils.rand;

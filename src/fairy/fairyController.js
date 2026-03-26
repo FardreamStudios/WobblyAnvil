@@ -1,5 +1,5 @@
 // ============================================================
-// fairyHelper.js — Wobbly Anvil Fairy Brain
+// fairyController.js — Wobbly Anvil Fairy Brain
 //
 // State machine + trigger evaluator + line picker + bus wiring.
 // Decides WHAT the fairy says and WHEN. Does not render
@@ -20,16 +20,16 @@
 // QUERY:
 //   getState() / isActive()
 //
-// BUS PATTERN: Subscribes to gameplay tags from fairyTriggers.
+// BUS PATTERN: Subscribes to gameplay tags from fairyRulesTree.
 // Read-only on game state — never emits gameplay tags.
 // Talks to renderer only through onSpeak callback.
 //
 // PORTABLE: Pure JS. No React. No DOM.
 // ============================================================
 
-import FairyPersonality from "../config/fairyPersonality.js";
-import FairyTriggers    from "../config/fairyTriggers.js";
-import FairyAPI         from "../logic/fairyAPI.js";
+import FairyPersonality from "./fairyPersonality.js";
+import FairyRulesTree   from "./fairyRulesTree.js";
+import FairyAPI         from "./fairyAPI.js";
 import EVENT_TAGS       from "../config/eventTags.js";
 
 // ============================================================
@@ -122,7 +122,7 @@ var _tracked = {
 
 function init(config) {
     if (_initialized) {
-        console.warn("[FairyHelper] Already initialized. Call destroy() first.");
+        console.warn("[FairyController] Already initialized. Call destroy() first.");
         return;
     }
 
@@ -134,7 +134,7 @@ function init(config) {
     // Pre-sort triggers by priority descending (highest first)
     // Resolve busTag keys (e.g. "CUSTOMER_SPAWN") to actual tag strings
     // (e.g. "event.customer.spawn") so bus subscriptions match emissions.
-    _sortedTriggers = FairyTriggers.TRIGGERS.slice().map(function(t) {
+    _sortedTriggers = FairyRulesTree.TRIGGERS.slice().map(function(t) {
         if (t.busTag && EVENT_TAGS[t.busTag]) {
             var copy = {};
             var keys = Object.keys(t);
@@ -617,7 +617,7 @@ function destroy() {
 // PUBLIC API
 // ============================================================
 
-var FairyHelper = {
+var FairyController = {
     // --- Constants ---
     STATES:       STATES,
     LLM_NEEDED:   LLM_NEEDED,
@@ -640,4 +640,4 @@ var FairyHelper = {
     isActive:     isActive,
 };
 
-export default FairyHelper;
+export default FairyController;

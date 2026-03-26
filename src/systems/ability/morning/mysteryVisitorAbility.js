@@ -23,8 +23,8 @@
 // Replaces: dynamicEvents.js → mysteryGood()
 // ============================================================
 
-import EVENT_TAGS from "../../config/eventTags.js";
-import GameConstants from "../../modules/constants.js";
+import EVENT_TAGS from "../../../config/eventTags.js";
+import GameConstants from "../../../modules/constants.js";
 
 var MATS = GameConstants.MATS;
 var FORGE_AMBUSH_CHANCE = 0.20;

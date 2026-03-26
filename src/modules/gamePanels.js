@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import GameConstants from "../modules/constants.js";
-import AbilityManager from "../abilities/abilityManager.js";
+import AbilityManager from "../systems/ability/abilitySubSystem.js";
 import GameUtils from "./utilities.js";
 import UIComponents from "./uiComponents.js";
 

@@ -13,7 +13,7 @@ import { useRef, useCallback, useEffect } from "react";
 import GameUtils from "../modules/utilities.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
-import AbilityManager from "../abilities/abilityManager.js";
+import AbilityManager from "../systems/ability/abilitySubSystem.js";
 
 // --- Utilities ---
 var xpForLevel = GameUtils.xpForLevel;

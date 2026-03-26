@@ -17,7 +17,7 @@ import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
 import MysteryLogic from "../logic/mysteryLogic.js";
 import ForgeMode from "../gameMode/forgeMode.js";
-import AbilityManager from "../abilities/abilityManager.js";
+import AbilityManager from "../systems/ability/abilitySubSystem.js";
 
 // --- Constants ---
 var PHASES = GameConstants.PHASES;

@@ -33,8 +33,8 @@ import GameMode from "../gameMode/gameMode.js";
 import ForgeMode from "../gameMode/forgeMode.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
-import AbilityManager from "../abilities/abilityManager.js";
-import ALL_ABILITIES from "../abilities/index.js";
+import AbilityManager from "../systems/ability/abilitySubSystem.js";
+import ALL_ABILITIES from "../systems/ability/index.js";
 
 // ============================================================
 // Hook

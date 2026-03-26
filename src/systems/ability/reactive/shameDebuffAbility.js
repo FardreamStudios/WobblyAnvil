@@ -10,7 +10,7 @@
 // PORTABLE: Pure JS. No React. No DOM.
 // ============================================================
 
-import EVENT_TAGS from "../../config/eventTags.js";
+import EVENT_TAGS from "../../../config/eventTags.js";
 
 var ShameDebuffAbility = {
 

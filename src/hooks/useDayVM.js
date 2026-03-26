@@ -14,7 +14,7 @@ import GameUtils from "../modules/utilities.js";
 import QuestLogic from "../logic/questLogic.js";
 import GameplayEventBus from "../logic/gameplayEventBus.js";
 import EVENT_TAGS from "../config/eventTags.js";
-import AbilityManager from "../abilities/abilityManager.js";
+import AbilityManager from "../systems/ability/abilitySubSystem.js";
 
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;

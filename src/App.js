@@ -24,9 +24,9 @@ import DevBanner from "./components/DevBanner.js";
 import DevRouter from "./dev/DevRouter.js";
 import GameplayEventBus from "./logic/gameplayEventBus.js";
 import EVENT_TAGS from "./config/eventTags.js";
-import AbilityManager from "./abilities/abilityManager.js";
+import AbilityManager from "./systems/ability/abilitySubSystem.js";
 import CustomerManager from "./logic/customerManager.js";
-import FairyHelper from "./modules/fairyHelper.js";
+import FairyController from "./fairy/fairyController.js";
 import FairyAnim from "./components/FairyAnim.js";
 
 // --- State Hooks ---
@@ -272,10 +272,10 @@ export default function App() {
   var royalQuestRef = useRef(royalQuest);
   var gameStarted = useRef(false);
 
-  // --- Fairy Anim ref (for FairyHelper → speech bubble bridge) ---
+  // --- Fairy Anim ref (for FairyController → speech bubble bridge) ---
   var fairyAnimRef = useRef(null);
 
-  // --- Fairy state provider refs (read by FairyHelper.stateProvider) ---
+  // --- Fairy state provider refs (read by FairyController.stateProvider) ---
   var goldRef = useRef(gold);
   var reputationRef = useRef(reputation);
   var dayRef = useRef(day);
@@ -319,7 +319,7 @@ export default function App() {
 
   // --- Fairy Helper Init (pure JS, bus-driven) ---
   useEffect(function() {
-    FairyHelper.init({
+    FairyController.init({
       bus: GameplayEventBus,
       stateProvider: function() {
         var rq = royalQuestRef.current;
@@ -345,7 +345,7 @@ export default function App() {
         }
       },
     });
-    return function() { FairyHelper.destroy(); };
+    return function() { FairyController.destroy(); };
   }, []);
 
   // --- Leaderboard ---
@@ -456,7 +456,7 @@ export default function App() {
 
   // --- Reset ---
   function resetGame() {
-    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame(); FairyHelper.reset();
+    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame(); FairyController.reset();
     setScreen("splash");
   }
 

@@ -12,8 +12,8 @@
 // PORTABLE: Pure JS. No React. Uses fetch API.
 // ============================================================
 
-import FAIRY_CONFIG     from "../config/fairyConfig.js";
-import FairyPersonality from "../config/fairyPersonality.js";
+import FAIRY_CONFIG     from "./fairyConfig.js";
+import FairyPersonality from "./fairyPersonality.js";
 
 // ============================================================
 // GIBBERLESE FALLBACK

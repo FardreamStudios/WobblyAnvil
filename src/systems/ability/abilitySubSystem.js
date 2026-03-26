@@ -1,5 +1,5 @@
 // ============================================================
-// abilityManager.js — Wobbly Anvil Ability Manager
+// abilitySubSystem.js — Wobbly Anvil Ability Manager
 // Reactive gameplay ability system (GAS pattern).
 // Pure JS — no React, no DOM, no side effects beyond bus.
 //
@@ -18,7 +18,7 @@
 // Gameplay Effects + Modifier system.
 //
 // USAGE:
-//   import AbilityManager from "./abilityManager.js";
+//   import AbilityManager from "./abilitySubSystem.js";
 //   import ALL_ABILITIES from "./index.js";
 //   AbilityManager.init(bus, stateProvider);
 //   AbilityManager.registerAll(ALL_ABILITIES);

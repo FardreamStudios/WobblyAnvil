@@ -2,7 +2,7 @@
 // fairyPersonality.js — The Wobbly Anvil Fairy Character Bible
 //
 // EVERYTHING about who she is, what she says, and when she
-// says it lives here. Logic files (fairyHelper.js) read this.
+// says it lives here. Logic files (fairyController.js) read this.
 // Change her personality by editing this file — zero code changes.
 //
 // SECTIONS:
