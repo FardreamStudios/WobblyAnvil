@@ -311,7 +311,7 @@ function DesktopLayout(props) {
                         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
                             <div style={{ flex: 1 }}><Row center={true} style={{ gap: 8, marginBottom: 4 }}><SectionLabel>TIME</SectionLabel><div style={{ fontSize: 18, color: timeColor, fontWeight: "bold", lineHeight: 1 }}>{formatTime(hour)}</div></Row><div className={timeBarClass}><Bar value={timeBarPct} max={100} color={timeColor} h={10} instant={hour >= 24} /></div></div>
                             <div style={{ width: 1, alignSelf: "stretch", background: "#2a1f0a" }} />
-                            <div style={{ flex: 1 }}><Row center={true} style={{ gap: 8, marginBottom: 4 }}><SectionLabel>STAMINA</SectionLabel><div style={{ fontSize: 18, color: "#f59e0b", fontWeight: "bold", lineHeight: 1 }}>{stamina}<span style={{ fontSize: 11, color: "#5a4a38" }}>/{maxStam}</span></div></Row><Bar value={stamina} max={maxStam} color={isExhausted ? "#ef4444" : "#f59e0b"} h={10} /></div>
+                            <div data-fairy-target="stamina" style={{ flex: 1 }}><Row center={true} style={{ gap: 8, marginBottom: 4 }}><SectionLabel>STAMINA</SectionLabel><div style={{ fontSize: 18, color: "#f59e0b", fontWeight: "bold", lineHeight: 1 }}>{stamina}<span style={{ fontSize: 11, color: "#5a4a38" }}>/{maxStam}</span></div></Row><Bar value={stamina} max={maxStam} color={isExhausted ? "#ef4444" : "#f59e0b"} h={10} /></div>
                         </div>
                     </Panel>
 
@@ -320,7 +320,7 @@ function DesktopLayout(props) {
 
                     {/* FORGE AREA */}
                     {!activeCustomer && (
-                        <div onMouseDown={isQTEActive ? onForgeClick : null} style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 10, padding: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative", cursor: isQTEActive ? "pointer" : "default", flex: 1, minHeight: 280, overflow: "hidden" }}>
+                        <div data-fairy-target="scene" onMouseDown={isQTEActive ? onForgeClick : null} style={{ background: "#0f0b06", border: "1px solid #3d2e0f", borderRadius: 10, padding: "12px", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, position: "relative", cursor: isQTEActive ? "pointer" : "default", flex: 1, minHeight: 280, overflow: "hidden" }}>
                             {/* SCENE */}
                             {(function() { var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides }); return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} sceneFxRef={sceneFxRef} />; })()}
                             <ForgeFireFX active={forgeVM.isForging} />
@@ -401,7 +401,7 @@ function DesktopLayout(props) {
                                 </div>)}
 
                                 {/* QTE */}
-                                <div style={{ background: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "rgba(5, 3, 1, 0.85)" : "transparent", borderRadius: 8, padding: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "10px 14px" : 0, width: "100%", maxWidth: 500, boxSizing: "border-box", transition: "background 0.3s, padding 0.3s" }}>
+                                <div data-fairy-target="qte" style={{ background: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "rgba(5, 3, 1, 0.85)" : "transparent", borderRadius: 8, padding: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "10px 14px" : 0, width: "100%", maxWidth: 500, boxSizing: "border-box", transition: "background 0.3s, padding 0.3s" }}>
                                     <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
                                 </div>
 
@@ -452,11 +452,11 @@ function DesktopLayout(props) {
                     <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-start" }}>
                         <ActionBtn onClick={function() { sfx.click(); setShowShop(function(s) { return !s; }); }} disabled={input.shop.disabled} style={{ height: 80, padding: "0 18px", fontSize: 14, flexShrink: 0 }}>{"\uD83D\uDED2"} Shop</ActionBtn>
                         <button onClick={input.mats.disabled ? null : function() { sfx.click(); setShowMaterials(function(s) { return !s; }); }} disabled={input.mats.disabled} style={{ height: 80, padding: "0 14px", fontSize: 12, flexShrink: 0, background: "#0f0b06", border: "1px solid " + (input.mats.disabled ? "#1a1209" : "#3d2e0f"), borderRadius: 8, color: input.mats.disabled ? "#2a1f0a" : "#5a4a38", cursor: input.mats.disabled ? "not-allowed" : "pointer", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold" }}>{"\u2697"} Mats</button>
-                        <Panel style={{ padding: "8px 18px", minWidth: 80, textAlign: "center", position: "relative" }}>
+                        <div data-fairy-target="gold"><Panel style={{ padding: "8px 18px", minWidth: 80, textAlign: "center", position: "relative" }}>
                             <SectionLabel style={{ marginBottom: 4 }}>GOLD</SectionLabel>
                             <div style={{ fontSize: 28, color: "#f59e0b", fontWeight: "bold", lineHeight: 1 }}>{gold}g</div>
                             {goldPops.map(function(p) { return <GoldPop key={p.id} amount={p.amount} onDone={function() { removeGoldPop(p.id); }} />; })}
-                        </Panel>
+                        </Panel></div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "row", gap: 12, alignItems: "center", padding: "0 8px" }}>
                         {[["SFX", sfxVol, function(e) { var v = parseFloat(e.target.value); setSfxVol(v); sfx.setSfxVol(v); }], ["MUS", musicVol, function(e) { var v = parseFloat(e.target.value); setMusicVol(v); sfx.setMusicVol(v); }]].map(function(r) { return (<label key={r[0]} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#f0e6c8", letterSpacing: 2, fontFamily: "monospace", fontWeight: "bold" }}>{r[0]}<input type="range" min="0" max="1" step="0.05" value={r[1]} onChange={r[2]} style={{ width: 72, accentColor: "#f59e0b", cursor: "pointer" }} /></label>); })}

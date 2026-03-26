@@ -40,50 +40,52 @@ var DangerBtn = UIComponents.DangerBtn;
 function StatPanel({ stats, points, onAllocate, sfx, locked }) {
     var [hovered, setHovered] = useState(null);
     return (
-        <Panel>
-            <Row style={{ marginBottom: 6 }}>
-                <SectionLabel color="#f59e0b">STATS</SectionLabel>
-                <div style={{ fontSize: 9, color: "#4ade80", background: "#0a2a0a", border: "1px solid #4ade8055", borderRadius: 4, padding: "1px 6px", visibility: points > 0 ? "visible" : "hidden" }}>
-                    {points} PT{points > 1 ? "S" : ""}
-                </div>
-            </Row>
-            {Object.entries(stats).map(function(entry) {
-                var key = entry[0], value = entry[1];
-                var cost = value < 3 ? 1 : value < 6 ? 2 : 3;
-                var canAfford = points >= cost;
-                return (
-                    <div key={key} style={{ marginBottom: 6, position: "relative" }}>
-                        <Row onMouseEnter={function() { setHovered(key); }} onMouseLeave={function() { setHovered(null); }} style={{ cursor: "default" }}>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 11, color: hovered === key ? "#f59e0b" : "#c8b89a", letterSpacing: 1 }}>
-                                    {STAT_META[key].label.toUpperCase()}{hovered === key ? " i" : ""}
-                                </div>
-                                <Pips count={10} filled={value} filledColor="#f59e0b" size={8} />
-                            </div>
-                            <button
-                                onClick={canAfford && !locked ? function() { if (sfx) sfx.click(); onAllocate(key); } : null}
-                                style={{
-                                    background: "#2a1f0a", border: "1px solid " + (canAfford && !locked ? "#f59e0b" : "#3d2e0f"),
-                                    borderRadius: 4, color: canAfford && !locked ? "#f59e0b" : "#4a3c2c",
-                                    padding: "2px 7px", fontSize: 9, cursor: canAfford && !locked ? "pointer" : "default",
-                                    letterSpacing: 1, fontFamily: "monospace", marginLeft: 6,
-                                    visibility: points > 0 && !locked ? "visible" : "hidden",
-                                }}
-                            >
-                                {cost}pt
-                            </button>
-                        </Row>
-                        {hovered === key && (
-                            <div style={{ position: "absolute", left: 0, top: "100%", marginTop: 4, background: "#0a0704", border: "1px solid #f59e0b55", borderRadius: 6, padding: "7px 9px", fontSize: 9, color: "#c8b89a", lineHeight: 1.6, zIndex: 99, width: 170, boxShadow: "0 4px 12px rgba(0,0,0,0.9)" }}>
-                                <div style={{ color: "#f59e0b", fontWeight: "bold", marginBottom: 3 }}>{STAT_META[key].label.toUpperCase()}</div>
-                                {STAT_META[key].desc}
-                                <div style={{ marginTop: 4, color: "#8a7a64", fontSize: 8 }}>Current: {value} · Next costs: {cost}pt</div>
-                            </div>
-                        )}
+        <div data-fairy-target="stats">
+            <Panel>
+                <Row style={{ marginBottom: 6 }}>
+                    <SectionLabel color="#f59e0b">STATS</SectionLabel>
+                    <div style={{ fontSize: 9, color: "#4ade80", background: "#0a2a0a", border: "1px solid #4ade8055", borderRadius: 4, padding: "1px 6px", visibility: points > 0 ? "visible" : "hidden" }}>
+                        {points} PT{points > 1 ? "S" : ""}
                     </div>
-                );
-            })}
-        </Panel>
+                </Row>
+                {Object.entries(stats).map(function(entry) {
+                    var key = entry[0], value = entry[1];
+                    var cost = value < 3 ? 1 : value < 6 ? 2 : 3;
+                    var canAfford = points >= cost;
+                    return (
+                        <div key={key} style={{ marginBottom: 6, position: "relative" }}>
+                            <Row onMouseEnter={function() { setHovered(key); }} onMouseLeave={function() { setHovered(null); }} style={{ cursor: "default" }}>
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 11, color: hovered === key ? "#f59e0b" : "#c8b89a", letterSpacing: 1 }}>
+                                        {STAT_META[key].label.toUpperCase()}{hovered === key ? " i" : ""}
+                                    </div>
+                                    <Pips count={10} filled={value} filledColor="#f59e0b" size={8} />
+                                </div>
+                                <button
+                                    onClick={canAfford && !locked ? function() { if (sfx) sfx.click(); onAllocate(key); } : null}
+                                    style={{
+                                        background: "#2a1f0a", border: "1px solid " + (canAfford && !locked ? "#f59e0b" : "#3d2e0f"),
+                                        borderRadius: 4, color: canAfford && !locked ? "#f59e0b" : "#4a3c2c",
+                                        padding: "2px 7px", fontSize: 9, cursor: canAfford && !locked ? "pointer" : "default",
+                                        letterSpacing: 1, fontFamily: "monospace", marginLeft: 6,
+                                        visibility: points > 0 && !locked ? "visible" : "hidden",
+                                    }}
+                                >
+                                    {cost}pt
+                                </button>
+                            </Row>
+                            {hovered === key && (
+                                <div style={{ position: "absolute", left: 0, top: "100%", marginTop: 4, background: "#0a0704", border: "1px solid #f59e0b55", borderRadius: 6, padding: "7px 9px", fontSize: 9, color: "#c8b89a", lineHeight: 1.6, zIndex: 99, width: 170, boxShadow: "0 4px 12px rgba(0,0,0,0.9)" }}>
+                                    <div style={{ color: "#f59e0b", fontWeight: "bold", marginBottom: 3 }}>{STAT_META[key].label.toUpperCase()}</div>
+                                    {STAT_META[key].desc}
+                                    <div style={{ marginTop: 4, color: "#8a7a64", fontSize: 8 }}>Current: {value} · Next costs: {cost}pt</div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </Panel>
+        </div>
     );
 }
 
@@ -91,20 +93,22 @@ function StatPanel({ stats, points, onAllocate, sfx, locked }) {
 
 function ForgeInfoPanel({ upgrades }) {
     return (
-        <Panel style={{ flex: 1 }}>
-            <SectionLabel color="#f59e0b" style={{ marginBottom: 8 }}>FORGE</SectionLabel>
-            {[["anvil", "Anvil"], ["hammer", "Hammer"], ["forge", "Forge"], ["quench", "Quench"], ["furnace", "Furnace"]].map(function(pair) {
-                var key = pair[0], label = pair[1];
-                var level = upgrades[key];
-                var upgrade = UPGRADES[key][level];
-                return (
-                    <div key={key} style={{ marginBottom: 8 }}>
-                        <SectionLabel>{label}</SectionLabel>
-                        <div style={{ fontSize: 12, color: UPGRADE_COLORS[level], marginTop: 2 }}>{upgrade.name}</div>
-                    </div>
-                );
-            })}
-        </Panel>
+        <div data-fairy-target="forge_info" style={{ flex: 1 }}>
+            <Panel style={{ flex: 1 }}>
+                <SectionLabel color="#f59e0b" style={{ marginBottom: 8 }}>FORGE</SectionLabel>
+                {[["anvil", "Anvil"], ["hammer", "Hammer"], ["forge", "Forge"], ["quench", "Quench"], ["furnace", "Furnace"]].map(function(pair) {
+                    var key = pair[0], label = pair[1];
+                    var level = upgrades[key];
+                    var upgrade = UPGRADES[key][level];
+                    return (
+                        <div key={key} style={{ marginBottom: 8 }}>
+                            <SectionLabel>{label}</SectionLabel>
+                            <div style={{ fontSize: 12, color: UPGRADE_COLORS[level], marginTop: 2 }}>{upgrade.name}</div>
+                        </div>
+                    );
+                })}
+            </Panel>
+        </div>
     );
 }
 
@@ -115,27 +119,29 @@ function RepPanel({ reputation }) {
     var color = reputation >= 7 ? "#22c55e" : reputation >= 4 ? "#fb923c" : reputation >= 2 ? "#ef4444" : "#7f1d1d";
     var status = reputation >= 7 ? "Royal Favour" : reputation >= 4 ? "King Grows Wary" : reputation >= 2 ? "Arrest Imminent" : "EXECUTION IMMINENT";
     return (
-        <Panel color={color} style={{ position: "relative", cursor: "default" }} onMouseEnter={function() { setHovered(true); }} onMouseLeave={function() { setHovered(false); }}>
-            <SectionLabel style={{ marginBottom: 4 }}>REPUTATION {hovered ? "i" : ""}</SectionLabel>
-            <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
-                {Array.from({ length: 10 }).map(function(_, i) {
-                    var filled = i < reputation;
-                    var pipColor = i < 3 ? "#ef4444" : i < 6 ? "#fb923c" : i < 8 ? "#4ade80" : "#22c55e";
-                    return <div key={i} style={{ flex: 1, height: 10, borderRadius: 3, background: filled ? pipColor : "#1a1209", border: "1px solid " + (filled ? pipColor + "88" : "#2a1f0a"), transition: "background 0.2s" }} />;
-                })}
-            </div>
-            <div className={reputation <= 1 ? "blink" : ""} style={{ fontSize: 8, color: color, letterSpacing: 1 }}>{status.toUpperCase()}</div>
-            {hovered && (
-                <div style={{ position: "absolute", left: 0, top: "100%", marginTop: 4, background: "#0a0704", border: "1px solid #ef444455", borderRadius: 6, padding: "8px 10px", fontSize: 9, color: "#c8b89a", lineHeight: 1.7, zIndex: 99, width: 190, boxShadow: "0 4px 16px rgba(0,0,0,0.95)" }}>
-                    <div style={{ color: "#ef4444", fontWeight: "bold", marginBottom: 4 }}>THE KING'S FAVOR</div>
-                    <span style={{ color: "#22c55e" }}>7-10</span>: Royal favour<br />
-                    <span style={{ color: "#fb923c" }}>4-6</span>: King grows wary<br />
-                    <span style={{ color: "#ef4444" }}>2-3</span>: Arrest imminent<br />
-                    <span style={{ color: "#7f1d1d" }}>1</span>: Execution imminent<br /><br />
-                    <span style={{ color: "#ef4444", fontWeight: "bold" }}>REP 0 = EXECUTED.</span>
+        <div data-fairy-target="rep">
+            <Panel color={color} style={{ position: "relative", cursor: "default" }} onMouseEnter={function() { setHovered(true); }} onMouseLeave={function() { setHovered(false); }}>
+                <SectionLabel style={{ marginBottom: 4 }}>REPUTATION {hovered ? "i" : ""}</SectionLabel>
+                <div style={{ display: "flex", gap: 4, marginBottom: 5 }}>
+                    {Array.from({ length: 10 }).map(function(_, i) {
+                        var filled = i < reputation;
+                        var pipColor = i < 3 ? "#ef4444" : i < 6 ? "#fb923c" : i < 8 ? "#4ade80" : "#22c55e";
+                        return <div key={i} style={{ flex: 1, height: 10, borderRadius: 3, background: filled ? pipColor : "#1a1209", border: "1px solid " + (filled ? pipColor + "88" : "#2a1f0a"), transition: "background 0.2s" }} />;
+                    })}
                 </div>
-            )}
-        </Panel>
+                <div className={reputation <= 1 ? "blink" : ""} style={{ fontSize: 8, color: color, letterSpacing: 1 }}>{status.toUpperCase()}</div>
+                {hovered && (
+                    <div style={{ position: "absolute", left: 0, top: "100%", marginTop: 4, background: "#0a0704", border: "1px solid #ef444455", borderRadius: 6, padding: "8px 10px", fontSize: 9, color: "#c8b89a", lineHeight: 1.7, zIndex: 99, width: 190, boxShadow: "0 4px 16px rgba(0,0,0,0.95)" }}>
+                        <div style={{ color: "#ef4444", fontWeight: "bold", marginBottom: 4 }}>THE KING'S FAVOR</div>
+                        <span style={{ color: "#22c55e" }}>7-10</span>: Royal favour<br />
+                        <span style={{ color: "#fb923c" }}>4-6</span>: King grows wary<br />
+                        <span style={{ color: "#ef4444" }}>2-3</span>: Arrest imminent<br />
+                        <span style={{ color: "#7f1d1d" }}>1</span>: Execution imminent<br /><br />
+                        <span style={{ color: "#ef4444", fontWeight: "bold" }}>REP 0 = EXECUTED.</span>
+                    </div>
+                )}
+            </Panel>
+        </div>
     );
 }
 
@@ -190,7 +196,7 @@ function CustomerPanel({ customer, weapon, onSell, onRefuse, silverTongue, price
     }
 
     return (
-        <div style={{ background: "#0a0704", border: "2px solid " + qualityTier.weaponColor + "66", borderRadius: 12, padding: "20px 24px", marginBottom: 6 }}>
+        <div data-fairy-target="customer" style={{ background: "#0a0704", border: "2px solid " + qualityTier.weaponColor + "66", borderRadius: 12, padding: "20px 24px", marginBottom: 6 }}>
             <Row style={{ marginBottom: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <div style={{ fontSize: 36, lineHeight: 1 }}>{customer.type.icon}</div>

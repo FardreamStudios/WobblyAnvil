@@ -183,9 +183,9 @@ function MobileBottomBar(props) {
                     return <ShelfItem key={w.id} item={w} />;
                 })}
             </W.Strip>
-            <W.Label size={21} color="gold" bold font="heading" style={{ flexShrink: 0 }}>
+            <div data-fairy-target="gold-portrait" style={{ flexShrink: 0 }}><W.Label size={21} color="gold" bold font="heading">
                 {props.gold || 0}g
-            </W.Label>
+            </W.Label></div>
             <W.Btn onClick={props.onOptions} icon={"\u2699"}
                    color="textLabel" bg="bgWarm" size={20} radius="md"
                    w={32} h={32} bold={false} upper={false}
@@ -460,7 +460,7 @@ function MobileLayout(props) {
     // --- Center content ---
     var forgeBtnPos = { position: "absolute", top: "55%", left: "50%", transform: "translate(-50%, -50%)", zIndex: T.z.ui };
     var center = (
-        <div className="mobile-center" onClick={isQTEActive ? props.onForgeClick : null} onTouchStart={isQTEActive ? function(e) { e.preventDefault(); props.onForgeClick(); } : null} style={{ cursor: isQTEActive ? "pointer" : "default" }}>
+        <div className="mobile-center" data-fairy-target="scene" onClick={isQTEActive ? props.onForgeClick : null} onTouchStart={isQTEActive ? function(e) { e.preventDefault(); props.onForgeClick(); } : null} style={{ cursor: isQTEActive ? "pointer" : "default" }}>
             {props.overlay}
             {props.scene}
             {props.forgeUI}
@@ -550,7 +550,7 @@ function MobileLayout(props) {
                 )}
 
                 {/* Time + Stamina */}
-                {!isForging && !isQTEActive && <div style={{
+                {!isForging && !isQTEActive && <div data-fairy-target="stamina" style={{
                     position: "absolute",
                     bottom: "2%",
                     left: "50%",
@@ -583,7 +583,7 @@ function MobileLayout(props) {
                 </div>}
 
                 {/* Gold */}
-                <div style={{
+                <div data-fairy-target="gold" style={{
                     position: "absolute",
                     bottom: "2%",
                     left: isLeftHanded ? "auto" : "14%",
