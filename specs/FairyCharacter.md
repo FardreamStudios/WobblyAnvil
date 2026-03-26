@@ -163,21 +163,7 @@ Flow: Start game → mic button pinging (she's calling) → she introduces herse
 How to Play becomes the static fallback reference. Fairy is the primary onboarding for players who opt in.
 
 ### Game State Snapshot
-Every API call includes a JSON snapshot of current game state:
-```json
-{
-  "rep": 12,
-  "gold": 3,
-  "day": 6,
-  "maxDays": 7,
-  "decree": "masterwork longsword",
-  "phase": "IDLE",
-  "lastShatter": true,
-  "customerWaiting": true,
-  "selectedMaterial": "copper"
-}
-```
-She sees the numbers, understands the vibe, generates a specific contextual line. Not generic sass — she's roasting YOUR specific playthrough.
+Every API call includes a JSON snapshot of current game state: rep, gold, day, maxDays, decree, phase, lastShatter, customerWaiting, selectedMaterial. She sees the numbers, understands the vibe, generates a specific contextual line. Not generic sass — she's roasting YOUR specific playthrough.
 
 ---
 

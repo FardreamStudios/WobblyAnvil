@@ -38,10 +38,10 @@ Each spec below covers one system or module. Format: what it does, why we need i
 
 ## SPEC: FX Cue System
 
-**Files:** `src/config/fxCueRegistry.js`, `src/hooks/useFXCues.js`  
+**File:** `src/systems/fxCue/fxCueSubSystem.js`  
 **Status:** ✅ Stable — Add new cues as needed
 
-**What it does:** UE Gameplay Cue pattern. The registry is an array of `{ tag, execute }` objects. `useFXCues` subscribes to every tag on mount and routes payloads to the matching cue's `execute` function.
+**What it does:** UE Gameplay Cue pattern. Pure JS singleton with init/destroy lifecycle. Contains an array of `{ tag, execute }` cue objects. On init, subscribes to every cue's bus tag and routes payloads to the matching cue's `execute` function. Cue functions receive sfx, fxRef, payload, and sceneFxRef.
 
 **Why we need it:** Separates "what happened" from "how it sounds/looks." The forge emits `FX_SHATTER` — it doesn't know or care that this plays a shatter SFX. Presentation is owned entirely by cues.
 
@@ -49,7 +49,7 @@ Each spec below covers one system or module. Format: what it does, why we need i
 
 **UE Analogy:** Gameplay Cue Manager + individual GameplayCue actors.
 
-**Growth rule:** If fxCueRegistry.js exceeds 500 lines, split into domain files (forgeCues.js, economyCues.js) and re-export.
+**Growth rule:** If the cues array exceeds 500 lines, split into domain files (forgeCues.js, economyCues.js) and import into the subsystem.
 
 ---
 
@@ -107,7 +107,7 @@ Each spec below covers one system or module. Format: what it does, why we need i
 
 **What it did:** Defined the EVENTS array (all daily event types with weighted variants), `rollDailyEvent()` roller, and `generateRoyalQuest()` generator.
 
-**Replaced by:** Individual ability files in `src/abilities/morning/`. Morning roll now handled by `AbilityManager.rollMorning()`. `generateRoyalQuest` preserved in `src/logic/`.
+**Replaced by:** Individual ability files in `src/systems/ability/morning/`. Morning roll now handled by `AbilityManager.rollMorning()`. `generateRoyalQuest` preserved in `src/logic/`.
 
 **Action:** Delete from disk if still present.
 
@@ -120,7 +120,7 @@ Each spec below covers one system or module. Format: what it does, why we need i
 
 **What it did:** Three functions: `mysteryGood` (divine visitor VFX + rewards), `mysteryBad` (shadow attack VFX + damage), `applyEventResult` (translates event snapshot objects into bus emissions).
 
-**Replaced by:** `src/abilities/morning/mysteryVisitor.js` and `src/abilities/morning/mysteryShadow.js`. Each ability emits its own tags directly — no translation layer needed.
+**Replaced by:** `src/systems/ability/morning/mysteryVisitorAbility.js` and `src/systems/ability/morning/mysteryShadowAbility.js`. Each ability emits its own tags directly — no translation layer needed.
 
 **Action:** Delete from disk if still present.
 
@@ -146,11 +146,11 @@ Each spec below covers one system or module. Format: what it does, why we need i
 ## SPEC: App.js (Wiring Layer)
 
 **File:** `src/App.js`  
-**Status:** ⚠️ PARTIALLY SHRUNK — GameMode + Ability System wired in. Customer spawning + toast plumbing still inside.
+**Status:** ⚠️ PARTIALLY SHRUNK — GameMode, Ability System, CustomerSubSystem, GameplayAnalyticsSubSystem, FXCueSubSystem all wired in. Toast plumbing still inside.
 
-**What it does:** Instantiates all state hooks, all VM hooks, wires dependencies, and renders the layout (mobile or desktop). GameMode and AbilityManager are initialized here. Still owns `trySpawnCustomer`, `advanceTime`, toast queue management, and customer visit tracking.
+**What it does:** Instantiates all state hooks, all VM hooks, wires dependencies, and renders the layout (mobile or desktop). All subsystems initialized here via useEffect with init/destroy lifecycle.
 
-**Remaining extraction:** Customer spawning logic → `customerManager.js` (DES-1.1). After that extraction, App.js should approach the target of ~100 lines of pure wiring.
+**Remaining extraction:** Toast queue management. After that, App.js should approach the target of ~100 lines of pure wiring.
 
 **Target:** <100 lines — instantiate systems, connect them, render. Nothing else.
 
@@ -365,22 +365,11 @@ Each spec below covers one system or module. Format: what it does, why we need i
 - Calls `onComplete({ tier, position })` when the player acts
 - Owns zero gameplay knowledge — doesn't know about quality, strikes, or stress
 
-**Plugin contract:**
-```
-Props in:  { config, onComplete }
-config:    { tierTable, speedMult, modifierScale, ...typeSpecific }
-onComplete({ tier, position })  — tier is the full tier object from the table
-```
+**Plugin contract:** Each plugin receives `{ config, onComplete }` as props. Config contains tierTable, speedMult, modifierScale, and type-specific settings. Plugin calls `onComplete({ tier, position })` when the player acts — tier is the full tier object from the table.
 
 **Result handling** — Stays in useForgeVM. The handlers (`handleHeatFire`, `handleHammerFire`, `handleQuenchFire`) are forge gameplay logic, not QTE logic. They receive a tier result from the bus instead of computing it from a raw position. The `onForgeClick` routing, `qtePosRef`, and `qteProcessing` refs move into the bar sweep plugin.
 
-**Bus flow:**
-```
-ForgeVM sets phase → QTE Runner sees config → mounts plugin
-Player interacts → plugin calls onComplete({ tier, position })
-QTE Runner emits QTE_RESULT → { phase, tier, position }
-ForgeVM listener catches QTE_RESULT → runs phase-specific handler
-```
+**Bus flow:** ForgeVM sets phase → QTE Runner sees config → mounts plugin. Player interacts → plugin calls onComplete. QTE Runner emits QTE_RESULT with phase, tier, and position. ForgeVM listener catches QTE_RESULT → runs the phase-specific handler.
 
 **What moves, what stays:**
 
@@ -454,7 +443,7 @@ ForgeVM listener catches QTE_RESULT → runs phase-specific handler
 
 **What it replaced:** Day cycle logic from useDayVM, orchestration from App.js, implicit phase management.
 
-**Remaining work:** Customer spawning timing was originally spec'd to live here (DES-1 Section 3.2), but the complexity warrants a dedicated `customerManager.js` that listens to GameMode's lifecycle tags. See Customer Manager spec below.
+**Remaining work:** Shop and idle sub-modes not yet extracted.
 
 **UE Analogy:** AGameMode (C++ base) + Blueprint GameMode + GameState.
 
@@ -462,7 +451,7 @@ ForgeVM listener catches QTE_RESULT → runs phase-specific handler
 
 ## SPEC: Ability Manager
 
-**Files:** `src/abilities/abilityManager.js`, `src/abilities/index.js`, `src/abilities/morning/*.js`, `src/abilities/reactive/*.js`  
+**Files:** `src/systems/ability/abilitySubSystem.js`, `src/systems/ability/index.js`, `src/systems/ability/morning/*.js`, `src/systems/ability/reactive/*.js`  
 **Status:** ✅ LIVE — DES-1 M-1, M-3, M-4, M-8, M-9 complete
 
 **What it does:** Reactive gameplay ability system. Abilities are self-contained definitions (one per file) that watch the bus for triggers, self-activate when conditions are met, run behavior (emit bus tags, register modifiers), and self-terminate when end conditions are met or scope expires.
@@ -505,40 +494,38 @@ ForgeVM listener catches QTE_RESULT → runs phase-specific handler
 
 ---
 
-## SPEC: Customer Manager (Planned — DES-1.1)
+## SPEC: Gameplay Analytics SubSystem
 
-**File (planned):** `src/logic/customerManager.js`  
-**Status:** 🔵 PLANNED
+**Files:** `src/systems/analytics/gameplayAnalyticsSubSystem.js`, `src/config/analyticsConfig.js`  
+**Status:** ✅ LIVE
 
-**What it does:** Pure JS singleton that owns the full customer lifecycle — spawn decisions, active customer tracking, walkout timers, daily visit caps, and cleanup. Communicates exclusively through the bus. Zero React.
+**What it does:** Config-driven run statistics tracker. Pure JS singleton. Takes a table of stat definitions at init — each defines a bus tag to listen to, an accumulation mode (count, sum, max), and an optional payload field. The subsystem subscribes, accumulates, freezes on game over, and resets on new game. `getStats()` returns a snapshot.
 
-**Why we need it:** Customer spawning is currently ~20 lines of bespoke logic inside App.js (`trySpawnCustomer`) plus scattered `setTimeout` calls and ref tracking (`custVisRef`, `maxCustRef`, `guaranteedCustomersRef`). There is no single owner for the customer lifecycle, which causes the orphaned `activeCustomer` lockup bug — if a customer is set but never cleared, the game softlocks because `isLocked` stays true in the Input Router.
+**Why we need it:** The leaderboard and game over screen need run stats. Keeping the tracker generic means adding a new stat is one line in the config table — no subsystem code changes.
 
-**Why not GameMode:** DES-1 Section 3.2 originally spec'd customer spawning timing inside GameMode. In practice, customer logic (type matching, quality gates, walkout timers, cooldowns, visit caps) is complex enough to warrant its own manager. Same delegation pattern as AbilityManager — GameMode emits lifecycle tags, CustomerManager listens and handles the domain logic.
+**Config:** `analyticsConfig.js` defines resetTag, freezeTag, and the stats array. All game-specific knowledge lives there.
 
-**Execution flow:**
-```
-GameMode emits GAME.DAY.OPEN → CustomerManager starts listening for hour ticks
-DAY_ADVANCE_HOUR { hour } → CustomerManager checks guards → emits CUSTOMER_SPAWN
-useQuestState hears CUSTOMER_SPAWN → setActiveCustomer()
-Player sells/refuses → bus emits ECONOMY_WEAPON_SOLD or CUSTOMER_REFUSE
-CustomerManager hears it → emits CUSTOMER_CLEAR
-useQuestState hears CUSTOMER_CLEAR → setActiveCustomer(null)
-GameMode emits GAME.DAY.END → CustomerManager resets daily counters
-```
+**Consumer:** `useLeaderboard.js` reads `getStats()` for the score payload. `gamePanels.js` displays stats on the game over screen (received as props from App.js).
 
-**Bus tags (new):** CUSTOMER_SPAWN, CUSTOMER_CLEAR, CUSTOMER_WALKOUT, CUSTOMER_REFUSE
-
-**Spawn guards:** Hour range (9–21), no active customer, visits < daily max, phase is IDLE or SESS_RESULT, random roll against `resolveValue("customerChance", 0.42)`.
-
-**Architecture:** Same pattern as `abilityManager.js` and `gameMode.js` — pure JS core, init with bus reference, talks only through tags. Could run in Node with a bus stub.
-
-**Replaces:** `trySpawnCustomer` in App.js, `custVisRef`, `maxCustRef`, `guaranteedCustomersRef`, all scattered `setTimeout` spawn calls.
-
-**UE Analogy:** A subsystem dedicated to NPC spawning — like a Spawn Manager that listens to the Game Mode's phase broadcasts.
+**UE Analogy:** Analytics subsystem driven by a data table.
 
 ---
 
-*End of architecture audit. Systems marked ❌ have been replaced (delete from disk if still present). Systems marked 🔵 are planned builds.*
+## SPEC: Customer SubSystem
 
-*For gameplay and UX feature specs (Fairy Helper, How to Play, etc.), see `FeatureSpecs.md`.*
+**File:** `src/systems/customer/customerSubSystem.js`  
+**Status:** ✅ LIVE — DES-1.1
+
+**What it does:** Pure JS singleton that owns the full customer lifecycle — spawn decisions, active customer tracking, daily visit caps, and cleanup. Communicates exclusively through the bus. Zero React.
+
+**Why we need it:** Customer spawning was previously scattered across App.js with no single owner, causing the orphaned `activeCustomer` lockup bug. CustomerSubSystem centralizes the lifecycle.
+
+**Communication:** Listens to DAY_ADVANCE_HOUR, DAY_CYCLE_START, DAY_CYCLE_END, ECONOMY_WEAPON_SOLD, CUSTOMER_REFUSE, CUSTOMER_WALKOUT, CUSTOMER_PROMOTE, GAME_SESSION_NEW. Emits CUSTOMER_SPAWN, CUSTOMER_CLEAR, FX_DOORBELL.
+
+**Spawn guards:** Hour range (9–21), no active customer, visits < daily max, phase is IDLE or SESS_RESULT, random roll against `resolveValue("customerChance", 0.42)`.
+
+**UE Analogy:** A subsystem dedicated to NPC spawning — listens to GameMode's phase broadcasts.
+
+---
+
+*End of architecture specs. Systems marked ❌ have been replaced (delete from disk if still present). For gameplay and UX feature specs (Fairy Helper, How to Play, etc.), see `FeatureSpecs.md`.*

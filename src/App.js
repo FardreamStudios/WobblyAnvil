@@ -25,7 +25,7 @@ import DevRouter from "./dev/DevRouter.js";
 import GameplayEventBus from "./logic/gameplayEventBus.js";
 import EVENT_TAGS from "./config/eventTags.js";
 import AbilityManager from "./systems/ability/abilitySubSystem.js";
-import CustomerManager from "./logic/customerManager.js";
+import CustomerSubSystem from "./systems/customer/customerSubSystem.js";
 import FairyController from "./fairy/fairyController.js";
 import FairyAnim from "./components/FairyAnim.js";
 
@@ -42,12 +42,13 @@ import useEconomyVM from "./hooks/useEconomyVM.js";
 import useDayVM from "./hooks/useDayVM.js";
 import useQuestState from "./hooks/useQuestState.js";
 import useVFXState from "./hooks/useVFXState.js";
-import useFXCues from "./hooks/useFXCues.js";
+import FXCueSubSystem from "./systems/fxCue/fxCueSubSystem.js";
 import useInputRouter from "./hooks/useInputRouter.js";
 import useShopVM from "./hooks/useShopVM.js";
 import useAmbientAudio from "./hooks/useAmbientAudio.js";
 import useLeaderboard from "./hooks/useLeaderboard.js";
-import RunStats from "./logic/runStats.js";
+import GameplayAnalyticsSubSystem from "./systems/analytics/gameplayAnalyticsSubSystem.js";
+import ANALYTICS_CONFIG from "./config/analyticsConfig.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -149,8 +150,15 @@ export default function App() {
   // --- GameMode Hook (owns init, sub-mode registration, lifecycle) ---
   var gm = useGameMode({ bus: GameplayEventBus });
 
-  // --- FX Cue Router ---
-  useFXCues({ sfx: sfx, fxRef: vfx.fxRef, sceneFxRef: sceneFxRef });
+  // --- Gameplay Cue System (routes bus tags → SFX/VFX) ---
+  useEffect(function() {
+    FXCueSubSystem.init(GameplayEventBus, {
+      sfx: sfx,
+      fxRef: vfx.fxRef,
+      sceneFxRef: sceneFxRef,
+    });
+    return function() { FXCueSubSystem.destroy(); };
+  }, []);
 
   // --- Mobile: request fullscreen on landscape (all screens) ---
   useEffect(function() {
@@ -296,7 +304,7 @@ export default function App() {
 
   // --- Customer Manager Init (pure JS, bus-driven) ---
   useEffect(function() {
-    CustomerManager.init(
+    CustomerSubSystem.init(
         GameplayEventBus,
         function() {
           return {
@@ -308,13 +316,13 @@ export default function App() {
         },
         AbilityManager
     );
-    return function() { CustomerManager.reset(); };
+    return function() { CustomerSubSystem.reset(); };
   }, []);
 
   // --- Run Stats Init (pure JS, bus-driven) ---
   useEffect(function() {
-    RunStats.init(GameplayEventBus);
-    return function() { RunStats.destroy(); };
+    GameplayAnalyticsSubSystem.init(GameplayEventBus, ANALYTICS_CONFIG);
+    return function() { GameplayAnalyticsSubSystem.destroy(); };
   }, []);
 
   // --- Fairy Helper Init (pure JS, bus-driven) ---
@@ -336,7 +344,7 @@ export default function App() {
           weaponName:       wip ? wip.name : null,
           activeDecree:     !!(rq && !rq.fulfilled),
           daysLeft:         rq ? rq.daysLeft : null,
-          totalForges:      RunStats.getStats().forgeSessions,
+          totalForges:      GameplayAnalyticsSubSystem.getStats().forgeSessions,
         };
       },
       onSpeak: function(line) {
@@ -368,7 +376,7 @@ export default function App() {
   function removeToast(id) { setToasts(function(t) { return t.filter(function(x) { return x.id !== id; }); }); }
 
   // --- Customer System ---
-  // Customer spawning now handled by CustomerManager (src/logic/customerManager.js).
+  // Customer spawning now handled by CustomerSubSystem (src/systems/customer/customerSubSystem.js).
   // It listens to DAY_ADVANCE_HOUR, ECONOMY_WEAPON_SOLD, CUSTOMER_REFUSE,
   // CUSTOMER_WALKOUT, and day lifecycle tags. No spawn logic in App.js.
 
@@ -477,7 +485,7 @@ export default function App() {
     return <DevRouter />;
   }
 
-  if (gameOver) return <ScaleWrapper key="sw"><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} leaderboardEntries={leaderboard.entries} copied={leaderboard.copied} runStats={RunStats.getStats()} onCopyScore={function(name) { leaderboard.copyScore(name, { day: day, gold: gold, totalGoldEarned: totalGoldEarned, reputation: reputation, level: level }, RunStats.getStats()); }} /></ScaleWrapper>;
+  if (gameOver) return <ScaleWrapper key="sw"><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} leaderboardEntries={leaderboard.entries} copied={leaderboard.copied} runStats={GameplayAnalyticsSubSystem.getStats()} onCopyScore={function(name) { leaderboard.copyScore(name, { day: day, gold: gold, totalGoldEarned: totalGoldEarned, reputation: reputation, level: level }, GameplayAnalyticsSubSystem.getStats()); }} /></ScaleWrapper>;
   if (screen === "splash") return <ScaleWrapper key="sw"><SplashScreen onEnter={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
   if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 
