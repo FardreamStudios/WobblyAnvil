@@ -18,9 +18,6 @@ import AbilityManager from "../systems/ability/abilitySubSystem.js";
 
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
-var STARTING_GOLD = GameConstants.STARTING_GOLD;
-var BASE_STAMINA = GameConstants.BASE_STAMINA;
-var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
 var WAKE_HOUR = GameConstants.WAKE_HOUR;
 
 var generateRoyalQuest = QuestLogic.generateRoyalQuest;
@@ -59,8 +56,6 @@ function useDayVM(deps) {
     var setMatDiscount = economy.setMatDiscount;
     var setGlobalMatMult = economy.setGlobalMatMult;
     var setGuaranteedCustomers = economy.setGuaranteedCustomers;
-    var setCustVisitsToday = economy.setCustVisitsToday;
-    var setMaxCustToday = economy.setMaxCustToday;
 
     // --- Quest state ---
     var royalQuest = quest.royalQuest, setRoyalQuest = quest.setRoyalQuest;
@@ -125,7 +120,7 @@ function useDayVM(deps) {
             setRoyalQuest(null);
         }
         setLateToastShown(false); setDay(newDay); setHour(WAKE_HOUR); setStamina(ns);
-        setCustVisitsToday(0); setMaxCustToday(BASE_DAILY_CUSTOMERS); setForcedExhaustion(false);
+        setForcedExhaustion(false);
         setPriceBonus(1.0); setPriceDebuff(1.0); setMatDiscount(null); setGlobalMatMult(1.0);
         setGuaranteedCustomers(false); setPromoteUses(0);
         sfx.setMode("idle");
