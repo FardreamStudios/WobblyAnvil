@@ -1,18 +1,37 @@
 // ============================================================
-// FairyAnim.js — Reusable Fairy Animation Component
+// FairyAnimInstance.js — Pure Animation Renderer (M-8)
 //
-// POSITIONING: Everything lives inside a full-screen container
-// div (position:fixed, inset:0). All x/y values are PERCENTAGES
-// of that container. 50/50 = dead center on every screen size.
+// UE ANALOGY: AnimInstance / AnimBlueprint.
+// Receives commands via ref, renders sprite/FX/bubble.
+// Zero decision-making — pawn (fairyPawn.js) drives everything.
 //
-// Outer div = position/scale/rotation (timeline target)
-// Inner div = spritesheet window (never touched by animations)
-// PoofFX = absolute inside container, not affected by fairy scale
-// Shuffle-deck loop: plays all 6 actions, reshuffles, repeats.
+// COMMAND API (via ref):
+//   setPos({x, y, scale, rot, transition, transformOrigin})
+//   hide()              — clear fairy + speech + tappable
+//   poofFX(x, y)        — trigger particle burst at location
+//   showSpeech(text)     — show speech bubble
+//   hideSpeech()         — dismiss speech bubble
+//   setTappable(bool)    — enable/disable tap interaction
+//   setAnim(name)        — switch sprite anim state (future)
+//   resetIrritation()    — reset tap tier to 0
+//   getState()           — {pos, tappable, irritation}
+//   playPop()            — poof sound
+//   playTapPop()         — lighter tap sound
 //
-// TAP INTERACTION: During center poofs, fairy is tappable.
-// Taps escalate irritation (5 tiers), trigger dodges at higher
-// tiers, and culminate in a nuclear exit at max. Spam-guarded.
+// CALLBACKS (via props):
+//   onTapExit()          — fired after nuclear exit (tier 4)
+//   onTapDodge(x,y,tier) — fired when dodge starts (tier 2-3)
+//   getDodgeSpot(cx,cy)  — pawn provides dodge destination
+//
+// POSITIONING: Outer div uses left/top in % + transform.
+// Pawn controls transformOrigin per layer:
+//   scene  = "50% 100%" (feet pinned, shrinks upward)
+//   overlay = "50% 50%" (center, floating)
+//
+// TEMPORARY RESIDENTS (move to pawn at M-7):
+//   PoofFX, SpeechBubble — React sub-components that render
+//   FX and dialogue. Will become sibling components or pawn-
+//   managed overlays once the pawn exists.
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
@@ -37,74 +56,17 @@ var SPRITE_CFG = {
 };
 
 // ============================================================
-// Edge Peek Params — all values in container %
-// ============================================================
-var PEEK_SCALE = 4;
-var PEEK_SLIDE_IN_MS = 1200;
-var PEEK_HOLD_MS = 2500;
-var PEEK_SLIDE_OUT_MS = 1000;
-
-var PEEK_INSET_TB = 7;
-var PEEK_INSET_LR = 16;
-var PEEK_MARGIN = 30;
-
-// Peek position variance — randomizes along the edge
-var PEEK_VARIANCE_TB = 15;   // top/bottom: horizontal offset range (+/- %)
-var PEEK_VARIANCE_LR = 12;   // left/right: vertical offset range (+/- %)
-
-var PEEK_SPRITE_PCT = SPRITE_CFG.sizePct * PEEK_SCALE;
-var PEEK_HALF = PEEK_SPRITE_PCT / 2;
-
-var EDGE_PEEKS = [
-    {
-        name: "bottom", type: "peek", rot: 0,
-        offX: 50, offY: 100 + PEEK_HALF + PEEK_MARGIN,
-        peekX: 50, peekY: 100 + PEEK_HALF - PEEK_INSET_TB,
-    },
-    {
-        name: "top", type: "peek", rot: 180,
-        offX: 50, offY: 0 - PEEK_HALF - PEEK_MARGIN,
-        peekX: 50, peekY: 0 - PEEK_HALF + PEEK_INSET_TB,
-    },
-    {
-        name: "left", type: "peek", rot: 90,
-        offX: 0 - PEEK_HALF - PEEK_MARGIN, offY: 50,
-        peekX: 0 - PEEK_HALF + PEEK_INSET_LR, peekY: 50,
-    },
-    {
-        name: "right", type: "peek", rot: -90,
-        offX: 100 + PEEK_HALF + PEEK_MARGIN, offY: 50,
-        peekX: 100 + PEEK_HALF - PEEK_INSET_LR, peekY: 50,
-    },
-];
-
-// ============================================================
-// Center Poof Params — all values in container %
+// Poof Visual Params (used by tap dodge + beginExit)
 // ============================================================
 var POOF_SCALE_START = 0.1;
 var POOF_SCALE_END = 1;
 var POOF_SNAP_IN_MS = 250;
-var POOF_HOLD_MS_MIN = 4000;
-var POOF_HOLD_MS_MAX = 6000;
 var POOF_SNAP_OUT_MS = 200;
 var POOF_FX_LEAD_MS = 100;
-
-var CENTER_POOFS = [
-    { name: "poofLeft",  type: "poof", x: 25, y: 50 },
-    { name: "poofRight", type: "poof", x: 75, y: 50 },
-];
-
-// Loop timing
-var INITIAL_DELAY_MIN = 1000;
-var INITIAL_DELAY_MAX = 4000;
-var BETWEEN_DELAY_MIN = 1500;
-var BETWEEN_DELAY_MAX = 4000;
 
 // ============================================================
 // Speech Bubble Config
 // ============================================================
-var BUBBLE_SHOW_DELAY = 600;
-var BUBBLE_HIDE_BEFORE = 800;
 var BUBBLE_OFFSET_Y = -8;
 
 // ============================================================
@@ -116,64 +78,9 @@ var DODGE_PAUSE_MS = 300;        // gap between vanish and reappear
 var MIN_READ_MS = 2500;          // minimum time speech stays up
 var MS_PER_CHAR = 80;            // extra read time per character
 
-// Dodge positions — avoid center, spread around screen
-var DODGE_SPOTS = [
-    { x: 20, y: 25 }, { x: 80, y: 25 },
-    { x: 15, y: 70 }, { x: 85, y: 70 },
-    { x: 25, y: 80 }, { x: 75, y: 20 },
-    { x: 15, y: 40 }, { x: 85, y: 60 },
-];
-
 // Scale options for dodge — tier 3+ can go tiny
 var DODGE_SCALES_NORMAL = [0.8, 1.0, 1.0, 0.9];
 var DODGE_SCALES_TINY = [0.35, 0.4, 0.45];
-
-// ============================================================
-// Fairy Quips — ambient poof commentary
-// ============================================================
-var FAIRY_QUIPS = [
-    "you call that a sword?",
-    "i've seen better steel in a spoon",
-    "the anvil deserves an apology",
-    "...is it supposed to bend like that",
-    "i'm not mad. just disappointed.",
-    "that customer is lying to you btw",
-    "do you even know what quenching means",
-    "i used to work with real blacksmiths",
-    "this is fine. everything is fine.",
-    "the forge god weeps",
-    "hey. hey. look at me. do better.",
-    "i could fix that but i choose not to",
-    "you're being watched. by me. right now.",
-    "plot twist: the anvil was the hero all along",
-    "are you speedrunning failure",
-    "bold strategy. let's see if it pays off.",
-    "i'm going to pretend i didn't see that",
-    "your grandma could hammer better. mine could too.",
-    "wait... do you actually not have a plan",
-    "i can never turn left because im always right",
-    "when chuck norris gets grounded his parents arent allowed to leave his room",
-    "when chuck norris cooks, he makes the onion cry",
-    "chuck norris counted to infinity twice",
-    "florpna gleek shunta mivvel ek",
-    "weh briska tohn fleemu gratzig nok",
-    "skibba rontu fehh plunka dvessa rii",
-    "gahtu mep skweela bornf tchikka luu",
-];
-
-// ============================================================
-// Peek Quips — only for bottom peek (she's poking her head up)
-// ============================================================
-var PEEK_QUIPS = [
-    "psst. down here.",
-    "you didn't see me.",
-    "just checking if you're still bad at this",
-    "boo.",
-    "i live here now",
-    "don't mind me just vibing",
-    "the view from down here is... concerning",
-    "shhh i'm hiding from the customers",
-];
 
 // ============================================================
 // Irritation Lines — 5 tiers x 5 lines
@@ -219,7 +126,18 @@ var IRRITATION_LINES = [
 ];
 
 // ============================================================
+// Default dodge spots — fallback when pawn doesn't provide any
+// ============================================================
+var DEFAULT_DODGE_SPOTS = [
+    { x: 20, y: 25 }, { x: 80, y: 25 },
+    { x: 15, y: 70 }, { x: 85, y: 70 },
+    { x: 25, y: 80 }, { x: 75, y: 20 },
+    { x: 15, y: 40 }, { x: 85, y: 60 },
+];
+
+// ============================================================
 // Fairy Dust Poof FX — 3-layer: core flash + spark ring + dust motes
+// TEMPORARY: Moves to pawn-managed overlay at M-7
 // ============================================================
 var POOF_FX_SIZE_VW = 18;
 var POOF_FX_DURATION_MS = 1400;
@@ -334,6 +252,7 @@ function PoofFX(props) {
 
 // ============================================================
 // Speech Bubble — pixel-art cartoon style
+// TEMPORARY: Moves to pawn-managed overlay at M-7
 // ============================================================
 var BUBBLE_ANIM_IN_MS = 200;
 var BUBBLE_ANIM_OUT_MS = 150;
@@ -421,7 +340,7 @@ function SpeechBubble(props) {
 }
 
 // ============================================================
-// Pop Sound
+// Pop Sound — TEMPORARY: wire through main audio system at M-7
 // ============================================================
 function playPop() {
     try {
@@ -432,11 +351,11 @@ function playPop() {
         var promise = audio.play();
         if (promise && promise.catch) {
             promise.catch(function(e) {
-                console.warn("[FairyAnim] pop audio blocked:", e.message);
+                console.warn("[FairyAnimInstance] pop audio blocked:", e.message);
             });
         }
     } catch (e) {
-        console.warn("[FairyAnim] pop audio error:", e.message);
+        console.warn("[FairyAnimInstance] pop audio error:", e.message);
     }
 }
 
@@ -456,25 +375,6 @@ function playTapPop() {
 // ============================================================
 // Helpers
 // ============================================================
-function randInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function randFloat(min, max) {
-    return min + Math.random() * (max - min);
-}
-
-function shuffle(arr) {
-    var a = arr.slice();
-    for (var i = a.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var tmp = a[i];
-        a[i] = a[j];
-        a[j] = tmp;
-    }
-    return a;
-}
-
 function pickRandom(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -484,12 +384,12 @@ function readTimeMs(text) {
     return Math.max(MIN_READ_MS, text.length * MS_PER_CHAR + 1000);
 }
 
-// Pick a dodge spot far from current position
-function pickDodgeSpot(currentX, currentY) {
-    var best = DODGE_SPOTS[0];
+// Default dodge spot picker — fallback when pawn doesn't provide one
+function defaultDodgeSpot(currentX, currentY) {
+    var best = DEFAULT_DODGE_SPOTS[0];
     var bestDist = 0;
     for (var i = 0; i < 3; i++) {
-        var spot = pickRandom(DODGE_SPOTS);
+        var spot = pickRandom(DEFAULT_DODGE_SPOTS);
         var dx = spot.x - currentX;
         var dy = spot.y - currentY;
         var dist = dx * dx + dy * dy;
@@ -504,19 +404,13 @@ function pickDodgeSpot(currentX, currentY) {
 // ============================================================
 // Component
 // ============================================================
-var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
+var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
     var frameRef = useRef(0);
     var [frame, setFrame] = useState(0);
     var [pos, setPos] = useState(null);
     var [poofAt, setPoofAt] = useState(null);
     var [speechText, setSpeechText] = useState(null);
     var [tappable, setTappable] = useState(false);
-
-    // Deck refs (action + quip shufflers)
-    var deckRef = useRef([]);
-    var deckIndexRef = useRef(0);
-    var quipDeckRef = useRef([]);
-    var quipIndexRef = useRef(0);
 
     // Timeout tracking
     var timeoutsRef = useRef([]);        // all timeouts (unmount cleanup)
@@ -528,20 +422,6 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
     var irritationRef = useRef(0);       // 0-4 tier
     var lastTapRef = useRef(0);          // timestamp for cooldown
     var ignoreTapsRef = useRef(false);   // true at max irritation
-    var onDoneRef = useRef(null);        // stored callback for rescheduling
-
-    // --- FairyHelper command queue (triggered lines override ambient quips) ---
-    var commandQueueRef = useRef([]);
-
-    // --- Expose speak() to parent via ref ---
-    useImperativeHandle(ref, function() {
-        return {
-            speak: function(line) {
-                if (!mountedRef.current) return;
-                commandQueueRef.current.push(line);
-            }
-        };
-    });
 
     // --- Safe timeout that auto-cleans on unmount ---
     var schedule = useCallback(function(fn, ms) {
@@ -574,29 +454,19 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
         return function() { clearInterval(id); };
     }, []);
 
-    // --- Shuffled deck pickers ---
-    function nextAction() {
-        if (deckRef.current.length === 0 || deckIndexRef.current >= deckRef.current.length) {
-            deckRef.current = shuffle(EDGE_PEEKS.concat(CENTER_POOFS));
-            deckIndexRef.current = 0;
-        }
-        var action = deckRef.current[deckIndexRef.current];
-        deckIndexRef.current++;
-        return action;
-    }
-
-    function nextQuip() {
-        if (quipDeckRef.current.length === 0 || quipIndexRef.current >= quipDeckRef.current.length) {
-            quipDeckRef.current = shuffle(FAIRY_QUIPS);
-            quipIndexRef.current = 0;
-        }
-        var quip = quipDeckRef.current[quipIndexRef.current];
-        quipIndexRef.current++;
-        return quip;
-    }
+    // --- Unmount cleanup ---
+    useEffect(function() {
+        mountedRef.current = true;
+        return function() {
+            mountedRef.current = false;
+            timeoutsRef.current.forEach(function(id) { clearTimeout(id); });
+            timeoutsRef.current = [];
+            exitTimeoutsRef.current = [];
+        };
+    }, []);
 
     // ============================================================
-    // EXIT SEQUENCE — reusable, called from poof + tap handler
+    // EXIT SEQUENCE — reusable, called from dodge + tap handler
     // ============================================================
     function beginExit(x, y, scale, onDone) {
         setTappable(false);
@@ -611,7 +481,9 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
         }, 200);
 
         scheduleExit(function() {
-            setPos({ x: x, y: y, scale: POOF_SCALE_START, rot: 0, transition: POOF_SNAP_OUT_MS });
+            setPos(function(prev) {
+                return prev ? { x: x, y: y, scale: POOF_SCALE_START, rot: 0, transition: POOF_SNAP_OUT_MS, transformOrigin: prev.transformOrigin } : null;
+            });
         }, 200 + POOF_FX_LEAD_MS);
 
         scheduleExit(function() {
@@ -627,7 +499,8 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
     // DODGE — vanish + reappear at new position with scale variance
     // ============================================================
     function doDodge(currentX, currentY, tier, onDone) {
-        var spot = pickDodgeSpot(currentX, currentY);
+        var getDodge = props.getDodgeSpot || defaultDodgeSpot;
+        var spot = getDodge(currentX, currentY);
         var isTiny = tier >= 3 && Math.random() < 0.4;
         var newScale = isTiny
             ? pickRandom(DODGE_SCALES_TINY)
@@ -647,9 +520,9 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
             playPop();
 
             schedule(function() {
-                setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_START * newScale, rot: 0, transition: 0 });
+                setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_START * newScale, rot: 0, transition: 0, transformOrigin: "50% 50%" });
                 schedule(function() {
-                    setPos({ x: spot.x, y: spot.y, scale: newScale, rot: 0, transition: POOF_SNAP_IN_MS });
+                    setPos({ x: spot.x, y: spot.y, scale: newScale, rot: 0, transition: POOF_SNAP_IN_MS, transformOrigin: "50% 50%" });
                 }, 50);
             }, POOF_FX_LEAD_MS);
 
@@ -657,6 +530,8 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
             schedule(function() {
                 setPoofAt(null);
                 setTappable(true);
+
+                if (props.onTapDodge) props.onTapDodge(spot.x, spot.y, tier);
 
                 var line = isTiny
                     ? pickRandom(IRRITATION_LINES[3])
@@ -698,7 +573,6 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
         var cx = currentPos.x;
         var cy = currentPos.y;
         var currentScale = currentPos.scale || POOF_SCALE_END;
-        var onDone = onDoneRef.current;
 
         // Cancel any pending exit
         clearExitTimeouts();
@@ -716,7 +590,7 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
                 beginExit(cx, cy, currentScale, function() {
                     irritationRef.current = 0;
                     ignoreTapsRef.current = false;
-                    if (onDone) onDone();
+                    if (props.onTapExit) props.onTapExit();
                 });
             }, nuclearReadMs);
             return;
@@ -725,7 +599,7 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
         // --- Tier 2-3: Dodge to new position ---
         if (tier >= 2) {
             irritationRef.current = Math.min(tier + 1, 4);
-            doDodge(cx, cy, tier, onDone);
+            doDodge(cx, cy, tier, null);
             return;
         }
 
@@ -741,142 +615,63 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
         }, reactionReadMs);
 
         scheduleExit(function() {
-            beginExit(cx, cy, currentScale, onDone);
+            beginExit(cx, cy, currentScale, null);
         }, reactionReadMs + TAP_HOLD_MS);
     }
 
     // ============================================================
-    // RUN PEEK — with position variance
+    // COMMAND API — pawn drives everything through this ref
     // ============================================================
-    function runPeek(edge, onDone) {
-        var varPeekX = edge.peekX;
-        var varPeekY = edge.peekY;
-        var varOffX = edge.offX;
-        var varOffY = edge.offY;
-
-        if (edge.name === "top" || edge.name === "bottom") {
-            var offsetH = randFloat(-PEEK_VARIANCE_TB, PEEK_VARIANCE_TB);
-            varPeekX = edge.peekX + offsetH;
-            varOffX = edge.offX + offsetH;
-        } else {
-            var offsetV = randFloat(-PEEK_VARIANCE_LR, PEEK_VARIANCE_LR);
-            varPeekY = edge.peekY + offsetV;
-            varOffY = edge.offY + offsetV;
-        }
-
-        // Bottom peek can show a quip — extend hold to ensure read time
-        var isBottom = edge.name === "bottom";
-        var peekQuip = isBottom ? pickRandom(PEEK_QUIPS) : null;
-        var holdMs = isBottom && peekQuip
-            ? Math.max(PEEK_HOLD_MS, readTimeMs(peekQuip) + 600)
-            : PEEK_HOLD_MS;
-
-        setPos({ x: varOffX, y: varOffY, scale: PEEK_SCALE, rot: edge.rot, transition: 0 });
-
-        schedule(function() {
-            setPos({ x: varPeekX, y: varPeekY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_IN_MS });
-        }, 50);
-
-        // Show quip after slide-in completes
-        if (peekQuip) {
-            schedule(function() {
-                setSpeechText(peekQuip);
-            }, 50 + PEEK_SLIDE_IN_MS + 300);
-
-            // Hide quip before slide-out
-            schedule(function() {
+    useImperativeHandle(ref, function() {
+        return {
+            setPos: function(posObj) {
+                if (!mountedRef.current) return;
+                setPos(posObj);
+            },
+            hide: function() {
+                if (!mountedRef.current) return;
+                setPos(null);
                 setSpeechText(null);
-            }, 50 + PEEK_SLIDE_IN_MS + holdMs - 500);
-        }
-
-        schedule(function() {
-            setPos({ x: varOffX, y: varOffY, scale: PEEK_SCALE, rot: edge.rot, transition: PEEK_SLIDE_OUT_MS });
-        }, 50 + PEEK_SLIDE_IN_MS + holdMs);
-
-        schedule(function() {
-            setSpeechText(null);
-            setPos(null);
-            if (onDone) onDone();
-        }, 50 + PEEK_SLIDE_IN_MS + holdMs + PEEK_SLIDE_OUT_MS);
-    }
-
-    // ============================================================
-    // RUN POOF — with interruptible exit
-    // ============================================================
-    function runPoof(spot, onDone) {
-        var holdMs = randInt(POOF_HOLD_MS_MIN, POOF_HOLD_MS_MAX);
-        var quip = commandQueueRef.current.length > 0
-            ? commandQueueRef.current.shift()
-            : nextQuip();
-
-        // Store onDone so tap handler can reschedule
-        onDoneRef.current = onDone;
-
-        // T+0: FX fires, sound plays
-        setPoofAt({ x: spot.x, y: spot.y });
-        playPop();
-
-        // T+LEAD: fairy starts scaling in
-        schedule(function() {
-            setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_START, rot: 0, transition: 0 });
-            schedule(function() {
-                setPos({ x: spot.x, y: spot.y, scale: POOF_SCALE_END, rot: 0, transition: POOF_SNAP_IN_MS });
-            }, 50);
-        }, POOF_FX_LEAD_MS);
-
-        // Clear appear FX
-        schedule(function() {
-            setPoofAt(null);
-        }, POOF_FX_LEAD_MS + POOF_SNAP_IN_MS + 150);
-
-        // Show quip + enable taps after fully in
-        var idleStart = POOF_FX_LEAD_MS + POOF_SNAP_IN_MS + BUBBLE_SHOW_DELAY;
-        schedule(function() {
-            setSpeechText(quip);
-            setTappable(true);
-        }, idleStart);
-
-        // === EXIT GROUP (cancellable on tap) ===
-        var exitStart = POOF_FX_LEAD_MS + POOF_SNAP_IN_MS + holdMs;
-
-        scheduleExit(function() {
-            setSpeechText(null);
-        }, exitStart - BUBBLE_HIDE_BEFORE);
-
-        scheduleExit(function() {
-            beginExit(spot.x, spot.y, POOF_SCALE_END, onDone);
-        }, exitStart);
-    }
-
-    // --- Run next action from deck ---
-    function runNext() {
-        // If FairyHelper queued a line, force a center poof to display it
-        var hasCommand = commandQueueRef.current.length > 0;
-        var action = hasCommand ? pickRandom(CENTER_POOFS) : nextAction();
-        var onDone = function() {
-            var delay = randInt(BETWEEN_DELAY_MIN, BETWEEN_DELAY_MAX);
-            schedule(runNext, delay);
+                setTappable(false);
+            },
+            poofFX: function(x, y) {
+                if (!mountedRef.current) return;
+                setPoofAt({ x: x, y: y });
+                schedule(function() { setPoofAt(null); }, POOF_FX_DURATION_MS);
+            },
+            showSpeech: function(text) {
+                if (!mountedRef.current) return;
+                setSpeechText(text);
+            },
+            hideSpeech: function() {
+                if (!mountedRef.current) return;
+                setSpeechText(null);
+            },
+            setTappable: function(val) {
+                if (!mountedRef.current) return;
+                setTappable(val);
+            },
+            setAnim: function(name) {
+                // Future: switch spritesheet based on anim name
+                // For now only "idle" exists
+            },
+            resetIrritation: function() {
+                irritationRef.current = 0;
+                ignoreTapsRef.current = false;
+            },
+            getState: function() {
+                return {
+                    pos: pos,
+                    tappable: tappable,
+                    irritation: irritationRef.current,
+                };
+            },
+            playPop: playPop,
+            playTapPop: playTapPop,
+            clearExitTimeouts: clearExitTimeouts,
+            beginExit: beginExit,
         };
-        if (action.type === "peek") {
-            runPeek(action, onDone);
-        } else {
-            runPoof(action, onDone);
-        }
-    }
-
-    // --- Start loop on mount ---
-    useEffect(function() {
-        mountedRef.current = true;
-        var delay = randInt(INITIAL_DELAY_MIN, INITIAL_DELAY_MAX);
-        schedule(runNext, delay);
-
-        return function() {
-            mountedRef.current = false;
-            timeoutsRef.current.forEach(function(id) { clearTimeout(id); });
-            timeoutsRef.current = [];
-            exitTimeoutsRef.current = [];
-        };
-    }, []);
+    });
 
     // --- Sprite sizing ---
     var spriteW = SPRITE_CFG.sizePct + "vw";
@@ -887,6 +682,7 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
     if (!showFairy && !showFX) return null;
 
     var transMs = showFairy ? (pos.transition || 0) : 0;
+    var tOrigin = (showFairy && pos.transformOrigin) ? pos.transformOrigin : "50% 50%";
 
     return createPortal(
         <div style={{
@@ -905,7 +701,8 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
                         position: "absolute",
                         left: pos.x + "%",
                         top: pos.y + "%",
-                        transform: "translate(-50%, -50%) scale(" + pos.scale + ") rotate(" + pos.rot + "deg)",
+                        transform: "translate(-50%, -50%) scale(" + pos.scale + ") rotate(" + (pos.rot || 0) + "deg)",
+                        transformOrigin: tOrigin,
                         transition: transMs > 0
                             ? "left " + transMs + "ms ease-in-out, top " + transMs + "ms ease-in-out, transform " + transMs + "ms ease-in-out"
                             : "none",
@@ -933,4 +730,4 @@ var FairyAnim = forwardRef(function FairyAnimInner(props, ref) {
     );
 });
 
-export default FairyAnim;
+export default FairyAnimInstance;

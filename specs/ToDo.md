@@ -9,7 +9,7 @@
 - [x] **Fairy animation proto** — `FairyAnim.js` built. Spritesheet, portal rendering, 3-layer poof FX, speech bubbles, tap interaction, 5-tier irritation, dodge-poof, peek variance, tap audio.
 - [x] **Fairy personality data file** — `src/fairy/fairyPersonality.js` created. 211 dialogue lines, 25 triggers, 3 fairy events, system prompt, template tokens.
 - [x] **Fairy controller** — `src/fairy/fairyController.js` built. FSM, bus integration, rules evaluation, line picking, LLM routing, cooldowns, gameplay tracking.
-- [x] **Fairy rules tree** — `src/fairy/fairyRulesTree.js` created. Trigger definitions with busTag, conditions, priority, cooldowns.
+- [x] **Fairy rules tree** — `src/fairy/fairyRulesTree.js` created. Trigger definitions with busTag, conditions, priority, cooldowns, minDay day-gating.
 - [x] **Fairy data files** — `src/fairy/fairyAPI.js` (LLM fetch wrapper), `src/fairy/fairyConfig.js` (environment config).
 - [x] **Fairy character bible** — `specs/FairyCharacter.md` created. Full identity, abilities, pacing, LLM architecture.
 - [x] **DES-1 GameMode + Ability System** — Both live. GameMode owns day lifecycle, sub-mode switching. AbilityManager owns morning/reactive abilities with modifier system.
@@ -21,6 +21,12 @@
 - [x] **Batch renames — Analytics** — `src/logic/runStats.js` replaced by config-driven `src/systems/analytics/gameplayAnalyticsSubSystem.js` + `src/config/analyticsConfig.js`.
 - [x] **Batch renames — FX Cues** — `src/config/fxCueRegistry.js` + `src/hooks/useFXCues.js` merged into `src/systems/fxCue/fxCueSubSystem.js`. Converted from React hook to pure JS singleton.
 - [x] **Spec audit** — Deleted redundant specs (`FTUESpecs.md`, `LLMIntegration.md`, `gameModeAbilitySystem.md`). Updated all paths and statuses across remaining specs.
+- [x] **M-5: Position registry + target resolver** — `src/fairy/fairyPositions.js`. Per-scene nav mesh with depth formula, UI targets, edge peeks, dodge paths, roam zones. `data-fairy-target` attributes on layouts.
+- [x] **M-6: Cue data file** — `src/fairy/fairyCues.js`. 13 named cue timelines with layer declarations and null-resolution convention.
+- [x] **M-8: FairyAnimInstance refactor** — `FairyAnim.js` → `src/fairy/FairyAnimInstance.js`. Stripped autonomous loop, quip decks, position data. Command API via ref. Pawn callbacks (onTapExit, onTapDodge, getDodgeSpot).
+- [x] **M-7: FairyPawn core** — `src/fairy/fairyPawn.js`. Cue player, position resolution (scene depth + overlay viewport), staging logic, dodge provider, feedback routing.
+- [x] **M-10: App.js rewire** — Controller → Pawn → AnimInstance chain wired. Pawn props on both mobile + desktop mounts.
+- [x] **M-9: FairyController upgrade** — Day-gating pacing table (5 tiers), `onCommand` structured commands replacing `onSpeak`, tier-scaled tick interval, daily appearance caps, minDay filter on triggers.
 
 ---
 
@@ -40,20 +46,14 @@
 - [ ] **Add a new QTE type** — Prove the plugin pattern works by building a fresh QTE from scratch.
 
 ### DES-3 — Fairy Helper System (Three-Layer Build)
-See `FairyFeatureSpecs.md` for full architecture and milestone details. Current state: controller, rules tree, personality data, animation proto, LLM client all built. Remaining work is the pawn layer, anim refactor, and wiring.
+See `FairyFeatureSpecs.md` for full architecture and milestone details. Core three-layer pipeline (Controller → Pawn → AnimInstance) is live with day-gating. Remaining work is FX, persistence, and special cues.
 
-- [ ] **M-5: Position registry + target resolver** — `src/fairy/fairyPositions.js` + target resolver in pawn. `data-fairy-target` attributes on layouts.
-- [ ] **M-6: Cue data file** — `src/fairy/fairyCues.js`. Named cue timelines as pure data.
-- [ ] **M-7: FairyPawn core** — `src/fairy/fairyPawn.js`. Action queue, cue player, staging logic.
-- [ ] **M-8: FairyAnimInstance refactor** — Strip `FairyAnim.js` → `FairyAnimInstance.js`. Kill autonomous loop, expose command interface via ref.
-- [ ] **M-9: FairyController upgrade** — Add day-gating pacing table. Wire `onCommand` to pawn. Scale ambient tick by tier.
-- [ ] **M-10: App.js rewire** — Wire controller → pawn → animInstance chain. Test end-to-end.
 - [ ] **M-11: Laser FX** — Beam from fairy to target UI element via cue step.
 - [ ] **M-12: Persistence + toggle** — localStorage for taught topics. On/off toggle in options menu.
 - [ ] **M-13: Special cues** — `super_saiyan`, `chase_event`, `running_head`, `fairy_insight`. Day-gated.
 - [ ] **M-14: Gibberish speech audio** — Procedural via Web Audio, synced to speech bubbles. Can defer.
 
-### DES-3 — QTE Pause (blocked by DES-2 + Fairy M-7)
+### DES-3 — QTE Pause (blocked by DES-2 + Fairy M-7 ✅)
 - [ ] **Pause/resume contract** — Freeze needle/notes at exact position in QTE Runner.
 - [ ] **Pause overlay** — Dim + "TAP TO RESUME" + auto-resume timeout.
 - [ ] **Fairy pause triggers** — First-time QTE encounter → fairy pauses and explains.
@@ -72,4 +72,5 @@ See `FairyFeatureSpecs.md` for full architecture and milestone details. Current 
 ### Cleanup
 - [ ] **Verify UX multi-function buttons** — Stamina-use buttons should call wait/rest inline.
 - [ ] **Fix shelf images** — Remove visible background border on weapon shelf display sprites.
-- [ ] **FairyAnim audio cleanup** — `new Audio()` direct usage should wire through main audio system for volume/mute consistency. Blocked until M-8 (AnimInstance refactor).
+- [ ] **FairyAnimInstance audio cleanup** — `new Audio()` direct usage in `src/fairy/FairyAnimInstance.js` should wire through main audio system for volume/mute consistency.
+- [ ] **Delete old FairyAnim.js** — `src/components/FairyAnim.js` replaced by `src/fairy/FairyAnimInstance.js`. Remove if still on disk.

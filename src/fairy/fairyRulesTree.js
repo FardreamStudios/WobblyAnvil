@@ -5,6 +5,13 @@
 // fairyController.js evaluates these each tick / bus event.
 // Priority: higher number = checked first. First match wins.
 //
+// minDay: earliest day this trigger can fire. Controller skips
+// triggers where day < minDay. See DAY_TIERS in fairyController.
+//   1  = ftue tier (days 1-2, teaching + critical)
+//   6  = reactive tier (days 6-9, gameplay reactions)
+//   10 = active tier (days 10-14, events + streaks)
+//   15 = full tier (days 15+, ambient commentary)
+//
 // PORTABLE: Pure data. No React. No imports. No side effects.
 // ============================================================
 
@@ -15,15 +22,17 @@ var TRIGGERS = [
         id: "dire_straits",
         priority: 100,
         category: "on_dire_straits",
+        minDay: 1,
         condition: function(s) {
             return s.rep < 15 && s.gold < 10 && s.activeDecree && s.daysLeft <= 2;
         },
-        cooldownMs: 60000,   // don't repeat for 60s
+        cooldownMs: 60000,
     },
     {
         id: "decree_urgent",
         priority: 90,
         category: "on_decree_urgent",
+        minDay: 1,
         condition: function(s) {
             return s.activeDecree && s.daysLeft === 1;
         },
@@ -33,13 +42,15 @@ var TRIGGERS = [
         id: "decree_failed",
         priority: 85,
         category: "on_decree_failed",
+        minDay: 1,
         busTag: "QUEST_FAILED",
-        cooldownMs: 0,       // always fire on this event
+        cooldownMs: 0,
     },
     {
         id: "decree_complete",
         priority: 85,
         category: "on_decree_complete",
+        minDay: 1,
         busTag: "FORGE_SESSION_COMPLETE",
         condition: function(s) { return s.justCompletedDecree; },
         cooldownMs: 0,
@@ -50,6 +61,7 @@ var TRIGGERS = [
         id: "shatter",
         priority: 80,
         category: "on_shatter",
+        minDay: 6,
         busTag: "FX_SHATTER",
         cooldownMs: 0,
     },
@@ -57,6 +69,7 @@ var TRIGGERS = [
         id: "shatter_streak",
         priority: 82,
         category: "on_shatter_streak",
+        minDay: 6,
         condition: function(s) { return s.recentShatters >= 2; },
         cooldownMs: 0,
     },
@@ -64,6 +77,7 @@ var TRIGGERS = [
         id: "masterwork",
         priority: 75,
         category: "on_masterwork",
+        minDay: 6,
         busTag: "FORGE_SESSION_COMPLETE",
         condition: function(s) { return s.lastWeaponQuality >= 90; },
         cooldownMs: 0,
@@ -72,6 +86,7 @@ var TRIGGERS = [
         id: "bad_quality",
         priority: 60,
         category: "on_bad_quality",
+        minDay: 6,
         busTag: "FORGE_SESSION_COMPLETE",
         condition: function(s) { return s.lastWeaponQuality < 30; },
         cooldownMs: 15000,
@@ -80,6 +95,7 @@ var TRIGGERS = [
         id: "perfect_quench",
         priority: 70,
         category: "on_perfect_quench",
+        minDay: 6,
         condition: function(s) { return s.lastQuenchResult === "perfect"; },
         cooldownMs: 0,
     },
@@ -87,6 +103,7 @@ var TRIGGERS = [
         id: "failed_quench",
         priority: 70,
         category: "on_failed_quench",
+        minDay: 6,
         condition: function(s) { return s.lastQuenchResult === "destroyed"; },
         cooldownMs: 0,
     },
@@ -94,6 +111,7 @@ var TRIGGERS = [
         id: "hot_streak",
         priority: 50,
         category: "on_hot_streak",
+        minDay: 10,
         condition: function(s) { return s.consecutiveGoodWeapons >= 3; },
         cooldownMs: 30000,
     },
@@ -103,6 +121,7 @@ var TRIGGERS = [
         id: "using_copper",
         priority: 65,
         category: "on_copper",
+        minDay: 6,
         condition: function(s) { return s.selectedMaterial === "copper"; },
         cooldownMs: 20000,
     },
@@ -112,6 +131,7 @@ var TRIGGERS = [
         id: "customer_arrives",
         priority: 40,
         category: "on_customer",
+        minDay: 6,
         busTag: "CUSTOMER_SPAWN",
         cooldownMs: 30000,
     },
@@ -119,6 +139,7 @@ var TRIGGERS = [
         id: "customer_walkout",
         priority: 45,
         category: "on_walkout",
+        minDay: 6,
         busTag: "CUSTOMER_WALKOUT",
         cooldownMs: 10000,
     },
@@ -126,6 +147,7 @@ var TRIGGERS = [
         id: "undersell",
         priority: 42,
         category: "on_undersell",
+        minDay: 6,
         busTag: "ECONOMY_WEAPON_SOLD",
         condition: function(s) { return s.lastSaleRatio < 0.7; },
         cooldownMs: 20000,
@@ -134,6 +156,7 @@ var TRIGGERS = [
         id: "good_sale",
         priority: 38,
         category: "on_good_sale",
+        minDay: 6,
         busTag: "ECONOMY_WEAPON_SOLD",
         condition: function(s) { return s.lastSaleRatio >= 1.0; },
         cooldownMs: 20000,
@@ -144,6 +167,7 @@ var TRIGGERS = [
         id: "low_rep",
         priority: 55,
         category: "on_low_rep",
+        minDay: 10,
         condition: function(s) { return s.rep < 20 && s.rep > 5; },
         cooldownMs: 45000,
     },
@@ -153,6 +177,7 @@ var TRIGGERS = [
         id: "late_night",
         priority: 30,
         category: "on_late_night",
+        minDay: 15,
         condition: function(s) { return s.hour >= 22; },
         cooldownMs: 60000,
     },
@@ -160,6 +185,7 @@ var TRIGGERS = [
         id: "idle_too_long",
         priority: 20,
         category: "on_idle_too_long",
+        minDay: 15,
         condition: function(s) { return s.idleMinutes > 3; },
         cooldownMs: 120000,
     },
@@ -167,9 +193,10 @@ var TRIGGERS = [
         id: "first_forge",
         priority: 35,
         category: "on_first_forge",
+        minDay: 1,
         condition: function(s) { return s.totalForges === 0 && s.phase === "heat"; },
         cooldownMs: 0,
-        once: true,          // never triggers again after first time
+        once: true,
     },
 
     // --- Morning events ---
@@ -177,6 +204,7 @@ var TRIGGERS = [
         id: "morning_quiet",
         priority: 10,
         category: "on_quiet_morning",
+        minDay: 10,
         busTag: "DAY_MORNING_EVENT_DISPLAY",
         condition: function(s) { return s.morningEventId === "slow_morning"; },
         cooldownMs: 0,
@@ -185,6 +213,7 @@ var TRIGGERS = [
         id: "morning_festival",
         priority: 10,
         category: "on_festival",
+        minDay: 10,
         busTag: "DAY_MORNING_EVENT_DISPLAY",
         condition: function(s) { return s.morningEventId === "festival"; },
         cooldownMs: 0,
@@ -193,6 +222,7 @@ var TRIGGERS = [
         id: "morning_blessing",
         priority: 10,
         category: "on_blessing",
+        minDay: 10,
         busTag: "DAY_MORNING_EVENT_DISPLAY",
         condition: function(s) { return s.morningEventId === "blessing_of_flame"; },
         cooldownMs: 0,
@@ -201,6 +231,7 @@ var TRIGGERS = [
         id: "morning_rival",
         priority: 10,
         category: "on_rival_smith",
+        minDay: 10,
         busTag: "DAY_MORNING_EVENT_DISPLAY",
         condition: function(s) { return s.morningEventId === "traveling_smith"; },
         cooldownMs: 0,
@@ -209,6 +240,7 @@ var TRIGGERS = [
         id: "morning_rats",
         priority: 10,
         category: "on_rats",
+        minDay: 10,
         busTag: "DAY_MORNING_EVENT_DISPLAY",
         condition: function(s) { return s.morningEventId === "rat_infestation"; },
         cooldownMs: 0,

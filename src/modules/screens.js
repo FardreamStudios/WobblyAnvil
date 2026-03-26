@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import GameConstants from "./constants.js";
 import UIComponents from "./uiComponents.js";
 import HowToPlay from "../components/HowToPlay.js";
-import FairyAnim from "../components/FairyAnim.js";
+import FairyAnimInstance from "../fairy/FairyAnimInstance";
 
 var FTUE_TOASTS = GameConstants.FTUE_TOASTS;
 var SectionLabel = UIComponents.SectionLabel;
@@ -146,7 +146,7 @@ function MainMenu({ onStart, sfx }) {
                 </div>
 
                 {/* Fairy idle animation — fixed position, free from layout */}
-                <FairyAnim />
+                <FairyAnimInstance />
 
                 {/* Buttons */}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>

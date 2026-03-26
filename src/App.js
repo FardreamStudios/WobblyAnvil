@@ -27,7 +27,7 @@ import EVENT_TAGS from "./config/eventTags.js";
 import AbilityManager from "./systems/ability/abilitySubSystem.js";
 import CustomerSubSystem from "./systems/customer/customerSubSystem.js";
 import FairyController from "./fairy/fairyController.js";
-import FairyAnim from "./components/FairyAnim.js";
+import FairyPawn from "./fairy/fairyPawn.js";
 
 // --- State Hooks ---
 import useUIState from "./hooks/useUIState.js";
@@ -49,6 +49,7 @@ import useAmbientAudio from "./hooks/useAmbientAudio.js";
 import useLeaderboard from "./hooks/useLeaderboard.js";
 import GameplayAnalyticsSubSystem from "./systems/analytics/gameplayAnalyticsSubSystem.js";
 import ANALYTICS_CONFIG from "./config/analyticsConfig.js";
+import FairyAnimInstance from "./fairy/FairyAnimInstance";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -280,7 +281,7 @@ export default function App() {
   var royalQuestRef = useRef(royalQuest);
   var gameStarted = useRef(false);
 
-  // --- Fairy Anim ref (for FairyController → speech bubble bridge) ---
+  // --- Fairy Anim ref (Controller → Pawn → AnimInstance chain) ---
   var fairyAnimRef = useRef(null);
 
   // --- Fairy state provider refs (read by FairyController.stateProvider) ---
@@ -326,7 +327,16 @@ export default function App() {
   }, []);
 
   // --- Fairy Helper Init (pure JS, bus-driven) ---
+  // Wire: Controller → Pawn → AnimInstance (via ref)
   useEffect(function() {
+    FairyPawn.init({
+      animRef: fairyAnimRef,
+      onPawnEvent: function(type, data) {
+        // Future: route tap_exit/cue_complete back to controller (M-9)
+      },
+      scene: "forge",
+    });
+
     FairyController.init({
       bus: GameplayEventBus,
       stateProvider: function() {
@@ -347,13 +357,14 @@ export default function App() {
           totalForges:      GameplayAnalyticsSubSystem.getStats().forgeSessions,
         };
       },
-      onSpeak: function(line) {
-        if (fairyAnimRef.current && fairyAnimRef.current.speak) {
-          fairyAnimRef.current.speak(line);
-        }
+      onCommand: function(cmd) {
+        FairyPawn.handleCommand(cmd);
       },
     });
-    return function() { FairyController.destroy(); };
+    return function() {
+      FairyController.destroy();
+      FairyPawn.destroy();
+    };
   }, []);
 
   // --- Leaderboard ---
@@ -464,7 +475,7 @@ export default function App() {
 
   // --- Reset ---
   function resetGame() {
-    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame(); FairyController.reset();
+    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame(); FairyController.reset(); FairyPawn.cancelCue();
     setScreen("splash");
   }
 
@@ -742,7 +753,7 @@ export default function App() {
               </div>
             </div>
           </div>)}
-          <FairyAnim ref={fairyAnimRef} />
+          <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} />
           <DevBanner />
         </>
     );
@@ -789,7 +800,7 @@ export default function App() {
             onDebugGoodEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); setGoodEventUsed(true); setPendingMystery({ severity: "good" }); }}
             onDebugBadEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, false); setPendingMystery({ severity: "bad" }); }}
         />
-        <FairyAnim ref={fairyAnimRef} />
+        <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} />
       </>
   );
 }

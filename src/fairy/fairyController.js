@@ -3,7 +3,11 @@
 //
 // State machine + trigger evaluator + line picker + bus wiring.
 // Decides WHAT the fairy says and WHEN. Does not render
-// anything — hands finished lines to an onSpeak callback.
+// anything — sends structured commands to the pawn via onCommand.
+//
+// DAY-GATING (M-9): Each trigger has a minDay field. Controller
+// checks current day against tier table. Quiet tier = silent cues
+// only. Tick interval scales by tier. Daily appearance cap.
 //
 // LIFECYCLE:
 //   init(config)             — setup with bus, stateProvider, callbacks
@@ -71,18 +75,43 @@ var TICK_INTERVAL_MS = 10000;
 var LLM_NEEDED = "__LLM_NEEDED__";
 
 // ============================================================
+// DAY-GATING — Pacing Table (from FairyCharacter.md)
+// Tier determines allowed behavior, tick speed, max appearances.
+// ============================================================
+
+var DAY_TIERS = [
+    { name: "ftue",     minDay: 1,  maxDay: 2,  tickMs: 8000,   maxAppearances: 999 },
+    { name: "quiet",    minDay: 3,  maxDay: 5,  tickMs: 45000,  maxAppearances: 3 },
+    { name: "reactive", minDay: 6,  maxDay: 9,  tickMs: 20000,  maxAppearances: 8 },
+    { name: "active",   minDay: 10, maxDay: 14, tickMs: 15000,  maxAppearances: 12 },
+    { name: "full",     minDay: 15, maxDay: 999, tickMs: 10000, maxAppearances: 999 },
+];
+
+function _getDayTier(day) {
+    for (var i = 0; i < DAY_TIERS.length; i++) {
+        if (day >= DAY_TIERS[i].minDay && day <= DAY_TIERS[i].maxDay) {
+            return DAY_TIERS[i];
+        }
+    }
+    return DAY_TIERS[DAY_TIERS.length - 1];
+}
+
+// ============================================================
 // INTERNAL STATE
 // ============================================================
 
 var _initialized = false;
 var _bus = null;                 // GameplayEventBus reference
 var _stateProvider = null;       // fn() → live game state snapshot
-var _onSpeak = null;             // fn(line, category) — bridge to speech bubble
+var _onSpeak = null;             // fn(line, category) — legacy bridge
+var _onCommand = null;           // fn(cmd) — structured command to pawn (M-9)
 var _onStateChange = null;       // fn(newState, oldState) — optional
 
 var _fsmState = STATES.OFF;
 var _stateTimer = null;          // setTimeout id for auto-transitions
 var _tickTimer = null;           // setInterval id for ambient checks
+var _currentTier = null;         // cached DAY_TIERS entry
+var _appearancesToday = 0;       // daily appearance counter
 
 // Cooldown tracking: { triggerId: lastFiredTimestamp }
 var _cooldowns = {};
@@ -128,8 +157,14 @@ function init(config) {
 
     _bus            = config.bus            || null;
     _stateProvider  = config.stateProvider  || function() { return {}; };
-    _onSpeak        = config.onSpeak        || function() {};
+    _onSpeak        = config.onSpeak        || null;
+    _onCommand      = config.onCommand      || null;
     _onStateChange  = config.onStateChange  || null;
+
+    // Resolve initial day tier
+    var initState = _stateProvider();
+    _currentTier = _getDayTier(initState.day || 1);
+    _appearancesToday = 0;
 
     // Pre-sort triggers by priority descending (highest first)
     // Resolve busTag keys (e.g. "CUSTOMER_SPAWN") to actual tag strings
@@ -263,20 +298,41 @@ function _stopWatching() {
 }
 
 // ============================================================
-// AMBIENT TICK
+// AMBIENT TICK — interval scales by day tier
 // ============================================================
 
 function _startTicking() {
     if (_tickTimer) return;
+    var ms = _currentTier ? _currentTier.tickMs : TICK_INTERVAL_MS;
     _tickTimer = setInterval(function() {
+        _refreshTier();
         tick();
-    }, TICK_INTERVAL_MS);
+    }, ms);
 }
 
 function _stopTicking() {
     if (_tickTimer) {
         clearInterval(_tickTimer);
         _tickTimer = null;
+    }
+}
+
+/**
+ * Check if day tier has changed. If so, update cached tier
+ * and restart tick at new interval. Called each tick.
+ */
+function _refreshTier() {
+    if (!_stateProvider) return;
+    var state = _stateProvider();
+    var day = state.day || 1;
+    var tier = _getDayTier(day);
+
+    if (!_currentTier || tier.name !== _currentTier.name) {
+        _currentTier = tier;
+        _appearancesToday = 0;
+        // Restart tick at new interval
+        _stopTicking();
+        _startTicking();
     }
 }
 
@@ -366,6 +422,9 @@ function _evaluateTriggers(busTag) {
         // skip — ambient triggers only fire on tick()
         if (!t.busTag && busTag) continue;
 
+        // Day-gating: skip triggers the fairy hasn't unlocked yet
+        if (t.minDay && state.day < t.minDay) continue;
+
         // Once-flag check
         if (t.once && _onceFired[t.id]) continue;
 
@@ -373,6 +432,9 @@ function _evaluateTriggers(busTag) {
         if (t.cooldownMs > 0 && _cooldowns[t.id]) {
             if (now - _cooldowns[t.id] < t.cooldownMs) continue;
         }
+
+        // Appearance cap: respect tier max
+        if (_currentTier && _appearancesToday >= _currentTier.maxAppearances) continue;
 
         // Condition check
         if (t.condition && !t.condition(state)) continue;
@@ -468,6 +530,21 @@ function tick() {
     // Only check ambient triggers when idle
     if (_fsmState !== STATES.IDLE) return null;
 
+    // Quiet tier: skip speech triggers, only emit silent cues
+    if (_currentTier && _currentTier.name === "quiet") {
+        _appearancesToday++;
+        var silentCue = Math.random() < 0.5 ? "silent_peek" : "silent_poof";
+        _sendCommand({
+            intent: "ambient",
+            target: null,
+            line: null,
+            category: null,
+            cue: silentCue,
+        });
+        _setState(STATES.POINTING);
+        return silentCue;
+    }
+
     var trigger = _evaluateTriggers(null);
     if (!trigger) return null;
 
@@ -495,19 +572,28 @@ function _executeTrigger(trigger) {
         _onceFired[trigger.id] = true;
     }
 
+    // Count appearance
+    _appearancesToday++;
+
     // Pick a static line
     var line = _pickLine(trigger.category);
 
-    // Static line found — resolve tokens, speak, done
+    // Static line found — resolve tokens, send command, done
     if (line) {
         line = _resolveTokens(line, state);
         _setState(STATES.POINTING);
-        if (_onSpeak) _onSpeak(line, trigger.category);
+        _sendCommand({
+            intent: "react",
+            target: trigger.target || null,
+            line: line,
+            category: trigger.category,
+            cue: trigger.cue || null,
+        });
         return line;
     }
 
     // No static line — route to LLM (async)
-    _requestLLMLine(state, trigger.category);
+    _requestLLMLine(state, trigger);
     return LLM_NEEDED;
 }
 
@@ -520,15 +606,40 @@ function _executeTrigger(trigger) {
  * On success or fallback, delivers via onSpeak.
  * Fairy transitions to POINTING when the line arrives.
  */
-function _requestLLMLine(state, category) {
+function _requestLLMLine(state, trigger) {
+    var category = trigger.category;
+    var target = trigger.target || null;
+    var cue = trigger.cue || null;
+
     FairyAPI.requestLine(state).then(function(line) {
         // Validate we're still in a state that can speak
         if (_fsmState === STATES.OFF || _fsmState === STATES.DISMISSED) return;
 
         line = _resolveTokens(line, state);
         _setState(STATES.POINTING);
-        if (_onSpeak) _onSpeak(line, category);
+        _sendCommand({
+            intent: "react",
+            target: target,
+            line: line,
+            category: category,
+            cue: cue,
+        });
     });
+}
+
+// ============================================================
+// COMMAND DISPATCH
+// Sends structured commands to the pawn. Supports both
+// onCommand (new) and onSpeak (legacy) callbacks.
+// ============================================================
+
+function _sendCommand(cmd) {
+    if (_onCommand) {
+        _onCommand(cmd);
+    } else if (_onSpeak) {
+        // Legacy bridge: onSpeak(line, category)
+        _onSpeak(cmd.line, cmd.category);
+    }
 }
 
 // ============================================================
@@ -572,6 +683,7 @@ function reset() {
     _onceFired    = {};
     _ignoreCounts = {};
     _decks        = {};
+    _appearancesToday = 0;
     _tracked.lastWeaponQuality      = 0;
     _tracked.lastQuenchResult       = null;
     _tracked.recentShatters         = 0;
@@ -580,6 +692,16 @@ function reset() {
     _tracked.morningEventId         = null;
     _tracked.justCompletedDecree    = false;
     _tracked.lastActivityTime       = Date.now();
+
+    // Re-resolve tier (day may have reset)
+    if (_stateProvider) {
+        var state = _stateProvider();
+        _currentTier = _getDayTier(state.day || 1);
+    }
+
+    // Restart tick at potentially new interval
+    _stopTicking();
+    _startTicking();
 }
 
 function destroy() {
@@ -595,6 +717,7 @@ function destroy() {
     _bus             = null;
     _stateProvider   = null;
     _onSpeak         = null;
+    _onCommand       = null;
     _onStateChange   = null;
     _fsmState        = STATES.OFF;
     _cooldowns       = {};
@@ -603,6 +726,8 @@ function destroy() {
     _decks           = {};
     _sortedTriggers  = null;
     _busHandlers     = [];
+    _currentTier     = null;
+    _appearancesToday = 0;
     _tracked.lastWeaponQuality      = 0;
     _tracked.lastQuenchResult       = null;
     _tracked.recentShatters         = 0;
@@ -621,6 +746,7 @@ var FairyController = {
     // --- Constants ---
     STATES:       STATES,
     LLM_NEEDED:   LLM_NEEDED,
+    DAY_TIERS:    DAY_TIERS,
 
     // --- Setup ---
     init:         init,
@@ -638,6 +764,9 @@ var FairyController = {
     // --- Query ---
     getState:     getState,
     isActive:     isActive,
+    getDayTier:   function() { return _currentTier; },
+    getAppearancesToday: function() { return _appearancesToday; },
+    resetDailyAppearances: function() { _appearancesToday = 0; },
 };
 
 export default FairyController;

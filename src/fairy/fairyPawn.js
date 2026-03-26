@@ -1,0 +1,865 @@
+// ============================================================
+// fairyPawn.js — Fairy World Presence (M-7)
+//
+// UE ANALOGY: Pawn / Character. The fairy's physical presence
+// in the world. Decides WHERE to go and HOW to get there.
+//
+// Pure JS singleton. No React. No DOM rendering.
+// Drives AnimInstance through ref API.
+//
+// LIFECYCLE:
+//   init(config)   — store animRef, callbacks, scene id
+//   destroy()      — cancel pending cues, clear state
+//
+// COMMAND INTAKE:
+//   handleCommand(cmd)  — from controller (M-9 wire-up)
+//   handleSpeak(line, category) — legacy bridge (current App.js)
+//
+// CUE PLAYBACK:
+//   playCue(cueId, context) — resolve nulls, schedule steps
+//   cancelCue()             — abort in-progress cue
+//
+// POSITION:
+//   Wraps FairyPositions resolvers. Scene spots get depth-
+//   resolved scale + transformOrigin "50% 100%" (feet pinned).
+//   Overlay targets get viewport coords + "50% 50%" (center).
+//
+// FEEDBACK:
+//   onPawnEvent(type, data) — callback to controller
+//   Types: "cue_complete", "tap_exit", "tap_dodge"
+//
+// PORTABLE: Pure JS. No React imports.
+// ============================================================
+
+import FairyPositions from "./fairyPositions.js";
+import FairyCues from "./fairyCues.js";
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+// Speech timing (matches AnimInstance for consistency)
+var MIN_READ_MS = 2500;
+var MS_PER_CHAR = 80;
+
+// Poof timing (matches AnimInstance visual timing)
+var POOF_SNAP_IN_MS = 250;
+var POOF_FX_LEAD_MS = 100;
+
+// Default gap between auto-resolved null-at steps
+var NULL_STEP_GAP_MS = 100;
+
+// Edge peek defaults (overlay layer)
+var PEEK_SCALE = 4.0;
+
+// Fallback scene when none set
+var DEFAULT_SCENE = "forge";
+
+// ============================================================
+// INTERNAL STATE
+// ============================================================
+
+var _initialized = false;
+var _animRef = null;             // React ref to FairyAnimInstance
+var _onPawnEvent = null;         // fn(type, data) → controller feedback
+var _currentScene = DEFAULT_SCENE;
+
+// Cue playback state
+var _activeCue = null;           // { id, steps, timerIds }
+var _cueTimerIds = [];           // setTimeout ids for cleanup
+
+// General-purpose timers (non-cue scheduling)
+var _timerIds = [];
+
+// Current fairy state (mirrors what we've sent to AnimInstance)
+var _currentPos = null;          // last setPos sent
+var _visible = false;            // fairy currently on screen
+
+// ============================================================
+// LIFECYCLE
+// ============================================================
+
+/**
+ * Initialize the pawn.
+ * @param {Object} config
+ *   config.animRef       — React ref to FairyAnimInstance
+ *   config.onPawnEvent   — fn(type, data) feedback to controller
+ *   config.scene         — initial scene id (default: "forge")
+ */
+function init(config) {
+    if (_initialized) {
+        console.warn("[FairyPawn] Already initialized. Call destroy() first.");
+        return;
+    }
+
+    _animRef = config.animRef || null;
+    _onPawnEvent = config.onPawnEvent || null;
+    _currentScene = config.scene || DEFAULT_SCENE;
+    _initialized = true;
+}
+
+function destroy() {
+    cancelCue();
+    _clearTimers();
+
+    _animRef = null;
+    _onPawnEvent = null;
+    _currentScene = DEFAULT_SCENE;
+    _activeCue = null;
+    _currentPos = null;
+    _visible = false;
+    _initialized = false;
+}
+
+// ============================================================
+// SCENE MANAGEMENT
+// ============================================================
+
+function setScene(sceneId) {
+    _currentScene = sceneId || DEFAULT_SCENE;
+}
+
+function getScene() {
+    return _currentScene;
+}
+
+// ============================================================
+// COMMAND INTAKE
+// ============================================================
+
+/**
+ * Full command from controller (M-9 wire-up).
+ * Format: { intent, target, line, category, cue }
+ *   intent:   "react" | "ambient" | "cue" | "dismiss"
+ *   target:   named position id or null
+ *   line:     dialogue text or null
+ *   category: trigger category for tracking
+ *   cue:      named cue id or null (overrides target/line)
+ */
+function handleCommand(cmd) {
+    if (!_initialized || !_animRef) return;
+
+    // Cancel anything in progress
+    cancelCue();
+
+    if (cmd.intent === "dismiss") {
+        _dismissFairy();
+        return;
+    }
+
+    // Named cue — play it with context
+    if (cmd.cue) {
+        var context = {
+            line: cmd.line || null,
+            target: cmd.target || null,
+            category: cmd.category || null,
+        };
+        playCue(cmd.cue, context);
+        return;
+    }
+
+    // No named cue — pick staging based on intent + target
+    _stageAdHoc(cmd);
+}
+
+/**
+ * Legacy speak bridge (current App.js wiring).
+ * Wraps a line into a default cue based on context.
+ */
+function handleSpeak(line, category) {
+    handleCommand({
+        intent: "react",
+        target: null,
+        line: line,
+        category: category || null,
+        cue: null,
+    });
+}
+
+// ============================================================
+// AD-HOC STAGING
+// When controller sends intent + line without a named cue,
+// pawn picks the right cue template and fills in context.
+// ============================================================
+
+function _stageAdHoc(cmd) {
+    var cueId;
+
+    // If a UI target is specified, use overlay cue
+    if (cmd.target && _isUITarget(cmd.target)) {
+        cueId = "speak_at_target";
+    } else {
+        cueId = "speak_in_scene";
+    }
+
+    var context = {
+        line: cmd.line || null,
+        target: cmd.target || null,
+        category: cmd.category || null,
+    };
+
+    playCue(cueId, context);
+}
+
+/**
+ * Check if a target id refers to a UI element (overlay) vs scene spot.
+ */
+function _isUITarget(targetId) {
+    var resolved = FairyPositions.resolveUITarget(targetId);
+    return resolved !== null;
+}
+
+// ============================================================
+// CUE PLAYBACK
+// Reads cue definition from fairyCues.js, resolves null
+// placeholders, schedules steps via setTimeout chain.
+// ============================================================
+
+/**
+ * Play a named cue with context for null resolution.
+ * @param {string} cueId — id from fairyCues registry
+ * @param {Object} context — { line, target, category }
+ */
+function playCue(cueId, context) {
+    var cueDef = FairyCues.getCue(cueId);
+    if (!cueDef) {
+        console.warn("[FairyPawn] Unknown cue: " + cueId);
+        return;
+    }
+
+    // Deep-copy steps so we can mutate during resolution
+    var steps = _copySteps(cueDef.steps);
+    var layer = cueDef.layer;
+
+    // Resolve null placeholders
+    _resolveNulls(steps, context || {}, layer);
+
+    // Schedule all steps
+    _activeCue = { id: cueId, layer: layer };
+    _cueTimerIds = [];
+
+    for (var i = 0; i < steps.length; i++) {
+        _scheduleStep(steps[i]);
+    }
+
+    // Schedule cue-complete callback after last step
+    var lastAt = 0;
+    var lastDuration = 0;
+    for (var j = steps.length - 1; j >= 0; j--) {
+        if (steps[j].at !== null && steps[j].at !== undefined) {
+            lastAt = steps[j].at;
+            lastDuration = steps[j].duration || 0;
+            break;
+        }
+    }
+    var completionMs = lastAt + lastDuration + 200;
+    _scheduleCueTimer(function() {
+        var cueId = _activeCue ? _activeCue.id : null;
+        _activeCue = null;
+        _visible = false;
+        if (_onPawnEvent) _onPawnEvent("cue_complete", { cue: cueId });
+    }, completionMs);
+}
+
+/**
+ * Cancel any in-progress cue. Hides fairy immediately.
+ */
+function cancelCue() {
+    for (var i = 0; i < _cueTimerIds.length; i++) {
+        clearTimeout(_cueTimerIds[i]);
+    }
+    _cueTimerIds = [];
+    _activeCue = null;
+
+    // Tell AnimInstance to hide
+    if (_animRef && _animRef.current) {
+        _animRef.current.hide();
+    }
+    _visible = false;
+    _currentPos = null;
+}
+
+// ============================================================
+// NULL RESOLUTION
+// Fills placeholder values in cue steps before scheduling.
+//
+// Convention from fairyCues.js:
+//   text: null     → filled from context.line
+//   target: null   → filled from context.target
+//   spot: null     → pawn picks based on scene
+//   peek: null     → pawn picks random edge
+//   duration: null → calculated from text length
+//   at: null       → chained after previous step + its duration
+// ============================================================
+
+function _resolveNulls(steps, context, layer) {
+    var lastResolvedAt = 0;
+    var lastDuration = 0;
+
+    for (var i = 0; i < steps.length; i++) {
+        var step = steps[i];
+
+        // --- Resolve text ---
+        if (step.text === null && context.line) {
+            step.text = context.line;
+        }
+
+        // --- Resolve target ---
+        if (step.target === null && context.target) {
+            step.target = context.target;
+        }
+
+        // --- Resolve spot ---
+        if (step.spot === null) {
+            step.spot = _pickSceneSpot();
+        }
+
+        // --- Resolve peek ---
+        if (step.peek === null) {
+            step.peek = _pickRandomEdge();
+        }
+
+        // --- Resolve duration from text ---
+        if (step.duration === null && step.text) {
+            step.duration = _readTimeMs(step.text);
+        }
+        if (step.duration === null) {
+            step.duration = 0;
+        }
+
+        // --- Resolve at (null = chain after previous) ---
+        if (step.at === null || step.at === undefined) {
+            step.at = lastResolvedAt + lastDuration + NULL_STEP_GAP_MS;
+        }
+
+        lastResolvedAt = step.at;
+        lastDuration = step.duration;
+    }
+}
+
+// ============================================================
+// STEP EXECUTOR
+// Routes each step.cmd to the correct AnimInstance ref call.
+// ============================================================
+
+function _scheduleStep(step) {
+    var ms = step.at || 0;
+    _scheduleCueTimer(function() {
+        _executeStep(step);
+    }, ms);
+}
+
+function _executeStep(step) {
+    if (!_animRef || !_animRef.current) return;
+    var anim = _animRef.current;
+
+    switch (step.cmd) {
+
+        case "poof_in":
+            _executePoof(step);
+            break;
+
+        case "poof_out":
+            _executePoofOut(step);
+            break;
+
+        case "move":
+            _executeMove(step);
+            break;
+
+        case "speak":
+            if (step.text) {
+                anim.showSpeech(step.text);
+            }
+            break;
+
+        case "hide_speech":
+            anim.hideSpeech();
+            break;
+
+        case "emote":
+            // Future: trigger emote animation
+            break;
+
+        case "set_anim":
+            anim.setAnim(step.anim || "idle");
+            break;
+
+        case "set_tappable":
+            anim.setTappable(step.value !== undefined ? step.value : false);
+            break;
+
+        case "play_audio":
+            // Route through AnimInstance pop for now
+            // Future: wire through main audio system
+            anim.playPop();
+            break;
+
+        case "play_fx":
+            // Future: emit bus tag for fxCueSubSystem
+            // if (step.busTag && _bus) _bus.emit(step.busTag, {});
+            break;
+
+        case "laser_on":
+            // Future: M-11
+            break;
+
+        case "laser_off":
+            // Future: M-11
+            break;
+
+        case "dodge_dash":
+            _executeDodgeDash(step);
+            break;
+
+        case "wait":
+            // No-op — timing handled by step.at
+            break;
+
+        default:
+            console.warn("[FairyPawn] Unknown cue cmd: " + step.cmd);
+            break;
+    }
+}
+
+// ============================================================
+// COMMAND EXECUTORS
+// Complex commands that orchestrate multiple AnimInstance calls.
+// ============================================================
+
+/**
+ * Poof-in: resolve position, FX burst, scale-in animation.
+ * Handles scene spots, UI targets, and edge peeks.
+ */
+function _executePoof(step) {
+    var anim = _animRef.current;
+    if (!anim) return;
+
+    var pos = null;
+    var layer = _activeCue ? _activeCue.layer : "overlay";
+
+    // --- Edge peek ---
+    if (step.peek) {
+        var peek = (typeof step.peek === "string")
+            ? FairyPositions.getEdgePeek(step.peek)
+            : step.peek;
+        if (!peek) return;
+
+        var peekScale = step.scale || PEEK_SCALE;
+        // Start off-screen
+        anim.setPos({
+            x: peek.from.x, y: peek.from.y,
+            scale: peekScale, rot: peek.rot || 0,
+            transition: 0,
+            transformOrigin: "50% 50%",
+        });
+        // Slide in
+        var slideMs = step.duration || 1200;
+        _scheduleTimer(function() {
+            anim.setPos({
+                x: peek.to.x, y: peek.to.y,
+                scale: peekScale, rot: peek.rot || 0,
+                transition: slideMs,
+                transformOrigin: "50% 50%",
+            });
+        }, 50);
+        _currentPos = { x: peek.to.x, y: peek.to.y, scale: peekScale };
+        _visible = true;
+        return;
+    }
+
+    // --- UI target (overlay) ---
+    if (step.target) {
+        pos = _resolveTargetPos(step.target);
+        if (pos) {
+            _doPoof(anim, pos.x, pos.y, pos.scale || 1.0, "50% 50%", step.duration);
+            return;
+        }
+    }
+
+    // --- Scene spot ---
+    if (step.spot) {
+        pos = _resolveSceneSpot(step.spot);
+        if (pos) {
+            _doPoof(anim, pos.x, pos.y, pos.scale, "50% 100%", step.duration);
+            return;
+        }
+    }
+
+    // --- Fallback: center of viewport ---
+    _doPoof(anim, 50, 50, 1.0, "50% 50%", step.duration);
+}
+
+/**
+ * Core poof-in animation sequence.
+ */
+function _doPoof(anim, x, y, scale, tOrigin, duration) {
+    var snapMs = duration || POOF_SNAP_IN_MS;
+
+    // FX burst
+    anim.poofFX(x, y);
+    anim.playPop();
+
+    // Scale-in after FX lead
+    _scheduleTimer(function() {
+        anim.setPos({
+            x: x, y: y, scale: 0.1,
+            rot: 0, transition: 0,
+            transformOrigin: tOrigin,
+        });
+        _scheduleTimer(function() {
+            anim.setPos({
+                x: x, y: y, scale: scale,
+                rot: 0, transition: snapMs,
+                transformOrigin: tOrigin,
+            });
+        }, 50);
+    }, POOF_FX_LEAD_MS);
+
+    _currentPos = { x: x, y: y, scale: scale };
+    _visible = true;
+}
+
+/**
+ * Poof-out: scale-down + FX burst, then hide.
+ */
+function _executePoofOut(step) {
+    var anim = _animRef.current;
+    if (!anim) return;
+
+    var snapMs = step.duration || 200;
+    var pos = _currentPos || { x: 50, y: 50, scale: 1.0 };
+
+    // If this was a peek, slide out instead of poof
+    if (_activeCue && _activeCue.layer === "overlay" && step.duration > 500) {
+        // Peek slide-out — just hide after slide
+        // The peek from pos is still stored; re-use reverse
+        anim.setPos({
+            x: pos.x, y: pos.y > 50 ? 115 : -15,
+            scale: pos.scale, rot: 0,
+            transition: snapMs,
+            transformOrigin: "50% 50%",
+        });
+        _scheduleTimer(function() {
+            anim.hide();
+            _visible = false;
+            _currentPos = null;
+        }, snapMs + 100);
+        return;
+    }
+
+    // Standard poof-out
+    anim.hideSpeech();
+    anim.setTappable(false);
+
+    _scheduleTimer(function() {
+        anim.poofFX(pos.x, pos.y);
+        anim.playPop();
+    }, 100);
+
+    _scheduleTimer(function() {
+        anim.setPos({
+            x: pos.x, y: pos.y, scale: 0.1,
+            rot: 0, transition: snapMs,
+            transformOrigin: _currentPos ? "50% 100%" : "50% 50%",
+        });
+    }, 100 + POOF_FX_LEAD_MS);
+
+    _scheduleTimer(function() {
+        anim.hide();
+        _visible = false;
+        _currentPos = null;
+    }, 100 + POOF_FX_LEAD_MS + snapMs + 150);
+}
+
+/**
+ * Move: transition fairy to a new position.
+ */
+function _executeMove(step) {
+    var anim = _animRef.current;
+    if (!anim) return;
+
+    var pos = null;
+    var tOrigin = "50% 50%";
+
+    if (step.target) {
+        pos = _resolveTargetPos(step.target);
+    } else if (step.spot) {
+        pos = _resolveSceneSpot(step.spot);
+        tOrigin = "50% 100%";
+    } else if (step.x !== undefined && step.y !== undefined) {
+        pos = { x: step.x, y: step.y, scale: step.scale || 1.0 };
+    }
+
+    if (!pos) return;
+
+    anim.setPos({
+        x: pos.x, y: pos.y,
+        scale: pos.scale || 1.0,
+        rot: step.rot || 0,
+        transition: step.duration || 500,
+        transformOrigin: tOrigin,
+    });
+
+    _currentPos = { x: pos.x, y: pos.y, scale: pos.scale || 1.0 };
+}
+
+/**
+ * Dodge dash: animate along a dodge path entry → exit.
+ */
+function _executeDodgeDash(step) {
+    var anim = _animRef.current;
+    if (!anim) return;
+
+    var path = FairyPositions.getDodgePath(_currentScene, step.path);
+    if (!path) return;
+
+    var dashMs = step.duration || 1500;
+
+    // Start at entry
+    anim.setPos({
+        x: path.entry.x, y: path.y,
+        scale: path.scale, rot: 0,
+        transition: 0,
+        transformOrigin: "50% 100%",
+    });
+
+    // Dash to exit
+    _scheduleTimer(function() {
+        anim.setPos({
+            x: path.exit.x, y: path.y,
+            scale: path.scale, rot: 0,
+            transition: dashMs,
+            transformOrigin: "50% 100%",
+        });
+    }, 50);
+
+    // Hide after reaching exit
+    _scheduleTimer(function() {
+        anim.hide();
+        _visible = false;
+        _currentPos = null;
+    }, dashMs + 100);
+
+    _currentPos = { x: path.entry.x, y: path.y, scale: path.scale };
+    _visible = true;
+}
+
+// ============================================================
+// DISMISS
+// ============================================================
+
+function _dismissFairy() {
+    cancelCue();
+    if (_animRef && _animRef.current) {
+        var pos = _currentPos || { x: 50, y: 50, scale: 1.0 };
+        _animRef.current.beginExit(pos.x, pos.y, pos.scale, function() {
+            if (_onPawnEvent) _onPawnEvent("dismissed", {});
+        });
+    }
+    _visible = false;
+    _currentPos = null;
+}
+
+// ============================================================
+// POSITION RESOLUTION
+// Wraps FairyPositions with layer-aware transformOrigin.
+// ============================================================
+
+/**
+ * Resolve a scene spot by id. Returns { x, y, scale } or null.
+ */
+function _resolveSceneSpot(spotId) {
+    var spot = FairyPositions.getSpot(_currentScene, spotId);
+    if (!spot) return null;
+    return { x: spot.x, y: spot.y, scale: spot.scale };
+}
+
+/**
+ * Resolve a UI target by id. Returns { x, y, scale } in viewport %
+ * or null if element not found.
+ */
+function _resolveTargetPos(targetId) {
+    var resolved = FairyPositions.resolveUITarget(targetId);
+    if (!resolved) return null;
+
+    // Convert px to viewport %
+    var vw = window.innerWidth;
+    var vh = window.innerHeight;
+    var xPct = (resolved.x / vw) * 100;
+    var yPct = (resolved.y / vh) * 100;
+
+    return { x: xPct, y: yPct, scale: 1.0 };
+}
+
+// ============================================================
+// STAGING HELPERS
+// Used when pawn needs to pick positions on its own.
+// ============================================================
+
+// Cycle index for scene spots — avoids repeats
+var _spotCycleIndex = 0;
+var _spotPool = ["center_floor", "near_anvil", "forge_mouth", "front_left", "front_right"];
+
+function _pickSceneSpot() {
+    var spotId = _spotPool[_spotCycleIndex % _spotPool.length];
+    _spotCycleIndex++;
+    return spotId;
+}
+
+var _edgePool = ["bottom", "top", "left", "right"];
+var _edgeCycleIndex = 0;
+
+function _pickRandomEdge() {
+    var edgeId = _edgePool[_edgeCycleIndex % _edgePool.length];
+    _edgeCycleIndex++;
+    return edgeId;
+}
+
+/**
+ * Provide a dodge destination for AnimInstance tap interaction.
+ * Uses roam zone from current scene.
+ */
+function getDodgeSpot(currentX, currentY) {
+    var point = FairyPositions.getRandomRoamPoint(_currentScene, "floor_open");
+    if (point) {
+        return { x: point.x, y: point.y };
+    }
+    // Fallback — pick far from current position
+    var spots = [
+        { x: 20, y: 25 }, { x: 80, y: 25 },
+        { x: 15, y: 70 }, { x: 85, y: 70 },
+    ];
+    var best = spots[0];
+    var bestDist = 0;
+    for (var i = 0; i < spots.length; i++) {
+        var dx = spots[i].x - currentX;
+        var dy = spots[i].y - currentY;
+        var dist = dx * dx + dy * dy;
+        if (dist > bestDist) {
+            bestDist = dist;
+            best = spots[i];
+        }
+    }
+    return best;
+}
+
+// ============================================================
+// FEEDBACK HANDLERS
+// Passed as props/callbacks to AnimInstance.
+// Route tap events back to controller.
+// ============================================================
+
+function onTapExit() {
+    _visible = false;
+    _currentPos = null;
+    cancelCue();
+    if (_onPawnEvent) _onPawnEvent("tap_exit", {});
+}
+
+function onTapDodge(x, y, tier) {
+    _currentPos = { x: x, y: y, scale: 1.0 };
+    if (_onPawnEvent) _onPawnEvent("tap_dodge", { x: x, y: y, tier: tier });
+}
+
+// ============================================================
+// TIMER UTILITIES
+// ============================================================
+
+function _scheduleCueTimer(fn, ms) {
+    var id = setTimeout(fn, ms);
+    _cueTimerIds.push(id);
+    return id;
+}
+
+function _scheduleTimer(fn, ms) {
+    var id = setTimeout(fn, ms);
+    _timerIds.push(id);
+    return id;
+}
+
+function _clearTimers() {
+    for (var i = 0; i < _timerIds.length; i++) {
+        clearTimeout(_timerIds[i]);
+    }
+    _timerIds = [];
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function _readTimeMs(text) {
+    if (!text) return MIN_READ_MS;
+    return Math.max(MIN_READ_MS, text.length * MS_PER_CHAR + 1000);
+}
+
+function _copySteps(steps) {
+    var result = [];
+    for (var i = 0; i < steps.length; i++) {
+        var copy = {};
+        var keys = Object.keys(steps[i]);
+        for (var k = 0; k < keys.length; k++) {
+            copy[keys[k]] = steps[i][keys[k]];
+        }
+        result.push(copy);
+    }
+    return result;
+}
+
+// ============================================================
+// QUERY
+// ============================================================
+
+function isVisible() {
+    return _visible;
+}
+
+function isBusy() {
+    return _activeCue !== null;
+}
+
+function getActiveCue() {
+    return _activeCue ? _activeCue.id : null;
+}
+
+function getCurrentPos() {
+    return _currentPos;
+}
+
+// ============================================================
+// PUBLIC API
+// ============================================================
+
+var FairyPawn = {
+    // Lifecycle
+    init: init,
+    destroy: destroy,
+
+    // Scene
+    setScene: setScene,
+    getScene: getScene,
+
+    // Command intake
+    handleCommand: handleCommand,
+    handleSpeak: handleSpeak,
+
+    // Cue playback
+    playCue: playCue,
+    cancelCue: cancelCue,
+
+    // Dodge provider (passed as prop to AnimInstance)
+    getDodgeSpot: getDodgeSpot,
+
+    // Feedback handlers (passed as props to AnimInstance)
+    onTapExit: onTapExit,
+    onTapDodge: onTapDodge,
+
+    // Query
+    isVisible: isVisible,
+    isBusy: isBusy,
+    getActiveCue: getActiveCue,
+    getCurrentPos: getCurrentPos,
+};
+
+export default FairyPawn;
