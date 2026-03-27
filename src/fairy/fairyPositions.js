@@ -139,7 +139,7 @@ var UI_TARGETS = [
     { id: "qte",        selector: '[data-fairy-target="qte"]',        offset: { x: 0,   y: -30 } },
     { id: "customer",   selector: '[data-fairy-target="customer"]',   offset: { x: -20, y: 0 } },
     { id: "stats",      selector: '[data-fairy-target="stats"]',      offset: { x: 20,  y: 0 } },
-    { id: "rep",        selector: '[data-fairy-target="rep"]',        offset: { x: 0,   y: 120 } },
+    { id: "rep",        selector: '[data-fairy-target="rep"]',        offset: { x: 40,  y: 120 } },
     { id: "forge_info", selector: '[data-fairy-target="forge_info"]', offset: { x: 20,  y: 0 } },
     { id: "scene",      selector: '[data-fairy-target="scene"]',      offset: { x: 0,   y: 0 } },
 ];
@@ -293,6 +293,27 @@ function resolveUITarget(targetId) {
 }
 
 /**
+ * Resolve a UI target from DOM WITHOUT offset. Returns raw element center.
+ * Used by laser beam — laser should point at the element, not the fairy's offset position.
+ * Returns { x, y } in viewport px or null if element not found.
+ */
+function resolveUITargetRaw(targetId) {
+    for (var i = 0; i < UI_TARGETS.length; i++) {
+        var target = UI_TARGETS[i];
+        if (target.id === targetId) {
+            var el = document.querySelector(target.selector);
+            if (!el) return null;
+            var rect = el.getBoundingClientRect();
+            return {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2,
+            };
+        }
+    }
+    return null;
+}
+
+/**
  * Get an edge peek definition with random variance applied.
  * Returns { from: {x,y}, to: {x,y}, rot } or null.
  */
@@ -371,6 +392,7 @@ var FairyPositions = {
     getDodgePath: getDodgePath,
     isRestricted: isRestricted,
     resolveUITarget: resolveUITarget,
+    resolveUITargetRaw: resolveUITargetRaw,
     getEdgePeek: getEdgePeek,
     getDepthCurve: getDepthCurve,
 
