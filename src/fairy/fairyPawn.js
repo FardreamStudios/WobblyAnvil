@@ -875,6 +875,10 @@ function _resolveSceneSpot(spotId) {
  * Resolve a UI target by id. Returns { x, y, scale } in viewport %
  * or null if element not found.
  */
+var UI_TARGET_EDGE_MIN = 12; // % — fairy center never closer than this to any edge
+var UI_TARGET_EDGE_MAX = 88;
+var UI_TARGET_SCALE = 1.0;  // overlay fairy = fixed size (depth scaling is scene-only)
+
 function _resolveTargetPos(targetId) {
     var resolved = FairyPositions.resolveUITarget(targetId);
     if (!resolved) return null;
@@ -885,7 +889,13 @@ function _resolveTargetPos(targetId) {
     var xPct = (resolved.x / vw) * 100;
     var yPct = (resolved.y / vh) * 100;
 
-    return { x: xPct, y: yPct, scale: 1.0 };
+    // Clamp to safe viewport region so sprite + bubble stay visible
+    if (xPct < UI_TARGET_EDGE_MIN) xPct = UI_TARGET_EDGE_MIN;
+    if (xPct > UI_TARGET_EDGE_MAX) xPct = UI_TARGET_EDGE_MAX;
+    if (yPct < UI_TARGET_EDGE_MIN) yPct = UI_TARGET_EDGE_MIN;
+    if (yPct > UI_TARGET_EDGE_MAX) yPct = UI_TARGET_EDGE_MAX;
+
+    return { x: xPct, y: yPct, scale: UI_TARGET_SCALE };
 }
 
 // ============================================================

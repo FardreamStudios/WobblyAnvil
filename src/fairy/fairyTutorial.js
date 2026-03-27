@@ -71,7 +71,7 @@ var SEQUENCES = {
         id: "tut_rep",
         doneKey: "wa_tut_rep_done",
         steps: [
-            { type: "play_cue", cue: "laser_point", target: "rep", line: "see that? the crown tracks every decree you fumble. forging is art, not slavery. but here we are." },
+            { type: "play_cue", cue: "speak_at_target", line: "TEST: can you see me? i'm supposed to be center screen." },
             { type: "set_flag", key: "wa_tut_rep_done", value: "true" },
             { type: "callback", result: "segment_complete" },
         ],
@@ -121,7 +121,6 @@ function init(config) {
  * @param {string} seqId — key in SEQUENCES
  */
 function start(seqId) {
-    console.log("[FairyTutorial] start called:", seqId);
     var seq = SEQUENCES[seqId];
     if (!seq) {
         console.warn("[FairyTutorial] Unknown sequence: " + seqId);

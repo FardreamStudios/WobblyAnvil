@@ -139,7 +139,7 @@ var UI_TARGETS = [
     { id: "qte",        selector: '[data-fairy-target="qte"]',        offset: { x: 0,   y: -30 } },
     { id: "customer",   selector: '[data-fairy-target="customer"]',   offset: { x: -20, y: 0 } },
     { id: "stats",      selector: '[data-fairy-target="stats"]',      offset: { x: 20,  y: 0 } },
-    { id: "rep",        selector: '[data-fairy-target="rep"]',        offset: { x: 20,  y: 0 } },
+    { id: "rep",        selector: '[data-fairy-target="rep"]',        offset: { x: 0,   y: 50 } },
     { id: "forge_info", selector: '[data-fairy-target="forge_info"]', offset: { x: 20,  y: 0 } },
     { id: "scene",      selector: '[data-fairy-target="scene"]',      offset: { x: 0,   y: 0 } },
 ];
