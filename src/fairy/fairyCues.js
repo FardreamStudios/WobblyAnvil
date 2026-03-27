@@ -48,6 +48,7 @@
 //   laser_on     — beam from fairy to target element
 //   laser_off    — remove beam
 //   wait         — do nothing (used for timing gaps)
+//   show_choice  — speech bubble with tappable options (waits for input)
 // ============================================================
 
 // ============================================================
@@ -329,6 +330,78 @@ var RUMMAGE = {
 };
 
 // ============================================================
+// INTRO RISE
+// First encounter — fairy rises from bottom, introduces herself.
+// No poof_out — fairy stays visible for the prompt cue.
+// Layer: overlay (viewport-relative rise).
+// ============================================================
+
+var INTRO_RISE = {
+    id: "intro_rise",
+    description: "Fairy rises from bottom of screen, introduces herself",
+    layer: "overlay",
+    steps: [
+        { at: 0,    cmd: "poof_in",      peek: "bottom_center", scale: 4.0, duration: 800 },
+        { at: 1000, cmd: "speak",        text: "psst. hey. down here.", duration: 2500 },
+        { at: 3600, cmd: "hide_speech" },
+        { at: 3800, cmd: "speak",        text: "i live in your forge now. don't ask.", duration: 3000 },
+        { at: 6900, cmd: "hide_speech" },
+    ],
+};
+
+// ============================================================
+// INTRO PROMPT
+// Fairy asks yes/no — want help? Waits for player input.
+// waitForInput: true — pawn does not auto-fire cue_complete.
+// Completion driven by show_choice callback instead.
+// Layer: overlay (fairy already visible from intro_rise).
+// ============================================================
+
+var INTRO_PROMPT = {
+    id: "intro_prompt",
+    description: "Fairy asks player if they want help — tappable yes/no",
+    layer: "overlay",
+    waitForInput: true,
+    steps: [
+        { at: 0, cmd: "show_choice", text: "want me to show you around?", options: ["sure", "no thanks"] },
+    ],
+};
+
+// ============================================================
+// INTRO RESPOND YES
+// Player accepted help. Fairy reacts, then exits.
+// Layer: overlay (fairy still visible from intro_rise).
+// ============================================================
+
+var INTRO_RESPOND_YES = {
+    id: "intro_respond_yes",
+    description: "Fairy responds to player accepting help",
+    layer: "overlay",
+    steps: [
+        { at: 0,    cmd: "speak",        text: "smart. you looked like you needed it.", duration: 3000 },
+        { at: 3100, cmd: "hide_speech" },
+        { at: 3300, cmd: "poof_out",     duration: 300 },
+    ],
+};
+
+// ============================================================
+// INTRO RESPOND NO
+// Player declined help. Fairy reacts, then exits.
+// Layer: overlay (fairy still visible from intro_rise).
+// ============================================================
+
+var INTRO_RESPOND_NO = {
+    id: "intro_respond_no",
+    description: "Fairy responds to player declining help",
+    layer: "overlay",
+    steps: [
+        { at: 0,    cmd: "speak",        text: "fine. i'll just be here. judging.", duration: 3000 },
+        { at: 3100, cmd: "hide_speech" },
+        { at: 3300, cmd: "poof_out",     duration: 300 },
+    ],
+};
+
+// ============================================================
 // CUE REGISTRY
 // Pawn looks up cues by id from this map.
 // ============================================================
@@ -347,6 +420,10 @@ var FAIRY_CUES = {
     doorway_dash:    DOORWAY_DASH,
     laser_point:     LASER_POINT,
     rummage:         RUMMAGE,
+    intro_rise:      INTRO_RISE,
+    intro_prompt:    INTRO_PROMPT,
+    intro_respond_yes: INTRO_RESPOND_YES,
+    intro_respond_no:  INTRO_RESPOND_NO,
 };
 
 // ============================================================

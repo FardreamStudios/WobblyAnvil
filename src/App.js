@@ -337,7 +337,7 @@ export default function App() {
     FairyPawn.init({
       animRef: fairyAnimRef,
       onPawnEvent: function(type, data) {
-        // Future: route tap_exit/cue_complete back to controller (M-9)
+        FairyController.onPawnEvent(type, data);
       },
       scene: "forge",
     });
@@ -761,7 +761,7 @@ export default function App() {
               </div>
             </div>
           </div>)}
-          <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} />
+          <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onChoiceSelect={FairyPawn.onChoiceSelect} />
           <DevBanner />
         </>
     );
@@ -810,7 +810,7 @@ export default function App() {
             fairyEnabled={fairyEnabled}
             onFairyToggle={function(val) { setFairyEnabled(val); FairyController.setEnabled(val); }}
         />
-        <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} />
+        <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onChoiceSelect={FairyPawn.onChoiceSelect} />
       </>
   );
 }

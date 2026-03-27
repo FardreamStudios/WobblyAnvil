@@ -17,11 +17,14 @@
 //   getState()           — {pos, tappable, irritation}
 //   playPop()            — poof sound
 //   playTapPop()         — lighter tap sound
+//   showChoice(text, options) — show speech bubble with tappable options
+//   hideChoice()         — dismiss choice bubble
 //
 // CALLBACKS (via props):
 //   onTapExit()          — fired after nuclear exit (tier 4)
 //   onTapDodge(x,y,tier) — fired when dodge starts (tier 2-3)
 //   getDodgeSpot(cx,cy)  — pawn provides dodge destination
+//   onChoiceSelect(answer) — fired when player taps a choice option
 //
 // POSITIONING: Outer div uses left/top in % + transform.
 // Pawn controls transformOrigin per layer:
@@ -340,6 +343,133 @@ function SpeechBubble(props) {
 }
 
 // ============================================================
+// Choice Bubble — speech bubble with tappable options (M-15a)
+// Same visual style as SpeechBubble, adds clickable buttons.
+// AnimInstance only knows: "show options, report which got tapped."
+// ============================================================
+
+function ChoiceBubble(props) {
+    var [show, setShow] = useState(false);
+    var [displaying, setDisplaying] = useState(false);
+
+    useEffect(function() {
+        if (props.visible) {
+            setDisplaying(true);
+            var t = setTimeout(function() { setShow(true); }, 30);
+            return function() { clearTimeout(t); };
+        } else {
+            setShow(false);
+            var t2 = setTimeout(function() { setDisplaying(false); }, BUBBLE_ANIM_OUT_MS);
+            return function() { clearTimeout(t2); };
+        }
+    }, [props.visible]);
+
+    if (!displaying || !props.data) return null;
+
+    var fairyScale = props.scale || 1;
+    var offsetY = BUBBLE_OFFSET_Y * fairyScale;
+
+    function handleOptionTap(answer) {
+        if (props.onChoiceSelect) {
+            props.onChoiceSelect(answer);
+        }
+    }
+
+    return (
+        <div style={{
+            position: "absolute",
+            left: props.x + "%",
+            top: "calc(" + props.y + "% + " + offsetY + "vw)",
+            transform: "translate(-50%, -100%) scale(" + (show ? 1 : 0) + ")",
+            transformOrigin: "bottom center",
+            transition: show
+                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1)"
+                : "transform " + BUBBLE_ANIM_OUT_MS + "ms ease-in",
+            pointerEvents: "auto",
+            zIndex: 5,
+        }}>
+            <div style={{
+                background: "#1a1220",
+                border: "3px solid #c89aff",
+                borderRadius: 8,
+                padding: "6px 12px 10px 12px",
+                maxWidth: "48vw",
+                boxShadow: "0 0 12px 2px rgba(160, 80, 240, 0.25), inset 0 0 8px rgba(180, 120, 255, 0.1)",
+                position: "relative",
+            }}>
+                <div style={{
+                    fontFamily: "monospace",
+                    fontSize: "clamp(10px, 1.8vw, 14px)",
+                    color: "#e8d5ff",
+                    lineHeight: 1.3,
+                    textAlign: "center",
+                    letterSpacing: 0.5,
+                    textShadow: "0 1px 3px rgba(0,0,0,0.5)",
+                    imageRendering: "pixelated",
+                    marginBottom: 8,
+                }}>
+                    {props.data.text}
+                </div>
+                <div style={{
+                    display: "flex",
+                    gap: 8,
+                    justifyContent: "center",
+                }}>
+                    {props.data.options.map(function(opt, i) {
+                        return (
+                            <div
+                                key={i}
+                                onClick={function() { handleOptionTap(opt); }}
+                                style={{
+                                    fontFamily: "monospace",
+                                    fontSize: "clamp(9px, 1.6vw, 13px)",
+                                    color: "#1a1220",
+                                    background: "#c89aff",
+                                    border: "2px solid #a070d0",
+                                    borderRadius: 5,
+                                    padding: "4px 12px",
+                                    cursor: "pointer",
+                                    letterSpacing: 0.5,
+                                    textShadow: "none",
+                                    userSelect: "none",
+                                    transition: "background 120ms ease, transform 80ms ease",
+                                }}
+                                onMouseEnter={function(e) { e.currentTarget.style.background = "#dab8ff"; }}
+                                onMouseLeave={function(e) { e.currentTarget.style.background = "#c89aff"; }}
+                                onMouseDown={function(e) { e.currentTarget.style.transform = "scale(0.95)"; }}
+                                onMouseUp={function(e) { e.currentTarget.style.transform = "scale(1)"; }}
+                            >
+                                {opt}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+            <div style={{
+                position: "absolute",
+                left: "50%",
+                bottom: -9,
+                transform: "translateX(-50%)",
+                width: 0, height: 0,
+                borderLeft: "8px solid transparent",
+                borderRight: "8px solid transparent",
+                borderTop: "10px solid #c89aff",
+            }} />
+            <div style={{
+                position: "absolute",
+                left: "50%",
+                bottom: -5,
+                transform: "translateX(-50%)",
+                width: 0, height: 0,
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderTop: "8px solid #1a1220",
+            }} />
+        </div>
+    );
+}
+
+// ============================================================
 // Pop Sound — TEMPORARY: wire through main audio system at M-7
 // ============================================================
 function playPop() {
@@ -410,6 +540,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
     var [pos, setPos] = useState(null);
     var [poofAt, setPoofAt] = useState(null);
     var [speechText, setSpeechText] = useState(null);
+    var [choiceData, setChoiceData] = useState(null);  // { text, options } for choice bubble
     var [tappable, setTappable] = useState(false);
 
     // Timeout tracking
@@ -632,6 +763,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                 if (!mountedRef.current) return;
                 setPos(null);
                 setSpeechText(null);
+                setChoiceData(null);
                 setTappable(false);
             },
             poofFX: function(x, y) {
@@ -670,6 +802,15 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             playTapPop: playTapPop,
             clearExitTimeouts: clearExitTimeouts,
             beginExit: beginExit,
+            showChoice: function(text, options) {
+                if (!mountedRef.current) return;
+                setSpeechText(null);  // clear normal speech
+                setChoiceData({ text: text, options: options || [] });
+            },
+            hideChoice: function() {
+                if (!mountedRef.current) return;
+                setChoiceData(null);
+            },
         };
     });
 
@@ -724,6 +865,19 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
 
             {showFairy && pos && (
                 <SpeechBubble x={pos.x} y={pos.y} text={speechText} visible={speechText !== null} scale={pos.scale} />
+            )}
+
+            {showFairy && pos && (
+                <ChoiceBubble
+                    x={pos.x} y={pos.y}
+                    data={choiceData}
+                    visible={choiceData !== null}
+                    scale={pos.scale}
+                    onChoiceSelect={function(answer) {
+                        setChoiceData(null);
+                        if (props.onChoiceSelect) props.onChoiceSelect(answer);
+                    }}
+                />
             )}
         </div>,
         document.body

@@ -27,7 +27,7 @@
 //
 // FEEDBACK:
 //   onPawnEvent(type, data) — callback to controller
-//   Types: "cue_complete", "tap_exit", "tap_dodge"
+//   Types: "cue_complete", "tap_exit", "tap_dodge", "prompt_response"
 //
 // PORTABLE: Pure JS. No React imports.
 // ============================================================
@@ -246,7 +246,7 @@ function playCue(cueId, context) {
     _resolveNulls(steps, context || {}, layer);
 
     // Schedule all steps
-    _activeCue = { id: cueId, layer: layer };
+    _activeCue = { id: cueId, layer: layer, waitForInput: !!cueDef.waitForInput };
     _cueTimerIds = [];
 
     for (var i = 0; i < steps.length; i++) {
@@ -254,22 +254,25 @@ function playCue(cueId, context) {
     }
 
     // Schedule cue-complete callback after last step
-    var lastAt = 0;
-    var lastDuration = 0;
-    for (var j = steps.length - 1; j >= 0; j--) {
-        if (steps[j].at !== null && steps[j].at !== undefined) {
-            lastAt = steps[j].at;
-            lastDuration = steps[j].duration || 0;
-            break;
+    // Skip if waitForInput — completion is driven by onChoiceSelect instead
+    if (!cueDef.waitForInput) {
+        var lastAt = 0;
+        var lastDuration = 0;
+        for (var j = steps.length - 1; j >= 0; j--) {
+            if (steps[j].at !== null && steps[j].at !== undefined) {
+                lastAt = steps[j].at;
+                lastDuration = steps[j].duration || 0;
+                break;
+            }
         }
+        var completionMs = lastAt + lastDuration + 200;
+        _scheduleCueTimer(function() {
+            var cueId = _activeCue ? _activeCue.id : null;
+            _activeCue = null;
+            _visible = false;
+            if (_onPawnEvent) _onPawnEvent("cue_complete", { cue: cueId });
+        }, completionMs);
     }
-    var completionMs = lastAt + lastDuration + 200;
-    _scheduleCueTimer(function() {
-        var cueId = _activeCue ? _activeCue.id : null;
-        _activeCue = null;
-        _visible = false;
-        if (_onPawnEvent) _onPawnEvent("cue_complete", { cue: cueId });
-    }, completionMs);
 }
 
 /**
@@ -428,6 +431,10 @@ function _executeStep(step) {
 
         case "wait":
             // No-op — timing handled by step.at
+            break;
+
+        case "show_choice":
+            anim.showChoice(step.text, step.options);
             break;
 
         default:
@@ -936,6 +943,22 @@ function onTapDodge(x, y, tier) {
     if (_onPawnEvent) _onPawnEvent("tap_dodge", { x: x, y: y, tier: tier });
 }
 
+/**
+ * Player tapped a choice option. AnimInstance already cleared the bubble.
+ * Forward the answer upward, then complete the waitForInput cue.
+ */
+function onChoiceSelect(answer) {
+    // Tell controller/tutorial which option was picked
+    if (_onPawnEvent) _onPawnEvent("prompt_response", { answer: answer });
+
+    // If this was a waitForInput cue, mark it complete now
+    if (_activeCue && _activeCue.waitForInput) {
+        var cueId = _activeCue.id;
+        _activeCue = null;
+        if (_onPawnEvent) _onPawnEvent("cue_complete", { cue: cueId });
+    }
+}
+
 // ============================================================
 // TIMER UTILITIES
 // ============================================================
@@ -1028,6 +1051,7 @@ var FairyPawn = {
     // Feedback handlers (passed as props to AnimInstance)
     onTapExit: onTapExit,
     onTapDodge: onTapDodge,
+    onChoiceSelect: onChoiceSelect,
 
     // Query
     isVisible: isVisible,

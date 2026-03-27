@@ -27,6 +27,9 @@
 - [x] **M-7: FairyPawn core** — `src/fairy/fairyPawn.js`. Cue player, position resolution (scene depth + overlay viewport), staging logic, dodge provider, feedback routing.
 - [x] **M-10: App.js rewire** — Controller → Pawn → AnimInstance chain wired. Pawn props on both mobile + desktop mounts.
 - [x] **M-9: FairyController upgrade** — Day-gating pacing table (5 tiers), `onCommand` structured commands replacing `onSpeak`, tier-scaled tick interval, daily appearance caps, minDay filter on triggers.
+- [x] **M-11: Laser FX** — `fairyPawn.js`. Raw DOM SVG beam from fairy to target UI element. rAF grow animation, purple glow + dashed line, pulsing target dot. Pawn owns full lifecycle (create/destroy).
+- [x] **M-12: Persistence + toggle** — `fairyController.js` localStorage for taught topics (`wa_fairy_taught`) and enabled pref (`wa_fairy_enabled`). Fairy on/off checkbox in mobile + desktop options menus. Taught topics persist across new games.
+- [x] **useDayVM bug fix** — Removed dead `setCustVisitsToday`/`setMaxCustToday` calls left over from DES-1.1 customer manager migration. Cleaned up unused constant imports.
 
 ---
 
@@ -46,11 +49,12 @@
 - [ ] **Add a new QTE type** — Prove the plugin pattern works by building a fresh QTE from scratch.
 
 ### DES-3 — Fairy Helper System (Three-Layer Build)
-See `FairyFeatureSpecs.md` for full architecture and milestone details. Core three-layer pipeline (Controller → Pawn → AnimInstance) is live with day-gating. Remaining work is FX, persistence, and special cues.
+See `FairyFeatureSpecs.md` for full architecture and milestone details. Core three-layer pipeline (Controller → Pawn → AnimInstance) is live with day-gating, laser FX, persistence, and player toggle. System is shippable. Remaining work is tutorial, special cues, and polish.
 
-- [ ] **M-11: Laser FX** — Beam from fairy to target UI element via cue step.
-- [ ] **M-12: Persistence + toggle** — localStorage for taught topics. On/off toggle in options menu.
-- [ ] **M-13: Special cues** — `super_saiyan`, `chase_event`, `running_head`, `fairy_insight`. Day-gated.
+- [x] **M-11: Laser FX** — Beam from fairy to target UI element via cue step.
+- [x] **M-12: Persistence + toggle** — localStorage for taught topics. On/off toggle in options menu.
+- [ ] **M-15: Fairy Tutorial** — Step sequencer as controller helper (`fairyTutorial.js`). Controller checks localStorage on init, enters tutorial mode if not complete. Sequencer drives cues + player choice prompts. First slice: fairy rises from bottom, introduces herself, yes/no prompt. Yes → guided walkthrough. No → mark done, reactive mode.
+- [ ] **M-13: Special cues** — `super_saiyan`, `chase_event`, `running_head`, `fairy_insight`. Day-gated. LOW PRIORITY.
 - [ ] **M-14: Gibberish speech audio** — Procedural via Web Audio, synced to speech bubbles. Can defer.
 
 ### DES-3 — QTE Pause (blocked by DES-2 + Fairy M-7 ✅)

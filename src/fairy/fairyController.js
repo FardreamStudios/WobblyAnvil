@@ -34,6 +34,7 @@
 import FairyPersonality from "./fairyPersonality.js";
 import FairyRulesTree   from "./fairyRulesTree.js";
 import FairyAPI         from "./fairyAPI.js";
+import FairyTutorial    from "./fairyTutorial.js";
 import EVENT_TAGS       from "../config/eventTags.js";
 
 // ============================================================
@@ -77,6 +78,7 @@ var LLM_NEEDED = "__LLM_NEEDED__";
 // Persistence keys (M-12)
 var LS_KEY_ONCE_FLAGS = "wa_fairy_taught";
 var LS_KEY_ENABLED    = "wa_fairy_enabled";
+var LS_KEY_INTRO_DONE = "wa_fairy_intro_done";
 
 // ============================================================
 // DAY-GATING — Pacing Table (from FairyCharacter.md)
@@ -238,6 +240,24 @@ function init(config) {
     // Wire up bus subscriptions + ambient tick
     _startWatching();
     _startTicking();
+
+    // --- Tutorial sequencer (M-15a) ---
+    FairyTutorial.init({
+        sendCommand: function(cmd) { _sendCommand(cmd); },
+        onComplete: function(result) {
+            // Tutorial finished — enter normal mode
+            _setState(STATES.IDLE);
+        },
+    });
+
+    // Check if intro has been shown. If not, run it.
+    if (!_isIntroDone()) {
+        _setState(STATES.POINTING);  // suppress normal ticking while tutorial runs
+        // Small delay so AnimInstance has time to mount
+        setTimeout(function() {
+            FairyTutorial.start("intro");
+        }, 1500);
+    }
 }
 
 // ============================================================
@@ -694,6 +714,45 @@ function _sendCommand(cmd) {
 }
 
 // ============================================================
+// TUTORIAL ROUTING (M-15a)
+// ============================================================
+
+function _isIntroDone() {
+    try {
+        return localStorage.getItem(LS_KEY_INTRO_DONE) === "true";
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
+ * Receive pawn events (cue_complete, prompt_response, tap_exit, etc).
+ * Routes to tutorial sequencer when active, otherwise handles directly.
+ */
+function onPawnEvent(type, data) {
+    // Tutorial gets first crack when it's running
+    if (FairyTutorial.isRunning()) {
+        FairyTutorial.onEvent(type, data);
+        return;
+    }
+
+    // Normal mode event handling
+    switch (type) {
+        case "cue_complete":
+            // Cue finished — return to idle so tick can fire again
+            if (_fsmState === STATES.POINTING) {
+                _setState(STATES.IDLE);
+            }
+            break;
+        case "tap_exit":
+            _setState(STATES.DISMISSED);
+            break;
+        default:
+            break;
+    }
+}
+
+// ============================================================
 // PLAYER ACTIONS
 // ============================================================
 
@@ -747,6 +806,7 @@ function reset() {
         _stateTimer = null;
     }
 
+    FairyTutorial.cancel();
     _fsmState     = STATES.IDLE;
     _cooldowns    = {};
     _onceFired    = _loadOnceFlags();  // reload taught topics, don't clear
@@ -776,6 +836,7 @@ function reset() {
 function destroy() {
     _stopWatching();
     _stopTicking();
+    FairyTutorial.destroy();
 
     if (_stateTimer) {
         clearTimeout(_stateTimer);
@@ -825,6 +886,7 @@ var FairyController = {
     // --- Core ---
     processEvent: processEvent,
     tick:         tick,
+    onPawnEvent:  onPawnEvent,
 
     // --- Player Actions ---
     dismiss:      dismiss,
