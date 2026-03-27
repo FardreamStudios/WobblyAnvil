@@ -155,7 +155,8 @@ var EDGE_PEEKS = [
     { id: "bottom", from: { x: 50, y: 115 }, to: { x: 50, y: 93 },  rot: 0,    variance: { axis: "x", range: 15 } },
     { id: "top",    from: { x: 50, y: -15 }, to: { x: 50, y: 7 },   rot: 180,  variance: { axis: "x", range: 15 } },
     { id: "left",   from: { x: -15, y: 50 }, to: { x: 7, y: 50 },   rot: 90,   variance: { axis: "y", range: 12 } },
-    { id: "right",  from: { x: 115, y: 50 }, to: { x: 93, y: 50 },  rot: -90,  variance: { axis: "y", range: 12 } },
+    { id: "right",      from: { x: 115, y: 50 }, to: { x: 93, y: 50 },  rot: -90,  variance: { axis: "y", range: 12 } },
+    { id: "talk_close", from: { x: 70, y: 115 }, to: { x: 70, y: 82 },  rot: 0,    variance: { axis: "x", range: 5 } },
 ];
 
 // ============================================================

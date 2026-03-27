@@ -341,7 +341,7 @@ var INTRO_RISE = {
     description: "Fairy rises from bottom of screen, introduces herself",
     layer: "overlay",
     steps: [
-        { at: 0,    cmd: "poof_in",      peek: "bottom_center", scale: 4.0, duration: 800 },
+        { at: 0,    cmd: "poof_in",      peek: "talk_close", scale: 2.5, duration: 800 },
         { at: 1000, cmd: "speak",        text: "psst. hey. down here.", duration: 2500 },
         { at: 3600, cmd: "hide_speech" },
         { at: 3800, cmd: "speak",        text: "i live in your forge now. don't ask.", duration: 3000 },

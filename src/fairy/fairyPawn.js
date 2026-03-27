@@ -467,6 +467,13 @@ function _executePoof(step) {
         if (!peek) return;
 
         var peekScale = step.scale || PEEK_SCALE;
+
+        // Instant: poof at destination, no slide
+        if (step.instant) {
+            _doPoof(anim, peek.to.x, peek.to.y, peekScale, "50% 50%", step.duration);
+            return;
+        }
+
         // Start off-screen
         anim.setPos({
             x: peek.from.x, y: peek.from.y,
