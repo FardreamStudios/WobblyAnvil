@@ -73,7 +73,7 @@ var POOF_FX_LEAD_MS = 100;
 // ============================================================
 // Speech Bubble Config
 // ============================================================
-var BUBBLE_OFFSET_Y = -8;
+var BUBBLE_GAP_VW = 1;             // vw padding above fairy head
 var BUBBLE_EDGE_THRESHOLD = 20;   // fairy x% where edge shift kicks in
 var BUBBLE_EDGE_SHIFT = 15;       // vw shift toward center at edges
 var BUBBLE_LASER_DODGE = 20;      // vw shift away from laser target x
@@ -289,26 +289,14 @@ function SpeechBubble(props) {
 
     if (!displaying || !props.text) return null;
 
-    var fairyScale = props.scale || 1;
-    var offsetY = BUBBLE_OFFSET_Y * fairyScale;
-    var belowOffset = 6 * fairyScale;
-
     // --- Estimate bubble height as % of viewport height ---
-    // Text lines × line height + padding, all in vw, then convert to vh%
     var textLen = props.text ? props.text.length : 0;
     var estLines = Math.max(1, Math.ceil(textLen / BUBBLE_CHARS_PER_LINE));
     var estHeightVw = estLines * BUBBLE_LINE_H_VW + BUBBLE_PAD_VW;
-    // Convert vw to px, then to % of viewport height
     var estHeightPx = estHeightVw * window.innerWidth / 100;
     var estHeightPct = (estHeightPx / window.innerHeight) * 100;
 
-    // --- Vertical placement: pick side with most room ---
-    var spaceAbove = props.y - BUBBLE_SAFE_MARGIN;
-    var spaceBelow = (100 - BUBBLE_SAFE_MARGIN) - props.y;
-    // Flip below if bubble would clip top AND there's more room below
-    var flipBelow = spaceAbove < estHeightPct && spaceBelow > spaceAbove;
-
-    // --- Horizontal dodge ---
+    // --- Horizontal: laser dodge > edge shift > centered ---
     var xShift = 0;
     var lt = props.laserTarget;
 
@@ -326,9 +314,7 @@ function SpeechBubble(props) {
         }
     }
 
-    // --- Clamp horizontal so bubble stays in viewport ---
-    // Bubble is max 42vw wide, centered on (fairy x% + xShift vw).
-    // Approximate: if bubble center in % would push half-width past edge, pull back
+    // Clamp horizontal so bubble stays in viewport
     var halfBubbleVw = BUBBLE_MAX_W_VW / 2;
     var bubbleCenterPx = (props.x / 100) * window.innerWidth + (xShift / 100) * window.innerWidth;
     var minPx = halfBubbleVw * window.innerWidth / 100;
@@ -339,48 +325,35 @@ function SpeechBubble(props) {
         xShift -= ((bubbleCenterPx - maxPx) / window.innerWidth) * 100;
     }
 
+    // --- Vertical: above fairy head, slide down if clipped ---
+    var fairyScale = props.scale || 1;
+    var halfSpriteVw = (SPRITE_CFG.sizePct / 2) * fairyScale;
+    var gapPx = (halfSpriteVw + BUBBLE_GAP_VW) * window.innerWidth / 100;
+    var gapPct = (gapPx / window.innerHeight) * 100;
+
+    // Ideal: bubble bottom at fairy Y - half sprite - gap
+    // (transform -100% makes `top` = bubble bottom position)
+    var idealBottom = props.y - gapPct;
+
+    // Clamp: bubble top edge (bottom - height) must not go above safe margin
+    var minBottom = BUBBLE_SAFE_MARGIN + estHeightPct;
+    var finalBottomPct = Math.max(minBottom, idealBottom);
+
     var tailLeft = "calc(50% - " + xShift + "vw)";
 
     return (
         <div style={{
             position: "absolute",
             left: "calc(" + props.x + "% + " + xShift + "vw)",
-            top: flipBelow
-                ? "calc(" + props.y + "% + " + belowOffset + "vw)"
-                : "calc(" + props.y + "% + " + offsetY + "vw)",
-            transform: "translate(-50%, " + (flipBelow ? "0%" : "-100%") + ") scale(" + (show ? 1 : 0) + ")",
-            transformOrigin: flipBelow ? "top center" : "bottom center",
+            top: finalBottomPct + "%",
+            transform: "translate(-50%, -100%) scale(" + (show ? 1 : 0) + ")",
+            transformOrigin: "bottom center",
             transition: show
-                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1), left 200ms ease-out"
+                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1), left 200ms ease-out, top 200ms ease-out"
                 : "transform " + BUBBLE_ANIM_OUT_MS + "ms ease-in",
             pointerEvents: "none",
             zIndex: 5,
         }}>
-            {/* Tail arrow — top of bubble when flipped below */}
-            {flipBelow && (
-                <div style={{
-                    position: "absolute",
-                    left: tailLeft,
-                    top: -9,
-                    transform: "translateX(-50%)",
-                    width: 0, height: 0,
-                    borderLeft: "8px solid transparent",
-                    borderRight: "8px solid transparent",
-                    borderBottom: "10px solid #c89aff",
-                }} />
-            )}
-            {flipBelow && (
-                <div style={{
-                    position: "absolute",
-                    left: tailLeft,
-                    top: -5,
-                    transform: "translateX(-50%)",
-                    width: 0, height: 0,
-                    borderLeft: "6px solid transparent",
-                    borderRight: "6px solid transparent",
-                    borderBottom: "8px solid #1a1220",
-                }} />
-            )}
             <div style={{
                 background: "#1a1220",
                 border: "3px solid #c89aff",
@@ -404,31 +377,27 @@ function SpeechBubble(props) {
                     {props.text}
                 </div>
             </div>
-            {/* Tail arrow — bottom of bubble when above fairy (default) */}
-            {!flipBelow && (
-                <div style={{
-                    position: "absolute",
-                    left: tailLeft,
-                    bottom: -9,
-                    transform: "translateX(-50%)",
-                    width: 0, height: 0,
-                    borderLeft: "8px solid transparent",
-                    borderRight: "8px solid transparent",
-                    borderTop: "10px solid #c89aff",
-                }} />
-            )}
-            {!flipBelow && (
-                <div style={{
-                    position: "absolute",
-                    left: tailLeft,
-                    bottom: -5,
-                    transform: "translateX(-50%)",
-                    width: 0, height: 0,
-                    borderLeft: "6px solid transparent",
-                    borderRight: "6px solid transparent",
-                    borderTop: "8px solid #1a1220",
-                }} />
-            )}
+            {/* Tail arrow — always bottom, points toward fairy */}
+            <div style={{
+                position: "absolute",
+                left: tailLeft,
+                bottom: -9,
+                transform: "translateX(-50%)",
+                width: 0, height: 0,
+                borderLeft: "8px solid transparent",
+                borderRight: "8px solid transparent",
+                borderTop: "10px solid #c89aff",
+            }} />
+            <div style={{
+                position: "absolute",
+                left: tailLeft,
+                bottom: -5,
+                transform: "translateX(-50%)",
+                width: 0, height: 0,
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderTop: "8px solid #1a1220",
+            }} />
         </div>
     );
 }
@@ -457,9 +426,6 @@ function ChoiceBubble(props) {
 
     if (!displaying || !props.data) return null;
 
-    var fairyScale = props.scale || 1;
-    var offsetY = BUBBLE_OFFSET_Y * fairyScale;
-
     // --- Horizontal dodge (same logic as SpeechBubble) ---
     var xShift = 0;
     var lt = props.laserTarget;
@@ -473,9 +439,21 @@ function ChoiceBubble(props) {
         }
     }
 
-    // Flip below when near top
-    var flipBelow = props.y < 30;
-    var belowOffset = 6 * fairyScale;
+    // --- Vertical: above fairy, slide down if clipped ---
+    // Choice bubble is taller — rough estimate: text + buttons + padding
+    var textLen = props.data.text ? props.data.text.length : 0;
+    var estLines = Math.max(1, Math.ceil(textLen / BUBBLE_CHARS_PER_LINE));
+    var estHeightVw = estLines * BUBBLE_LINE_H_VW + BUBBLE_PAD_VW + 4; // extra for buttons
+    var estHeightPx = estHeightVw * window.innerWidth / 100;
+    var estHeightPct = (estHeightPx / window.innerHeight) * 100;
+
+    var fairyScale = props.scale || 1;
+    var halfSpriteVw = (SPRITE_CFG.sizePct / 2) * fairyScale;
+    var gapPx = (halfSpriteVw + BUBBLE_GAP_VW) * window.innerWidth / 100;
+    var gapPct = (gapPx / window.innerHeight) * 100;
+    var idealBottom = props.y - gapPct;
+    var minBottom = BUBBLE_SAFE_MARGIN + estHeightPct;
+    var finalBottomPct = Math.max(minBottom, idealBottom);
 
     function handleOptionTap(answer) {
         if (props.onChoiceSelect) {
@@ -487,13 +465,11 @@ function ChoiceBubble(props) {
         <div style={{
             position: "absolute",
             left: "calc(" + props.x + "% + " + xShift + "vw)",
-            top: flipBelow
-                ? "calc(" + props.y + "% + " + belowOffset + "vw)"
-                : "calc(" + props.y + "% + " + offsetY + "vw)",
-            transform: "translate(-50%, " + (flipBelow ? "0%" : "-100%") + ") scale(" + (show ? 1 : 0) + ")",
-            transformOrigin: flipBelow ? "top center" : "bottom center",
+            top: finalBottomPct + "%",
+            transform: "translate(-50%, -100%) scale(" + (show ? 1 : 0) + ")",
+            transformOrigin: "bottom center",
             transition: show
-                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1), left 200ms ease-out"
+                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1), left 200ms ease-out, top 200ms ease-out"
                 : "transform " + BUBBLE_ANIM_OUT_MS + "ms ease-in",
             pointerEvents: "auto",
             zIndex: 5,
