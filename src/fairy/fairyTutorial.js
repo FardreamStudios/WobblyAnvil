@@ -77,6 +77,16 @@ var SEQUENCES = {
         ],
     },
 
+    tut_buttons: {
+        id: "tut_buttons",
+        doneKey: "wa_tut_buttons_done",
+        steps: [
+            { type: "play_cue", cue: "tut_buttons" },
+            { type: "set_flag", key: "wa_tut_buttons_done", value: "true" },
+            { type: "callback", result: "segment_complete" },
+        ],
+    },
+
 };
 
 // ============================================================
@@ -92,6 +102,7 @@ var _stepIndex = -1;         // current step index
 var _waiting = false;        // true when waiting for an event to advance
 var _stored = {};            // key-value store for branch decisions
 var _devSkipPersist = false; // when true, set_flag skips localStorage (testing)
+var _flagMemory = {};        // runtime flag map — survives devSkipPersist
 
 // ============================================================
 // LIFECYCLE
@@ -273,6 +284,8 @@ function _executeStep(step) {
             break;
 
         case "set_flag":
+            // Always write to runtime memory (survives devSkipPersist)
+            _flagMemory[step.key] = step.value;
             if (!_devSkipPersist) {
                 try {
                     localStorage.setItem(step.key, step.value);
@@ -318,6 +331,7 @@ var FairyTutorial = {
     // Query
     isRunning:         isRunning,
     getActiveSequence: getActiveSequence,
+    isFlagSet:         function(key) { return !!_flagMemory[key]; },
 
     // Data (for controller to read doneKey on skip)
     SEQUENCES: SEQUENCES,

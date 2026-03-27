@@ -428,6 +428,52 @@ var TUT_REP_LASER = {
     ],
 };
 
+var TUT_BUTTONS = {
+    id: "tut_buttons",
+    description: "Tutorial — sweep all idle action buttons with laser + speech",
+    layer: "overlay",
+    steps: [
+        // Poof in at a neutral spot above the action area
+        // x:65 y:55 keeps fairy right-of-center, above buttons on both layouts
+        { at: 0,     cmd: "poof_in",      x: 65, y: 55, scale: 0.9, duration: 250 },
+        { at: 350,   cmd: "set_tappable", value: true },
+
+        // --- Sleep ---
+        { at: 500,   cmd: "laser_on",     target: "btn_sleep" },
+        { at: 1250,  cmd: "speak",        text: "that's your bed. use it. even divine beings need to stop eventually.", duration: 4000 },
+        { at: 5350,  cmd: "hide_speech" },
+        { at: 5500,  cmd: "laser_off" },
+
+        // --- Rest ---
+        { at: 5800,  cmd: "laser_on",     target: "btn_rest" },
+        { at: 6550,  cmd: "speak",        text: "quick breather. one hour gone, bit of stamina back. boring but useful.", duration: 4000 },
+        { at: 10650, cmd: "hide_speech" },
+        { at: 10800, cmd: "laser_off" },
+
+        // --- Scavenge ---
+        { at: 11100, cmd: "laser_on",     target: "btn_scavenge" },
+        { at: 11850, cmd: "speak",        text: "digging through garbage for free metal. very dignified. but hey, free is free.", duration: 4500 },
+        { at: 16450, cmd: "hide_speech" },
+        { at: 16600, cmd: "laser_off" },
+
+        // --- Shop ---
+        { at: 16900, cmd: "laser_on",     target: "btn_shop" },
+        { at: 17650, cmd: "speak",        text: "the shop. buy materials, upgrade your tools. spend wisely — gold doesn't grow on anvils.", duration: 4500 },
+        { at: 22250, cmd: "hide_speech" },
+        { at: 22400, cmd: "laser_off" },
+
+        // --- Mats ---
+        { at: 22700, cmd: "laser_on",     target: "btn_mats" },
+        { at: 23450, cmd: "speak",        text: "your stockpile. check what you've got before you commit to anything ambitious.", duration: 4000 },
+        { at: 27550, cmd: "hide_speech" },
+        { at: 27700, cmd: "laser_off" },
+
+        // Exit
+        { at: 28000, cmd: "set_tappable", value: false },
+        { at: 28100, cmd: "poof_out",     duration: 200 },
+    ],
+};
+
 // ============================================================
 // CUE REGISTRY
 // Pawn looks up cues by id from this map.
@@ -452,6 +498,7 @@ var FAIRY_CUES = {
     intro_respond_yes: INTRO_RESPOND_YES,
     intro_respond_no:  INTRO_RESPOND_NO,
     tut_rep_laser:     TUT_REP_LASER,
+    tut_buttons:       TUT_BUTTONS,
 };
 
 // ============================================================

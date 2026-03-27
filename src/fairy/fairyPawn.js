@@ -529,6 +529,12 @@ function _executePoof(step) {
         }
     }
 
+    // --- Direct coordinates ---
+    if (step.x !== undefined && step.y !== undefined) {
+        _doPoof(anim, step.x, step.y, step.scale || 1.0, "50% 50%", step.duration);
+        return;
+    }
+
     // --- Fallback: center of viewport ---
     _doPoof(anim, 50, 50, 1.0, "50% 50%", step.duration);
 }

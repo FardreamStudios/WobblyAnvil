@@ -75,8 +75,13 @@ var POOF_FX_LEAD_MS = 100;
 // ============================================================
 var BUBBLE_OFFSET_Y = -8;
 var BUBBLE_EDGE_THRESHOLD = 20;   // fairy x% where edge shift kicks in
-var BUBBLE_EDGE_SHIFT = 15;       // % shift toward center at edges
-var BUBBLE_LASER_DODGE = 20;      // % shift away from laser target x
+var BUBBLE_EDGE_SHIFT = 15;       // vw shift toward center at edges
+var BUBBLE_LASER_DODGE = 20;      // vw shift away from laser target x
+var BUBBLE_MAX_W_VW = 42;         // max bubble width in vw (matches CSS)
+var BUBBLE_LINE_H_VW = 2.2;       // estimated line height in vw
+var BUBBLE_PAD_VW = 2.5;          // vertical padding + border in vw
+var BUBBLE_CHARS_PER_LINE = 28;   // rough chars per line at max width
+var BUBBLE_SAFE_MARGIN = 3;       // % margin from viewport edge
 
 // ============================================================
 // Tap Interaction Config
@@ -286,35 +291,52 @@ function SpeechBubble(props) {
 
     var fairyScale = props.scale || 1;
     var offsetY = BUBBLE_OFFSET_Y * fairyScale;
-
-    // Flip bubble below fairy when she's in top 30% of screen
-    var flipBelow = props.y < 30;
     var belowOffset = 6 * fairyScale;
 
+    // --- Estimate bubble height in vh ---
+    // Rough: count lines from text length, multiply by line height, add padding
+    var textLen = props.text ? props.text.length : 0;
+    var estLines = Math.max(1, Math.ceil(textLen / BUBBLE_CHARS_PER_LINE));
+    var estHeightVw = estLines * BUBBLE_LINE_H_VW + BUBBLE_PAD_VW;
+    // Convert vw to approximate vh (assume roughly square viewport on mobile, wider on desktop)
+    var estHeightVh = estHeightVw * (window.innerWidth / window.innerHeight);
+
+    // --- Vertical placement: pick side with most room ---
+    var spaceAbove = props.y - BUBBLE_SAFE_MARGIN;   // % available above fairy
+    var spaceBelow = (100 - BUBBLE_SAFE_MARGIN) - props.y; // % available below fairy
+    var flipBelow = spaceAbove < estHeightVh && spaceBelow > spaceAbove;
+
     // --- Horizontal dodge ---
-    // Priority 1: dodge away from laser target
-    // Priority 2: edge shift when fairy near screen edges
-    // Result: xShift in %, added to left positioning
     var xShift = 0;
     var lt = props.laserTarget;
 
     if (lt) {
-        // Laser active — push bubble away from laser target x
         if (lt.x > props.x) {
-            xShift = -BUBBLE_LASER_DODGE;  // laser is right, bubble goes left
+            xShift = -BUBBLE_LASER_DODGE;
         } else {
-            xShift = BUBBLE_LASER_DODGE;   // laser is left, bubble goes right
+            xShift = BUBBLE_LASER_DODGE;
         }
     } else {
-        // No laser — edge shift so bubble doesn't clip off-screen
         if (props.x < BUBBLE_EDGE_THRESHOLD) {
-            xShift = BUBBLE_EDGE_SHIFT;    // fairy near left edge, nudge right
+            xShift = BUBBLE_EDGE_SHIFT;
         } else if (props.x > (100 - BUBBLE_EDGE_THRESHOLD)) {
-            xShift = -BUBBLE_EDGE_SHIFT;   // fairy near right edge, nudge left
+            xShift = -BUBBLE_EDGE_SHIFT;
         }
     }
 
-    // Tail offset matches xShift so arrow still points at fairy
+    // --- Clamp horizontal so bubble stays in viewport ---
+    // Bubble is max 42vw wide, centered on (fairy x% + xShift vw).
+    // Approximate: if bubble center in % would push half-width past edge, pull back
+    var halfBubbleVw = BUBBLE_MAX_W_VW / 2;
+    var bubbleCenterPx = (props.x / 100) * window.innerWidth + (xShift / 100) * window.innerWidth;
+    var minPx = halfBubbleVw * window.innerWidth / 100;
+    var maxPx = window.innerWidth - minPx;
+    if (bubbleCenterPx < minPx) {
+        xShift += ((minPx - bubbleCenterPx) / window.innerWidth) * 100;
+    } else if (bubbleCenterPx > maxPx) {
+        xShift -= ((bubbleCenterPx - maxPx) / window.innerWidth) * 100;
+    }
+
     var tailLeft = "calc(50% - " + xShift + "vw)";
 
     return (
@@ -362,7 +384,7 @@ function SpeechBubble(props) {
                 border: "3px solid #c89aff",
                 borderRadius: 8,
                 padding: "6px 12px",
-                maxWidth: "42vw",
+                maxWidth: BUBBLE_MAX_W_VW + "vw",
                 boxShadow: "0 0 12px 2px rgba(160, 80, 240, 0.25), inset 0 0 8px rgba(180, 120, 255, 0.1)",
                 position: "relative",
             }}>

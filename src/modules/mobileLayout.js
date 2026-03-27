@@ -396,13 +396,13 @@ function MobileLayout(props) {
             ) : (
                 <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection }}>
                     <div style={col1Style}>
-                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" imgSize={79} /></div>
-                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" imgSize={79} /></div>
+                        <div data-fairy-target="btn_sleep" style={{ display: "flex" }}><MobileBtn imgSrc={IC.sleep} onClick={props.onSleep} disabled={props.sleepDisabled} holdContent="End the day and rest until morning" imgSize={79} /></div>
+                        <div data-fairy-target="btn_rest" style={{ display: "flex" }}><MobileBtn imgSrc={IC.rest} onClick={props.onRest} disabled={props.restDisabled} holdContent="Wait one hour, recover some stamina" imgSize={79} /></div>
                     </div>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5vh" }}>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} holdContent="Browse weapons, materials, and upgrades" /></div>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
+                        <div data-fairy-target="btn_scavenge" style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scavenge} onClick={props.onScavenge} disabled={props.scavengeDisabled} holdContent="Search the scrapyard for free materials" /></div>
+                        <div data-fairy-target="btn_shop" style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.shop} onClick={props.onShop} disabled={props.shopDisabled} holdContent="Browse weapons, materials, and upgrades" /></div>
+                        <div data-fairy-target="btn_mats" style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.bag} onClick={props.onMats} disabled={props.matsDisabled} holdContent="Check your material stockpile" /></div>
                     </div>
                 </div>
             )}

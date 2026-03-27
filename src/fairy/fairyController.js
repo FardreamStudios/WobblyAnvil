@@ -195,6 +195,8 @@ function _saveEnabledPref(enabled) {
 // --- Tutorial flag helpers ---
 
 function _isFlagSet(key) {
+    // Check runtime memory first (survives devSkipPersist), then localStorage
+    if (FairyTutorial.isFlagSet(key)) return true;
     try { return localStorage.getItem(key) === "true"; } catch (e) { return false; }
 }
 
@@ -832,8 +834,9 @@ function _onTutorialComplete(result, stored) {
     }
 
     if (result === "segment_complete") {
-        // Segment done — return to idle, ready for next segment or reactive mode
+        // Segment done — check for next pending segment
         _setState(STATES.IDLE);
+        _checkPendingSegments();
         return;
     }
 
@@ -851,6 +854,13 @@ function _checkPendingSegments() {
         _setState(STATES.POINTING);
         setTimeout(function() {
             FairyTutorial.start("tut_rep");
+        }, 1500);
+        return;
+    }
+    if (!_isFlagSet("wa_tut_buttons_done")) {
+        _setState(STATES.POINTING);
+        setTimeout(function() {
+            FairyTutorial.start("tut_buttons");
         }, 1500);
         return;
     }
