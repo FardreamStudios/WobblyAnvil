@@ -139,7 +139,7 @@ var UI_TARGETS = [
     { id: "qte",        selector: '[data-fairy-target="qte"]',        offset: { x: 0,   y: -30 } },
     { id: "customer",   selector: '[data-fairy-target="customer"]',   offset: { x: -20, y: 0 } },
     { id: "stats",      selector: '[data-fairy-target="stats"]',      offset: { x: 20,  y: 0 } },
-    { id: "rep",        selector: '[data-fairy-target="rep"]',        offset: { x: 40,  y: 120 } },
+    { id: "rep",        selector: '[data-fairy-target="rep"]',        offset: { x: 80,  y: 160 } },
     { id: "forge_info", selector: '[data-fairy-target="forge_info"]', offset: { x: 20,  y: 0 } },
     { id: "scene",      selector: '[data-fairy-target="scene"]',      offset: { x: 0,   y: 0 } },
     { id: "btn_area",   selector: '[data-fairy-target="btn_area"]',   offset: { x: 0,   y: -120 } },
@@ -289,9 +289,14 @@ function resolveUITarget(targetId) {
             var el = document.querySelector(target.selector);
             if (!el) return null;
             var rect = el.getBoundingClientRect();
+            var cx = rect.left + rect.width / 2;
+            var cy = rect.top + rect.height / 2;
+            // Mirror X offset when element is on right half (handedness flip)
+            var ox = target.offset.x;
+            if (cx > window.innerWidth / 2) { ox = -ox; }
             return {
-                x: rect.left + rect.width / 2 + target.offset.x,
-                y: rect.top + rect.height / 2 + target.offset.y,
+                x: cx + ox,
+                y: cy + target.offset.y,
             };
         }
     }

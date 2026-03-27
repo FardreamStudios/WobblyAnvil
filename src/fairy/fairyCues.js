@@ -439,37 +439,37 @@ var TUT_BUTTONS = {
 
         // --- Sleep ---
         { at: 500,   cmd: "laser_on",     target: "btn_sleep" },
-        { at: 1250,  cmd: "speak",        text: "that's your bed. end the day when you're out of moves.", duration: 4000 },
-        { at: 5350,  cmd: "hide_speech" },
-        { at: 5500,  cmd: "laser_off" },
+        { at: 1250,  cmd: "speak",        text: "that's your bed. don't be a hero — sleep before you drop. trust me, the forge doesn't care about your pride.", duration: 5000 },
+        { at: 6350,  cmd: "hide_speech" },
+        { at: 6500,  cmd: "laser_off" },
 
         // --- Rest ---
-        { at: 5800,  cmd: "laser_on",     target: "btn_rest" },
-        { at: 6550,  cmd: "speak",        text: "quick breather. one hour gone, bit of stamina back. boring but useful.", duration: 4000 },
-        { at: 10650, cmd: "hide_speech" },
-        { at: 10800, cmd: "laser_off" },
+        { at: 6800,  cmd: "laser_on",     target: "btn_rest" },
+        { at: 7550,  cmd: "speak",        text: "quick breather. one hour gone, bit of stamina back. boring but useful.", duration: 4000 },
+        { at: 11650, cmd: "hide_speech" },
+        { at: 11800, cmd: "laser_off" },
 
         // --- Scavenge ---
-        { at: 11100, cmd: "laser_on",     target: "btn_scavenge" },
-        { at: 11850, cmd: "speak",        text: "digging through garbage for free metal. very dignified. but hey, free is free.", duration: 4500 },
-        { at: 16450, cmd: "hide_speech" },
-        { at: 16600, cmd: "laser_off" },
+        { at: 12100, cmd: "laser_on",     target: "btn_scavenge" },
+        { at: 12850, cmd: "speak",        text: "digging through garbage for free metal. very dignified. but hey, free is free.", duration: 4500 },
+        { at: 17450, cmd: "hide_speech" },
+        { at: 17600, cmd: "laser_off" },
 
         // --- Shop ---
-        { at: 16900, cmd: "laser_on",     target: "btn_shop" },
-        { at: 17650, cmd: "speak",        text: "the shop. materials, upgrades, the works. spend wisely — gold doesn't grow on anvils.", duration: 4500 },
-        { at: 22250, cmd: "hide_speech" },
-        { at: 22400, cmd: "laser_off" },
+        { at: 17900, cmd: "laser_on",     target: "btn_shop" },
+        { at: 18650, cmd: "speak",        text: "the shop. materials, upgrades, the works. spend wisely — gold doesn't grow on anvils.", duration: 4500 },
+        { at: 23250, cmd: "hide_speech" },
+        { at: 23400, cmd: "laser_off" },
 
         // --- Mats ---
-        { at: 22700, cmd: "laser_on",     target: "btn_mats" },
-        { at: 23450, cmd: "speak",        text: "your stockpile. always check what you've got before committing to something ambitious.", duration: 4000 },
-        { at: 27550, cmd: "hide_speech" },
-        { at: 27700, cmd: "laser_off" },
+        { at: 23700, cmd: "laser_on",     target: "btn_mats" },
+        { at: 24450, cmd: "speak",        text: "your stockpile. always check what you've got before committing to something ambitious.", duration: 4000 },
+        { at: 28550, cmd: "hide_speech" },
+        { at: 28700, cmd: "laser_off" },
 
         // Exit
-        { at: 28000, cmd: "set_tappable", value: false },
-        { at: 28100, cmd: "poof_out",     duration: 200 },
+        { at: 29000, cmd: "set_tappable", value: false },
+        { at: 29100, cmd: "poof_out",     duration: 200 },
     ],
 };
 
