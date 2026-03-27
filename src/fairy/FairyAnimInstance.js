@@ -283,19 +283,50 @@ function SpeechBubble(props) {
     var fairyScale = props.scale || 1;
     var offsetY = BUBBLE_OFFSET_Y * fairyScale;
 
+    // Flip bubble below fairy when she's in top 30% of screen
+    var flipBelow = props.y < 30;
+    var belowOffset = 6 * fairyScale;
+
     return (
         <div style={{
             position: "absolute",
             left: props.x + "%",
-            top: "calc(" + props.y + "% + " + offsetY + "vw)",
-            transform: "translate(-50%, -100%) scale(" + (show ? 1 : 0) + ")",
-            transformOrigin: "bottom center",
+            top: flipBelow
+                ? "calc(" + props.y + "% + " + belowOffset + "vw)"
+                : "calc(" + props.y + "% + " + offsetY + "vw)",
+            transform: "translate(-50%, " + (flipBelow ? "0%" : "-100%") + ") scale(" + (show ? 1 : 0) + ")",
+            transformOrigin: flipBelow ? "top center" : "bottom center",
             transition: show
                 ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1)"
                 : "transform " + BUBBLE_ANIM_OUT_MS + "ms ease-in",
             pointerEvents: "none",
             zIndex: 5,
         }}>
+            {/* Tail arrow — top of bubble when flipped below */}
+            {flipBelow && (
+                <div style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: -9,
+                    transform: "translateX(-50%)",
+                    width: 0, height: 0,
+                    borderLeft: "8px solid transparent",
+                    borderRight: "8px solid transparent",
+                    borderBottom: "10px solid #c89aff",
+                }} />
+            )}
+            {flipBelow && (
+                <div style={{
+                    position: "absolute",
+                    left: "50%",
+                    top: -5,
+                    transform: "translateX(-50%)",
+                    width: 0, height: 0,
+                    borderLeft: "6px solid transparent",
+                    borderRight: "6px solid transparent",
+                    borderBottom: "8px solid #1a1220",
+                }} />
+            )}
             <div style={{
                 background: "#1a1220",
                 border: "3px solid #c89aff",
@@ -319,26 +350,31 @@ function SpeechBubble(props) {
                     {props.text}
                 </div>
             </div>
-            <div style={{
-                position: "absolute",
-                left: "50%",
-                bottom: -9,
-                transform: "translateX(-50%)",
-                width: 0, height: 0,
-                borderLeft: "8px solid transparent",
-                borderRight: "8px solid transparent",
-                borderTop: "10px solid #c89aff",
-            }} />
-            <div style={{
-                position: "absolute",
-                left: "50%",
-                bottom: -5,
-                transform: "translateX(-50%)",
-                width: 0, height: 0,
-                borderLeft: "6px solid transparent",
-                borderRight: "6px solid transparent",
-                borderTop: "8px solid #1a1220",
-            }} />
+            {/* Tail arrow — bottom of bubble when above fairy (default) */}
+            {!flipBelow && (
+                <div style={{
+                    position: "absolute",
+                    left: "50%",
+                    bottom: -9,
+                    transform: "translateX(-50%)",
+                    width: 0, height: 0,
+                    borderLeft: "8px solid transparent",
+                    borderRight: "8px solid transparent",
+                    borderTop: "10px solid #c89aff",
+                }} />
+            )}
+            {!flipBelow && (
+                <div style={{
+                    position: "absolute",
+                    left: "50%",
+                    bottom: -5,
+                    transform: "translateX(-50%)",
+                    width: 0, height: 0,
+                    borderLeft: "6px solid transparent",
+                    borderRight: "6px solid transparent",
+                    borderTop: "8px solid #1a1220",
+                }} />
+            )}
         </div>
     );
 }
