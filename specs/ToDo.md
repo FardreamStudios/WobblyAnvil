@@ -30,6 +30,9 @@
 - [x] **M-11: Laser FX** — `fairyPawn.js`. Raw DOM SVG beam from fairy to target UI element. rAF grow animation, purple glow + dashed line, pulsing target dot. Pawn owns full lifecycle (create/destroy).
 - [x] **M-12: Persistence + toggle** — `fairyController.js` localStorage for taught topics (`wa_fairy_taught`) and enabled pref (`wa_fairy_enabled`). Fairy on/off checkbox in mobile + desktop options menus. Taught topics persist across new games.
 - [x] **useDayVM bug fix** — Removed dead `setCustVisitsToday`/`setMaxCustToday` calls left over from DES-1.1 customer manager migration. Cleaned up unused constant imports.
+- [x] **M-15a: Fairy Tutorial intro** — `fairyTutorial.js` step sequencer (data-driven, supports adding new sequences as data). Intro cues added. Controller checks localStorage on init, delegates to tutorial if intro not done. Pawn handles `show_choice` cmd + `waitForInput` cues. AnimInstance has ChoiceBubble with tappable options. App.js wires `onPawnEvent` through to controller and passes `onChoiceSelect` prop.
+- [x] **M-15b: Tutorial flow control** — Opt-in gate (yes/no prompt) separated from per-segment tutorial architecture. `talk_close` edge peek for close-range dialogue. `instant` poof support on peek positions. `intro_respond_no` includes options menu hint. Tap-to-skip with one-time warning flag (`wa_fairy_tap_warn_done`). `devSkipPersist` config flag prevents localStorage writes during testing. `FairyPawn.isReady()` query + `_waitForPawn` polling in controller.
+- [x] **M-15c: DAY_READY lifecycle tag** — `eventTags.js` + `gameMode.js` `markReady()` method. GameMode gains `"ready"` day phase (after toasts drain). App.js useEffect bridges toast drain → `gm.core.markReady()`. Controller subscribes to `DAY_READY`, waits 3s settle, then fires intro or pending tutorial segments. Tutorial no longer fires on init.
 
 ---
 
@@ -53,7 +56,8 @@ See `FairyFeatureSpecs.md` for full architecture and milestone details. Core thr
 
 - [x] **M-11: Laser FX** — Beam from fairy to target UI element via cue step.
 - [x] **M-12: Persistence + toggle** — localStorage for taught topics. On/off toggle in options menu.
-- [ ] **M-15: Fairy Tutorial** — Step sequencer as controller helper (`fairyTutorial.js`). Controller checks localStorage on init, enters tutorial mode if not complete. Sequencer drives cues + player choice prompts. First slice: fairy rises from bottom, introduces herself, yes/no prompt. Yes → guided walkthrough. No → mark done, reactive mode.
+- [x] **M-15: Fairy Tutorial** — Step sequencer (`fairyTutorial.js`), opt-in gate, per-segment architecture, DAY_READY timing, tap-to-skip, `devSkipPersist`. First segment `tut_rep` (laser at rep bar). Needs end-to-end testing.
+- [ ] **M-15 testing** — Verify full intro flow (toasts drain → 3s → fairy rises → prompt → yes/no → laser). Remove debug logs from fairyPawn.js and fairyTutorial.js when confirmed. Add more tutorial segments (tut_forge, tut_customer).
 - [ ] **M-13: Special cues** — `super_saiyan`, `chase_event`, `running_head`, `fairy_insight`. Day-gated. LOW PRIORITY.
 - [ ] **M-14: Gibberish speech audio** — Procedural via Web Audio, synced to speech bubbles. Can defer.
 
@@ -74,6 +78,8 @@ See `FairyFeatureSpecs.md` for full architecture and milestone details. Core thr
 - [ ] **Audit progression system** — Review XP curve, rank thresholds, upgrade costs, difficulty scaling.
 
 ### Cleanup
+- [ ] **Improve day-start and toast management** — Toast queue is currently React state in App.js with no bus integration. Day-start toasts built by useDayVM, drained by App.js useEffect. Needs a proper toast subsystem (pure JS singleton, bus-driven) so GameMode and other systems can queue/drain toasts without React wiring. `DAY_READY` currently bridges via App.js — should be self-contained.
+- [ ] **Audit App.js responsibilities** — App.js still owns toast plumbing, customer display wiring, and some state that should live in subsystems. Target: ~100 lines of pure wiring (instantiate systems, connect, render). Identify what can be extracted into pure JS singletons or moved into existing hooks/VMs.
 - [ ] **Verify UX multi-function buttons** — Stamina-use buttons should call wait/rest inline.
 - [ ] **Fix shelf images** — Remove visible background border on weapon shelf display sprites.
 - [ ] **FairyAnimInstance audio cleanup** — `new Audio()` direct usage in `src/fairy/FairyAnimInstance.js` should wire through main audio system for volume/mute consistency.
