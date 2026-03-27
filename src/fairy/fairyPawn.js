@@ -53,6 +53,9 @@ var NULL_STEP_GAP_MS = 100;
 // Edge peek defaults (overlay layer)
 var PEEK_SCALE = 4.0;
 
+// Debug tracing — flip to false when done
+var _PAWN_DEBUG = true;
+
 // Fallback scene when none set
 var DEFAULT_SCENE = "forge";
 
@@ -148,6 +151,7 @@ function getScene() {
  *   cue:      named cue id or null (overrides target/line)
  */
 function handleCommand(cmd) {
+    if (_PAWN_DEBUG) console.log("[PAWN] handleCommand", cmd.intent, cmd.cue, "target:", cmd.target);
     if (!_initialized || !_animRef) return;
 
     // Cancel timers but keep fairy visible for cue chaining
@@ -269,6 +273,7 @@ function playCue(cueId, context) {
         var completionMs = lastAt + lastDuration + 200;
         _scheduleCueTimer(function() {
             var cueId = _activeCue ? _activeCue.id : null;
+            if (_PAWN_DEBUG) console.log("[PAWN] cue_complete:", cueId);
             _activeCue = null;
             if (_onPawnEvent) _onPawnEvent("cue_complete", { cue: cueId });
         }, completionMs);
@@ -279,6 +284,7 @@ function playCue(cueId, context) {
  * Cancel any in-progress cue. Hides fairy immediately.
  */
 function _cancelTimers() {
+    if (_PAWN_DEBUG && (_cueTimerIds.length || _timerIds.length)) console.log("[PAWN] _cancelTimers cue:" + (_activeCue ? _activeCue.id : "none") + " cueTimers:" + _cueTimerIds.length + " timers:" + _timerIds.length, new Error().stack.split("\n")[2]);
     for (var i = 0; i < _cueTimerIds.length; i++) {
         clearTimeout(_cueTimerIds[i]);
     }
@@ -461,6 +467,7 @@ function _executeStep(step) {
  * Handles scene spots, UI targets, and edge peeks.
  */
 function _executePoof(step) {
+    if (_PAWN_DEBUG) console.log("[PAWN] _executePoof peek:", step.peek, "target:", step.target, "spot:", step.spot);
     var anim = _animRef.current;
     if (!anim) return;
 
@@ -530,6 +537,7 @@ function _executePoof(step) {
  * Core poof-in animation sequence.
  */
 function _doPoof(anim, x, y, scale, tOrigin, duration) {
+    if (_PAWN_DEBUG) console.log("[PAWN] _doPoof x:" + x + " y:" + y + " scale:" + scale + " tOrigin:" + tOrigin);
     var snapMs = duration || POOF_SNAP_IN_MS;
 
     // FX burst
@@ -560,6 +568,7 @@ function _doPoof(anim, x, y, scale, tOrigin, duration) {
  * Poof-out: scale-down + FX burst, then hide.
  */
 function _executePoofOut(step) {
+    if (_PAWN_DEBUG) console.log("[PAWN] _executePoofOut dur:" + step.duration + " layer:" + (_activeCue ? _activeCue.layer : "none") + " pos:" + JSON.stringify(_currentPos));
     var anim = _animRef.current;
     if (!anim) return;
 
@@ -875,9 +884,8 @@ function _resolveSceneSpot(spotId) {
  * Resolve a UI target by id. Returns { x, y, scale } in viewport %
  * or null if element not found.
  */
-var UI_TARGET_EDGE_MIN = 12; // % — fairy center never closer than this to any edge
+var UI_TARGET_EDGE_MIN = 12;
 var UI_TARGET_EDGE_MAX = 88;
-var UI_TARGET_SCALE = 1.0;  // overlay fairy = fixed size (depth scaling is scene-only)
 
 function _resolveTargetPos(targetId) {
     var resolved = FairyPositions.resolveUITarget(targetId);
@@ -889,13 +897,13 @@ function _resolveTargetPos(targetId) {
     var xPct = (resolved.x / vw) * 100;
     var yPct = (resolved.y / vh) * 100;
 
-    // Clamp to safe viewport region so sprite + bubble stay visible
+    // Clamp to safe viewport region
     if (xPct < UI_TARGET_EDGE_MIN) xPct = UI_TARGET_EDGE_MIN;
     if (xPct > UI_TARGET_EDGE_MAX) xPct = UI_TARGET_EDGE_MAX;
     if (yPct < UI_TARGET_EDGE_MIN) yPct = UI_TARGET_EDGE_MIN;
     if (yPct > UI_TARGET_EDGE_MAX) yPct = UI_TARGET_EDGE_MAX;
 
-    return { x: xPct, y: yPct, scale: UI_TARGET_SCALE };
+    return { x: xPct, y: yPct, scale: 1.0 };
 }
 
 // ============================================================
