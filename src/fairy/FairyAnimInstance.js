@@ -39,6 +39,7 @@
 
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import { createPortal } from "react-dom";
+import THEME from "../config/theme.js";
 
 var PUB = process.env.PUBLIC_URL || "";
 var FAIRY_POP_SRC = PUB + "/audio/sFairyPop.mp3";
@@ -830,7 +831,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             position: "fixed",
             inset: 0,
             pointerEvents: "none",
-            zIndex: 10,
+            zIndex: THEME.z.fairy,
             overflow: "hidden",
         }}>
             {showFX && <PoofFX x={poofAt.x} y={poofAt.y} />}

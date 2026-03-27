@@ -71,12 +71,12 @@ function RepFloat(props) {
     var status = rep >= 7 ? "ROYAL FAVOUR" : rep >= 4 ? "KING GROWS WARY" : rep >= 2 ? "ARREST IMMINENT" : "EXECUTION IMMINENT";
 
     return (
-        <div ref={btnRef} {...press.handlers} style={{
+        <div ref={btnRef} data-fairy-target="rep" {...press.handlers} style={{
             position: "absolute",
             top: "2%",
             left: isLeftHanded ? "auto" : "2%",
             right: isLeftHanded ? "2%" : "auto",
-            zIndex: 10000,
+            zIndex: T.z.repFloat,
             width: 160,
             display: "flex",
             flexDirection: "column",
@@ -119,7 +119,7 @@ function RepFloat(props) {
                     fontSize: 9,
                     color: "#c8b89a",
                     lineHeight: 1.7,
-                    zIndex: 10000,
+                    zIndex: T.z.options,
                     width: 190,
                     boxShadow: "0 4px 16px rgba(0,0,0,0.95)",
                     pointerEvents: "auto",

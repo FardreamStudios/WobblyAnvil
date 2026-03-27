@@ -73,7 +73,7 @@ function EventBanner(props) {
             top: "1.5%",
             left: "50%",
             transform: "translateX(-50%)",
-            zIndex: T.z.ui + 3,
+            zIndex: T.z.eventBanner,
             display: "flex",
             alignItems: "center",
             gap: 6,
@@ -103,7 +103,7 @@ function EventBanner(props) {
                     color: T.colors.textBody,
                     lineHeight: 1.5,
                     whiteSpace: "nowrap",
-                    zIndex: 10000,
+                    zIndex: T.z.options,
                     pointerEvents: "auto",
                 }}>
                     {/* Arrow nub */}

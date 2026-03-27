@@ -270,7 +270,6 @@ function playCue(cueId, context) {
         _scheduleCueTimer(function() {
             var cueId = _activeCue ? _activeCue.id : null;
             _activeCue = null;
-            _visible = false;
             if (_onPawnEvent) _onPawnEvent("cue_complete", { cue: cueId });
         }, completionMs);
     }
@@ -284,6 +283,10 @@ function _cancelTimers() {
         clearTimeout(_cueTimerIds[i]);
     }
     _cueTimerIds = [];
+    for (var j = 0; j < _timerIds.length; j++) {
+        clearTimeout(_timerIds[j]);
+    }
+    _timerIds = [];
     _activeCue = null;
 }
 
@@ -721,7 +724,7 @@ function _createLaser(fromX, fromY, toX, toY) {
     var ns = "http://www.w3.org/2000/svg";
     var svg = document.createElementNS(ns, "svg");
     svg.setAttribute("class", "fairy-laser-svg");
-    svg.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:visible;";
+    svg.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:35;overflow:visible;"; // theme.z.fairyLaser
 
     // --- Defs: glow filter ---
     var defs = document.createElementNS(ns, "defs");
@@ -960,6 +963,9 @@ function onTapDodge(x, y, tier) {
  * Forward the answer upward, then complete the waitForInput cue.
  */
 function onChoiceSelect(answer) {
+    // Audio feedback
+    if (_animRef && _animRef.current) _animRef.current.playPop();
+
     // Tell controller/tutorial which option was picked
     if (_onPawnEvent) _onPawnEvent("prompt_response", { answer: answer });
 

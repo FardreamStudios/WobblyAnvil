@@ -209,18 +209,23 @@ var THEME = {
     // Centralized z-index scale to prevent stacking conflicts.
     // ==========================================================
     z: {
-        scene:      0,
-        props:      2,
-        ui:        10,
+        scene:       0,
+        props:       2,
+        ui:         10,
+        eventBanner:15,
+        repFloat:   20,
+        decreeFloat:25,
+        fairy:      30,
+        fairyLaser: 35,
         forgeBubble:60,
         drawerTab:  85,
         backdrop:   90,
         drawer:     95,
         fxCanvas:  100,
         shelfPopup:200,
-        options:   400,
-        toast:    9999,
-        portrait: 9999,
+        options:   300,
+        toast:     400,
+        portrait:  500,
     },
 };
 
