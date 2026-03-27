@@ -721,6 +721,14 @@ function _laserOn(step) {
     var toY = resolved.y;
 
     _createLaser(fromX, fromY, toX, toY);
+
+    // Tell AnimInstance where laser is pointing so bubble dodges away
+    var anim = _animRef ? _animRef.current : null;
+    if (anim && anim.setLaserTarget) {
+        var vw = window.innerWidth;
+        var vh = window.innerHeight;
+        anim.setLaserTarget((toX / vw) * 100, (toY / vh) * 100);
+    }
 }
 
 /**
@@ -847,6 +855,11 @@ function _destroyLaser() {
             _laserEl.parentNode.removeChild(_laserEl);
         }
         _laserEl = null;
+    }
+    // Clear bubble dodge constraint
+    var anim = _animRef ? _animRef.current : null;
+    if (anim && anim.clearLaserTarget) {
+        anim.clearLaserTarget();
     }
 }
 

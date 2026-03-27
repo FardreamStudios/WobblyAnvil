@@ -19,6 +19,8 @@
 //   playTapPop()         — lighter tap sound
 //   showChoice(text, options) — show speech bubble with tappable options
 //   hideChoice()         — dismiss choice bubble
+//   setLaserTarget(x,y)  — bubble dodges away from this viewport % position
+//   clearLaserTarget()   — remove dodge constraint
 //
 // CALLBACKS (via props):
 //   onTapExit()          — fired after nuclear exit (tier 4)
@@ -72,6 +74,9 @@ var POOF_FX_LEAD_MS = 100;
 // Speech Bubble Config
 // ============================================================
 var BUBBLE_OFFSET_Y = -8;
+var BUBBLE_EDGE_THRESHOLD = 20;   // fairy x% where edge shift kicks in
+var BUBBLE_EDGE_SHIFT = 15;       // % shift toward center at edges
+var BUBBLE_LASER_DODGE = 20;      // % shift away from laser target x
 
 // ============================================================
 // Tap Interaction Config
@@ -279,7 +284,6 @@ function SpeechBubble(props) {
 
     if (!displaying || !props.text) return null;
 
-    // Scale-compensated offset — bubble stays near her head at any size
     var fairyScale = props.scale || 1;
     var offsetY = BUBBLE_OFFSET_Y * fairyScale;
 
@@ -287,17 +291,43 @@ function SpeechBubble(props) {
     var flipBelow = props.y < 30;
     var belowOffset = 6 * fairyScale;
 
+    // --- Horizontal dodge ---
+    // Priority 1: dodge away from laser target
+    // Priority 2: edge shift when fairy near screen edges
+    // Result: xShift in %, added to left positioning
+    var xShift = 0;
+    var lt = props.laserTarget;
+
+    if (lt) {
+        // Laser active — push bubble away from laser target x
+        if (lt.x > props.x) {
+            xShift = -BUBBLE_LASER_DODGE;  // laser is right, bubble goes left
+        } else {
+            xShift = BUBBLE_LASER_DODGE;   // laser is left, bubble goes right
+        }
+    } else {
+        // No laser — edge shift so bubble doesn't clip off-screen
+        if (props.x < BUBBLE_EDGE_THRESHOLD) {
+            xShift = BUBBLE_EDGE_SHIFT;    // fairy near left edge, nudge right
+        } else if (props.x > (100 - BUBBLE_EDGE_THRESHOLD)) {
+            xShift = -BUBBLE_EDGE_SHIFT;   // fairy near right edge, nudge left
+        }
+    }
+
+    // Tail offset matches xShift so arrow still points at fairy
+    var tailLeft = "calc(50% - " + xShift + "vw)";
+
     return (
         <div style={{
             position: "absolute",
-            left: props.x + "%",
+            left: "calc(" + props.x + "% + " + xShift + "vw)",
             top: flipBelow
                 ? "calc(" + props.y + "% + " + belowOffset + "vw)"
                 : "calc(" + props.y + "% + " + offsetY + "vw)",
             transform: "translate(-50%, " + (flipBelow ? "0%" : "-100%") + ") scale(" + (show ? 1 : 0) + ")",
             transformOrigin: flipBelow ? "top center" : "bottom center",
             transition: show
-                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1)"
+                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1), left 200ms ease-out"
                 : "transform " + BUBBLE_ANIM_OUT_MS + "ms ease-in",
             pointerEvents: "none",
             zIndex: 5,
@@ -306,7 +336,7 @@ function SpeechBubble(props) {
             {flipBelow && (
                 <div style={{
                     position: "absolute",
-                    left: "50%",
+                    left: tailLeft,
                     top: -9,
                     transform: "translateX(-50%)",
                     width: 0, height: 0,
@@ -318,7 +348,7 @@ function SpeechBubble(props) {
             {flipBelow && (
                 <div style={{
                     position: "absolute",
-                    left: "50%",
+                    left: tailLeft,
                     top: -5,
                     transform: "translateX(-50%)",
                     width: 0, height: 0,
@@ -354,7 +384,7 @@ function SpeechBubble(props) {
             {!flipBelow && (
                 <div style={{
                     position: "absolute",
-                    left: "50%",
+                    left: tailLeft,
                     bottom: -9,
                     transform: "translateX(-50%)",
                     width: 0, height: 0,
@@ -366,7 +396,7 @@ function SpeechBubble(props) {
             {!flipBelow && (
                 <div style={{
                     position: "absolute",
-                    left: "50%",
+                    left: tailLeft,
                     bottom: -5,
                     transform: "translateX(-50%)",
                     width: 0, height: 0,
@@ -406,6 +436,23 @@ function ChoiceBubble(props) {
     var fairyScale = props.scale || 1;
     var offsetY = BUBBLE_OFFSET_Y * fairyScale;
 
+    // --- Horizontal dodge (same logic as SpeechBubble) ---
+    var xShift = 0;
+    var lt = props.laserTarget;
+    if (lt) {
+        xShift = (lt.x > props.x) ? -BUBBLE_LASER_DODGE : BUBBLE_LASER_DODGE;
+    } else {
+        if (props.x < BUBBLE_EDGE_THRESHOLD) {
+            xShift = BUBBLE_EDGE_SHIFT;
+        } else if (props.x > (100 - BUBBLE_EDGE_THRESHOLD)) {
+            xShift = -BUBBLE_EDGE_SHIFT;
+        }
+    }
+
+    // Flip below when near top
+    var flipBelow = props.y < 30;
+    var belowOffset = 6 * fairyScale;
+
     function handleOptionTap(answer) {
         if (props.onChoiceSelect) {
             props.onChoiceSelect(answer);
@@ -415,12 +462,14 @@ function ChoiceBubble(props) {
     return (
         <div style={{
             position: "absolute",
-            left: props.x + "%",
-            top: "calc(" + props.y + "% + " + offsetY + "vw)",
-            transform: "translate(-50%, -100%) scale(" + (show ? 1 : 0) + ")",
-            transformOrigin: "bottom center",
+            left: "calc(" + props.x + "% + " + xShift + "vw)",
+            top: flipBelow
+                ? "calc(" + props.y + "% + " + belowOffset + "vw)"
+                : "calc(" + props.y + "% + " + offsetY + "vw)",
+            transform: "translate(-50%, " + (flipBelow ? "0%" : "-100%") + ") scale(" + (show ? 1 : 0) + ")",
+            transformOrigin: flipBelow ? "top center" : "bottom center",
             transition: show
-                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1)"
+                ? "transform " + BUBBLE_ANIM_IN_MS + "ms cubic-bezier(0.34, 1.56, 0.64, 1), left 200ms ease-out"
                 : "transform " + BUBBLE_ANIM_OUT_MS + "ms ease-in",
             pointerEvents: "auto",
             zIndex: 5,
@@ -579,6 +628,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
     var [speechText, setSpeechText] = useState(null);
     var [choiceData, setChoiceData] = useState(null);  // { text, options } for choice bubble
     var [tappable, setTappable] = useState(false);
+    var [laserTarget, setLaserTargetState] = useState(null); // {x, y} viewport % — bubble dodges away
 
     // Timeout tracking
     var timeoutsRef = useRef([]);        // all timeouts (unmount cleanup)
@@ -802,6 +852,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                 setSpeechText(null);
                 setChoiceData(null);
                 setTappable(false);
+                setLaserTargetState(null);
             },
             poofFX: function(x, y) {
                 if (!mountedRef.current) return;
@@ -847,6 +898,14 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             hideChoice: function() {
                 if (!mountedRef.current) return;
                 setChoiceData(null);
+            },
+            setLaserTarget: function(xPct, yPct) {
+                if (!mountedRef.current) return;
+                setLaserTargetState({ x: xPct, y: yPct });
+            },
+            clearLaserTarget: function() {
+                if (!mountedRef.current) return;
+                setLaserTargetState(null);
             },
         };
     });
@@ -901,7 +960,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             )}
 
             {showFairy && pos && (
-                <SpeechBubble x={pos.x} y={pos.y} text={speechText} visible={speechText !== null} scale={pos.scale} />
+                <SpeechBubble x={pos.x} y={pos.y} text={speechText} visible={speechText !== null} scale={pos.scale} laserTarget={laserTarget} />
             )}
 
             {showFairy && pos && (
@@ -910,6 +969,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                     data={choiceData}
                     visible={choiceData !== null}
                     scale={pos.scale}
+                    laserTarget={laserTarget}
                     onChoiceSelect={function(answer) {
                         setChoiceData(null);
                         if (props.onChoiceSelect) props.onChoiceSelect(answer);
