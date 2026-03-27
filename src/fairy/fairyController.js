@@ -785,6 +785,7 @@ var DAY_READY_DELAY_MS = 3000;
  * Waits 3s settle time, then checks tutorial state.
  */
 function _onDayReady(payload) {
+    console.log("[TRACE-3] _onDayReady fired. fsmState:", _fsmState, "tutRunning:", FairyTutorial.isRunning(), "tutDecided:", _isTutorialDecided(), "tutEnabled:", _isTutorialEnabled());
     // Don't run tutorial if fairy is dismissed or off
     if (_fsmState === STATES.DISMISSED || _fsmState === STATES.OFF) return;
 
@@ -792,6 +793,7 @@ function _onDayReady(payload) {
     if (FairyTutorial.isRunning() || _fsmState === STATES.POINTING) return;
 
     setTimeout(function() {
+        console.log("[TRACE-4] 3s settle fired. fsmState:", _fsmState, "tutDecided:", _isTutorialDecided(), "tutEnabled:", _isTutorialEnabled());
         // Re-check state after delay (player may have acted)
         if (_fsmState === STATES.DISMISSED || _fsmState === STATES.OFF) return;
         if (FairyTutorial.isRunning()) return;

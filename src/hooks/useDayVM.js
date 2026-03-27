@@ -70,6 +70,7 @@ function useDayVM(deps) {
     var reputation = deps.reputation;
     var advanceTime = deps.advanceTime;
     var level = deps.level;
+    var toastsQueuedRef = deps.toastsQueuedRef;
 
     // --- Quest state (promote) ---
     // setActiveCustomer removed — promote now emits CUSTOMER_SPAWN via bus
@@ -128,12 +129,14 @@ function useDayVM(deps) {
         setActiveToast(null); sfx.resetDay(); sfx.setMode("idle");
         // --- Notify GameMode: end current day, start new one ---
         gm.sleep(hour);
+        if (toastsQueuedRef) toastsQueuedRef.current = false;
         gm.startDay(newDay);
         setTimeout(function() {
             var state = { gold: gold, inv: inv, finished: finished, hasSoldWeapon: hasSoldWeapon, lastSleepHour: hour, stamina: ns, unlockedBP: unlockedBP, reputation: reputation };
             var dayQueue = buildDayQueue(newDay, state, spawnQuestNum);
             var fullQueue = resolutionToast ? [{ id: "res_" + newDay, msg: resolutionToast.msg, icon: resolutionToast.icon, color: resolutionToast.color }].concat(dayQueue) : dayQueue;
             setToastQueue(fullQueue);
+            if (toastsQueuedRef) toastsQueuedRef.current = true;
         }, 300);
     }
 

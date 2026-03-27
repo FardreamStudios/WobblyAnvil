@@ -148,11 +148,11 @@ function getScene() {
  *   cue:      named cue id or null (overrides target/line)
  */
 function handleCommand(cmd) {
-    console.log("[FairyPawn] handleCommand:", cmd.intent, cmd.cue, "initialized:", _initialized, "animRef:", !!_animRef, "animRef.current:", !!(_animRef && _animRef.current));
     if (!_initialized || !_animRef) return;
 
-    // Cancel anything in progress
-    cancelCue();
+    // Cancel timers but keep fairy visible for cue chaining
+    // Full hide only on explicit dismiss
+    _cancelTimers();
 
     if (cmd.intent === "dismiss") {
         _dismissFairy();
@@ -279,12 +279,16 @@ function playCue(cueId, context) {
 /**
  * Cancel any in-progress cue. Hides fairy immediately.
  */
-function cancelCue() {
+function _cancelTimers() {
     for (var i = 0; i < _cueTimerIds.length; i++) {
         clearTimeout(_cueTimerIds[i]);
     }
     _cueTimerIds = [];
     _activeCue = null;
+}
+
+function cancelCue() {
+    _cancelTimers();
 
     // Kill laser if active
     _destroyLaser();

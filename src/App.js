@@ -286,6 +286,7 @@ export default function App() {
   var royalQuestRef = useRef(royalQuest);
   var gameStarted = useRef(false);
   var lastReadyDayRef = useRef(0);
+  var toastsQueuedRef = useRef(false);
 
   // --- Fairy Anim ref (Controller → Pawn → AnimInstance chain) ---
   var fairyAnimRef = useRef(null);
@@ -396,6 +397,7 @@ export default function App() {
   // --- Day Ready (toast drain → GameMode.markReady) ---
   useEffect(function() {
     if (screen !== "game") return;
+    if (!toastsQueuedRef.current) return;
     if (activeToast || toastQueue.length > 0) return;
     if (day <= 0 || day === lastReadyDayRef.current) return;
     lastReadyDayRef.current = day;
@@ -472,7 +474,7 @@ export default function App() {
     earnGold: earnGold, changeRep: changeRep,
     forgeOnSleep: forgeVM.onSleep,
     maxStam: maxStam, advanceTime: advanceTime, unlockedBP: unlockedBP, setUnlockedBP: setUnlockedBP, reputation: reputation,
-    level: level
+    level: level, toastsQueuedRef: toastsQueuedRef
   });
   var waitHour = dayVM.waitHour, buildDayQueue = dayVM.buildDayQueue, sleep = dayVM.sleep;
   var scavenge = dayVM.scavenge, promote = dayVM.promote;
@@ -484,14 +486,15 @@ export default function App() {
     gameStarted.current = true;
     var state = { gold: STARTING_GOLD, inv: { bronze: 10, iron: 4, steel: 0, damascus: 0, titanium: 0, iridium: 0, tungsten: 0, mithril: 0, orichalcum: 0 }, finished: [], hasSoldWeapon: false, lastSleepHour: 0, stamina: BASE_STAMINA, unlockedBP: ["dagger", "shortsword", "axe"], reputation: 4 };
     setActiveToast(null); sfx.setMode("idle");
+    setToastQueue(buildDayQueue(1, state, 0));
+    toastsQueuedRef.current = true;
     gm.startDay(1);
-    setTimeout(function() { setToastQueue(buildDayQueue(1, state, 0)); }, 300);
   }, [screen]);
   useEffect(function() { return function() { sfx.setMode("off"); }; }, []);
 
   // --- Reset ---
   function resetGame() {
-    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame(); FairyController.reset(); FairyPawn.cancelCue();
+    sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame(); FairyController.reset(); FairyPawn.cancelCue(); toastsQueuedRef.current = false; lastReadyDayRef.current = 0;
     setScreen("splash");
   }
 
