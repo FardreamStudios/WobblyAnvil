@@ -195,6 +195,16 @@ function cancel() {
 }
 
 /**
+ * Rewind one step so the current (interrupted) step replays
+ * after the next cue_complete. Used by tutorial tap warning.
+ */
+function rewindStep() {
+    if (!_activeSeq || _stepIndex < 0) return;
+    _stepIndex--;
+    _waiting = false;
+}
+
+/**
  * Full teardown.
  */
 function destroy() {
@@ -324,14 +334,16 @@ var FairyTutorial = {
     destroy:  destroy,
 
     // Control
-    start:    start,
-    cancel:   cancel,
-    onEvent:  onEvent,
+    start:      start,
+    cancel:     cancel,
+    onEvent:    onEvent,
+    rewindStep: rewindStep,
 
     // Query
     isRunning:         isRunning,
     getActiveSequence: getActiveSequence,
     isFlagSet:         function(key) { return !!_flagMemory[key]; },
+    setFlag:           function(key, value) { _flagMemory[key] = value; },
 
     // Data (for controller to read doneKey on skip)
     SEQUENCES: SEQUENCES,

@@ -151,8 +151,8 @@ var MysteryShadowAbility = {
         var getState = ctx.getState;
         var fired = false;
 
-        // Foreshadow toast
-        bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+        // Foreshadow — event banner, not toast (avoids interrupting morning toast queue)
+        bus.emit(EVENT_TAGS.DAY_MORNING_EVENT_DISPLAY, {
             msg: "SOMETHING STIRS\nA cold draft chills the forge...",
             icon: "\uD83C\uDF19",
             color: "#8a7a64",

@@ -107,7 +107,6 @@ var ShopModal = GamePanels.ShopModal;
 var GameOverScreen = GamePanels.GameOverScreen;
 
 // --- Destructure Screens ---
-var SplashScreen = Screens.SplashScreen;
 var MainMenu = Screens.MainMenu;
 
 // --- Destructure Rhythm QTE ---
@@ -138,6 +137,7 @@ export default function App() {
 
   // --- State Hooks ---
   var ui = useUIState();
+  var [audioReady, setAudioReady] = useState(false);
   var economy = useEconomyState();
   var dayState = useDayState();
   var player = usePlayerState();
@@ -495,7 +495,7 @@ export default function App() {
   // --- Reset ---
   function resetGame() {
     sfx.setMode("off"); gameStarted.current = false; forgeVM.resetForgeState(); gm.newGame(); FairyController.reset(); FairyPawn.cancelCue(); toastsQueuedRef.current = false; lastReadyDayRef.current = 0;
-    setScreen("splash");
+    setScreen("menu"); setAudioReady(false);
   }
 
   // --- Derived Display Values ---
@@ -516,8 +516,7 @@ export default function App() {
   }
 
   if (gameOver) return <ScaleWrapper key="sw"><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} leaderboardEntries={leaderboard.entries} copied={leaderboard.copied} runStats={GameplayAnalyticsSubSystem.getStats()} onCopyScore={function(name) { leaderboard.copyScore(name, { day: day, gold: gold, totalGoldEarned: totalGoldEarned, reputation: reputation, level: level }, GameplayAnalyticsSubSystem.getStats()); }} /></ScaleWrapper>;
-  if (screen === "splash") return <ScaleWrapper key="sw"><SplashScreen onEnter={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setScreen("menu"); }} /></ScaleWrapper>;
-  if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
+  if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu audioReady={audioReady} onAudioWarmup={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setAudioReady(true); }} onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 
   // ============================================================
   // MOBILE RENDER BRANCH
@@ -775,7 +774,7 @@ export default function App() {
               </div>
             </div>
           </div>)}
-          <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onChoiceSelect={FairyPawn.onChoiceSelect} />
+          <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} />
           <DevBanner />
         </>
     );
@@ -824,7 +823,7 @@ export default function App() {
             fairyEnabled={fairyEnabled}
             onFairyToggle={function(val) { setFairyEnabled(val); FairyController.setEnabled(val); }}
         />
-        <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onChoiceSelect={FairyPawn.onChoiceSelect} />
+        <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} />
       </>
   );
 }

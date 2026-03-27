@@ -38,6 +38,9 @@
 - [x] **Speech bubble rewrite** — `FairyAnimInstance.js` SpeechBubble + ChoiceBubble fully reworked. Removed flipBelow logic (no more below-fairy placement). Bubble anchors to sprite top edge, extends toward screen center based on fairy X position (left/center/right zones). Viewport edge clamping with tail tracking. `width: max-content` fix for overflow-hidden parent. Removed laser dodge (by-design: fairy offset from target, no overlap). Tail always points toward fairy. Both bubbles share same positioning logic.
 - [x] **Fairy position mirroring** — `fairyPositions.js` `resolveUITarget()` now auto-mirrors X offset when element is on right half of viewport (handedness support). Rep bar offset tuned to `{ x: 80, y: 160 }`.
 - [x] **Button tutorial text update** — Sleep button text rewritten with more personality. Timings shifted +1000ms across tut_buttons cue.
+- [x] **Mystery toast bug** — `mysteryVisitorAbility.js` + `mysteryShadowAbility.js` foreshadow `UI_ADD_TOAST` replaced with `DAY_MORNING_EVENT_DISPLAY` emit (event bar, not toast).
+- [x] **Merge splash + menu screens** — `SplashScreen` deleted. `MainMenu` gains `audioReady` + `onAudioWarmup` props. `useUIState` default `"splash"` → `"menu"`. One component, one visual.
+- [x] **Tutorial tap behavior** — `tutorialMode` flag on AnimInstance. First tap: cancel/stash/replay warning. Second tap: skip section, dismiss at current pos, continue to next. Pawn `showWarning` + `_dismissFairy` position fix. Controller `_persistFlag` writes runtime `_flagMemory`. Sequencer gains `setFlag()` API.
 
 ---
 
@@ -57,7 +60,6 @@
 - [ ] **Add a new QTE type** — Prove the plugin pattern works by building a fresh QTE from scratch.
 
 ### UI / Screens
-- [ ] **Merge splash + menu screens** — Currently two separate screens (`SplashScreen` → `MainMenu`). Splash exists only for first-click audio warmup. Fix: show identical menu screen both times — first render hides buttons (click anywhere triggers audio), second render shows buttons. One component, one visual. Files: `src/modules/screens.js`, `App.js` screen flow.
 - [ ] **Extract SpeechBubble into reusable system** — `SpeechBubble` + `ChoiceBubble` in `FairyAnimInstance.js` are big and reusable. Extract into `src/systems/speechBubble/` as a standalone component/plugin usable by any character or NPC system. Tail direction, screen-center extension, viewport clamping, scale-aware anchoring all portable.
 
 ### DES-3 — Fairy Helper System (Three-Layer Build)
@@ -66,9 +68,8 @@ See `FairyFeatureSpecs.md` for full architecture and milestone details. Core thr
 - [x] **M-11: Laser FX** — Beam from fairy to target UI element via cue step.
 - [x] **M-12: Persistence + toggle** — localStorage for taught topics. On/off toggle in options menu.
 - [x] **M-15: Fairy Tutorial** — Step sequencer (`fairyTutorial.js`), opt-in gate, per-segment architecture, DAY_READY timing, tap-to-skip, `devSkipPersist`. First segment `tut_rep` (laser at rep bar). Needs end-to-end testing.
-- [ ] **M-15 testing** — Intro flow working (toasts drain → 3s → fairy rises → prompt → yes/no with audio). tut_rep fires after "show me" — poof FX visible near rep bar but fairy sprite/dialogue not rendering (likely position/scale issue with `_resolveTargetPos` or offset tuning). Debug logs stripped from fairyPawn.js. fairyTutorial.js still has `console.log` on `start()` call. `devSkipPersist: true` still set in App.js controller init — remove when done testing. Day 2+ fairy firing needs verification (useDayVM toastsQueuedRef fix deployed but untested).
+- [ ] **M-15 testing** — Intro flow working. tut_rep and tut_buttons both fire and complete. Tutorial tap warning + skip working (cancel/stash/replay pattern). Dismiss poof at correct position. `devSkipPersist: true` still set in App.js controller init — remove when done testing. Day 2+ fairy firing needs verification (useDayVM toastsQueuedRef fix deployed but untested). Debug logs: fairyTutorial.js still has `console.log` on `start()` call.
 - [ ] **Tutorial lockout mode** — Controller emits `UI_SET_LOCK` on bus when tutorial starts, `UI_SET_LOCK {locked: false}` on complete/skip. Reuses existing lock mechanism (mystery events already use it). Files: `fairyController.js` — emit in `_onTutorialComplete` intro_complete→show me path, and in `_checkPendingSegments` before starting segments. Clear on `_skipTutorialSegment` and `segment_complete`.
-- [ ] **Tutorial tap behavior** — Poking fairy during tutorial triggers full irritation/dodge. Fix: AnimInstance needs `tutorialMode` flag (ref API `setTutorialMode(bool)`) — makes `handleFairyTap` emit `tutorial_tap` to pawn instead of running irritation. Controller handles: first tap → pause cue, show warning, resume after read time. Second tap → skip segment. Tap count resets per segment. Files: `FairyAnimInstance.js`, `fairyController.js`, `fairyPawn.js`.
 - [ ] **Fairy forge tutorial (tut_forge)** — Fairy simulates a forge session during tutorial. Waves laser at QTE bar, bar flashes/freezes, fairy explains each phase. Requires QTE pause contract (DES-3 QTE Pause). New cue in `fairyCues.js`, new sequence in `fairyTutorial.js`. Blocked by: QTE pause/resume, tutorial lockout.
 - [ ] **M-13: Special cues** — `super_saiyan`, `chase_event`, `running_head`, `fairy_insight`. Day-gated. LOW PRIORITY.
 - [ ] **M-14: Gibberish speech audio** — Procedural via Web Audio, synced to speech bubbles. Can defer.
@@ -90,7 +91,6 @@ See `FairyFeatureSpecs.md` for full architecture and milestone details. Core thr
 - [ ] **Audit progression system** — Review XP curve, rank thresholds, upgrade costs, difficulty scaling.
 
 ### Cleanup
-- [ ] **Mystery toast bug** — `mysteryVisitorAbility.js` + `mysteryShadowAbility.js` foreshadow `UI_ADD_TOAST` emits interrupt morning toast queue. Fix: replace foreshadow toasts with `DAY_MORNING_EVENT_DISPLAY` emit (event bar, not toast). Two find/replace edits.
 - [ ] **Improve day-start and toast management** — Toast queue is currently React state in App.js with no bus integration. Day-start toasts built by useDayVM, drained by App.js useEffect. Needs a proper toast subsystem (pure JS singleton, bus-driven) so GameMode and other systems can queue/drain toasts without React wiring. `DAY_READY` currently bridges via App.js — should be self-contained.
 - [ ] **Audit App.js responsibilities** — App.js still owns toast plumbing, customer display wiring, and some state that should live in subsystems. Target: ~100 lines of pure wiring (instantiate systems, connect, render). Identify what can be extracted into pure JS singletons or moved into existing hooks/VMs.
 - [ ] **Verify UX multi-function buttons** — Stamina-use buttons should call wait/rest inline.

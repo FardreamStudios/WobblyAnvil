@@ -95,8 +95,8 @@ var MysteryVisitorAbility = {
         var endSelf = ctx.endSelf;
         var fired = false;
 
-        // Foreshadow toast
-        bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+        // Foreshadow — event banner, not toast (avoids interrupting morning toast queue)
+        bus.emit(EVENT_TAGS.DAY_MORNING_EVENT_DISPLAY, {
             msg: "SOMETHING STIRS\nA warm light flickers at the edge of your vision...",
             icon: "\u2728",
             color: "#fbbf24",

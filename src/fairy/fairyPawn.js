@@ -27,7 +27,7 @@
 //
 // FEEDBACK:
 //   onPawnEvent(type, data) — callback to controller
-//   Types: "cue_complete", "tap_exit", "tap_dodge", "prompt_response"
+//   Types: "cue_complete", "tap_exit", "tap_dodge", "prompt_response", "tutorial_tap"
 //
 // PORTABLE: Pure JS. No React imports.
 // ============================================================
@@ -79,6 +79,9 @@ var _currentScene = DEFAULT_SCENE;
 // Cue playback state
 var _activeCue = null;           // { id, steps, timerIds }
 var _cueTimerIds = [];           // setTimeout ids for cleanup
+var _lastCueId = null;           // stashed cue id for replay after warning
+var _lastCueContext = null;      // stashed context for replay after warning
+var _warningTimerId = null;      // setTimeout id for warning auto-complete
 
 // General-purpose timers (non-cue scheduling)
 var _timerIds = [];
@@ -154,8 +157,22 @@ function handleCommand(cmd) {
     if (_PAWN_DEBUG) console.log("[PAWN] handleCommand", cmd.intent, cmd.cue, "target:", cmd.target);
     if (!_initialized || !_animRef) return;
 
+    // Lightweight intents that don't need cue teardown
+    if (cmd.intent === "set_tutorial_mode") {
+        if (_animRef && _animRef.current && _animRef.current.setTutorialMode) {
+            _animRef.current.setTutorialMode(cmd.value);
+        }
+        return;
+    }
+
+    if (cmd.intent === "show_warning") {
+        showWarning(cmd.line);
+        return;
+    }
+
     // Cancel timers but keep fairy visible for cue chaining
     // Full hide only on explicit dismiss
+    // Laser cleanup handled by cancelCue / dismiss paths
     _cancelTimers();
 
     if (cmd.intent === "dismiss") {
@@ -243,6 +260,10 @@ function playCue(cueId, context) {
         return;
     }
 
+    // Stash for potential replay after warning interrupt
+    _lastCueId = cueId;
+    _lastCueContext = context || null;
+
     // Deep-copy steps so we can mutate during resolution
     var steps = _copySteps(cueDef.steps);
     var layer = cueDef.layer;
@@ -298,6 +319,9 @@ function _cancelTimers() {
 
 function cancelCue() {
     _cancelTimers();
+
+    // Kill warning replay timer if active
+    if (_warningTimerId) { clearTimeout(_warningTimerId); _warningTimerId = null; }
 
     // Kill laser if active
     _destroyLaser();
@@ -899,9 +923,12 @@ function _destroyLaser() {
 // ============================================================
 
 function _dismissFairy() {
+    // Stash position before cancelCue clears it
+    var pos = _currentPos || { x: 50, y: 50, scale: 1.0 };
     cancelCue();
     if (_animRef && _animRef.current) {
-        var pos = _currentPos || { x: 50, y: 50, scale: 1.0 };
+        // Re-set pos so beginExit has something to work with
+        _animRef.current.setPos(pos);
         _animRef.current.beginExit(pos.x, pos.y, pos.scale, function() {
             if (_onPawnEvent) _onPawnEvent("dismissed", {});
         });
@@ -1021,6 +1048,57 @@ function onTapDodge(x, y, tier) {
 }
 
 /**
+ * Player tapped fairy during tutorial mode.
+ * AnimInstance skipped irritation — just forward to controller.
+ */
+function onTutorialTap() {
+    if (_onPawnEvent) _onPawnEvent("tutorial_tap", {});
+}
+
+/**
+ * Tutorial tap warning — cancel current cue cleanly, show warning text
+ * in place, then replay the interrupted cue from scratch when done.
+ * Sequencer stays in _waiting state the whole time — it never knows
+ * anything happened. The replayed cue fires cue_complete naturally.
+ */
+function showWarning(line) {
+    // Clear any previous warning timer
+    if (_warningTimerId) { clearTimeout(_warningTimerId); _warningTimerId = null; }
+
+    // --- CANCEL: kill timers, laser, speech — fairy stays visible at current pos ---
+    for (var i = 0; i < _cueTimerIds.length; i++) {
+        clearTimeout(_cueTimerIds[i]);
+    }
+    _cueTimerIds = [];
+    _activeCue = null;
+    _destroyLaser();
+
+    if (_animRef && _animRef.current) {
+        _animRef.current.hideSpeech();
+    }
+
+    // --- UPDATE: show warning text on the fairy that's already there ---
+    if (_animRef && _animRef.current) {
+        _animRef.current.showSpeech(line);
+    }
+
+    // --- DO: when warning is done, replay the stashed cue from scratch ---
+    var replayCueId = _lastCueId;
+    var replayContext = _lastCueContext;
+    var readMs = Math.max(2500, line.length * 55);
+
+    _warningTimerId = setTimeout(function() {
+        _warningTimerId = null;
+        if (_animRef && _animRef.current) _animRef.current.hideSpeech();
+
+        // Replay interrupted cue — poof in fresh, laser, speech, the works
+        if (replayCueId) {
+            playCue(replayCueId, replayContext);
+        }
+    }, readMs);
+}
+
+/**
  * Player tapped a choice option. AnimInstance already cleared the bubble.
  * Forward the answer upward, then complete the waitForInput cue.
  */
@@ -1135,6 +1213,8 @@ var FairyPawn = {
     // Feedback handlers (passed as props to AnimInstance)
     onTapExit: onTapExit,
     onTapDodge: onTapDodge,
+    onTutorialTap: onTutorialTap,
+    showWarning: showWarning,
     onChoiceSelect: onChoiceSelect,
 
     // Query

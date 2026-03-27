@@ -14,6 +14,7 @@
 //   setTappable(bool)    — enable/disable tap interaction
 //   setAnim(name)        — switch sprite anim state (future)
 //   resetIrritation()    — reset tap tier to 0
+//   setTutorialMode(bool) — when true, taps route to onTutorialTap instead of irritation
 //   getState()           — {pos, tappable, irritation}
 //   playPop()            — poof sound
 //   playTapPop()         — lighter tap sound
@@ -27,6 +28,7 @@
 //   onTapDodge(x,y,tier) — fired when dodge starts (tier 2-3)
 //   getDodgeSpot(cx,cy)  — pawn provides dodge destination
 //   onChoiceSelect(answer) — fired when player taps a choice option
+//   onTutorialTap()      — fired when player taps fairy during tutorial mode
 //
 // POSITIONING: Outer div uses left/top in % + transform.
 // Pawn controls transformOrigin per layer:
@@ -651,6 +653,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
     var irritationRef = useRef(0);       // 0-4 tier
     var lastTapRef = useRef(0);          // timestamp for cooldown
     var ignoreTapsRef = useRef(false);   // true at max irritation
+    var tutorialModeRef = useRef(false); // true during tutorial — taps route to onTutorialTap
 
     // --- Safe timeout that auto-cleans on unmount ---
     var schedule = useCallback(function(fn, ms) {
@@ -795,6 +798,12 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
         lastTapRef.current = now;
         playTapPop();
 
+        // Tutorial mode — skip irritation/dodge, notify pawn
+        if (tutorialModeRef.current) {
+            if (props.onTutorialTap) props.onTutorialTap();
+            return;
+        }
+
         var tier = irritationRef.current;
         var currentPos = pos;
         if (!currentPos) return;
@@ -889,6 +898,9 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             resetIrritation: function() {
                 irritationRef.current = 0;
                 ignoreTapsRef.current = false;
+            },
+            setTutorialMode: function(val) {
+                tutorialModeRef.current = !!val;
             },
             getState: function() {
                 return {

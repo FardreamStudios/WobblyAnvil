@@ -12,7 +12,7 @@ import EVENT_TAGS from "../config/eventTags.js";
 
 function useUIState() {
     // --- Screen & Navigation ---
-    var [screen, setScreen] = useState("splash");
+    var [screen, setScreen] = useState("menu");
     var [showShop, setShowShop] = useState(false);
     var [showMaterials, setShowMaterials] = useState(false);
     var [showGiveUp, setShowGiveUp] = useState(false);

@@ -121,6 +121,7 @@ var _tickTimer = null;           // setInterval id for ambient checks
 var _currentTier = null;         // cached DAY_TIERS entry
 var _appearancesToday = 0;       // daily appearance counter
 var _devSkipPersist = false;     // skip localStorage writes (testing)
+var _tutorialTapCount = 0;       // taps during current tutorial segment (resets per segment)
 
 // Cooldown tracking: { triggerId: lastFiredTimestamp }
 var _cooldowns = {};
@@ -201,6 +202,8 @@ function _isFlagSet(key) {
 }
 
 function _persistFlag(key, value) {
+    // Always write to runtime memory (survives devSkipPersist, checked by _isFlagSet)
+    FairyTutorial.setFlag(key, value);
     if (_devSkipPersist) {
         console.log("[FairyController] DEV: skipped persist for " + key);
         return;
@@ -821,7 +824,9 @@ function _onTutorialComplete(result, stored) {
         if (answer === "show me") {
             // Player opted in — persist and start first segment
             _persistFlag(LS_KEY_TUTORIAL_ON, "true");
+            _tutorialTapCount = 0;
             setTimeout(function() {
+                if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
                 FairyTutorial.start("tut_rep");
             }, 500);
         } else {
@@ -834,7 +839,8 @@ function _onTutorialComplete(result, stored) {
     }
 
     if (result === "segment_complete") {
-        // Segment done — check for next pending segment
+        // Segment done — clear tutorial mode, check for next pending segment
+        if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
         _setState(STATES.IDLE);
         _checkPendingSegments();
         return;
@@ -851,15 +857,19 @@ function _onTutorialComplete(result, stored) {
 function _checkPendingSegments() {
     // Check each segment in order. Run first one not done.
     if (!_isFlagSet("wa_tut_rep_done")) {
+        _tutorialTapCount = 0;
         _setState(STATES.POINTING);
         setTimeout(function() {
+            if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
             FairyTutorial.start("tut_rep");
         }, 1500);
         return;
     }
     if (!_isFlagSet("wa_tut_buttons_done")) {
+        _tutorialTapCount = 0;
         _setState(STATES.POINTING);
         setTimeout(function() {
+            if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
             FairyTutorial.start("tut_buttons");
         }, 1500);
         return;
@@ -869,26 +879,37 @@ function _checkPendingSegments() {
     // if (!_isFlagSet("wa_tut_customer_done")) { ... }
 
     // All segments complete — enter reactive mode
+    if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
 }
 
 /**
- * Skip current tutorial segment (tap-to-skip).
- * Marks segment done via doneKey, sets tap-warn flag, enters idle.
+ * Player tapped twice — end current section, mark it done, continue to next.
+ * Dismisses fairy cleanly at her current position.
  */
 function _skipTutorialSegment() {
     var seqId = FairyTutorial.getActiveSequence();
     var seq = seqId ? FairyTutorial.SEQUENCES[seqId] : null;
     FairyTutorial.cancel();
 
-    // Mark segment done (skipped)
+    // Clear tutorial mode on AnimInstance
+    if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
+
+    // Mark this segment done (skipped)
     if (seq && seq.doneKey) {
         _persistFlag(seq.doneKey, "true");
     }
 
-    // Set tap-warn flag — player now knows tapping skips tutorials
+    // Set tap-warn flag — player now knows tapping skips
     _persistFlag(LS_KEY_TAP_WARN_DONE, "true");
 
+    // Dismiss fairy at current position (poof out where she is)
+    if (_onCommand) _onCommand({ intent: "dismiss" });
+
+    // After a beat, check for next section
     _setState(STATES.IDLE);
+    setTimeout(function() {
+        _checkPendingSegments();
+    }, 2000);
 }
 
 /**
@@ -898,12 +919,29 @@ function _skipTutorialSegment() {
 function onPawnEvent(type, data) {
     // Tutorial gets first crack when it's running
     if (FairyTutorial.isRunning()) {
-        // Tap exit during tutorial = skip segment
+        // Tutorial tap — first: interrupt + warning cue, second: skip
+        if (type === "tutorial_tap") {
+            _tutorialTapCount++;
+            if (_tutorialTapCount >= 2) {
+                // Second tap — done, skip segment, poof out
+                _skipTutorialSegment();
+            } else {
+                // First tap — pawn handles: cancel cue, show warning, replay when done
+                if (_onCommand) {
+                    _onCommand({ intent: "show_warning", line: "hey! tap again to skip this, or wait and i'll finish!" });
+                }
+            }
+            return;
+        }
+        // Legacy tap_exit during tutorial (shouldn't fire with tutorialMode, but safety)
         if (type === "tap_exit") {
             _skipTutorialSegment();
             return;
         }
         // Other events route to tutorial normally
+        if (type === "cue_complete") {
+            _tutorialTapCount = 0;  // Reset after warning cue or any cue finishes
+        }
         FairyTutorial.onEvent(type, data);
         return;
     }
