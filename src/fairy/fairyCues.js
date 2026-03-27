@@ -404,6 +404,31 @@ var INTRO_RESPOND_NO = {
 };
 
 // ============================================================
+// TUT REP LASER
+// Tutorial: fairy points laser at reputation bar, explains it.
+// Poof near rep target, laser on, speak, laser off, exit.
+// Layer: overlay (pointing at UI element).
+// ============================================================
+
+var TUT_REP_LASER = {
+    id: "tut_rep_laser",
+    description: "Tutorial — laser at rep bar, explain reputation and decrees",
+    layer: "overlay",
+    steps: [
+        { at: 0,    cmd: "poof_in",      target: null, duration: 250 },
+        { at: 350,  cmd: "set_anim",     anim: "point" },
+        { at: 400,  cmd: "laser_on",     target: null },
+        { at: 500,  cmd: "set_tappable", value: true },
+        { at: 800,  cmd: "speak",        text: "see that? the crown tracks every decree you fumble. forging is art, not slavery. but here we are.", duration: 6000 },
+        { at: 6900, cmd: "hide_speech" },
+        { at: 7100, cmd: "laser_off" },
+        { at: 7200, cmd: "set_anim",     anim: "idle" },
+        { at: 7300, cmd: "set_tappable", value: false },
+        { at: 7400, cmd: "poof_out",     duration: 200 },
+    ],
+};
+
+// ============================================================
 // CUE REGISTRY
 // Pawn looks up cues by id from this map.
 // ============================================================
@@ -426,6 +451,7 @@ var FAIRY_CUES = {
     intro_prompt:    INTRO_PROMPT,
     intro_respond_yes: INTRO_RESPOND_YES,
     intro_respond_no:  INTRO_RESPOND_NO,
+    tut_rep_laser:     TUT_REP_LASER,
 };
 
 // ============================================================

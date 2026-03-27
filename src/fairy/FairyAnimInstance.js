@@ -313,7 +313,7 @@ function SpeechBubble(props) {
                     textAlign: "center",
                     letterSpacing: 0.5,
                     textShadow: "0 1px 3px rgba(0,0,0,0.5)",
-                    whiteSpace: "nowrap",
+                    overflowWrap: "break-word",
                     imageRendering: "pixelated",
                 }}>
                     {props.text}

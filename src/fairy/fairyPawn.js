@@ -294,6 +294,8 @@ function _cancelTimers() {
     }
     _timerIds = [];
     _activeCue = null;
+    // State reset — previous cue's animation is dead, flag must match
+    _visible = false;
 }
 
 function cancelCue() {
@@ -354,7 +356,7 @@ function _resolveNulls(steps, context, layer) {
         if (step.duration === null && step.text) {
             step.duration = _readTimeMs(step.text);
         }
-        if (step.duration === null) {
+        if (step.duration === null || step.duration === undefined) {
             step.duration = 0;
         }
 
@@ -365,6 +367,11 @@ function _resolveNulls(steps, context, layer) {
 
         lastResolvedAt = step.at;
         lastDuration = step.duration;
+    }
+
+    if (_PAWN_DEBUG) {
+        var summary = steps.map(function(s, i) { return i + ":" + s.cmd + "@" + s.at + "(dur:" + s.duration + ")"; }).join(" | ");
+        console.log("[PAWN] _resolveNulls result: " + summary);
     }
 }
 
@@ -540,6 +547,12 @@ function _doPoof(anim, x, y, scale, tOrigin, duration) {
     if (_PAWN_DEBUG) console.log("[PAWN] _doPoof x:" + x + " y:" + y + " scale:" + scale + " tOrigin:" + tOrigin);
     var snapMs = duration || POOF_SNAP_IN_MS;
 
+    // Kill any in-flight CSS transition from a previous poof-out.
+    // Without this, the old scale-down transition fights the new poof-in.
+    anim.hide();
+    anim.setPos({ x: x, y: y, scale: 0, rot: 0, transition: 0, transformOrigin: tOrigin });
+    if (_PAWN_DEBUG) console.log("[PAWN] _doPoof RESET done — hide + setPos(scale:0, transition:0)");
+
     // FX burst
     anim.poofFX(x, y);
     anim.playPop();
@@ -552,6 +565,7 @@ function _doPoof(anim, x, y, scale, tOrigin, duration) {
             transformOrigin: tOrigin,
         });
         _scheduleTimer(function() {
+            if (_PAWN_DEBUG) console.log("[PAWN] _doPoof SCALE-UP fired — scale:" + scale + " transition:" + snapMs + "ms");
             anim.setPos({
                 x: x, y: y, scale: scale,
                 rot: 0, transition: snapMs,

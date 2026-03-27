@@ -71,7 +71,7 @@ var SEQUENCES = {
         id: "tut_rep",
         doneKey: "wa_tut_rep_done",
         steps: [
-            { type: "play_cue", cue: "speak_at_target", line: "TEST: can you see me? i'm supposed to be center screen." },
+            { type: "play_cue", cue: "tut_rep_laser", target: "rep" },
             { type: "set_flag", key: "wa_tut_rep_done", value: "true" },
             { type: "callback", result: "segment_complete" },
         ],
