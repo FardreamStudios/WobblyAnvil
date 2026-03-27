@@ -148,6 +148,7 @@ function getScene() {
  *   cue:      named cue id or null (overrides target/line)
  */
 function handleCommand(cmd) {
+    console.log("[FairyPawn] handleCommand:", cmd.intent, cmd.cue, "initialized:", _initialized, "animRef:", !!_animRef, "animRef.current:", !!(_animRef && _animRef.current));
     if (!_initialized || !_animRef) return;
 
     // Cancel anything in progress
@@ -1015,6 +1016,10 @@ function _copySteps(steps) {
 // QUERY
 // ============================================================
 
+function isReady() {
+    return _initialized && _animRef && !!_animRef.current;
+}
+
 function isVisible() {
     return _visible;
 }
@@ -1061,6 +1066,7 @@ var FairyPawn = {
     onChoiceSelect: onChoiceSelect,
 
     // Query
+    isReady: isReady,
     isVisible: isVisible,
     isBusy: isBusy,
     getActiveCue: getActiveCue,

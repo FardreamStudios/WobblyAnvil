@@ -285,6 +285,7 @@ export default function App() {
   var activeCustomerRef = useRef(activeCustomer);
   var royalQuestRef = useRef(royalQuest);
   var gameStarted = useRef(false);
+  var lastReadyDayRef = useRef(0);
 
   // --- Fairy Anim ref (Controller → Pawn → AnimInstance chain) ---
   var fairyAnimRef = useRef(null);
@@ -343,6 +344,7 @@ export default function App() {
     });
 
     FairyController.init({
+      devSkipPersist: true, // TESTING — remove when done
       bus: GameplayEventBus,
       stateProvider: function() {
         var rq = royalQuestRef.current;
@@ -390,6 +392,15 @@ export default function App() {
   function onActiveToastDone() { setActiveToast(null); }
   function addToast(msg, icon, color, duration, locked) { setToasts(function(t) { return t.concat([{ id: Date.now() + Math.random(), msg: msg, icon: icon, color: color, duration: duration || null, locked: locked || false }]); }); }
   function removeToast(id) { setToasts(function(t) { return t.filter(function(x) { return x.id !== id; }); }); }
+
+  // --- Day Ready (toast drain → GameMode.markReady) ---
+  useEffect(function() {
+    if (screen !== "game") return;
+    if (activeToast || toastQueue.length > 0) return;
+    if (day <= 0 || day === lastReadyDayRef.current) return;
+    lastReadyDayRef.current = day;
+    gm.core.markReady();
+  }, [activeToast, toastQueue, day, screen]);
 
   // --- Customer System ---
   // Customer spawning now handled by CustomerSubSystem (src/systems/customer/customerSubSystem.js).

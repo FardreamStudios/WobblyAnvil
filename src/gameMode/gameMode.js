@@ -41,7 +41,7 @@ var _initialized = false;
 
 // --- Day ---
 var _day = 0;
-var _dayPhase = "idle";             // "idle", "morning", "open", "late", "sleeping"
+var _dayPhase = "idle";             // "idle", "morning", "open", "ready", "late", "sleeping"
 
 // --- Sub-Modes ---
 var _subModes = {};                 // id → sub-mode definition
@@ -226,6 +226,20 @@ function startDay(dayNumber) {
     });
 }
 
+/**
+ * Mark day as fully ready — toasts drained, player can act.
+ * Called by the wiring layer (App.js) when day-start toast queue empties.
+ * Only transitions from "open" to prevent re-fires.
+ */
+function markReady() {
+    if (_gameOver || _dayPhase !== "open") return;
+
+    _dayPhase = "ready";
+    _bus.emit(EVENT_TAGS.DAY_READY, {
+        day: _day,
+    });
+}
+
 function triggerLate() {
     if (_gameOver || _dayPhase === "sleeping") return;
 
@@ -377,6 +391,7 @@ var GameMode = {
 
     // --- Day Lifecycle ---
     startDay:           startDay,
+    markReady:          markReady,
     triggerLate:        triggerLate,
     sleep:              sleep,
 

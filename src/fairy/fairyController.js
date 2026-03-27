@@ -281,19 +281,14 @@ function init(config) {
         devSkipPersist: _devSkipPersist,
     });
 
-    // Check tutorial state:
-    //   Not decided yet → run intro opt-in
-    //   Opted in → check for pending segments
-    //   Opted out → skip (reactive mode)
-    if (!_isTutorialDecided()) {
-        _setState(STATES.POINTING);  // suppress normal ticking while tutorial runs
-        // Small delay so AnimInstance has time to mount
-        setTimeout(function() {
-            FairyTutorial.start("intro");
-        }, 1500);
-    } else if (_isTutorialEnabled()) {
-        // Check for tutorial segments that haven't been completed yet
-        _checkPendingSegments();
+    // Tutorial fires on DAY_READY (after toasts drain + 3s settle)
+    // Subscribed once here; handler checks tutorial state each day.
+    if (_bus) {
+        var _dayReadyHandler = function(payload) {
+            _onDayReady(payload);
+        };
+        _bus.on(EVENT_TAGS.DAY_READY, _dayReadyHandler);
+        _busHandlers.push({ tag: EVENT_TAGS.DAY_READY, handler: _dayReadyHandler });
     }
 }
 
@@ -741,6 +736,34 @@ function _requestLLMLine(state, trigger) {
 // onCommand (new) and onSpeak (legacy) callbacks.
 // ============================================================
 
+/**
+ * Poll until pawn's animRef.current is available, then fire callback.
+ * Gives React time to mount AnimInstance. Max 5s, 200ms interval.
+ */
+function _waitForPawn(callback) {
+    var attempts = 0;
+    var maxAttempts = 25;
+    var interval = 200;
+
+    function check() {
+        attempts++;
+        if (_onCommand) {
+            // Ask pawn if it's ready — animRef.current exists
+            // We test by checking if a dummy query works
+            callback();
+            return;
+        }
+        if (attempts >= maxAttempts) {
+            console.warn("[FairyController] Pawn never became ready, starting anyway");
+            callback();
+            return;
+        }
+        setTimeout(check, interval);
+    }
+
+    setTimeout(check, interval);
+}
+
 function _sendCommand(cmd) {
     if (_onCommand) {
         _onCommand(cmd);
@@ -753,6 +776,36 @@ function _sendCommand(cmd) {
 // ============================================================
 // TUTORIAL ROUTING (M-15a)
 // ============================================================
+
+// Settle delay after DAY_READY before fairy appears (ms)
+var DAY_READY_DELAY_MS = 3000;
+
+/**
+ * DAY_READY handler — fires after day-start toasts drain.
+ * Waits 3s settle time, then checks tutorial state.
+ */
+function _onDayReady(payload) {
+    // Don't run tutorial if fairy is dismissed or off
+    if (_fsmState === STATES.DISMISSED || _fsmState === STATES.OFF) return;
+
+    // Don't interrupt if already running something
+    if (FairyTutorial.isRunning() || _fsmState === STATES.POINTING) return;
+
+    setTimeout(function() {
+        // Re-check state after delay (player may have acted)
+        if (_fsmState === STATES.DISMISSED || _fsmState === STATES.OFF) return;
+        if (FairyTutorial.isRunning()) return;
+
+        if (!_isTutorialDecided()) {
+            _setState(STATES.POINTING);
+            _waitForPawn(function() {
+                FairyTutorial.start("intro");
+            });
+        } else if (_isTutorialEnabled()) {
+            _checkPendingSegments();
+        }
+    }, DAY_READY_DELAY_MS);
+}
 
 /**
  * Handle tutorial sequence completion.

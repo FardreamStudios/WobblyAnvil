@@ -66,6 +66,7 @@ var EVENT_TAGS = {
     DAY_CYCLE_START:        "event.day.cycle.start",
     DAY_MORNING_START:      "event.day.morning.start",
     DAY_SHOP_OPEN:          "event.day.shop.open",
+    DAY_READY:              "event.day.ready",
     DAY_LATE_START:         "event.day.late.start",
     DAY_SLEEP_START:        "event.day.sleep.start",
     DAY_CYCLE_END:          "event.day.cycle.end",

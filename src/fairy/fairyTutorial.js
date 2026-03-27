@@ -121,6 +121,7 @@ function init(config) {
  * @param {string} seqId — key in SEQUENCES
  */
 function start(seqId) {
+    console.log("[FairyTutorial] start called:", seqId);
     var seq = SEQUENCES[seqId];
     if (!seq) {
         console.warn("[FairyTutorial] Unknown sequence: " + seqId);
