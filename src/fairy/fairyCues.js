@@ -342,7 +342,7 @@ var INTRO_RISE = {
     layer: "overlay",
     steps: [
         { at: 0,    cmd: "poof_in",      peek: "talk_close", scale: 2.5, duration: 800 },
-        { at: 1000, cmd: "speak",        text: "psst. hey. down here.", duration: 2500 },
+        { at: 1000, cmd: "speak",        text: "psst. hey. over here.", duration: 2500 },
         { at: 3600, cmd: "hide_speech" },
         { at: 3800, cmd: "speak",        text: "i live in your forge now. don't ask.", duration: 3000 },
         { at: 6900, cmd: "hide_speech" },
@@ -433,14 +433,13 @@ var TUT_BUTTONS = {
     description: "Tutorial — sweep all idle action buttons with laser + speech",
     layer: "overlay",
     steps: [
-        // Poof in at a neutral spot above the action area
-        // x:65 y:55 keeps fairy right-of-center, above buttons on both layouts
-        { at: 0,     cmd: "poof_in",      x: 65, y: 55, scale: 0.9, duration: 250 },
+        // Poof in opposite the button area — pawn mirrors across viewport center
+        { at: 0,     cmd: "poof_in",      oppose: "btn_area", duration: 250 },
         { at: 350,   cmd: "set_tappable", value: true },
 
         // --- Sleep ---
         { at: 500,   cmd: "laser_on",     target: "btn_sleep" },
-        { at: 1250,  cmd: "speak",        text: "that's your bed. use it. even divine beings need to stop eventually.", duration: 4000 },
+        { at: 1250,  cmd: "speak",        text: "that's your bed. end the day when you're out of moves.", duration: 4000 },
         { at: 5350,  cmd: "hide_speech" },
         { at: 5500,  cmd: "laser_off" },
 
@@ -458,13 +457,13 @@ var TUT_BUTTONS = {
 
         // --- Shop ---
         { at: 16900, cmd: "laser_on",     target: "btn_shop" },
-        { at: 17650, cmd: "speak",        text: "the shop. buy materials, upgrade your tools. spend wisely — gold doesn't grow on anvils.", duration: 4500 },
+        { at: 17650, cmd: "speak",        text: "the shop. materials, upgrades, the works. spend wisely — gold doesn't grow on anvils.", duration: 4500 },
         { at: 22250, cmd: "hide_speech" },
         { at: 22400, cmd: "laser_off" },
 
         // --- Mats ---
         { at: 22700, cmd: "laser_on",     target: "btn_mats" },
-        { at: 23450, cmd: "speak",        text: "your stockpile. check what you've got before you commit to anything ambitious.", duration: 4000 },
+        { at: 23450, cmd: "speak",        text: "your stockpile. always check what you've got before committing to something ambitious.", duration: 4000 },
         { at: 27550, cmd: "hide_speech" },
         { at: 27700, cmd: "laser_off" },
 

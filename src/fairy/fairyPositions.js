@@ -142,6 +142,7 @@ var UI_TARGETS = [
     { id: "rep",        selector: '[data-fairy-target="rep"]',        offset: { x: 40,  y: 120 } },
     { id: "forge_info", selector: '[data-fairy-target="forge_info"]', offset: { x: 20,  y: 0 } },
     { id: "scene",      selector: '[data-fairy-target="scene"]',      offset: { x: 0,   y: 0 } },
+    { id: "btn_area",   selector: '[data-fairy-target="btn_area"]',   offset: { x: 0,   y: -120 } },
     { id: "btn_sleep",    selector: '[data-fairy-target="btn_sleep"]',    offset: { x: -30, y: 0 } },
     { id: "btn_rest",     selector: '[data-fairy-target="btn_rest"]',     offset: { x: -30, y: 0 } },
     { id: "btn_scavenge", selector: '[data-fairy-target="btn_scavenge"]', offset: { x: -30, y: 0 } },

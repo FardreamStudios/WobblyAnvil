@@ -511,6 +511,31 @@ function _executePoof(step) {
         return;
     }
 
+    // --- Oppose: poof on opposite side of viewport from a target ---
+    // Resolves target's raw DOM position, places fairy offset toward
+    // the opposite half of screen — not a full mirror, just enough clearance.
+    if (step.oppose) {
+        var oppTarget = FairyPositions.resolveUITargetRaw(step.oppose);
+        if (oppTarget) {
+            var vw = window.innerWidth;
+            var vh = window.innerHeight;
+            var targetXPct = (oppTarget.x / vw) * 100;
+            var targetYPct = (oppTarget.y / vh) * 100;
+            // Shift 25% away from target toward opposite side
+            var oppX;
+            if (targetXPct > 50) {
+                oppX = Math.max(30, targetXPct - 25);
+            } else {
+                oppX = Math.min(70, targetXPct + 25);
+            }
+            // Y: vertically centered, nudged up slightly
+            var oppY = targetYPct < 50 ? 55 : 45;
+            var oppScale = step.scale || 0.9;
+            _doPoof(anim, oppX, oppY, oppScale, "50% 50%", step.duration);
+            return;
+        }
+    }
+
     // --- UI target (overlay) ---
     if (step.target) {
         pos = _resolveTargetPos(step.target);

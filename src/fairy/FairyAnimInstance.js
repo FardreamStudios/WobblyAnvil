@@ -78,10 +78,10 @@ var BUBBLE_EDGE_THRESHOLD = 20;   // fairy x% where edge shift kicks in
 var BUBBLE_EDGE_SHIFT = 15;       // vw shift toward center at edges
 var BUBBLE_LASER_DODGE = 20;      // vw shift away from laser target x
 var BUBBLE_MAX_W_VW = 42;         // max bubble width in vw (matches CSS)
-var BUBBLE_LINE_H_VW = 2.2;       // estimated line height in vw
-var BUBBLE_PAD_VW = 2.5;          // vertical padding + border in vw
-var BUBBLE_CHARS_PER_LINE = 28;   // rough chars per line at max width
-var BUBBLE_SAFE_MARGIN = 3;       // % margin from viewport edge
+var BUBBLE_LINE_H_VW = 2.4;       // estimated line height in vw
+var BUBBLE_PAD_VW = 3.5;          // vertical padding + border + tail in vw
+var BUBBLE_CHARS_PER_LINE = 22;   // rough chars per line at max width
+var BUBBLE_SAFE_MARGIN = 5;       // % margin from viewport edge
 
 // ============================================================
 // Tap Interaction Config
@@ -293,18 +293,20 @@ function SpeechBubble(props) {
     var offsetY = BUBBLE_OFFSET_Y * fairyScale;
     var belowOffset = 6 * fairyScale;
 
-    // --- Estimate bubble height in vh ---
-    // Rough: count lines from text length, multiply by line height, add padding
+    // --- Estimate bubble height as % of viewport height ---
+    // Text lines × line height + padding, all in vw, then convert to vh%
     var textLen = props.text ? props.text.length : 0;
     var estLines = Math.max(1, Math.ceil(textLen / BUBBLE_CHARS_PER_LINE));
     var estHeightVw = estLines * BUBBLE_LINE_H_VW + BUBBLE_PAD_VW;
-    // Convert vw to approximate vh (assume roughly square viewport on mobile, wider on desktop)
-    var estHeightVh = estHeightVw * (window.innerWidth / window.innerHeight);
+    // Convert vw to px, then to % of viewport height
+    var estHeightPx = estHeightVw * window.innerWidth / 100;
+    var estHeightPct = (estHeightPx / window.innerHeight) * 100;
 
     // --- Vertical placement: pick side with most room ---
-    var spaceAbove = props.y - BUBBLE_SAFE_MARGIN;   // % available above fairy
-    var spaceBelow = (100 - BUBBLE_SAFE_MARGIN) - props.y; // % available below fairy
-    var flipBelow = spaceAbove < estHeightVh && spaceBelow > spaceAbove;
+    var spaceAbove = props.y - BUBBLE_SAFE_MARGIN;
+    var spaceBelow = (100 - BUBBLE_SAFE_MARGIN) - props.y;
+    // Flip below if bubble would clip top AND there's more room below
+    var flipBelow = spaceAbove < estHeightPct && spaceBelow > spaceAbove;
 
     // --- Horizontal dodge ---
     var xShift = 0;
