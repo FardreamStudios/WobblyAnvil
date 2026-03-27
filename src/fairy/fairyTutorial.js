@@ -1,15 +1,25 @@
 // ============================================================
 // fairyTutorial.js — Fairy Tutorial Step Sequencer
 //
-// Drives multi-step tutorial sequences through the fairy pipeline.
+// Two concerns:
+//   1. OPT-IN GATE — one-time "want help?" prompt (intro sequence)
+//   2. TUTORIAL SEGMENTS — individual mini-lessons fired by controller
+//      when relevant (e.g. tut_rep, tut_forge, tut_customer)
+//
 // Each sequence is an array of steps. Steps execute in order,
 // advancing on events from the pawn (cue_complete, prompt_response).
 //
 // STEP TYPES:
 //   play_cue  — send a cue command to pawn, wait for cue_complete
 //   branch    — pick next cue based on stored prompt answer
-//   set_flag  — write to localStorage
-//   callback  — fire the onComplete callback with result data
+//   set_flag  — write to localStorage (respects devSkipPersist)
+//   callback  — fire the onComplete callback with result + stored data
+//
+// SEQUENCE FIELDS:
+//   id      — unique sequence identifier
+//   doneKey — localStorage key to mark completion (used by controller
+//             for skip-on-tap to mark segment done without running set_flag)
+//   steps   — array of step objects
 //
 // OWNERSHIP:
 //   Knows: step definitions, sequencing, localStorage flags.
@@ -30,19 +40,43 @@
 // ============================================================
 // SEQUENCE DEFINITIONS
 // Data-driven. Add new sequences here.
+//
+// INTRO — opt-in gate. Branches on player choice.
+//   "show me"            → respond_yes → callback("intro_complete")
+//   "i'll figure it out" → respond_no  → callback("intro_complete")
+//   Controller reads stored.promptAnswer to fork.
+//
+// TUT_REP — first tutorial segment. Laser at rep bar.
+//   Controller starts this after player opts in.
+//   doneKey lets controller mark it done on tap-skip.
 // ============================================================
 
 var SEQUENCES = {
+
     intro: {
         id: "intro",
+        doneKey: null, // managed by controller via tutorial_on/off flags
         steps: [
             { type: "play_cue", cue: "intro_rise" },
             { type: "play_cue", cue: "intro_prompt" },
-            { type: "branch",   key: "promptAnswer", map: { "sure": "intro_respond_yes", "no thanks": "intro_respond_no" } },
-            { type: "set_flag", key: "wa_fairy_intro_done", value: "true" },
+            { type: "branch",   key: "promptAnswer", map: {
+                    "show me":            "intro_respond_yes",
+                    "i'll figure it out": "intro_respond_no",
+                }},
             { type: "callback", result: "intro_complete" },
         ],
     },
+
+    tut_rep: {
+        id: "tut_rep",
+        doneKey: "wa_tut_rep_done",
+        steps: [
+            { type: "play_cue", cue: "laser_point", target: "rep", line: "see that? the crown tracks every decree you fumble. forging is art, not slavery. but here we are." },
+            { type: "set_flag", key: "wa_tut_rep_done", value: "true" },
+            { type: "callback", result: "segment_complete" },
+        ],
+    },
+
 };
 
 // ============================================================
@@ -51,12 +85,13 @@ var SEQUENCES = {
 
 var _initialized = false;
 var _sendCommand = null;     // fn(cmd) — routes to pawn via controller
-var _onComplete = null;      // fn(result) — tells controller sequence is done
+var _onComplete = null;      // fn(result, stored) — tells controller sequence is done
 
 var _activeSeq = null;       // current sequence object
 var _stepIndex = -1;         // current step index
 var _waiting = false;        // true when waiting for an event to advance
 var _stored = {};            // key-value store for branch decisions
+var _devSkipPersist = false; // when true, set_flag skips localStorage (testing)
 
 // ============================================================
 // LIFECYCLE
@@ -65,8 +100,9 @@ var _stored = {};            // key-value store for branch decisions
 /**
  * Initialize the tutorial sequencer.
  * @param {Object} config
- *   config.sendCommand  — fn(cmd) sends structured command to pawn
- *   config.onComplete   — fn(result) called when sequence finishes
+ *   config.sendCommand    — fn(cmd) sends structured command to pawn
+ *   config.onComplete     — fn(result, stored) called when sequence finishes
+ *   config.devSkipPersist — skip localStorage writes (testing)
  */
 function init(config) {
     if (_initialized) {
@@ -74,8 +110,9 @@ function init(config) {
         return;
     }
 
-    _sendCommand = config.sendCommand || null;
-    _onComplete  = config.onComplete  || null;
+    _sendCommand      = config.sendCommand    || null;
+    _onComplete       = config.onComplete     || null;
+    _devSkipPersist   = config.devSkipPersist || false;
     _initialized = true;
 }
 
@@ -126,8 +163,6 @@ function onEvent(type, data) {
             }
             break;
 
-        // play_cue steps that use show_choice: prompt_response arrives
-        // before cue_complete. Store the answer so branch can use it.
         default:
             break;
     }
@@ -238,10 +273,14 @@ function _executeStep(step) {
             break;
 
         case "set_flag":
-            try {
-                localStorage.setItem(step.key, step.value);
-            } catch (e) {
-                console.warn("[FairyTutorial] Failed to set flag:", e.message);
+            if (!_devSkipPersist) {
+                try {
+                    localStorage.setItem(step.key, step.value);
+                } catch (e) {
+                    console.warn("[FairyTutorial] Failed to set flag:", e.message);
+                }
+            } else {
+                console.log("[FairyTutorial] DEV: skipped persist for " + step.key);
             }
             // set_flag is instant, advance immediately
             _advance();
@@ -249,7 +288,7 @@ function _executeStep(step) {
 
         case "callback":
             if (_onComplete) {
-                _onComplete(step.result);
+                _onComplete(step.result, _stored);
             }
             // callback is instant, advance immediately
             _advance();
@@ -280,7 +319,7 @@ var FairyTutorial = {
     isRunning:         isRunning,
     getActiveSequence: getActiveSequence,
 
-    // Expose for testing / future sequences
+    // Data (for controller to read doneKey on skip)
     SEQUENCES: SEQUENCES,
 };
 

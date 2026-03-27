@@ -76,9 +76,11 @@ var TICK_INTERVAL_MS = 10000;
 var LLM_NEEDED = "__LLM_NEEDED__";
 
 // Persistence keys (M-12)
-var LS_KEY_ONCE_FLAGS = "wa_fairy_taught";
-var LS_KEY_ENABLED    = "wa_fairy_enabled";
-var LS_KEY_INTRO_DONE = "wa_fairy_intro_done";
+var LS_KEY_ONCE_FLAGS    = "wa_fairy_taught";
+var LS_KEY_ENABLED       = "wa_fairy_enabled";
+var LS_KEY_TUTORIAL_ON   = "wa_fairy_tutorial_on";
+var LS_KEY_TUTORIAL_OFF  = "wa_fairy_tutorial_off";
+var LS_KEY_TAP_WARN_DONE = "wa_fairy_tap_warn_done";
 
 // ============================================================
 // DAY-GATING — Pacing Table (from FairyCharacter.md)
@@ -118,6 +120,7 @@ var _stateTimer = null;          // setTimeout id for auto-transitions
 var _tickTimer = null;           // setInterval id for ambient checks
 var _currentTier = null;         // cached DAY_TIERS entry
 var _appearancesToday = 0;       // daily appearance counter
+var _devSkipPersist = false;     // skip localStorage writes (testing)
 
 // Cooldown tracking: { triggerId: lastFiredTimestamp }
 var _cooldowns = {};
@@ -189,6 +192,35 @@ function _saveEnabledPref(enabled) {
     } catch (e) {}
 }
 
+// --- Tutorial flag helpers ---
+
+function _isFlagSet(key) {
+    try { return localStorage.getItem(key) === "true"; } catch (e) { return false; }
+}
+
+function _persistFlag(key, value) {
+    if (_devSkipPersist) {
+        console.log("[FairyController] DEV: skipped persist for " + key);
+        return;
+    }
+    try { localStorage.setItem(key, value); } catch (e) {
+        console.warn("[FairyController] Failed to persist:", key, e.message);
+    }
+}
+
+function _clearFlag(key) {
+    if (_devSkipPersist) return;
+    try { localStorage.removeItem(key); } catch (e) {}
+}
+
+function _isTutorialDecided() {
+    return _isFlagSet(LS_KEY_TUTORIAL_ON) || _isFlagSet(LS_KEY_TUTORIAL_OFF);
+}
+
+function _isTutorialEnabled() {
+    return _isFlagSet(LS_KEY_TUTORIAL_ON);
+}
+
 // ============================================================
 // SETUP
 // ============================================================
@@ -204,6 +236,7 @@ function init(config) {
     _onSpeak        = config.onSpeak        || null;
     _onCommand      = config.onCommand      || null;
     _onStateChange  = config.onStateChange  || null;
+    _devSkipPersist = config.devSkipPersist || false;
 
     // Resolve initial day tier
     var initState = _stateProvider();
@@ -244,19 +277,23 @@ function init(config) {
     // --- Tutorial sequencer (M-15a) ---
     FairyTutorial.init({
         sendCommand: function(cmd) { _sendCommand(cmd); },
-        onComplete: function(result) {
-            // Tutorial finished — enter normal mode
-            _setState(STATES.IDLE);
-        },
+        onComplete: function(result, stored) { _onTutorialComplete(result, stored); },
+        devSkipPersist: _devSkipPersist,
     });
 
-    // Check if intro has been shown. If not, run it.
-    if (!_isIntroDone()) {
+    // Check tutorial state:
+    //   Not decided yet → run intro opt-in
+    //   Opted in → check for pending segments
+    //   Opted out → skip (reactive mode)
+    if (!_isTutorialDecided()) {
         _setState(STATES.POINTING);  // suppress normal ticking while tutorial runs
         // Small delay so AnimInstance has time to mount
         setTimeout(function() {
             FairyTutorial.start("intro");
         }, 1500);
+    } else if (_isTutorialEnabled()) {
+        // Check for tutorial segments that haven't been completed yet
+        _checkPendingSegments();
     }
 }
 
@@ -717,12 +754,76 @@ function _sendCommand(cmd) {
 // TUTORIAL ROUTING (M-15a)
 // ============================================================
 
-function _isIntroDone() {
-    try {
-        return localStorage.getItem(LS_KEY_INTRO_DONE) === "true";
-    } catch (e) {
-        return false;
+/**
+ * Handle tutorial sequence completion.
+ * Routes based on result type and player's stored answers.
+ */
+function _onTutorialComplete(result, stored) {
+    if (result === "intro_complete") {
+        var answer = stored && stored.promptAnswer;
+        if (answer === "show me") {
+            // Player opted in — persist and start first segment
+            _persistFlag(LS_KEY_TUTORIAL_ON, "true");
+            setTimeout(function() {
+                FairyTutorial.start("tut_rep");
+            }, 500);
+        } else {
+            // Player declined — dismiss fairy, persist opt-out
+            _persistFlag(LS_KEY_TUTORIAL_OFF, "true");
+            _saveEnabledPref(false);
+            _setState(STATES.DISMISSED);
+        }
+        return;
     }
+
+    if (result === "segment_complete") {
+        // Segment done — return to idle, ready for next segment or reactive mode
+        _setState(STATES.IDLE);
+        return;
+    }
+
+    // Default fallback
+    _setState(STATES.IDLE);
+}
+
+/**
+ * Check for tutorial segments that haven't been completed yet.
+ * Runs the first pending one. Called on init and after options re-enable.
+ */
+function _checkPendingSegments() {
+    // Check each segment in order. Run first one not done.
+    if (!_isFlagSet("wa_tut_rep_done")) {
+        _setState(STATES.POINTING);
+        setTimeout(function() {
+            FairyTutorial.start("tut_rep");
+        }, 1500);
+        return;
+    }
+    // Add future segment checks here:
+    // if (!_isFlagSet("wa_tut_forge_done")) { ... }
+    // if (!_isFlagSet("wa_tut_customer_done")) { ... }
+
+    // All segments complete — enter reactive mode
+}
+
+/**
+ * Skip current tutorial segment (tap-to-skip).
+ * Marks segment done via doneKey, sets tap-warn flag, enters idle.
+ */
+function _skipTutorialSegment() {
+    var seqId = FairyTutorial.getActiveSequence();
+    var seq = seqId ? FairyTutorial.SEQUENCES[seqId] : null;
+    FairyTutorial.cancel();
+
+    // Mark segment done (skipped)
+    if (seq && seq.doneKey) {
+        _persistFlag(seq.doneKey, "true");
+    }
+
+    // Set tap-warn flag — player now knows tapping skips tutorials
+    _persistFlag(LS_KEY_TAP_WARN_DONE, "true");
+
+    _setState(STATES.IDLE);
 }
 
 /**
@@ -732,6 +833,12 @@ function _isIntroDone() {
 function onPawnEvent(type, data) {
     // Tutorial gets first crack when it's running
     if (FairyTutorial.isRunning()) {
+        // Tap exit during tutorial = skip segment
+        if (type === "tap_exit") {
+            _skipTutorialSegment();
+            return;
+        }
+        // Other events route to tutorial normally
         FairyTutorial.onEvent(type, data);
         return;
     }
@@ -769,12 +876,22 @@ function enable() {
 /**
  * Toggle fairy on/off with persistence (M-12).
  * Called from options menu toggle.
+ * If tutorial was declined, re-enabling opts into tutorial.
  */
 function setEnabled(val) {
     var enabled = !!val;
     _saveEnabledPref(enabled);
     if (enabled) {
+        // If tutorial was declined, re-enabling opts into tutorial
+        if (_isFlagSet(LS_KEY_TUTORIAL_OFF)) {
+            _clearFlag(LS_KEY_TUTORIAL_OFF);
+            _persistFlag(LS_KEY_TUTORIAL_ON, "true");
+        }
         enable();
+        // Check for pending tutorial segments
+        if (_isTutorialEnabled()) {
+            _checkPendingSegments();
+        }
     } else {
         dismiss();
     }
@@ -849,6 +966,7 @@ function destroy() {
     _onSpeak         = null;
     _onCommand       = null;
     _onStateChange   = null;
+    _devSkipPersist  = false;
     _fsmState        = STATES.OFF;
     _cooldowns       = {};
     _onceFired       = {};

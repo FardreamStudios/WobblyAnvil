@@ -363,7 +363,7 @@ var INTRO_PROMPT = {
     layer: "overlay",
     waitForInput: true,
     steps: [
-        { at: 0, cmd: "show_choice", text: "want me to show you around?", options: ["sure", "no thanks"] },
+        { at: 0, cmd: "show_choice", text: "wanna know what all the shiny buttons do, or are you more of a 'learn by failing' type?", options: ["show me", "i'll figure it out"] },
     ],
 };
 
@@ -392,12 +392,14 @@ var INTRO_RESPOND_YES = {
 
 var INTRO_RESPOND_NO = {
     id: "intro_respond_no",
-    description: "Fairy responds to player declining help",
+    description: "Fairy responds to player declining help, hints at options menu",
     layer: "overlay",
     steps: [
         { at: 0,    cmd: "speak",        text: "fine. i'll just be here. judging.", duration: 3000 },
         { at: 3100, cmd: "hide_speech" },
-        { at: 3300, cmd: "poof_out",     duration: 300 },
+        { at: 3400, cmd: "speak",        text: "if you change your mind, i'm in the options menu.", duration: 3500 },
+        { at: 7000, cmd: "hide_speech" },
+        { at: 7200, cmd: "poof_out",     duration: 300 },
     ],
 };
 
