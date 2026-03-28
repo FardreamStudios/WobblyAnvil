@@ -96,6 +96,7 @@ var SEQUENCES = {
 var _initialized = false;
 var _sendCommand = null;     // fn(cmd) — routes to pawn via controller
 var _onComplete = null;      // fn(result, stored) — tells controller sequence is done
+var _gameAction = null;      // fn(name, params) — fires game mutations via bridge
 
 var _activeSeq = null;       // current sequence object
 var _stepIndex = -1;         // current step index
@@ -103,6 +104,7 @@ var _waiting = false;        // true when waiting for an event to advance
 var _stored = {};            // key-value store for branch decisions
 var _devSkipPersist = false; // when true, set_flag skips localStorage (testing)
 var _flagMemory = {};        // runtime flag map — survives devSkipPersist
+var _delayTimer = null;      // setTimeout id for delay steps
 
 // ============================================================
 // LIFECYCLE
@@ -123,6 +125,7 @@ function init(config) {
 
     _sendCommand      = config.sendCommand    || null;
     _onComplete       = config.onComplete     || null;
+    _gameAction       = config.gameAction     || null;
     _devSkipPersist   = config.devSkipPersist || false;
     _initialized = true;
 }
@@ -174,6 +177,13 @@ function onEvent(type, data) {
             }
             break;
 
+        case "wait_event":
+            if (type === step.event) {
+                _waiting = false;
+                _advance();
+            }
+            break;
+
         default:
             break;
     }
@@ -188,6 +198,7 @@ function onEvent(type, data) {
  * Cancel the current sequence.
  */
 function cancel() {
+    if (_delayTimer) { clearTimeout(_delayTimer); _delayTimer = null; }
     _activeSeq = null;
     _stepIndex = -1;
     _waiting = false;
@@ -211,6 +222,7 @@ function destroy() {
     cancel();
     _sendCommand = null;
     _onComplete = null;
+    _gameAction = null;
     _initialized = false;
 }
 
@@ -315,6 +327,28 @@ function _executeStep(step) {
             }
             // callback is instant, advance immediately
             _advance();
+            break;
+
+        case "action":
+            if (_gameAction) {
+                _gameAction(step.name, step.params || null);
+            }
+            // action is instant, advance immediately
+            _advance();
+            break;
+
+        case "delay":
+            _waiting = true;
+            _delayTimer = setTimeout(function() {
+                _delayTimer = null;
+                _waiting = false;
+                _advance();
+            }, step.ms || 500);
+            break;
+
+        case "wait_event":
+            _waiting = true;
+            // Just wait — onEvent will advance when the right event arrives
             break;
 
         default:

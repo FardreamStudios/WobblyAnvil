@@ -95,6 +95,7 @@ function useForgeVM(deps) {
     var forgeBubble = forge.forgeBubble, setForgeBubble = forge.setForgeBubble;
     var qteFlash = forge.qteFlash, setQteFlash = forge.setQteFlash;
     var strikesLeft = forge.strikesLeft, setStrikesLeft = forge.setStrikesLeft;
+    var isSandbox = forge.isSandbox;
 
     // --- Forge-owned refs ---
     var qteProcessing = useRef(false);
@@ -196,11 +197,13 @@ function useForgeVM(deps) {
     }
 
     function confirmSelect() {
-        if (stamina <= 0) return;
-        var have = inv[matKey] || 0, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[matKey].price * needed;
-        if (have < weapon.materialCost && gold < buyPrice) return;
-        if (needed > 0) spendGold(buyPrice);
-        GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: needed - weapon.materialCost });
+        if (!isSandbox) {
+            if (stamina <= 0) return;
+            var have = inv[matKey] || 0, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[matKey].price * needed;
+            if (have < weapon.materialCost && gold < buyPrice) return;
+            if (needed > 0) spendGold(buyPrice);
+            GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: needed - weapon.materialCost });
+        }
         qualRef.current = 20; stressRef.current = 0; setQualScore(20); setStress(0);
         setForgeSess(0); setSessResult(null); setQteFlash(null); qteProcessing.current = false;
         ForgeMode.transitionTo(PHASES.HEAT); setPhase(PHASES.HEAT);
@@ -217,6 +220,17 @@ function useForgeVM(deps) {
         else if (phase === PHASES.QUENCH) { qteLog("QUENCH", "CLICK", "pos=" + pos); handleQuenchFire(pos); }
     }
 
+    // Sandbox resolve — skips processingRef guard since freeze already set it
+    function sandboxResolveQte() {
+        console.log("[ForgeVM] sandboxResolveQte CALLED — phase=" + phase + " isQTEActive=" + isQTEActive + " processingRef=" + qteProcessing.current);
+        if (!isQTEActive) return;
+        var pos = qtePosRef.current;
+        console.log("[ForgeVM] sandboxResolveQte FIRING — pos=" + pos);
+        if (phase === PHASES.HEAT) { handleHeatFire(pos, false); }
+        else if (phase === PHASES.HAMMER) { handleHammerFire(pos); }
+        else if (phase === PHASES.QUENCH) { handleQuenchFire(pos); }
+    }
+
     function handleAutoFire(pos) {
         if (qteProcessing.current) return;
         qteProcessing.current = true;
@@ -228,7 +242,7 @@ function useForgeVM(deps) {
         if (isAuto) tier = HEAT_TIERS.tiers[HEAT_TIERS.tiers.length - 1]; // auto-fire = worst tier
         if (!isAuto) GameplayEventBus.emit(EVENT_TAGS.FX_HEAT_RESULT, { quality: tier.id });
         setQteFlash(tier.label);
-        var bs = HEAT_STRIKE_MAP[tier.id] || 0, strikeTotal = BALANCE.baseStrikes + bs;
+        var bs = HEAT_STRIKE_MAP[tier.id] || 0, strikeTotal = isSandbox ? 1 : BALANCE.baseStrikes + bs;
         showForgeBubbleFn("HEAT RESULT", [{ text: strikeTotal + " strikes", color: bs > 0 ? "#4ade80" : tier.id === "poor" || tier.id === "bad" ? "#f87171" : "#c8b89a", bold: true }], tier.color);
         setTimeout(function() { qteLog("HEAT", "RESULT", "tier=" + tier.id + " flashMs=" + QTE_FLASH_MS); setQteFlash(null); qteProcessing.current = false; setBonusStrikes(bs); setStrikesLeft(strikeTotal); sessionStartQual.current = qualRef.current; ForgeMode.transitionTo(PHASES.HAMMER); setPhase(PHASES.HAMMER); }, QTE_FLASH_MS);
     }
@@ -250,7 +264,8 @@ function useForgeVM(deps) {
     function finishHammerSession() {
         var delta = qualRef.current - sessionStartQual.current;
         var ns = Math.min(STRESS_MAX, stressRef.current + 1), nq = qualRef.current;
-        stressRef.current = ns; setStress(ns); setForgeSess(forgeSess + 1); advanceTime(sessCost, undefined, true);
+        stressRef.current = ns; setStress(ns); setForgeSess(forgeSess + 1);
+        if (!isSandbox) advanceTime(sessCost, undefined, true);
         var q = getQualityTier(nq);
         setSessResult({ delta: delta, nq: nq, quality: q, ns: ns, sessions: forgeSess + 1 });
         showForgeBubbleFn("HAMMER RESULT", [{ text: (delta >= 0 ? "+" : "") + delta + " quality", color: delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a", bold: true }], delta > 0 ? "#4ade80" : delta < 0 ? "#f87171" : "#c8b89a");
@@ -279,6 +294,14 @@ function useForgeVM(deps) {
     }
 
     function finishWeapon(nq) {
+        // Sandbox: discard weapon, no XP, no quest, no shelf, no toast
+        if (isSandbox) {
+            sfx.setMode("idle");
+            stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null);
+            ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE);
+            return;
+        }
+
         var q = getQualityTier(nq), val = qualityValue(wKey, matKey, nq, upgrades);
         var item = { wKey: wKey, wName: weapon.name, matKey: matKey, score: nq, id: Date.now(), label: q.label, val: val, color: q.weaponColor };
         gainXp(Math.round((BALANCE.finishXpBase + weapon.difficulty * BALANCE.finishXpPerDiff) * getQualityTier(nq).xpMultiplier));
@@ -311,11 +334,11 @@ function useForgeVM(deps) {
         setTimeout(function() {
             qteLog("QUENCH", "RESULT", "tier=" + tier.id + " flashMs=" + QTE_FLASH_MS);
             setQteFlash(null); qteProcessing.current = false;
-            if (tier.id === "perfect") { var nq = clamp(qualRef.current + 5, 0, 100); qualRef.current = nq; advanceTime(sessCost, undefined, true); finishWeapon(nq); }
-            else if (tier.id === "great") { var nq2 = clamp(qualRef.current, 0, 100); qualRef.current = nq2; advanceTime(sessCost, undefined, true); finishWeapon(nq2); }
-            else if (tier.id === "good") { var nq3 = clamp(qualRef.current, 0, 100); qualRef.current = nq3; advanceTime(sessCost, undefined, true); finishWeapon(nq3); }
+            if (tier.id === "perfect") { var nq = clamp(qualRef.current + 5, 0, 100); qualRef.current = nq; if (!isSandbox) advanceTime(sessCost, undefined, true); finishWeapon(nq); }
+            else if (tier.id === "great") { var nq2 = clamp(qualRef.current, 0, 100); qualRef.current = nq2; if (!isSandbox) advanceTime(sessCost, undefined, true); finishWeapon(nq2); }
+            else if (tier.id === "good") { var nq3 = clamp(qualRef.current, 0, 100); qualRef.current = nq3; if (!isSandbox) advanceTime(sessCost, undefined, true); finishWeapon(nq3); }
             else if (tier.id === "poor") {
-                var loss = randInt(10, 20), nq4 = clamp(qualRef.current - loss, 0, 100); qualRef.current = nq4; advanceTime(sessCost, undefined, true);
+                var loss = randInt(10, 20), nq4 = clamp(qualRef.current - loss, 0, 100); qualRef.current = nq4; if (!isSandbox) advanceTime(sessCost, undefined, true);
                 if (nq4 <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
                 else finishWeapon(nq4);
             } else { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
@@ -380,6 +403,7 @@ function useForgeVM(deps) {
         scrapWeapon: scrapWeapon,
         confirmSelect: confirmSelect,
         onForgeClick: onForgeClick,
+        sandboxResolveQte: sandboxResolveQte,
         handleAutoFire: handleAutoFire,
         attemptForge: attemptForge,
         doNormalize: doNormalize,

@@ -28,6 +28,7 @@ import AbilityManager from "./systems/ability/abilitySubSystem.js";
 import CustomerSubSystem from "./systems/customer/customerSubSystem.js";
 import FairyController from "./fairy/fairyController.js";
 import FairyPawn from "./fairy/fairyPawn.js";
+import ForgeMode from "./gameMode/forgeMode.js";
 
 // --- State Hooks ---
 import useUIState from "./hooks/useUIState.js";
@@ -298,6 +299,10 @@ export default function App() {
   var matKeyRef = useRef(matKey);
   var wipWeaponRef = useRef(wipWeapon);
 
+  // --- Forge tutorial bridge refs (read by gameAction in FairyController) ---
+  var forgeRef = useRef(forge);
+  var forgeVMRef = useRef(null);  // set after useForgeVM creates it
+
   // Keep refs current
   finishedRef.current = finished;
   phaseRef.current = phase;
@@ -309,6 +314,7 @@ export default function App() {
   dayRef.current = day;
   matKeyRef.current = matKey;
   wipWeaponRef.current = wipWeapon;
+  forgeRef.current = forge;
 
   // --- Customer Manager Init (pure JS, bus-driven) ---
   useEffect(function() {
@@ -367,6 +373,49 @@ export default function App() {
       },
       onCommand: function(cmd) {
         FairyPawn.handleCommand(cmd);
+      },
+      gameAction: function(name, params) {
+        var f = forgeRef.current;
+        var vm = forgeVMRef.current;
+        console.log("[GameAction] " + name, params || "");
+        switch (name) {
+          case "enter_sandbox":
+            f.setIsSandbox(true);
+            break;
+          case "exit_sandbox":
+            f.setIsSandbox(false);
+            f.setQualScore(0); f.setStress(0); f.setForgeSess(0);
+            f.setSessResult(null); f.setForgeBubble(null); f.setQteFlash(null);
+            f.setWipWeapon(null);
+            ForgeMode.transitionTo(PHASES.IDLE);
+            f.setPhase(PHASES.IDLE);
+            break;
+          case "begin_forge":
+            ForgeMode.transitionTo(PHASES.SELECT);
+            f.setPhase(PHASES.SELECT);
+            break;
+          case "select_weapon":
+            if (params && params.key) f.setWKey(params.key);
+            ForgeMode.transitionTo(PHASES.SELECT_MAT);
+            f.setPhase(PHASES.SELECT_MAT);
+            break;
+          case "select_material":
+            if (params && params.key) f.setMatKey(params.key);
+            break;
+          case "confirm_select":
+            if (vm) vm.confirmSelect();
+            break;
+          case "resolve_qte":
+            console.log("[GameAction] resolve_qte — vm exists:", !!vm, "vm.sandboxResolveQte exists:", !!(vm && vm.sandboxResolveQte));
+            if (vm) vm.sandboxResolveQte();
+            break;
+          case "quench":
+            ForgeMode.transitionTo(PHASES.QUENCH);
+            f.setPhase(PHASES.QUENCH);
+            break;
+          default:
+            console.warn("[GameAction] Unknown action: " + name);
+        }
       },
     });
     return function() {
@@ -456,6 +505,7 @@ export default function App() {
   var strikeLabel = forgeVM.strikeLabel, strikeColor = forgeVM.strikeColor, stressColor = forgeVM.stressColor, stressLabel2 = forgeVM.stressLabel2;
   var showBars = forgeVM.showBars, isQTEActive = forgeVM.isQTEActive, isForging = forgeVM.isForging, diffColor = forgeVM.diffColor;
   var qtePosRef = forgeVM.qtePosRef, qteProcessing = forgeVM.qteProcessing;
+  forgeVMRef.current = forgeVM;
 
   // --- Ambient Audio Layer ---
   var ambient = useAmbientAudio({ isForging: isForging, muted: false, sfxVol: sfxVol });
@@ -542,13 +592,13 @@ export default function App() {
           {/* QTE dark box — only during active QTE phases */}
           {isQTEActive && (
               <div style={{ width: "100%", maxWidth: 400, background: "rgba(8,5,2,0.88)", border: "1px solid #2a1f0a", borderRadius: 10, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
-                <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
+                <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} isSandbox={forge.isSandbox} />
               </div>
           )}
 
           {/* QTEPanel when NOT in dark box (non-QTE forge phases that still need it) */}
           {!isQTEActive && (
-              <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} />
+              <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} isSandbox={forge.isSandbox} />
           )}
 
           {/* MOBILE WEAPON SELECT */}
@@ -737,7 +787,14 @@ export default function App() {
 
               /* Begin forge / WIP props */
               hasWip={!!wipWeapon}
-              onBeginForge={function() { sfx.click(); setPhase(PHASES.SELECT); }}
+              onBeginForge={function() {
+                sfx.click();
+                if (FairyController.shouldStartForgeTutorial()) {
+                  FairyController.startForgeTutorial();
+                  return;
+                }
+                setPhase(PHASES.SELECT);
+              }}
               beginForgeDisabled={input.beginForge.disabled}
               onResumeWip={function() { resumeWip(); }}
               resumeWipDisabled={input.resumeWip.disabled}

@@ -11,6 +11,8 @@
 import { useState, useEffect, useRef } from "react";
 import GameConstants from "./constants.js";
 import GameUtils from "./utilities.js";
+import GameplayEventBus from "../logic/gameplayEventBus.js";
+import EVENT_TAGS from "../config/eventTags.js";
 
 var QTE_COLS = GameConstants.QTE_COLS;
 var QTE_W = GameConstants.QTE_W;
@@ -256,7 +258,7 @@ function DiamondMarker({ pos, frozen, hitCols }) {
 
 // --- QTE Panel (manages needle animation and renders the active QTE) ---
 
-function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heatSpeedMult, hammerSpeedMult, quenchSpeedMult, posRef, processingRef, onAutoFire }) {
+function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heatSpeedMult, hammerSpeedMult, quenchSpeedMult, posRef, processingRef, onAutoFire, isSandbox }) {
     var [heatPos, setHeatPos] = useState(0);
     var [needlePos, setNeedlePos] = useState(50);
     var [quenchPos, setQuenchPos] = useState(50);
@@ -266,6 +268,11 @@ function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heat
     var quenchNeedle = useRef({ pos: 50, dir: 1, speed: 52 });
     var animId = useRef(null);
     var lastFrameTime = useRef(0);
+    var sandboxFreezeTimer = useRef(null);
+
+    // Sandbox freeze positions — land in "great" zone for each QTE type
+    var SANDBOX_FREEZE_MS = 1500;
+    var SANDBOX_FREEZE_POS = { heat: 80, hammer: 47, quench: 47 };
 
     // Reset hit columns on phase change
     useEffect(function() {
@@ -287,11 +294,26 @@ function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heat
     // Heat needle animation — delta-time based
     useEffect(function() {
         if (phase !== PHASES.HEAT) return;
+        console.log("[QTEPanel] HEAT useEffect fired. isSandbox:", isSandbox);
         processingRef.current = false;
         heatNeedle.current = { pos: 0, speed: (HEAT_SPEED_BASE + Math.random() * HEAT_SPEED_RANGE) * heatSpeedMult };
         setHeatPos(0); posRef.current = 0;
         lastFrameTime.current = 0;
         var done = false;
+
+        // Sandbox: freeze needle after delay at predetermined great-zone position
+        if (isSandbox) {
+            sandboxFreezeTimer.current = setTimeout(function() {
+                if (done) return;
+                var fp = SANDBOX_FREEZE_POS.heat;
+                heatNeedle.current.pos = fp;
+                posRef.current = fp;
+                setHeatPos(fp);
+                processingRef.current = true;
+                GameplayEventBus.emit(EVENT_TAGS.QTE_SANDBOX_FROZEN, { phase: "heat" });
+            }, SANDBOX_FREEZE_MS);
+        }
+
         var timer = setTimeout(function() {
             function loop(timestamp) {
                 if (done) return;
@@ -311,17 +333,32 @@ function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heat
             }
             animId.current = requestAnimationFrame(loop);
         }, 800);
-        return function() { done = true; cancelAnimationFrame(animId.current); clearTimeout(timer); };
+        return function() { done = true; cancelAnimationFrame(animId.current); clearTimeout(timer); if (sandboxFreezeTimer.current) { clearTimeout(sandboxFreezeTimer.current); sandboxFreezeTimer.current = null; } };
     }, [phase]);
 
     // Hammer needle animation — delta-time based
     useEffect(function() {
         if (phase !== PHASES.HAMMER) return;
+        console.log("[QTEPanel] HAMMER useEffect fired. isSandbox:", isSandbox);
         processingRef.current = false;
         hammerNeedle.current = { pos: 50, dir: 1, speed: (HAMMER_SPEED_BASE + Math.random() * HAMMER_SPEED_RANGE) * hammerSpeedMult };
         setNeedlePos(50); posRef.current = 50;
         lastFrameTime.current = 0;
         var done = false;
+
+        // Sandbox: freeze needle after delay
+        if (isSandbox) {
+            sandboxFreezeTimer.current = setTimeout(function() {
+                if (done) return;
+                var fp = SANDBOX_FREEZE_POS.hammer;
+                hammerNeedle.current.pos = fp;
+                posRef.current = fp;
+                setNeedlePos(fp);
+                processingRef.current = true;
+                GameplayEventBus.emit(EVENT_TAGS.QTE_SANDBOX_FROZEN, { phase: "hammer" });
+            }, SANDBOX_FREEZE_MS);
+        }
+
         function loop(timestamp) {
             if (done) return;
             if (lastFrameTime.current === 0) lastFrameTime.current = timestamp;
@@ -339,7 +376,7 @@ function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heat
             animId.current = requestAnimationFrame(loop);
         }
         animId.current = requestAnimationFrame(loop);
-        return function() { done = true; cancelAnimationFrame(animId.current); };
+        return function() { done = true; cancelAnimationFrame(animId.current); if (sandboxFreezeTimer.current) { clearTimeout(sandboxFreezeTimer.current); sandboxFreezeTimer.current = null; } };
     }, [phase]);
 
     // Quench needle animation — delta-time based
@@ -350,6 +387,20 @@ function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heat
         setQuenchPos(50); posRef.current = 50;
         lastFrameTime.current = 0;
         var done = false;
+
+        // Sandbox: freeze needle after delay
+        if (isSandbox) {
+            sandboxFreezeTimer.current = setTimeout(function() {
+                if (done) return;
+                var fp = SANDBOX_FREEZE_POS.quench;
+                quenchNeedle.current.pos = fp;
+                posRef.current = fp;
+                setQuenchPos(fp);
+                processingRef.current = true;
+                GameplayEventBus.emit(EVENT_TAGS.QTE_SANDBOX_FROZEN, { phase: "quench" });
+            }, SANDBOX_FREEZE_MS);
+        }
+
         function loop(timestamp) {
             if (done) return;
             if (lastFrameTime.current === 0) lastFrameTime.current = timestamp;
@@ -367,7 +418,7 @@ function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heat
             animId.current = requestAnimationFrame(loop);
         }
         animId.current = requestAnimationFrame(loop);
-        return function() { done = true; cancelAnimationFrame(animId.current); };
+        return function() { done = true; cancelAnimationFrame(animId.current); if (sandboxFreezeTimer.current) { clearTimeout(sandboxFreezeTimer.current); sandboxFreezeTimer.current = null; } };
     }, [phase]);
 
     var isQTE = phase === PHASES.HEAT || phase === PHASES.HAMMER || phase === PHASES.QUENCH;

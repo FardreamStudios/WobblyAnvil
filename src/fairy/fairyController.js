@@ -35,6 +35,7 @@ import FairyPersonality from "./fairyPersonality.js";
 import FairyRulesTree   from "./fairyRulesTree.js";
 import FairyAPI         from "./fairyAPI.js";
 import FairyTutorial    from "./fairyTutorial.js";
+import ForgeTutorial    from "../tutorials/forgeTutorial.js";
 import EVENT_TAGS       from "../config/eventTags.js";
 
 // ============================================================
@@ -55,6 +56,7 @@ var STATES = {
 var SEGMENT_HIGHLIGHT = {
     tut_rep:     "rep",
     tut_buttons: "btn_area",
+    tut_forge:   null,  // forge tutorial manages its own highlights
 };
 
 // How long each state persists before auto-transitioning (ms)
@@ -120,6 +122,7 @@ var _stateProvider = null;       // fn() → live game state snapshot
 var _onSpeak = null;             // fn(line, category) — legacy bridge
 var _onCommand = null;           // fn(cmd) — structured command to pawn (M-9)
 var _onStateChange = null;       // fn(newState, oldState) — optional
+var _gameAction = null;          // fn(name, params) — forge tutorial game bridge
 
 var _fsmState = STATES.OFF;
 var _stateTimer = null;          // setTimeout id for auto-transitions
@@ -251,6 +254,7 @@ function init(config) {
     _onSpeak        = config.onSpeak        || null;
     _onCommand      = config.onCommand      || null;
     _onStateChange  = config.onStateChange  || null;
+    _gameAction     = config.gameAction     || null;
     _devSkipPersist = config.devSkipPersist || false;
 
     // Resolve initial day tier
@@ -293,6 +297,7 @@ function init(config) {
     FairyTutorial.init({
         sendCommand: function(cmd) { _sendCommand(cmd); },
         onComplete: function(result, stored) { _onTutorialComplete(result, stored); },
+        gameAction: _gameAction,
         devSkipPersist: _devSkipPersist,
     });
 
@@ -304,6 +309,16 @@ function init(config) {
         };
         _bus.on(EVENT_TAGS.DAY_READY, _dayReadyHandler);
         _busHandlers.push({ tag: EVENT_TAGS.DAY_READY, handler: _dayReadyHandler });
+
+        // Route QTE sandbox freeze events to forge tutorial delegate
+        var _qteFrozenHandler = function(payload) {
+            console.log("[FairyController] QTE_SANDBOX_FROZEN received", payload, "forgeTutRunning:", ForgeTutorial.isRunning());
+            if (ForgeTutorial.isRunning()) {
+                ForgeTutorial.onEvent("QTE_SANDBOX_FROZEN", payload);
+            }
+        };
+        _bus.on(EVENT_TAGS.QTE_SANDBOX_FROZEN, _qteFrozenHandler);
+        _busHandlers.push({ tag: EVENT_TAGS.QTE_SANDBOX_FROZEN, handler: _qteFrozenHandler });
     }
 }
 
@@ -890,10 +905,59 @@ function _checkPendingSegments() {
     }
     // Add future segment checks here:
     // if (!_isFlagSet("wa_tut_forge_done")) { ... }
+    // Forge tutorial is NOT auto-fired here — it triggers when
+    // the player taps "Begin Forging" for the first time.
+    // See App.js onBeginForge intercept.
+
     // if (!_isFlagSet("wa_tut_customer_done")) { ... }
 
     // All segments complete — enter reactive mode
     if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
+}
+
+// ============================================================
+// FORGE TUTORIAL DELEGATE
+// ============================================================
+
+/**
+ * Start the forge tutorial via ForgeTutorial delegate.
+ * Controller provides presenter + gameAction + onComplete.
+ * ForgeTutorial owns its own step sequence and executor.
+ */
+function _startForgeTutorial() {
+    ForgeTutorial.init({
+        presenter: {
+            say: function(text, duration) {
+                _sendCommand({ intent: "cue", cue: "speak_in_scene", line: text, target: null, category: "tutorial" });
+            },
+            pointAt: function(targetId) {
+                _sendCommand({ intent: "cue", cue: "laser_point", line: null, target: targetId, category: "tutorial" });
+            },
+            interact: function(targetId, text) {
+                _sendCommand({ intent: "cue", cue: "laser_speak", line: text, target: targetId, category: "tutorial" });
+            },
+            clearAll: function() {
+                _sendCommand({ intent: "clear" });
+            },
+        },
+        gameAction: _gameAction,
+        onComplete: function(result) {
+            _onForgeTutorialComplete(result);
+        },
+    });
+}
+
+/**
+ * Handle forge tutorial completion.
+ */
+function _onForgeTutorialComplete(result) {
+    if (result === "segment_complete") {
+        _persistFlag("wa_tut_forge_done", "true");
+        _setTutorialHighlight(null);
+        if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
+        _setState(STATES.IDLE);
+        _checkPendingSegments();
+    }
 }
 
 /**
@@ -904,6 +968,12 @@ function _skipTutorialSegment() {
     var seqId = FairyTutorial.getActiveSequence();
     var seq = seqId ? FairyTutorial.SEQUENCES[seqId] : null;
     FairyTutorial.cancel();
+
+    // Also cancel forge tutorial delegate if running
+    if (ForgeTutorial.isRunning()) {
+        ForgeTutorial.cancel(); // cancel() fires exit_sandbox internally
+        _persistFlag("wa_tut_forge_done", "true");
+    }
 
     // Clear highlight and tutorial mode on AnimInstance
     _setTutorialHighlight(null);
@@ -933,7 +1003,7 @@ function _skipTutorialSegment() {
  */
 function onPawnEvent(type, data) {
     // Tutorial gets first crack when it's running
-    if (FairyTutorial.isRunning()) {
+    if (FairyTutorial.isRunning() || ForgeTutorial.isRunning()) {
         // Tutorial tap — first: interrupt + warning cue, second: skip
         if (type === "tutorial_tap") {
             _tutorialTapCount++;
@@ -953,11 +1023,15 @@ function onPawnEvent(type, data) {
             _skipTutorialSegment();
             return;
         }
-        // Other events route to tutorial normally
+        // Other events route to the active tutorial
         if (type === "cue_complete") {
             _tutorialTapCount = 0;  // Reset after warning cue or any cue finishes
         }
-        FairyTutorial.onEvent(type, data);
+        if (ForgeTutorial.isRunning()) {
+            ForgeTutorial.onEvent(type, data);
+        } else {
+            FairyTutorial.onEvent(type, data);
+        }
         return;
     }
 
@@ -1072,6 +1146,7 @@ function destroy() {
     _stopWatching();
     _stopTicking();
     FairyTutorial.destroy();
+    if (ForgeTutorial.isRunning()) ForgeTutorial.cancel();
 
     if (_stateTimer) {
         clearTimeout(_stateTimer);
@@ -1084,6 +1159,7 @@ function destroy() {
     _onSpeak         = null;
     _onCommand       = null;
     _onStateChange   = null;
+    _gameAction      = null;
     _devSkipPersist  = false;
     _fsmState        = STATES.OFF;
     _cooldowns       = {};
@@ -1136,6 +1212,17 @@ var FairyController = {
     getDayTier:   function() { return _currentTier; },
     getAppearancesToday: function() { return _appearancesToday; },
     resetDailyAppearances: function() { _appearancesToday = 0; },
+
+    // --- Forge Tutorial ---
+    shouldStartForgeTutorial: function() {
+        return _isTutorialEnabled() && !_isFlagSet("wa_tut_forge_done");
+    },
+    startForgeTutorial: function() {
+        _tutorialTapCount = 0;
+        _setState(STATES.POINTING);
+        if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
+        _startForgeTutorial();
+    },
 };
 
 export default FairyController;

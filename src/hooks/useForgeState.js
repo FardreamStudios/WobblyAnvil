@@ -25,6 +25,7 @@ function useForgeState() {
     var [forgeBubble, setForgeBubble] = useState(null);
     var [qteFlash, setQteFlash] = useState(null);
     var [strikesLeft, setStrikesLeft] = useState(0);
+    var [isSandbox, setIsSandbox] = useState(false);
 
     // --- Bus: Reset on New Game ---
     useEffect(function() {
@@ -33,6 +34,7 @@ function useForgeState() {
             setPhase(PHASES.IDLE); setQualScore(0); setStress(0); setForgeSess(0);
             setBonusStrikes(0); setSessResult(null); setForgeBubble(null);
             setQteFlash(null); setStrikesLeft(0);
+            setIsSandbox(false);
         }
         GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
         return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
@@ -63,6 +65,8 @@ function useForgeState() {
         setQteFlash: setQteFlash,
         strikesLeft: strikesLeft,
         setStrikesLeft: setStrikesLeft,
+        isSandbox: isSandbox,
+        setIsSandbox: setIsSandbox,
     };
 }
 

@@ -80,6 +80,7 @@ var EVENT_TAGS = {
 
     // --- Phase (sub-mode internal transitions) ---
     PHASE_FORGE_TRANSITION: "event.phase.forge.transition",
+    QTE_SANDBOX_FROZEN:     "event.phase.qte.sandbox.frozen",
 
     // --- Game Session ---
     GAME_SESSION_OVER:      "event.game.session.over",
