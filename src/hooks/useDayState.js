@@ -26,6 +26,7 @@ function useDayState() {
 
     var busSetStamina = useCallback(function(payload) {
         if (payload.stamina !== undefined) setStamina(payload.stamina);
+        else if (payload.delta !== undefined) setStamina(function(s) { return Math.max(0, s + payload.delta); });
     }, []);
 
     useEffect(function() {
