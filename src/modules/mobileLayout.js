@@ -354,7 +354,7 @@ function MobileLayout(props) {
                 <div className="mobile-drawer-backdrop" onClick={function() { setDrawerOpen(false); }} />
             )}
             {drawerOpen && (
-                <div className={drawerSideClass}>
+                <div className={drawerSideClass} data-fairy-target="forge_info">
                     {drawerContent}
                 </div>
             )}
@@ -372,13 +372,13 @@ function MobileLayout(props) {
             {isForging && phase === "sess_result" ? (
                 <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection }}>
                     <div style={col1Style}>
-                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" imgSize={79} /></div>
-                        <div style={{ display: "flex" }}><MobileBtn imgSrc={IC.quench} onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon and lock in your work" imgSize={79} /></div>
+                        <div data-fairy-target="btn_forge_again" style={{ display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" imgSize={79} /></div>
+                        <div data-fairy-target="btn_quench" style={{ display: "flex" }}><MobileBtn imgSrc={IC.quench} onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon and lock in your work" imgSize={79} /></div>
                     </div>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5vh" }}>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.normalize} onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" holdContent="Reduce stress at the cost of some quality" /></div>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scrap} onClick={props.onScrap} color="#8a7a64" holdContent="Destroy this weapon and recover the material" /></div>
-                        <div style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.leave} onClick={props.onLeave} color="#60a5fa" holdContent="Walk away, weapon stays on the anvil" /></div>
+                        <div data-fairy-target="btn_normalize" style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.normalize} onClick={props.onNormalize} disabled={props.normalizeDisabled} color="#60a5fa" holdContent="Reduce stress at the cost of some quality" /></div>
+                        <div data-fairy-target="btn_scrap" style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.scrap} onClick={props.onScrap} color="#8a7a64" holdContent="Destroy this weapon and recover the material" /></div>
+                        <div data-fairy-target="btn_leave" style={{ flex: 1, display: "flex" }}><MobileBtn imgSrc={IC.leave} onClick={props.onLeave} color="#60a5fa" holdContent="Walk away, weapon stays on the anvil" /></div>
                     </div>
                 </div>
             ) : isQTEActive ? (
@@ -467,7 +467,7 @@ function MobileLayout(props) {
             <ForgeFireFX active={isForging} config={GameConstants.FIRE_FX_MOBILE} />
 
             {phase === "idle" && !props.hasWip && (
-                <W.Btn label="BEGIN FORGING" onClick={props.onBeginForge} disabled={props.beginForgeDisabled}
+                <W.Btn data-fairy-target="btn_forge_start" label="BEGIN FORGING" onClick={props.onBeginForge} disabled={props.beginForgeDisabled}
                        color="gold" font="heading" size="xl" radius="lg" spacing="normal"
                        style={Object.assign({}, forgeBtnPos, { padding: "10px 28px", whiteSpace: "nowrap" })} />
             )}

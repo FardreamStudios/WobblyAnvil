@@ -97,3 +97,12 @@ See `FairyFeatureSpecs.md` for full architecture and milestone details. Core thr
 - [ ] **Fix shelf images** — Remove visible background border on weapon shelf display sprites.
 - [ ] **FairyAnimInstance audio cleanup** — `new Audio()` direct usage in `src/fairy/FairyAnimInstance.js` should wire through main audio system for volume/mute consistency.
 - [ ] **Delete old FairyAnim.js** — `src/components/FairyAnim.js` replaced by `src/fairy/FairyAnimInstance.js`. Remove if still on disk.
+
+### ⚠️ Character/NPC System Improvements (HIGH PRIORITY — multiplies across all future characters)
+See `FairyFeatureSpecs.md` "Character/NPC System Improvements" section for full details and learnings.
+
+- [ ] **Add `noPoof` flag to pawn playCue** — Skip poof_in/poof_out steps when fairy is already visible. Eliminates persistent cue variants (`laser_speak`, `tut_forge_speak`). Any cue works in persistent mode.
+- [ ] **Add intent registry to pawn handleCommand** — Explicit handlers for `clear`, `moveTo`, `setScale` before the cue path. Prevents unhandled intents falling through to ad-hoc staging.
+- [ ] **Add `data-*` pass-through to widget components** — `W.Box`, `Panel`, `Btn` in `widgets.js`/`uiComponents.js` should forward `data-*` attributes to the DOM. Eliminates wrapper div workaround for fairy targets.
+- [ ] **Add sticky/pinned mode to pawn** — `_pinned` flag that locks fairy position during scripted sequences. Cues still fire (speak, laser, emote) but position doesn't change. Cleared by explicit unpin.
+- [ ] **Prototype generic NPC controller base** — Extract reusable patterns from FairyController (FSM, bus gating, processEvent state guards, presenter interface) into a base that customers/rivals/NPCs can extend.

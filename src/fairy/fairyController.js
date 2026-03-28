@@ -642,6 +642,8 @@ function processEvent(busTag, payload) {
     if (!_initialized) return null;
     if (_fsmState === STATES.OFF || _fsmState === STATES.DISMISSED) return null;
     if (_fsmState === STATES.EXITING) return null;
+    // Suppress reactive triggers during tutorial (POINTING state)
+    if (_fsmState === STATES.POINTING) return null;
 
     var trigger = _evaluateTriggers(busTag);
     if (!trigger) return null;
@@ -925,10 +927,13 @@ function _checkPendingSegments() {
  * ForgeTutorial owns its own step sequence and executor.
  */
 function _startForgeTutorial() {
+    // Poof fairy in at talk_close position before starting sequence
+    _sendCommand({ intent: "cue", cue: "tut_forge_enter", category: "tutorial" });
+
     ForgeTutorial.init({
         presenter: {
             say: function(text, duration) {
-                _sendCommand({ intent: "cue", cue: "speak_in_scene", line: text, target: null, category: "tutorial" });
+                _sendCommand({ intent: "cue", cue: "tut_forge_speak", line: text, target: null, category: "tutorial" });
             },
             pointAt: function(targetId) {
                 _sendCommand({ intent: "cue", cue: "laser_point", line: null, target: targetId, category: "tutorial" });
@@ -952,6 +957,8 @@ function _startForgeTutorial() {
  */
 function _onForgeTutorialComplete(result) {
     if (result === "segment_complete") {
+        // Poof fairy out before clearing state
+        _sendCommand({ intent: "cue", cue: "tut_forge_exit", category: "tutorial" });
         _persistFlag("wa_tut_forge_done", "true");
         _setTutorialHighlight(null);
         if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });

@@ -148,6 +148,16 @@ var UI_TARGETS = [
     { id: "btn_scavenge", selector: '[data-fairy-target="btn_scavenge"]', offset: { x: -30, y: 0 } },
     { id: "btn_shop",     selector: '[data-fairy-target="btn_shop"]',     offset: { x: -30, y: 0 } },
     { id: "btn_mats",     selector: '[data-fairy-target="btn_mats"]',     offset: { x: -30, y: 0 } },
+    // Forge tutorial targets
+    { id: "weapon_select_panel", selector: '[data-fairy-target="weapon_select_panel"]', offset: { x: 0, y: -20 } },
+    { id: "mat_select_panel",    selector: '[data-fairy-target="mat_select_panel"]',    offset: { x: 0, y: -20 } },
+    { id: "btn_forge_again",     selector: '[data-fairy-target="btn_forge_again"]',     offset: { x: -30, y: 0 } },
+    { id: "btn_normalize",       selector: '[data-fairy-target="btn_normalize"]',       offset: { x: -30, y: 0 } },
+    { id: "btn_quench",          selector: '[data-fairy-target="btn_quench"]',          offset: { x: -30, y: 0 } },
+    { id: "btn_scrap",           selector: '[data-fairy-target="btn_scrap"]',           offset: { x: -30, y: 0 } },
+    { id: "btn_forge_start",     selector: '[data-fairy-target="btn_forge_start"]',     offset: { x: 0, y: -20 } },
+    { id: "btn_confirm",         selector: '[data-fairy-target="btn_confirm"]',         offset: { x: -30, y: 0 } },
+    { id: "btn_leave",           selector: '[data-fairy-target="btn_leave"]',           offset: { x: -30, y: 0 } },
 ];
 
 // ============================================================

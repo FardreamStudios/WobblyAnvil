@@ -170,6 +170,16 @@ function handleCommand(cmd) {
         return;
     }
 
+    // Clear intent — hide speech + retract laser, keep fairy visible
+    if (cmd.intent === "clear") {
+        _cancelTimers();
+        if (_animRef && _animRef.current) {
+            _animRef.current.hideSpeech();
+        }
+        _destroyLaser();
+        return;
+    }
+
     // Cancel timers but keep fairy visible for cue chaining
     // Full hide only on explicit dismiss
     // Laser cleanup handled by cancelCue / dismiss paths
@@ -200,6 +210,9 @@ function handleCommand(cmd) {
  * Wraps a line into a default cue based on context.
  */
 function handleSpeak(line, category) {
+    // DEBUG TRACE: legacy speak path — who called this?
+    console.warn("[PAWN] TRACE handleSpeak — line:", line && line.substring(0, 40), "cat:", category);
+    console.trace();
     handleCommand({
         intent: "react",
         target: null,
@@ -216,6 +229,9 @@ function handleSpeak(line, category) {
 // ============================================================
 
 function _stageAdHoc(cmd) {
+    // DEBUG TRACE: ad-hoc staging picks speak_in_scene — who sent this?
+    console.warn("[PAWN] TRACE _stageAdHoc — intent:", cmd.intent, "target:", cmd.target, "line:", cmd.line && cmd.line.substring(0, 40));
+    console.trace();
     var cueId;
 
     // If a UI target is specified, use overlay cue
@@ -254,6 +270,11 @@ function _isUITarget(targetId) {
  * @param {Object} context — { line, target, category }
  */
 function playCue(cueId, context) {
+    // DEBUG TRACE: who is triggering speak_in_scene during tutorial?
+    if (cueId === "speak_in_scene" || cueId === "speak_at_target") {
+        console.warn("[PAWN] TRACE playCue '" + cueId + "' — caller stack:");
+        console.trace();
+    }
     var cueDef = FairyCues.getCue(cueId);
     if (!cueDef) {
         console.warn("[FairyPawn] Unknown cue: " + cueId);

@@ -150,3 +150,100 @@ Controller inits first with bus, stateProvider, and an `onCommand` callback that
 - **Target resolver on mobile.** `getBoundingClientRect` works differently when the game shell is scaled (desktop) vs full-viewport (mobile). Positions built (M-5) — needs real-device testing during Laser FX (M-11).
 - ~~**Tap exit flow.** AnimInstance → pawn → controller feedback needs clean timing.~~ ✅ Done. onTapExit callback wired through all three layers.
 - **FairyAnimInstance audio cleanup.** `new Audio()` direct usage should wire through main audio system for volume/mute consistency. Tracked in ToDo.md cleanup section.
+
+## ⚠️ PRIORITY: Character/NPC System Improvements
+
+**Why this matters:** The fairy three-layer architecture (Controller → Pawn → AnimInstance) is the foundation for ALL future characters and NPCs. Every improvement here multiplies — customers, rival smiths, quest givers, fishing NPCs will all reuse this pipeline. High bang-for-buck.
+
+---
+
+### Problem 1: Persistent vs Poof Cue Variants (DUCT TAPE)
+
+**Current state:** When the fairy is already on-screen (e.g. during forge tutorial), she needs "persistent" cue variants that skip poof in/out. We created `laser_speak` and `tut_forge_speak` as copies of `LASER_POINT` and `SPEAK_IN_SCENE` with poof steps stripped. This creates a variant explosion — every cue that poofs needs a no-poof twin.
+
+**Fix:** Add a `noPoof` context flag to `playCue`. When set, the pawn skips any `poof_in` / `poof_out` steps in the cue's step array. The presenter can then use the same cue IDs (`speak_in_scene`, `laser_point`) regardless of whether the fairy is already visible.
+
+```
+// Controller sends:
+_sendCommand({ intent: "cue", cue: "speak_in_scene", noPoof: true, ... });
+
+// Pawn checks in _executeStep:
+if ((step.cmd === "poof_in" || step.cmd === "poof_out") && _activeCue.noPoof) return;
+```
+
+**Impact:** Eliminates all persistent cue variants. Any future NPC that stays on-screen for scripted sequences benefits automatically.
+
+---
+
+### Problem 2: Missing Intent Handlers in Pawn (DUCT TAPE)
+
+**Current state:** The pawn's `handleCommand` is a funnel: named cue → play it, no cue → `_stageAdHoc` (which picks `speak_in_scene`). The `"clear"` intent had no handler and fell through to `_stageAdHoc`, triggering a rogue `speak_in_scene` cue that poofed the fairy away during the tutorial.
+
+**Fix:** Add a **lightweight command layer** to `handleCommand` — an explicit intent registry that handles state commands (`clear`, `moveTo`, `setScale`, `hide`, `show`) BEFORE the cue path. These are not cues — they're direct pawn state mutations.
+
+```
+// Intent registry (checked before cue path):
+// "clear"     → hide speech + retract laser, fairy stays visible
+// "dismiss"   → full hide (already exists)
+// "moveTo"    → reposition fairy without cue (future)
+// "setScale"  → change fairy scale (future)
+```
+
+**Impact:** Future presenter methods just work. No more unhandled intents silently triggering ad-hoc staging.
+
+---
+
+### Problem 3: Reactive Triggers During Scripted Sequences
+
+**Current state:** `processEvent` (bus-driven reactive triggers) had no state gate for POINTING state. During the forge tutorial, bus events from forge phase transitions fired reactive triggers that overrode the fairy's tutorial position.
+
+**Fix applied:** Added `if (_fsmState === STATES.POINTING) return null` to `processEvent`. This is correct architecture — reactive triggers should never fire during scripted sequences.
+
+**Consideration for NPCs:** Any future NPC controller with reactive + scripted modes needs the same pattern. Consider making this a base class behavior if we build a generic NPC controller.
+
+---
+
+### Problem 4: Custom Components Don't Pass data-* Attributes
+
+**Current state:** `W.Box`, `Panel`, and other custom widget components render `<div>` but only pass `className`, `style`, and `onClick`. `data-fairy-target` attributes are silently dropped.
+
+**Workaround:** Wrap the component in a plain `<div data-fairy-target="...">`.
+
+**Proper fix:** Add `...rest` spread or explicit `data-*` pass-through to `Box`, `Panel`, and `Btn` components in `widgets.js` / `uiComponents.js`. This is a widget system decision — not fairy-specific.
+
+---
+
+### Problem 5: Step Ordering Around Async Events
+
+**Learning:** `wait_event` must come BEFORE any `say`/`interact` that depends on the event. The QTE freeze event fires fast after `confirm_select` — if you place a `say` step before `wait_event`, the speech cue's `cue_complete` callback fires, advancing past the `wait_event` step before the actual bus event arrives. The event gets dropped.
+
+**Rule:** In any tutorial sequence, the pattern for async events is always:
+```
+wait_event → interact/say (explain) → action (resolve) → delay
+```
+Never:
+```
+say (explain) → wait_event → action (resolve)
+```
+
+---
+
+### Proposed Improvement: "Sticky" Fairy Mode
+
+**Concept:** Controller tells pawn "fairy is pinned at position X — ignore position changes from cues." Any cue can run (speak, laser, emote) without displacing her. Only an explicit `unpin` or `moveTo` changes her position.
+
+**Use case:** Long scripted sequences (tutorials, cutscenes, NPC conversations) where the fairy/NPC stays in one spot and just talks/points. Currently we achieve this with persistent cue variants — sticky mode would make it automatic.
+
+**Implementation:** A `_pinned` flag on the pawn. When set, `_executePoof` and `_executeMove` become no-ops. `_doPoof` still fires the VFX burst but doesn't change position. Cleared by explicit command.
+
+---
+
+### Build Priority
+
+| Order | Task | Impact | Effort |
+|-------|------|--------|--------|
+| 1 | `noPoof` flag on playCue | Eliminates variant cues, enables any cue in persistent mode | LOW |
+| 2 | Intent registry in handleCommand | Future-proofs presenter methods, prevents rogue cues | LOW |
+| 3 | `data-*` pass-through on widgets | Enables fairy targets without wrapper divs | LOW |
+| 4 | Sticky/pinned mode | Simplifies all scripted sequences for any character | MEDIUM |
+| 5 | Generic NPC controller base | Reusable for customers, rivals, quest NPCs | MEDIUM |

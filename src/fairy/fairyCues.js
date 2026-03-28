@@ -473,6 +473,62 @@ var TUT_BUTTONS = {
     ],
 };
 
+var TUT_FORGE_ENTER = {
+    id: "tut_forge_enter",
+    description: "Forge tutorial — fairy poofs in at talk_close position, smaller + shifted right",
+    layer: "overlay",
+    steps: [
+        { at: 0, cmd: "poof_in", peek: { from: { x: 75, y: -15 }, to: { x: 75, y: 30 }, rot: 0, variance: { axis: "x", range: 3 } }, scale: 1.5, instant: true, duration: 250 },
+    ],
+};
+
+var TUT_FORGE_EXIT = {
+    id: "tut_forge_exit",
+    description: "Forge tutorial — fairy poofs out",
+    layer: "overlay",
+    steps: [
+        { at: 0,   cmd: "hide_speech" },
+        { at: 100, cmd: "poof_out", duration: 250 },
+    ],
+};
+
+// ============================================================
+// LASER SPEAK (persistent)
+// Fairy is already visible. Laser on → speak → laser off.
+// No poof in/out. Used by forge tutorial presenter.interact().
+// Layer: overlay.
+// ============================================================
+
+var LASER_SPEAK = {
+    id: "laser_speak",
+    description: "Laser at target + speak, no poof (fairy already visible)",
+    layer: "overlay",
+    steps: [
+        { at: 0,    cmd: "set_anim",     anim: "point" },
+        { at: 50,   cmd: "laser_on",     target: null },
+        { at: 200,  cmd: "speak",        text: null, duration: null },
+        { at: null,  cmd: "hide_speech" },
+        { at: null,  cmd: "laser_off" },
+        { at: null,  cmd: "set_anim",     anim: "idle" },
+    ],
+};
+
+// ============================================================
+// TUT FORGE SPEAK (persistent)
+// Fairy is already visible. Speak only, no laser, no poof.
+// Used by forge tutorial presenter.say().
+// Layer: overlay.
+// ============================================================
+
+var TUT_FORGE_SPEAK = {
+    id: "tut_forge_speak",
+    description: "Speak only, no poof (fairy already visible)",
+    layer: "overlay",
+    steps: [
+        { at: 0,   cmd: "speak",        text: null, duration: null },
+        { at: null, cmd: "hide_speech" },
+    ],
+};
 // ============================================================
 // CUE REGISTRY
 // Pawn looks up cues by id from this map.
@@ -498,6 +554,10 @@ var FAIRY_CUES = {
     intro_respond_no:  INTRO_RESPOND_NO,
     tut_rep_laser:     TUT_REP_LASER,
     tut_buttons:       TUT_BUTTONS,
+    tut_forge_enter:   TUT_FORGE_ENTER,
+    tut_forge_exit:    TUT_FORGE_EXIT,
+    laser_speak:       LASER_SPEAK,
+    tut_forge_speak:   TUT_FORGE_SPEAK,
 };
 
 // ============================================================

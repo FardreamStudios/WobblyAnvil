@@ -603,7 +603,7 @@ export default function App() {
 
           {/* MOBILE WEAPON SELECT */}
           {phase === PHASES.SELECT && (
-              <div style={{ position: "absolute", top: "20%", bottom: "20%", right: handedness === "left" ? "30%" : "25%", left: handedness === "left" ? "25%" : "30%", zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
+              <div data-fairy-target="weapon_select_panel" style={{ position: "absolute", top: "20%", bottom: "20%", right: handedness === "left" ? "30%" : "25%", left: handedness === "left" ? "25%" : "30%", zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
                 <div style={{ fontSize: 12, letterSpacing: 2, color: "#f59e0b", fontWeight: "bold", marginBottom: 6 }}>CHOOSE WEAPON</div>
                 {/* Selected weapon info */}
                 <div style={{ display: "flex", gap: 10, marginBottom: 8, width: "100%", maxWidth: 400 }}>
@@ -642,7 +642,7 @@ export default function App() {
 
           {/* MOBILE MATERIAL SELECT */}
           {phase === PHASES.SELECT_MAT && (
-              <div style={{ position: "absolute", top: "20%", bottom: "20%", right: handedness === "left" ? "30%" : "25%", left: handedness === "left" ? "25%" : "30%", zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
+              <div data-fairy-target="mat_select_panel" style={{ position: "absolute", top: "20%", bottom: "20%", right: handedness === "left" ? "30%" : "25%", left: handedness === "left" ? "25%" : "30%", zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
                 <div style={{ fontSize: 12, letterSpacing: 2, color: "#f59e0b", fontWeight: "bold", marginBottom: 4 }}>CHOOSE MATERIAL</div>
                 <div style={{ fontSize: 9, color: "#8a7a64", marginBottom: 6 }}>{weapon.name} needs {weapon.materialCost} units</div>
                 {/* Selected material info */}
@@ -683,7 +683,7 @@ export default function App() {
                   <button onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", background: "#141009", border: "2px solid #3d2e0f", borderRadius: 6, color: "#8a7a64", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>BACK</button>
                   {(function() {
                     var canConfirm = !input.confirmSelect.disabled;
-                    return <button onClick={canConfirm ? function() { sfx.click(); confirmSelect(); } : null} disabled={!canConfirm} style={{ position: "absolute", right: handedness === "left" ? "auto" : 0, left: handedness === "left" ? 0 : "auto", background: canConfirm ? "#2a1f0a" : "#0a0704", border: "2px solid " + (canConfirm ? "#f59e0b" : "#1a1209"), borderRadius: 6, color: canConfirm ? "#f59e0b" : "#2a1f0a", padding: "8px 24px", fontSize: 12, cursor: canConfirm ? "pointer" : "not-allowed", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>CONFIRM</button>;
+                    return <button data-fairy-target="btn_confirm" onClick={canConfirm ? function() { sfx.click(); confirmSelect(); } : null} disabled={!canConfirm} style={{ position: "absolute", right: handedness === "left" ? "auto" : 0, left: handedness === "left" ? 0 : "auto", background: canConfirm ? "#2a1f0a" : "#0a0704", border: "2px solid " + (canConfirm ? "#f59e0b" : "#1a1209"), borderRadius: 6, color: canConfirm ? "#f59e0b" : "#2a1f0a", padding: "8px 24px", fontSize: 12, cursor: canConfirm ? "pointer" : "not-allowed", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>CONFIRM</button>;
                   })()}
                 </div>
               </div>
