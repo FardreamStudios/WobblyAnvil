@@ -30,7 +30,7 @@ function _pickGibberlese() {
 // RESPONSE VALIDATION
 // ============================================================
 
-function _sanitize(text) {
+function _sanitize(text, isChat) {
     if (!text || typeof text !== "string") return null;
 
     var clean = text
@@ -41,9 +41,10 @@ function _sanitize(text) {
 
     if (clean.length === 0) return null;
 
+    var maxWords = isChat ? FAIRY_CONFIG.chatMaxResponseWords : FAIRY_CONFIG.maxResponseWords;
     var words = clean.split(/\s+/);
-    if (words.length > FAIRY_CONFIG.maxResponseWords) {
-        clean = words.slice(0, FAIRY_CONFIG.maxResponseWords).join(" ");
+    if (words.length > maxWords) {
+        clean = words.slice(0, maxWords).join(" ");
     }
 
     return clean;
@@ -141,11 +142,12 @@ function _liveChatRequest(message, history, gameState) {
 
     var body = JSON.stringify({
         type:    "chat",
-        system:  FairyPersonality.SYSTEM_PROMPT,
+        system:  FairyPersonality.CHAT_SYSTEM_PROMPT,
         state:   gameState,
         history: recentHistory,
         message: message,
         model:   FAIRY_CONFIG.chatModel,
+        max_tokens: FAIRY_CONFIG.chatMaxTokens,
     });
 
     var controller = new AbortController();
@@ -165,7 +167,7 @@ function _liveChatRequest(message, history, gameState) {
             return res.json();
         })
         .then(function(data) {
-            var line = _sanitize(data && data.line);
+            var line = _sanitize(data && data.line, true);
             return line || _pickGibberlese();
         })
         .catch(function(err) {
