@@ -97,10 +97,12 @@ var MysteryVisitorAbility = {
 
         // Foreshadow — event banner, not toast (avoids interrupting morning toast queue)
         bus.emit(EVENT_TAGS.DAY_MORNING_EVENT_DISPLAY, {
-            msg: "SOMETHING STIRS\nA warm light flickers at the edge of your vision...",
+            id: "mystery_visitor",
+            title: "Something Stirs",
+            desc: "A warm light flickers at the edge of your vision...",
+            tag: "EVENT",
             icon: "\u2728",
             color: "#fbbf24",
-            duration: 3000,
         });
 
         function onSleep() {

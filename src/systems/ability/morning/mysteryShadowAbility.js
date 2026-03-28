@@ -153,10 +153,12 @@ var MysteryShadowAbility = {
 
         // Foreshadow — event banner, not toast (avoids interrupting morning toast queue)
         bus.emit(EVENT_TAGS.DAY_MORNING_EVENT_DISPLAY, {
-            msg: "SOMETHING STIRS\nA cold draft chills the forge...",
+            id: "mystery_shadow",
+            title: "Something Stirs",
+            desc: "A cold draft chills the forge...",
+            tag: "EVENT",
             icon: "\uD83C\uDF19",
             color: "#8a7a64",
-            duration: 3000,
         });
 
         function onSleep() {
