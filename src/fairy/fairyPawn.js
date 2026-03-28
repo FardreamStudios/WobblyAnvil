@@ -196,10 +196,53 @@ function handleCommand(cmd) {
         return;
     }
 
-    // moveTo intent — reposition fairy without cue (chat-driven movement)
+    // moveTo intent — poof-teleport fairy to new spot (chat-driven movement)
     if (cmd.intent === "moveTo") {
         if (_PAWN_DEBUG) console.log("[PAWN] moveTo spot:", cmd.spot);
-        _executeMove({ spot: cmd.spot, duration: 600 });
+        var anim = _animRef && _animRef.current;
+        if (!anim) return;
+
+        // Resolve destination
+        var dest = _resolveSceneSpot(cmd.spot);
+        if (!dest) return;
+
+        var oldPos = _currentPos || { x: 50, y: 50, scale: 1.0 };
+
+        // Phase 1: poof-out at current position
+        anim.hideSpeech();
+        anim.poofFX(oldPos.x, oldPos.y);
+        anim.playPop();
+
+        _scheduleTimer(function() {
+            anim.setPos({
+                x: oldPos.x, y: oldPos.y, scale: 0.05,
+                rot: 0, transition: 200,
+                transformOrigin: "50% 100%",
+            });
+        }, POOF_FX_LEAD_MS);
+
+        // Phase 2: poof-in at destination after brief pause
+        _scheduleTimer(function() {
+            anim.poofFX(dest.x, dest.y);
+            anim.playPop();
+        }, POOF_FX_LEAD_MS + 300);
+
+        _scheduleTimer(function() {
+            anim.setPos({
+                x: dest.x, y: dest.y, scale: 0.05,
+                rot: 0, transition: 0,
+                transformOrigin: "50% 100%",
+            });
+            _scheduleTimer(function() {
+                anim.setPos({
+                    x: dest.x, y: dest.y, scale: dest.scale || 1.0,
+                    rot: 0, transition: POOF_SNAP_IN_MS,
+                    transformOrigin: "50% 100%",
+                });
+            }, 50);
+        }, POOF_FX_LEAD_MS + 300 + POOF_FX_LEAD_MS);
+
+        _currentPos = { x: dest.x, y: dest.y, scale: dest.scale || 1.0 };
         return;
     }
 
