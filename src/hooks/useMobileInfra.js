@@ -106,15 +106,23 @@ function useFullscreenState() {
 
     useEffect(function() {
         function sync() { setIsFull(isFullscreenActive()); }
+        // Standard fullscreen change events
         document.addEventListener("fullscreenchange", sync);
         document.addEventListener("webkitfullscreenchange", sync);
         document.addEventListener("mozfullscreenchange", sync);
         document.addEventListener("MSFullscreenChange", sync);
+        // Catch silent fullscreen exits (permission dialogs, browser chrome)
+        document.addEventListener("visibilitychange", sync);
+        window.addEventListener("focus", sync);
+        window.addEventListener("resize", sync);
         return function() {
             document.removeEventListener("fullscreenchange", sync);
             document.removeEventListener("webkitfullscreenchange", sync);
             document.removeEventListener("mozfullscreenchange", sync);
             document.removeEventListener("MSFullscreenChange", sync);
+            document.removeEventListener("visibilitychange", sync);
+            window.removeEventListener("focus", sync);
+            window.removeEventListener("resize", sync);
         };
     }, []);
 

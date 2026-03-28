@@ -41,6 +41,10 @@
 - [x] **Mystery event display bug** — `mysteryVisitorAbility.js` + `mysteryShadowAbility.js` foreshadow emit used `msg` field instead of `id`/`title`/`desc`/`tag`, crashing desktop event bar (`mEvent.title.toUpperCase()` on undefined). Fixed payload shape to match `DAY_MORNING_EVENT_DISPLAY` contract. Original `UI_ADD_TOAST` → `DAY_MORNING_EVENT_DISPLAY` conversion done earlier (event bar, not toast).
 - [x] **Merge splash + menu screens** — `SplashScreen` deleted. `MainMenu` gains `audioReady` + `onAudioWarmup` props. `useUIState` default `"splash"` → `"menu"`. One component, one visual.
 - [x] **Tutorial tap behavior** — `tutorialMode` flag on AnimInstance. First tap: cancel/stash/replay warning. Second tap: skip section, dismiss at current pos, continue to next. Pawn `showWarning` + `_dismissFairy` position fix. Controller `_persistFlag` writes runtime `_flagMemory`. Sequencer gains `setFlag()` API.
+- [x] **Left-handed button alignment fix** — Button layout respects handedness preference.
+- [x] **Fairy chat bus decoupling** — 8 files touched. New `src/fairy/fairyChatSystem.js` pure JS singleton owns chat lifecycle, speech recognition, idle timeout, message history. `useFairyChatVM.js` is thin React bridge. `fairyController.js` and `fairyPawn.js` decoupled from chat state. New bus tags for chat open/close/send/receive/listening.
+- [x] **Cloudflare Worker deployed** — `wobbly-anvil-fairy.wobblyforge.workers.dev` live. Proxy forwards to Anthropic Messages API. CORS, role merging, error handling. Debug logging stripped from `fairy-worker.js`.
+- [x] **Fairy LLM live mode** — `fairyConfig.js` set to `mode: "live"` with worker URL. Fairy chat confirmed working end-to-end: poof in → persistent → speech bubble → live API responses → dismiss.
 
 ---
 
@@ -81,8 +85,9 @@ Forge tutorial shipped using sandbox auto-freeze instead. QTE Pause is only need
 - [ ] **Fairy pause triggers** — First-time QTE encounter → fairy pauses and explains.
 
 ### LLM Integration (separate workstream)
-- [ ] **Cloudflare Worker setup** — Create account, deploy proxy worker with API key.
-- [ ] **Wire into fairyController.js** — Tier 2 dialogue calls for complex state combos. `src/fairy/fairyAPI.js` and `src/fairy/fairyConfig.js` already exist.
+- [x] **Cloudflare Worker setup** — Account created, proxy worker deployed with API key secret. Live at `wobbly-anvil-fairy.wobblyforge.workers.dev`.
+- [x] **Wire into fairyController.js** — Tier 2 dialogue calls for complex state combos. `fairyAPI.js` routes through worker. `fairyChatSystem.js` handles multi-turn chat. Bus-driven decoupling complete.
+- [ ] **Tune LLM fairy setup** — System prompt refinement (voice consistency, response constraints), max_tokens tuning, game state snapshot shape optimization, response quality/length testing, conversation safety guardrails. Files: `fairyPersonality.js` (SYSTEM_PROMPT), `fairy-worker.js` (MAX_TOKENS), `fairyChatSystem.js` (state builder).
 - [ ] **fairyMic.js** — Voice input via Web Speech API (future).
 - [ ] **FTUE via LLM** — Fairy as primary onboarding via voice/text conversation (future).
 
