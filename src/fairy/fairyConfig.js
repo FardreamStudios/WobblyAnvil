@@ -35,8 +35,8 @@ var FAIRY_CONFIG = {
     chatEnabled: true,          // master gate for fairy chat feature (button visibility + system)
     chatIdleTimeoutMs: 30000,   // 30s — fairy poofs out after no player input
     chatDebounceMs: 2000,       // min time between API calls
-    chatMaxHistory: 15,         // max exchanges stored in local memory
-    chatSendHistory: 4,         // exchanges sent per API call (keep small for free tier)
+    chatMaxHistory: 25,         // max exchanges stored in local memory
+    chatSendHistory: 8,         // exchanges sent per API call (more context = better conversation)
     chatModel: "claude-haiku-4-5-20251001",  // cheapest/fastest for one-liners
     chatMaxTokens: 100,         // token budget for chat responses (1-2 sentences)
     chatMaxResponseWords: 30,   // word truncation limit for chat (vs 15 for reactive)

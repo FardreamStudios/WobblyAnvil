@@ -563,17 +563,33 @@ var CHAT_IDLE = {
 
 var TUT_CHAT = {
     id: "tut_chat",
-    description: "Tutorial — introduce fairy chat button on day 2",
+    description: "Tutorial — introduce fairy chat button + tap/hold/text features on day 2",
     layer: "overlay",
     steps: [
-        { at: 0,    cmd: "poof_in",      spot: { x: 50, y: 50 }, scale: 1.0, duration: 300 },
-        { at: 400,  cmd: "set_tappable", value: true },
-        { at: 600,  cmd: "laser_on",     target: "btn_fairy_chat" },
-        { at: 1200, cmd: "speak",        text: "see that little button? if you ever want to talk — and i mean EVER — just press it. i'll be around.", duration: 5500 },
-        { at: 6800, cmd: "hide_speech" },
-        { at: 7000, cmd: "laser_off" },
-        { at: 7200, cmd: "set_tappable", value: false },
-        { at: 7300, cmd: "poof_out",     duration: 200 },
+        { at: 0,     cmd: "poof_in",      spot: { x: 50, y: 50 }, scale: 1.0, duration: 300 },
+        { at: 400,   cmd: "set_tappable", value: true },
+        { at: 600,   cmd: "laser_on",     target: "btn_fairy_chat" },
+
+        // Step 1: Introduce the button
+        { at: 1200,  cmd: "speak",        text: "see that little button? that's how you summon me. tap it once and i'll appear.", duration: 5000 },
+        { at: 6300,  cmd: "hide_speech" },
+
+        // Step 2: Hold for voice
+        { at: 7300,  cmd: "speak",        text: "hold it down and you can talk to me with your voice. yes, really. i can hear you.", duration: 5500 },
+        { at: 12900, cmd: "hide_speech" },
+
+        // Step 3: Tap again for text
+        { at: 13900, cmd: "speak",        text: "or tap it again while i'm out to type something instead. whatever works for you.", duration: 5000 },
+        { at: 19000, cmd: "hide_speech" },
+
+        // Step 4: Sign off
+        { at: 20000, cmd: "speak",        text: "i'll be around. probably judging your material choices.", duration: 4000 },
+        { at: 24100, cmd: "hide_speech" },
+
+        // Exit
+        { at: 24500, cmd: "laser_off" },
+        { at: 24700, cmd: "set_tappable", value: false },
+        { at: 24800, cmd: "poof_out",     duration: 200 },
     ],
 };
 

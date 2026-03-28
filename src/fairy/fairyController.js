@@ -875,7 +875,8 @@ function _onChatDismiss() {
 
     if (!_chatDismissWarned) {
         _chatDismissWarned = true;
-        _sendCommand({ intent: "show_speech", line: "you trying to get rid of me?", category: "chat" });
+        // Send poke through chat system so LLM responds in context
+        FairyChatSystem.sendMessage("*pokes you*");
         return;
     }
 
