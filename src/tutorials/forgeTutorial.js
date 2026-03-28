@@ -12,6 +12,7 @@
 // STEP TYPES (shared with fairyTutorial.js):
 //   action    — fire a gameAction, instant advance
 //   delay     — wait N ms, then advance
+//   auto_delay — compute delay from previous step's text length
 //   say       — presenter.say(text), wait for say_done
 //   interact  — presenter.interact(target, text), wait for interact_done
 //   point     — presenter.pointAt(target), instant advance
@@ -23,6 +24,16 @@
 // ============================================================
 
 // ============================================================
+// SPEECH DURATION TUNING
+// auto_delay reads the previous step's text and computes hold
+// time so the bubble stays up long enough to read.
+// Tune these three values to adjust pacing globally.
+// ============================================================
+var SPEECH_BASE_MS      = 1200;   // minimum floor — no hold shorter than this
+var SPEECH_MS_PER_WORD  = 390;    // per word on top of base (~40% slower reading pace)
+var SPEECH_PADDING_MS   = 200;    // breathing room after calculated duration
+
+// ============================================================
 // SEQUENCE DATA
 // Full forge tutorial with fairy speech + laser pointing.
 // ============================================================
@@ -30,31 +41,31 @@
 var FORGE_STEPS = [
     // --- Sandbox on ---
     { type: "action",   name: "enter_sandbox" },
-    { type: "delay",    ms: 1200 },
+    { type: "delay",    ms: 800 },
 
     // --- Fairy introduces the forge ---
     { type: "say",      text: "let me show you how the forge works!" },
-    { type: "delay",    ms: 1000 },
+    { type: "auto_delay" },
 
     // --- Enter forge select ---
     { type: "action",   name: "begin_forge" },
-    { type: "delay",    ms: 2000 },
+    { type: "delay",    ms: 1200 },
 
     // --- Weapon select ---
     { type: "interact", target: "weapon_select_panel", text: "first you pick what to make. each weapon has a difficulty and sell value." },
-    { type: "delay",    ms: 3500 },
+    { type: "auto_delay" },
     { type: "say",      text: "harder weapons are worth more but they're trickier to forge. start simple." },
-    { type: "delay",    ms: 2000 },
+    { type: "auto_delay" },
     { type: "action",   name: "select_weapon", params: { key: "dagger" } },
-    { type: "delay",    ms: 2500 },
+    { type: "delay",    ms: 1200 },
 
     // --- Material select ---
     { type: "interact", target: "mat_select_panel", text: "now pick your metal. each material has a value multiplier and difficulty modifier." },
-    { type: "delay",    ms: 3000 },
+    { type: "auto_delay" },
     { type: "say",      text: "rarer metals make weapons worth more, but they're harder to work with." },
-    { type: "delay",    ms: 1500 },
+    { type: "auto_delay" },
     { type: "action",   name: "select_material", params: { key: "bronze" } },
-    { type: "delay",    ms: 2000 },
+    { type: "delay",    ms: 1000 },
     { type: "clear" },
     { type: "action",   name: "confirm_select" },
     { type: "delay",    ms: 500 },
@@ -62,34 +73,34 @@ var FORGE_STEPS = [
     // --- Heat phase ---
     { type: "wait_event", event: "QTE_SANDBOX_FROZEN" },
     { type: "say",      text: "this is the heat phase. you only get one shot at this." },
-    { type: "delay",    ms: 1500 },
-    { type: "interact", target: "qte", text: "tap when the needle is in the bright zone. a better heat gives you more hammer strikes." },
-    { type: "delay",    ms: 3500 },
+    { type: "auto_delay" },
+    { type: "say",      text: "tap when the needle is in the bright zone. a better heat gives you more hammer strikes." },
+    { type: "auto_delay" },
     { type: "say",      text: "think of it like heating metal — hotter means it stays workable longer." },
-    { type: "delay",    ms: 2000 },
+    { type: "auto_delay" },
     { type: "action",   name: "resolve_qte" },
-    { type: "delay",    ms: 2000 },
+    { type: "delay",    ms: 1200 },
 
     // --- Hammer phase ---
     { type: "wait_event", event: "QTE_SANDBOX_FROZEN" },
     { type: "say",      text: "now the hammer phase. this is where your weapon takes shape." },
-    { type: "delay",    ms: 1500 },
-    { type: "interact", target: "qte", text: "each strike builds quality. better hits mean a better weapon." },
-    { type: "delay",    ms: 3500 },
+    { type: "auto_delay" },
+    { type: "say",      text: "each strike builds quality. better hits mean a better weapon." },
+    { type: "auto_delay" },
     { type: "say",      text: "the number of strikes you get depends on how well you heated the metal." },
-    { type: "delay",    ms: 2000 },
+    { type: "auto_delay" },
     { type: "action",   name: "resolve_qte" },
-    { type: "delay",    ms: 2000 },
+    { type: "delay",    ms: 1200 },
 
     // --- Session result — button tour ---
     { type: "clear" },
-    { type: "delay",    ms: 1500 },
+    { type: "delay",    ms: 1000 },
 
     // Weapon stats panel
     { type: "interact", target: "forge_info", text: "over here you can see your weapon's quality and stress level." },
-    { type: "delay",    ms: 3500 },
+    { type: "delay",    ms: 4000 },
     { type: "say",      text: "quality is what makes your weapon worth more. stress is what breaks it." },
-    { type: "delay",    ms: 2500 },
+    { type: "delay",    ms: 4000 },
 
     // Buttons
     { type: "interact", target: "btn_forge_again", text: "forge again to raise quality. costs stamina and time each session, and adds stress." },
@@ -107,21 +118,21 @@ var FORGE_STEPS = [
 
     // --- Quench ---
     { type: "interact", target: "btn_quench", text: "let's quench this one and see how it turns out!" },
-    { type: "delay",    ms: 1500 },
+    { type: "auto_delay" },
     { type: "clear" },
     { type: "action",   name: "quench" },
-    { type: "delay",    ms: 1000 },
+    { type: "delay",    ms: 800 },
 
     // --- Quench phase ---
     { type: "wait_event", event: "QTE_SANDBOX_FROZEN" },
-    { type: "interact", target: "qte", text: "one last step — cool it down nice and even!" },
-    { type: "delay",    ms: 2500 },
+    { type: "say",      text: "one last step — cool it down nice and even!" },
+    { type: "auto_delay" },
     { type: "action",   name: "resolve_qte" },
-    { type: "delay",    ms: 1500 },
+    { type: "delay",    ms: 1000 },
 
     // --- Wrap up ---
     { type: "say",      text: "and that's a finished blade! the better you forge, the higher the quality." },
-    { type: "delay",    ms: 500 },
+    { type: "auto_delay" },
 
     // --- Exit sandbox + cleanup ---
     { type: "clear" },
@@ -228,6 +239,22 @@ function isRunning() {
 }
 
 // ============================================================
+// SPEECH DURATION HELPER
+// ============================================================
+
+/**
+ * Compute the breathing room after a speech cue completes.
+ * The fairy cue system already holds the speech bubble for the
+ * full read duration — auto_delay only adds the padding gap
+ * between one line finishing and the next step starting.
+ */
+function _speechDelayMs(text) {
+    var total = SPEECH_PADDING_MS;
+    console.log("[ForgeTutorial] auto_delay: padding " + total + "ms");
+    return total;
+}
+
+// ============================================================
 // STEP EXECUTOR
 // ============================================================
 
@@ -262,6 +289,19 @@ function _executeStep(step) {
                 _waiting = false;
                 _advance();
             }, step.ms || 500);
+            break;
+
+        case "auto_delay":
+            // Look back at previous step's text to compute hold duration
+            var prevStep = (_stepIndex > 0) ? _steps[_stepIndex - 1] : null;
+            var prevText = prevStep ? (prevStep.text || null) : null;
+            var autoMs = _speechDelayMs(prevText);
+            _waiting = true;
+            _delayTimer = setTimeout(function() {
+                _delayTimer = null;
+                _waiting = false;
+                _advance();
+            }, autoMs);
             break;
 
         case "say":

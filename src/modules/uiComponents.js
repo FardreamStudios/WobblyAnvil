@@ -224,11 +224,28 @@ function DangerBtn({ onClick, disabled, style, children }) {
 
 function Tooltip({ title, text, below, children }) {
     var [show, setShow] = useState(false);
-    var tipStyle = below
-        ? { position: "absolute", top: "calc(100% + 8px)", left: 0 }
-        : { position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)" };
+    var triggerRef = useRef(null);
+    var [tipPos, setTipPos] = useState(null);
+
+    useEffect(function() {
+        if (!show || !triggerRef.current) { setTipPos(null); return; }
+        var rect = triggerRef.current.getBoundingClientRect();
+        if (below) {
+            setTipPos({ top: rect.bottom + 8, left: rect.left });
+        } else {
+            setTipPos({ bottom: window.innerHeight - rect.top + 8, left: rect.left + rect.width / 2 });
+        }
+    }, [show, below]);
+
+    var tipStyle = tipPos
+        ? below
+            ? { position: "fixed", top: tipPos.top, left: tipPos.left }
+            : { position: "fixed", bottom: tipPos.bottom, left: tipPos.left, transform: "translateX(-50%)" }
+        : { display: "none" };
+
     return (
         <div
+            ref={triggerRef}
             style={{ position: "relative", display: "flex", flexDirection: "column", flex: "none" }}
             onMouseEnter={function() { setShow(true); }}
             onMouseLeave={function() { setShow(false); }}
@@ -240,17 +257,18 @@ function Tooltip({ title, text, below, children }) {
                     border: "1px solid #f59e0b66",
                     borderRadius: 10,
                     padding: "14px 16px",
-                    fontSize: 24,
+                    fontSize: 12,
                     color: "#c8b89a",
                     lineHeight: 1.8,
-                    zIndex: 300,
+                    zIndex: 9998,
                     width: 260,
+                    maxWidth: "90vw",
                     boxShadow: "0 6px 20px rgba(0,0,0,0.97)",
                     pointerEvents: "none",
                     whiteSpace: "normal",
                     overflow: "hidden",
                 })}>
-                    {title && <div style={{ color: "#f59e0b", fontWeight: "bold", letterSpacing: 2, marginBottom: 8, fontSize: 24 }}>{title}</div>}
+                    {title && <div style={{ color: "#f59e0b", fontWeight: "bold", letterSpacing: 2, marginBottom: 8, fontSize: 11 }}>{title}</div>}
                     {text}
                 </div>
             )}

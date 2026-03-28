@@ -93,7 +93,7 @@ function StatPanel({ stats, points, onAllocate, sfx, locked }) {
 
 function ForgeInfoPanel({ upgrades }) {
     return (
-        <div data-fairy-target="forge_info" style={{ flex: 1 }}>
+        <div data-fairy-target="forge_upgrades" style={{ flex: 1 }}>
             <Panel style={{ flex: 1 }}>
                 <SectionLabel color="#f59e0b" style={{ marginBottom: 8 }}>FORGE</SectionLabel>
                 {[["anvil", "Anvil"], ["hammer", "Hammer"], ["forge", "Forge"], ["quench", "Quench"], ["furnace", "Furnace"]].map(function(pair) {

@@ -41,7 +41,7 @@ import FairyCues from "./fairyCues.js";
 
 // Speech timing (matches AnimInstance for consistency)
 var MIN_READ_MS = 2500;
-var MS_PER_CHAR = 80;
+var MS_PER_CHAR = 99;            // read time per character (tuned for mobile reading speed)
 
 // Poof timing (matches AnimInstance visual timing)
 var POOF_SNAP_IN_MS = 250;
@@ -1124,8 +1124,8 @@ function showWarning(line) {
  * Forward the answer upward, then complete the waitForInput cue.
  */
 function onChoiceSelect(answer) {
-    // Audio feedback
-    if (_animRef && _animRef.current) _animRef.current.playPop();
+    // Audio feedback — accept sound for choice selection
+    if (_animRef && _animRef.current) _animRef.current.playAccept();
 
     // Tell controller/tutorial which option was picked
     if (_onPawnEvent) _onPawnEvent("prompt_response", { answer: answer });

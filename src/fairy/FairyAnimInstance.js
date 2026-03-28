@@ -50,6 +50,8 @@ var FAIRY_POP_SRC = PUB + "/audio/sFairyPop.mp3";
 var FAIRY_POP_VOL = 0.35;
 var FAIRY_POP_RATE_MIN = 0.55;
 var FAIRY_POP_RATE_MAX = 1.05;
+var FAIRY_ACCEPT_SRC  = PUB + "/audio/sSpecialAccept.mp3";
+var FAIRY_DECLINE_SRC = PUB + "/audio/sSpecialDecline.mp3";
 
 // ============================================================
 // Sprite Params
@@ -87,7 +89,7 @@ var BUBBLE_CLAMP_TOP = false;      // toggle: clamp bubble from going above view
 // ============================================================
 // Tap Interaction Config
 // ============================================================
-var TAP_COOLDOWN_MS = 1200;      // min ms between accepted taps
+var TAP_COOLDOWN_MS = 600;       // min ms between accepted taps
 var TAP_HOLD_MS = 5000;          // how long she stays after a tap
 var DODGE_PAUSE_MS = 300;        // gap between vanish and reappear
 var MIN_READ_MS = 2500;          // minimum time speech stays up
@@ -601,6 +603,26 @@ function playTapPop() {
     } catch (e) {}
 }
 
+// Choice accept — plays sSpecialAccept.mp3
+function playAccept() {
+    try {
+        var audio = new Audio(FAIRY_ACCEPT_SRC);
+        audio.volume = 0.35;
+        var promise = audio.play();
+        if (promise && promise.catch) { promise.catch(function() {}); }
+    } catch (e) {}
+}
+
+// Fairy tap / choice decline — plays sSpecialDecline.mp3
+function playDecline() {
+    try {
+        var audio = new Audio(FAIRY_DECLINE_SRC);
+        audio.volume = 0.35;
+        var promise = audio.play();
+        if (promise && promise.catch) { promise.catch(function() {}); }
+    } catch (e) {}
+}
+
 // ============================================================
 // Helpers
 // ============================================================
@@ -796,7 +818,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
         if (!tappable) return;
 
         lastTapRef.current = now;
-        playTapPop();
+        playDecline();
 
         // Tutorial mode — skip irritation/dodge, notify pawn
         if (tutorialModeRef.current) {
@@ -911,6 +933,8 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             },
             playPop: playPop,
             playTapPop: playTapPop,
+            playAccept: playAccept,
+            playDecline: playDecline,
             clearExitTimeouts: clearExitTimeouts,
             beginExit: beginExit,
             showChoice: function(text, options) {
