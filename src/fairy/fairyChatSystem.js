@@ -29,6 +29,7 @@
 import FAIRY_CONFIG     from "./fairyConfig.js";
 import FairyAPI         from "./fairyAPI.js";
 import FairyPersonality from "./fairyPersonality.js";
+import FairyPositions   from "./fairyPositions.js";
 import EVENT_TAGS       from "../config/eventTags.js";
 
 // ============================================================
@@ -189,6 +190,45 @@ function _splitIntoBubbles(line) {
 }
 
 // ============================================================
+// ACTION PARSING
+// Scans LLM response for [MOVE:spotId] tags.
+// Strips action from display text. Returns parsed action.
+// ============================================================
+
+var _ACTION_RE = /\[MOVE:([a-z_]+)\]/i;
+
+/**
+ * Parse and strip action tags from an LLM response.
+ * @param {string} line — raw LLM response
+ * @returns {{ text: string, action: Object|null }}
+ */
+function _parseActions(line) {
+    var match = _ACTION_RE.exec(line);
+    if (!match) return { text: line, action: null };
+
+    // Strip the tag from display text
+    var cleanText = line.replace(match[0], "").trim();
+
+    // Validate spot against position registry
+    var spotId = match[1].toLowerCase();
+    var validSpots = FairyPositions.listSpots("forge");
+    var isValid = false;
+    for (var i = 0; i < validSpots.length; i++) {
+        if (validSpots[i] === spotId) { isValid = true; break; }
+    }
+
+    if (!isValid) {
+        console.warn("[FairyChatSystem] LLM requested invalid spot:", spotId);
+        return { text: cleanText, action: null };
+    }
+
+    return {
+        text: cleanText,
+        action: { type: "move", spot: spotId },
+    };
+}
+
+// ============================================================
 // GREETING
 // ============================================================
 
@@ -306,20 +346,26 @@ function sendMessage(text) {
     FairyAPI.requestChat(text, historyForApi, gameState).then(function(line) {
         if (!_chatOpen) return; // closed while waiting
 
-        _history.push({ role: "fairy", text: line });
+        // Parse action tags before storing/displaying
+        var parsed = _parseActions(line);
+        var displayText = parsed.text;
+        var action = parsed.action;
+
+        // Store the clean text (no action tags) in history
+        _history.push({ role: "fairy", text: displayText });
         _trimHistory();
 
         if (_bus) {
             _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_WAITING, { active: false });
 
             // Split long responses into multiple bubbles
-            var bubbles = _splitIntoBubbles(line);
+            var bubbles = _splitIntoBubbles(displayText);
             _clearSplitTimers();
 
-            // Emit first bubble immediately
-            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[0] });
+            // Emit first bubble immediately — attach action to first bubble only
+            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[0], action: action || null });
 
-            // Stagger remaining bubbles
+            // Stagger remaining bubbles (no action on subsequent bubbles)
             var delay = FAIRY_CONFIG.chatBubbleDelayMs || 2800;
             for (var b = 1; b < bubbles.length; b++) {
                 (function(idx) {

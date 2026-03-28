@@ -196,6 +196,13 @@ function handleCommand(cmd) {
         return;
     }
 
+    // moveTo intent — reposition fairy without cue (chat-driven movement)
+    if (cmd.intent === "moveTo") {
+        if (_PAWN_DEBUG) console.log("[PAWN] moveTo spot:", cmd.spot);
+        _executeMove({ spot: cmd.spot, duration: 600 });
+        return;
+    }
+
     // Cancel timers but keep fairy visible for cue chaining
     // Full hide only on explicit dismiss
     // Laser cleanup handled by cancelCue / dismiss paths
