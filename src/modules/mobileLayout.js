@@ -258,6 +258,9 @@ function MobileLayout(props) {
                     <W.Label size="xl" color={props.qualityColor || "gold"} bold>{props.qualScore || 0}</W.Label>
                 </W.Strip>
             </W.Strip>
+            <div style={{ height: 5, background: "#0f0b06", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
+                <div style={{ height: "100%", width: Math.min(100, Math.max(0, (props.qualScore || 0))) + "%", background: props.qualityColor || T.colors.gold, borderRadius: 3, transition: "width 0.12s" }} />
+            </div>
             <W.Strip justify="space-between" gap="xs" style={{ minHeight: 20 }}>
                 <W.Label size="md" color="textLabel" spacing="tight" bold font="heading">STRESS</W.Label>
                 <W.Strip gap="xs" center>
@@ -460,7 +463,7 @@ function MobileLayout(props) {
     // --- Center content ---
     var forgeBtnPos = { position: "absolute", top: "55%", left: "50%", transform: "translate(-50%, -50%)", zIndex: T.z.ui };
     var center = (
-        <div className="mobile-center" data-fairy-target="scene" onClick={isQTEActive ? props.onForgeClick : null} onTouchStart={isQTEActive ? function(e) { e.preventDefault(); props.onForgeClick(); } : null} style={{ cursor: isQTEActive ? "pointer" : "default" }}>
+        <div className="mobile-center" data-fairy-target="scene" onClick={isQTEActive && !props.tutorialHighlight ? props.onForgeClick : null} onTouchStart={isQTEActive && !props.tutorialHighlight ? function(e) { e.preventDefault(); props.onForgeClick(); } : null} style={{ cursor: isQTEActive && !props.tutorialHighlight ? "pointer" : "default" }}>
             {props.overlay}
             {props.scene}
             {props.forgeUI}
@@ -469,11 +472,11 @@ function MobileLayout(props) {
             {phase === "idle" && !props.hasWip && (
                 <W.Btn data-fairy-target="btn_forge_start" label="BEGIN FORGING" onClick={props.onBeginForge} disabled={props.beginForgeDisabled}
                        color="gold" font="heading" size="xl" radius="lg" spacing="normal"
-                       style={Object.assign({}, forgeBtnPos, { padding: "10px 28px", whiteSpace: "nowrap" })} />
+                       style={Object.assign({}, forgeBtnPos, { padding: "10px 28px", whiteSpace: "nowrap", pointerEvents: props.tutorialHighlight ? "none" : "auto" })} />
             )}
 
             {phase === "idle" && props.hasWip && (
-                <W.Strip gap="md" style={forgeBtnPos}>
+                <W.Strip gap="md" style={Object.assign({}, forgeBtnPos, { pointerEvents: props.tutorialHighlight ? "none" : "auto" })}>
                     <W.Btn label="RESUME" onClick={props.onResumeWip} disabled={props.resumeWipDisabled}
                            color="blue" bg={props.resumeWipDisabled ? "bgDeep" : "#0a1a2a"}
                            font="heading" size="lg" radius="lg" spacing="normal"

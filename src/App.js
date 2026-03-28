@@ -387,6 +387,8 @@ export default function App() {
             f.setQualScore(0); f.setStress(0); f.setForgeSess(0);
             f.setSessResult(null); f.setForgeBubble(null); f.setQteFlash(null);
             f.setWipWeapon(null);
+            forgeVM.qteProcessing.current = false;
+            sfx.setMode("idle");
             ForgeMode.transitionTo(PHASES.IDLE);
             f.setPhase(PHASES.IDLE);
             break;
@@ -580,7 +582,7 @@ export default function App() {
 
     // --- Build QTE + forge UI for center zone ---
     var mobileForgeUI = (
-        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: "5%", gap: 4, width: "100%", flex: 1, boxSizing: "border-box" }}>
+        <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", paddingTop: "5%", gap: 4, width: "100%", flex: 1, boxSizing: "border-box", pointerEvents: forge.isSandbox ? "none" : "auto" }}>
           {/* Forge bubble */}
           {forgeBubble && (
               <div onClick={function(e) { e.stopPropagation(); setForgeBubble(null); }} style={{ position: "absolute", top: "20%", left: "65%", transform: "translateX(-50%)", zIndex: 60, background: "#0c0905", border: "2px solid " + forgeBubble.color, borderRadius: 10, padding: "10px 12px", width: 120, boxShadow: "0 4px 16px rgba(0,0,0,0.97)", cursor: "pointer", fontSize: 9 }}>
@@ -880,6 +882,14 @@ export default function App() {
             sceneFxRef={sceneFxRef}
             onDebugGoodEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); setGoodEventUsed(true); setPendingMystery({ severity: "good" }); }}
             onDebugBadEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, false); setPendingMystery({ severity: "bad" }); }}
+            onBeginForge={function() {
+              sfx.click();
+              if (FairyController.shouldStartForgeTutorial()) {
+                FairyController.startForgeTutorial();
+                return;
+              }
+              setPhase(PHASES.SELECT);
+            }}
             fairyEnabled={fairyEnabled}
             onFairyToggle={function(val) { setFairyEnabled(val); FairyController.setEnabled(val); }}
         />

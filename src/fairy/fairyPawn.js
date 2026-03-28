@@ -573,8 +573,8 @@ function _executePoof(step) {
             } else {
                 oppX = Math.min(70, targetXPct + 25);
             }
-            // Y: vertically centered, nudged up slightly
-            var oppY = targetYPct < 50 ? 55 : 45;
+            // Y: push toward vertical center, biased lower for bottom targets
+            var oppY = targetYPct < 50 ? 55 : 65;
             var oppScale = step.scale || 0.9;
             _doPoof(anim, oppX, oppY, oppScale, "50% 50%", step.duration);
             return;
@@ -817,7 +817,7 @@ function _createLaser(fromX, fromY, toX, toY) {
     var ns = "http://www.w3.org/2000/svg";
     var svg = document.createElementNS(ns, "svg");
     svg.setAttribute("class", "fairy-laser-svg");
-    svg.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:35;overflow:visible;"; // theme.z.fairyLaser
+    svg.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:96;overflow:visible;"; // above drawer(95), below fxCanvas(100)
 
     // --- Defs: glow filter ---
     var defs = document.createElementNS(ns, "defs");

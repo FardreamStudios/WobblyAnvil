@@ -810,7 +810,7 @@ function _sendCommand(cmd) {
 // ============================================================
 
 // Settle delay after DAY_READY before fairy appears (ms)
-var DAY_READY_DELAY_MS = 3000;
+var DAY_READY_DELAY_MS = 1500;
 
 /**
  * DAY_READY handler — fires after day-start toasts drain.
@@ -824,10 +824,20 @@ function _onDayReady(payload) {
     // Don't interrupt if already running something
     if (FairyTutorial.isRunning() || _fsmState === STATES.POINTING) return;
 
+    // Lock UI immediately if tutorial will fire after settle delay.
+    // Prevents player hitting sleep/forge during the wait.
+    var tutorialWillFire = !_isTutorialDecided() || (_isTutorialEnabled() && !_isFlagSet("wa_tut_buttons_done"));
+    if (tutorialWillFire) {
+        _setTutorialHighlight("pending");
+    }
+
     setTimeout(function() {
-        console.log("[TRACE-4] 3s settle fired. fsmState:", _fsmState, "tutDecided:", _isTutorialDecided(), "tutEnabled:", _isTutorialEnabled());
+        console.log("[TRACE-4] settle fired. fsmState:", _fsmState, "tutDecided:", _isTutorialDecided(), "tutEnabled:", _isTutorialEnabled());
         // Re-check state after delay (player may have acted)
-        if (_fsmState === STATES.DISMISSED || _fsmState === STATES.OFF) return;
+        if (_fsmState === STATES.DISMISSED || _fsmState === STATES.OFF) {
+            _setTutorialHighlight(null);
+            return;
+        }
         if (FairyTutorial.isRunning()) return;
 
         if (!_isTutorialDecided()) {
@@ -837,6 +847,9 @@ function _onDayReady(payload) {
             });
         } else if (_isTutorialEnabled()) {
             _checkPendingSegments();
+        } else {
+            // Tutorial off — clear the early lock
+            _setTutorialHighlight(null);
         }
     }, DAY_READY_DELAY_MS);
 }
@@ -858,18 +871,20 @@ function _onTutorialComplete(result, stored) {
                 FairyTutorial.start("tut_rep");
             }, 500);
         } else {
-            // Player declined — dismiss fairy, persist opt-out
+            // Player declined — dismiss fairy, persist opt-out, unlock UI
             _persistFlag(LS_KEY_TUTORIAL_OFF, "true");
             _saveEnabledPref(false);
+            _setTutorialHighlight(null);
             _setState(STATES.DISMISSED);
         }
         return;
     }
 
     if (result === "segment_complete") {
-        // Segment done — clear highlight, clear tutorial mode, check for next
-        _setTutorialHighlight(null);
-        if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
+        // Segment done — don't clear highlight here.
+        // _checkPendingSegments sets the next highlight or clears it
+        // when all segments are done. This keeps buttons blocked
+        // between tut_rep → tut_buttons.
         _setState(STATES.IDLE);
         _checkPendingSegments();
         return;
@@ -902,7 +917,7 @@ function _checkPendingSegments() {
         setTimeout(function() {
             if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
             FairyTutorial.start("tut_buttons");
-        }, 1500);
+        }, 500);
         return;
     }
     // Add future segment checks here:
@@ -913,7 +928,8 @@ function _checkPendingSegments() {
 
     // if (!_isFlagSet("wa_tut_customer_done")) { ... }
 
-    // All segments complete — enter reactive mode
+    // All segments complete — clear highlight, exit tutorial mode, enter reactive mode
+    _setTutorialHighlight(null);
     if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
 }
 
@@ -927,6 +943,12 @@ function _checkPendingSegments() {
  * ForgeTutorial owns its own step sequence and executor.
  */
 function _startForgeTutorial() {
+    // Lock forge buttons during tutorial
+    _setTutorialHighlight("forge_tutorial");
+
+    // Tell AnimInstance we're in tutorial mode (tap → tutorial_tap, not tap_exit)
+    if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
+
     // Poof fairy in at talk_close position before starting sequence
     _sendCommand({ intent: "cue", cue: "tut_forge_enter", category: "tutorial" });
 
@@ -982,13 +1004,19 @@ function _skipTutorialSegment() {
         _persistFlag("wa_tut_forge_done", "true");
     }
 
-    // Clear highlight and tutorial mode on AnimInstance
-    _setTutorialHighlight(null);
+    // Clear tutorial mode on AnimInstance
     if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
 
     // Mark this segment done (skipped)
     if (seq && seq.doneKey) {
         _persistFlag(seq.doneKey, "true");
+    }
+
+    // Only clear highlight if tut_buttons is done (both segments finished).
+    // If tut_rep was skipped, highlight stays to block buttons until
+    // _checkPendingSegments starts tut_buttons.
+    if (_isFlagSet("wa_tut_buttons_done")) {
+        _setTutorialHighlight(null);
     }
 
     // Set tap-warn flag — player now knows tapping skips
@@ -1011,14 +1039,18 @@ function _skipTutorialSegment() {
 function onPawnEvent(type, data) {
     // Tutorial gets first crack when it's running
     if (FairyTutorial.isRunning() || ForgeTutorial.isRunning()) {
-        // Tutorial tap — first: interrupt + warning cue, second: skip
+        // Tutorial tap
         if (type === "tutorial_tap") {
+            // Forge tutorial: single tap exits (too complex for interrupt/resume)
+            if (ForgeTutorial.isRunning()) {
+                _skipTutorialSegment();
+                return;
+            }
+            // Other tutorials: two-tap pattern (first = warning, second = skip)
             _tutorialTapCount++;
             if (_tutorialTapCount >= 2) {
-                // Second tap — done, skip segment, poof out
                 _skipTutorialSegment();
             } else {
-                // First tap — pawn handles: cancel cue, show warning, replay when done
                 if (_onCommand) {
                     _onCommand({ intent: "show_warning", line: "hey! tap again to skip this, or wait and i'll finish!" });
                 }

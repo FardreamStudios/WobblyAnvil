@@ -42,9 +42,9 @@ var FORGE_STEPS = [
 
     // --- Weapon select ---
     { type: "interact", target: "weapon_select_panel", text: "first you pick what to make. each weapon has a difficulty and sell value." },
-    { type: "delay",    ms: 3000 },
-    { type: "say",      text: "harder weapons are worth more but the QTE is tougher. start simple." },
-    { type: "delay",    ms: 1500 },
+    { type: "delay",    ms: 3500 },
+    { type: "say",      text: "harder weapons are worth more but they're trickier to forge. start simple." },
+    { type: "delay",    ms: 2000 },
     { type: "action",   name: "select_weapon", params: { key: "dagger" } },
     { type: "delay",    ms: 2500 },
 
@@ -57,27 +57,27 @@ var FORGE_STEPS = [
     { type: "delay",    ms: 2000 },
     { type: "clear" },
     { type: "action",   name: "confirm_select" },
-    { type: "delay",    ms: 1500 },
+    { type: "delay",    ms: 500 },
 
-    // --- Heat QTE ---
+    // --- Heat phase ---
     { type: "wait_event", event: "QTE_SANDBOX_FROZEN" },
     { type: "say",      text: "this is the heat phase. you only get one shot at this." },
-    { type: "delay",    ms: 1000 },
-    { type: "interact", target: "qte", text: "tap when the needle is in the bright zone. a better heat gives you more hammer strikes." },
-    { type: "delay",    ms: 3000 },
-    { type: "say",      text: "think of it like heating metal — hotter means it stays workable longer." },
     { type: "delay",    ms: 1500 },
+    { type: "interact", target: "qte", text: "tap when the needle is in the bright zone. a better heat gives you more hammer strikes." },
+    { type: "delay",    ms: 3500 },
+    { type: "say",      text: "think of it like heating metal — hotter means it stays workable longer." },
+    { type: "delay",    ms: 2000 },
     { type: "action",   name: "resolve_qte" },
     { type: "delay",    ms: 2000 },
 
-    // --- Hammer QTE ---
+    // --- Hammer phase ---
     { type: "wait_event", event: "QTE_SANDBOX_FROZEN" },
     { type: "say",      text: "now the hammer phase. this is where your weapon takes shape." },
-    { type: "delay",    ms: 1000 },
-    { type: "interact", target: "qte", text: "each strike builds quality. better hits mean a better weapon." },
-    { type: "delay",    ms: 3000 },
-    { type: "say",      text: "the number of strikes you get depends on how well you heated." },
     { type: "delay",    ms: 1500 },
+    { type: "interact", target: "qte", text: "each strike builds quality. better hits mean a better weapon." },
+    { type: "delay",    ms: 3500 },
+    { type: "say",      text: "the number of strikes you get depends on how well you heated the metal." },
+    { type: "delay",    ms: 2000 },
     { type: "action",   name: "resolve_qte" },
     { type: "delay",    ms: 2000 },
 
@@ -87,23 +87,23 @@ var FORGE_STEPS = [
 
     // Weapon stats panel
     { type: "interact", target: "forge_info", text: "over here you can see your weapon's quality and stress level." },
-    { type: "delay",    ms: 3000 },
+    { type: "delay",    ms: 3500 },
     { type: "say",      text: "quality is what makes your weapon worth more. stress is what breaks it." },
-    { type: "delay",    ms: 1500 },
+    { type: "delay",    ms: 2500 },
 
     // Buttons
-    { type: "interact", target: "btn_forge_again", text: "forge again to raise quality. each session adds stress though." },
-    { type: "delay",    ms: 3000 },
-    { type: "interact", target: "btn_normalize", text: "normalize reduces stress but costs some quality. use it when stress is high." },
-    { type: "delay",    ms: 3000 },
-    { type: "interact", target: "btn_scrap", text: "scrap if things go wrong. you get the metal back." },
-    { type: "delay",    ms: 3000 },
-    { type: "interact", target: "btn_quench", text: "quench to finish the weapon and lock in your work." },
-    { type: "delay",    ms: 3000 },
+    { type: "interact", target: "btn_forge_again", text: "forge again to raise quality. costs stamina and time each session, and adds stress." },
+    { type: "delay",    ms: 4000 },
+    { type: "interact", target: "btn_normalize", text: "normalize heats the blade to reduce stress, but you lose some quality. costs stamina and time." },
+    { type: "delay",    ms: 4000 },
+    { type: "interact", target: "btn_scrap", text: "scrap if things go wrong. destroys the weapon but you get the metal back." },
+    { type: "delay",    ms: 4000 },
+    { type: "interact", target: "btn_quench", text: "quench to finish the weapon and lock in your work. costs a bit of stamina." },
+    { type: "delay",    ms: 4000 },
 
     // Leave button
-    { type: "interact", target: "btn_leave", text: "you can also leave and come back later. the weapon stays on the anvil." },
-    { type: "delay",    ms: 3000 },
+    { type: "interact", target: "btn_leave", text: "you can also leave and come back later. no cost — the weapon stays on the anvil." },
+    { type: "delay",    ms: 4000 },
 
     // --- Quench ---
     { type: "interact", target: "btn_quench", text: "let's quench this one and see how it turns out!" },
@@ -112,16 +112,16 @@ var FORGE_STEPS = [
     { type: "action",   name: "quench" },
     { type: "delay",    ms: 1000 },
 
-    // --- Quench QTE ---
+    // --- Quench phase ---
     { type: "wait_event", event: "QTE_SANDBOX_FROZEN" },
-    { type: "interact", target: "qte", text: "one last bar — cool it down nice and even!" },
-    { type: "delay",    ms: 2000 },
+    { type: "interact", target: "qte", text: "one last step — cool it down nice and even!" },
+    { type: "delay",    ms: 2500 },
     { type: "action",   name: "resolve_qte" },
     { type: "delay",    ms: 1500 },
 
     // --- Wrap up ---
-    { type: "say",      text: "and that's a finished blade! the better your QTE, the higher the quality." },
-    { type: "delay",    ms: 300 },
+    { type: "say",      text: "and that's a finished blade! the better you forge, the higher the quality." },
+    { type: "delay",    ms: 500 },
 
     // --- Exit sandbox + cleanup ---
     { type: "clear" },

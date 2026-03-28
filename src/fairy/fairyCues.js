@@ -478,7 +478,8 @@ var TUT_FORGE_ENTER = {
     description: "Forge tutorial — fairy poofs in at talk_close position, smaller + shifted right",
     layer: "overlay",
     steps: [
-        { at: 0, cmd: "poof_in", peek: { from: { x: 75, y: -15 }, to: { x: 75, y: 30 }, rot: 0, variance: { axis: "x", range: 3 } }, scale: 1.5, instant: true, duration: 250 },
+        { at: 0, cmd: "poof_in", peek: { from: { x: 75, y: -15 }, to: { x: 75, y: 50 }, rot: 0, variance: { axis: "x", range: 3 } }, scale: 1.5, instant: true, duration: 250 },
+        { at: 350, cmd: "set_tappable", value: true },
     ],
 };
 
