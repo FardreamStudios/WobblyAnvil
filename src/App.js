@@ -15,7 +15,6 @@ import UIComponents from "./modules/uiComponents.js";
 import ForgeComponents from "./modules/forgeComponents.js";
 import GamePanels from "./modules/gamePanels.js";
 import Screens from "./modules/screens.js";
-import RhythmQTEModule from "./modules/rhythmQTE.js";
 import GameLayout from "./modules/gameLayout.js";
 import SceneSystem from "./modules/sceneSystem.js";
 import MobileLayoutModule from "./modules/mobileLayout.js";
@@ -56,14 +55,9 @@ import FairyAnimInstance from "./fairy/FairyAnimInstance";
 var PHASES = GameConstants.PHASES;
 var MATS = GameConstants.MATS;
 var WEAPONS = GameConstants.WEAPONS;
-var STATS_DEF = GameConstants.STATS_DEF;
-var TAG_COLORS = GameConstants.TAG_COLORS;
 var LATE_TOASTS = GameConstants.LATE_TOASTS;
-var COL_W = GameConstants.COL_W;
-var STRESS_MAX = GameConstants.STRESS_MAX;
 var STARTING_GOLD = GameConstants.STARTING_GOLD;
 var BASE_STAMINA = GameConstants.BASE_STAMINA;
-var BASE_DAILY_CUSTOMERS = GameConstants.BASE_DAILY_CUSTOMERS;
 var WAKE_HOUR = GameConstants.WAKE_HOUR;
 var BALANCE = GameConstants.BALANCE;
 
@@ -78,17 +72,10 @@ var formatTime = GameUtils.formatTime;
 var useAudio = AudioSystem.useAudio;
 
 // --- Destructure UI Components ---
-var Panel = UIComponents.Panel;
-var Row = UIComponents.Row;
 var SectionLabel = UIComponents.SectionLabel;
-var InfoRow = UIComponents.InfoRow;
-var Bar = UIComponents.Bar;
-var Pips = UIComponents.Pips;
-var ActionBtn = UIComponents.ActionBtn;
+var Row = UIComponents.Row;
 var DangerBtn = UIComponents.DangerBtn;
-var Tooltip = UIComponents.Tooltip;
 var Toast = UIComponents.Toast;
-var GoldPop = UIComponents.GoldPop;
 var ScaleWrapper = UIComponents.ScaleWrapper;
 
 // --- Destructure Scene System ---
@@ -99,9 +86,6 @@ var resolveSceneState = SceneSystem.resolveSceneState;
 var QTEPanel = ForgeComponents.QTEPanel;
 
 // --- Destructure Game Panels ---
-var StatPanel = GamePanels.StatPanel;
-var ForgeInfoPanel = GamePanels.ForgeInfoPanel;
-var RepPanel = GamePanels.RepPanel;
 var CustomerPanel = GamePanels.CustomerPanel;
 var MaterialsModal = GamePanels.MaterialsModal;
 var ShopModal = GamePanels.ShopModal;
@@ -110,16 +94,7 @@ var GameOverScreen = GamePanels.GameOverScreen;
 // --- Destructure Screens ---
 var MainMenu = Screens.MainMenu;
 
-// --- Destructure Rhythm QTE ---
-var RhythmQTE = RhythmQTEModule.RhythmQTE;
-
 // --- Destructure Layout ---
-var GameShell = GameLayout.GameShell;
-var GameHeader = GameLayout.GameHeader;
-var GameLeft = GameLayout.GameLeft;
-var GameCenter = GameLayout.GameCenter;
-var GameRight = GameLayout.GameRight;
-var GameFooter = GameLayout.GameFooter;
 var useLayoutMode = GameLayout.useLayoutMode;
 
 // --- Destructure Mobile Layout ---
@@ -185,9 +160,8 @@ export default function App() {
   var screen = ui.screen, setScreen = ui.setScreen;
   var showShop = ui.showShop, setShowShop = ui.setShowShop;
   var showMaterials = ui.showMaterials, setShowMaterials = ui.setShowMaterials;
-  var showGiveUp = ui.showGiveUp, setShowGiveUp = ui.setShowGiveUp;
+  var setShowGiveUp = ui.setShowGiveUp;
   var showOptions = ui.showOptions, setShowOptions = ui.setShowOptions;
-  var showRhythmTest = ui.showRhythmTest, setShowRhythmTest = ui.setShowRhythmTest;
   var handedness = ui.handedness, setHandedness = ui.setHandedness;
   var sfxVol = ui.sfxVol, setSfxVol = ui.setSfxVol;
   var musicVol = ui.musicVol, setMusicVol = ui.setMusicVol;
@@ -204,17 +178,17 @@ export default function App() {
 
   // --- Economy State (from useEconomyState) ---
   var gold = economy.gold;
-  var totalGoldEarned = economy.totalGoldEarned, setTotalGoldEarned = economy.setTotalGoldEarned;
+  var totalGoldEarned = economy.totalGoldEarned;
   var inv = economy.inv;
   var finished = economy.finished;
-  var priceBonus = economy.priceBonus, setPriceBonus = economy.setPriceBonus;
-  var priceDebuff = economy.priceDebuff, setPriceDebuff = economy.setPriceDebuff;
-  var matDiscount = economy.matDiscount, setMatDiscount = economy.setMatDiscount;
-  var globalMatMult = economy.globalMatMult, setGlobalMatMult = economy.setGlobalMatMult;
+  var priceBonus = economy.priceBonus;
+  var priceDebuff = economy.priceDebuff;
+  var matDiscount = economy.matDiscount;
+  var globalMatMult = economy.globalMatMult;
 
   // --- Day State (from useDayState) ---
-  var day = dayState.day, setDay = dayState.setDay;
-  var hour = dayState.hour, setHour = dayState.setHour;
+  var day = dayState.day;
+  var hour = dayState.hour;
   var stamina = dayState.stamina, setStamina = dayState.setStamina;
   var lateToastShown = dayState.lateToastShown, setLateToastShown = dayState.setLateToastShown;
   var gameOver = dayState.gameOver, setGameOver = dayState.setGameOver;
@@ -225,49 +199,42 @@ export default function App() {
   // --- Market State (already destructured above from useEconomyState) ---
 
   // --- Player State (from usePlayerState) ---
-  var reputation = player.reputation, setReputation = player.setReputation;
-  var level = player.level, setLevel = player.setLevel;
-  var xp = player.xp, setXp = player.setXp;
-  var statPoints = player.statPoints, setStatPoints = player.setStatPoints;
-  var stats = player.stats, setStats = player.setStats;
-  var upgrades = player.upgrades, setUpgrades = player.setUpgrades;
+  var reputation = player.reputation;
+  var level = player.level;
+  var statPoints = player.statPoints;
+  var stats = player.stats;
+  var upgrades = player.upgrades;
   var unlockedBP = player.unlockedBP, setUnlockedBP = player.setUnlockedBP;
 
   // --- Quest State (from useQuestState) ---
   var royalQuest = quest.royalQuest, setRoyalQuest = quest.setRoyalQuest;
-  var questNum = quest.questNum, setQuestNum = quest.setQuestNum;
-  var mEvent = quest.mEvent, setMEvent = quest.setMEvent;
-  var promoteUses = quest.promoteUses, setPromoteUses = quest.setPromoteUses;
+  var questNum = quest.questNum;
+  var mEvent = quest.mEvent;
+  var promoteUses = quest.promoteUses;
 
   // --- Forge State (from useForgeState) ---
-  var wipWeapon = forge.wipWeapon, setWipWeapon = forge.setWipWeapon;
+  var wipWeapon = forge.wipWeapon;
   var wKey = forge.wKey, setWKey = forge.setWKey;
   var matKey = forge.matKey, setMatKey = forge.setMatKey;
   var phase = forge.phase, setPhase = forge.setPhase;
-  var qualScore = forge.qualScore, setQualScore = forge.setQualScore;
-  var stress = forge.stress, setStress = forge.setStress;
-  var setForgeSess = forge.setForgeSess;
-  var bonusStrikes = forge.bonusStrikes, setBonusStrikes = forge.setBonusStrikes;
-  var sessResult = forge.sessResult, setSessResult = forge.setSessResult;
+  var qualScore = forge.qualScore;
+  var stress = forge.stress;
+  var bonusStrikes = forge.bonusStrikes;
   var forgeBubble = forge.forgeBubble, setForgeBubble = forge.setForgeBubble;
-  var qteFlash = forge.qteFlash, setQteFlash = forge.setQteFlash;
-  var strikesLeft = forge.strikesLeft, setStrikesLeft = forge.setStrikesLeft;
+  var qteFlash = forge.qteFlash;
+  var strikesLeft = forge.strikesLeft;
 
   // --- Mystery Event Tracking (from useQuestState) ---
-  var pendingMystery = quest.pendingMystery, setPendingMystery = quest.setPendingMystery;
-  var goodEventUsed = quest.goodEventUsed, setGoodEventUsed = quest.setGoodEventUsed;
+  var pendingMystery = quest.pendingMystery;
 
   // --- VFX State (from useVFXState) ---
-  var mysteryPending = vfx.mysteryPending, setMysteryPending = vfx.setMysteryPending;
-  var mysteryShake = vfx.mysteryShake, setMysteryShake = vfx.setMysteryShake;
-  var weaponShake = vfx.weaponShake, setWeaponShake = vfx.setWeaponShake;
-  var mysteryVignette = vfx.mysteryVignette, setMysteryVignette = vfx.setMysteryVignette;
-  var mysteryVignetteOpacity = vfx.mysteryVignetteOpacity, setMysteryVignetteOpacity = vfx.setMysteryVignetteOpacity;
+  var mysteryPending = vfx.mysteryPending;
+  var setWeaponShake = vfx.setWeaponShake;
 
   // --- Scene State (from useVFXState) ---
-  var activeScene = vfx.activeScene, setActiveScene = vfx.setActiveScene;
+  var activeScene = vfx.activeScene;
   var sceneActionOverride = vfx.sceneActionOverride, setSceneActionOverride = vfx.setSceneActionOverride;
-  var propOverrides = vfx.propOverrides, setPropOverrides = vfx.setPropOverrides;
+  var propOverrides = vfx.propOverrides;
   var fxRef = vfx.fxRef;
 
   // --- Late Night Toast ---
@@ -475,7 +442,6 @@ export default function App() {
     gameOver: gameOver
   });
   var gainXp = playerVM.gainXp, changeRep = playerVM.changeRep, allocateStat = playerVM.allocateStat;
-  var xpNeeded = playerVM.xpNeeded;
 
   // --- Economy ViewModel ---
   var economyVM = useEconomyVM({
@@ -505,7 +471,7 @@ export default function App() {
   var heatModifierScale = forgeVM.heatModifierScale, heatSpeedMult = forgeVM.heatSpeedMult, hammerSpeedMult = forgeVM.hammerSpeedMult, quenchSpeedMult = forgeVM.quenchSpeedMult;
   var speedLabel = forgeVM.speedLabel, speedColor = forgeVM.speedColor;
   var strikeLabel = forgeVM.strikeLabel, strikeColor = forgeVM.strikeColor, stressColor = forgeVM.stressColor, stressLabel2 = forgeVM.stressLabel2;
-  var showBars = forgeVM.showBars, isQTEActive = forgeVM.isQTEActive, isForging = forgeVM.isForging, diffColor = forgeVM.diffColor;
+  var isQTEActive = forgeVM.isQTEActive, isForging = forgeVM.isForging, diffColor = forgeVM.diffColor;
   var qtePosRef = forgeVM.qtePosRef, qteProcessing = forgeVM.qteProcessing;
   forgeVMRef.current = forgeVM;
 
@@ -880,8 +846,8 @@ export default function App() {
             setGameOver={setGameOver}
             setStamina={setStamina}
             sceneFxRef={sceneFxRef}
-            onDebugGoodEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); setGoodEventUsed(true); setPendingMystery({ severity: "good" }); }}
-            onDebugBadEvent={function() { AbilityManager.endAll("day"); setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, false); setPendingMystery({ severity: "bad" }); }}
+            onDebugGoodEvent={function() { AbilityManager.endAll("day"); quest.setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_GOOD, {}); MysteryLogic.mysteryGood(GameplayEventBus, snapshot); quest.setGoodEventUsed(true); quest.setPendingMystery({ severity: "good" }); }}
+            onDebugBadEvent={function() { AbilityManager.endAll("day"); quest.setMEvent(null); var snapshot = { gold: gold, inv: inv, finished: finished }; GameplayEventBus.emit(EVENT_TAGS.FX_MYSTERY_BAD, {}); MysteryLogic.mysteryBad(GameplayEventBus, snapshot, false); quest.setPendingMystery({ severity: "bad" }); }}
             onBeginForge={function() {
               sfx.click();
               if (FairyController.shouldStartForgeTutorial()) {

@@ -553,7 +553,7 @@ function MobileLayout(props) {
                 )}
 
                 {/* Time + Stamina */}
-                {!isForging && !isQTEActive && <div data-fairy-target="stamina" style={{
+                <div data-fairy-target="stamina" style={{
                     position: "absolute",
                     bottom: "2%",
                     left: "50%",
@@ -583,7 +583,7 @@ function MobileLayout(props) {
                         </div>
                         <W.Label size="xs" color={props.staminaColor || T.colors.gold} bold style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>{(props.stamina || 0) + "/" + (props.maxStam || 5)}</W.Label>
                     </div>
-                </div>}
+                </div>
 
                 {/* Gold */}
                 <div data-fairy-target="gold" style={{
