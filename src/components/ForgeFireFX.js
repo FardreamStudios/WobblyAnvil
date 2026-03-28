@@ -20,8 +20,6 @@
 import { useEffect, useRef } from "react";
 import GameConstants from "../modules/constants.js";
 
-var FIRE_FX = GameConstants.FIRE_FX;
-
 // ============================================================
 // Component
 // ============================================================

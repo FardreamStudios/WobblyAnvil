@@ -148,6 +148,7 @@ var UI_TARGETS = [
     { id: "btn_scavenge", selector: '[data-fairy-target="btn_scavenge"]', offset: { x: -30, y: 0 } },
     { id: "btn_shop",     selector: '[data-fairy-target="btn_shop"]',     offset: { x: -30, y: 0 } },
     { id: "btn_mats",     selector: '[data-fairy-target="btn_mats"]',     offset: { x: -30, y: 0 } },
+    { id: "btn_fairy_chat", selector: '[data-fairy-target="btn_fairy_chat"]', offset: { x: 0, y: -20 } },
     // Forge tutorial targets
     { id: "weapon_select_panel", selector: '[data-fairy-target="weapon_select_panel"]', offset: { x: 0, y: -20 } },
     { id: "mat_select_panel",    selector: '[data-fairy-target="mat_select_panel"]',    offset: { x: 0, y: -20 } },

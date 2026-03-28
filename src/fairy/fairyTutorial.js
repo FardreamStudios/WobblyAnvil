@@ -87,6 +87,16 @@ var SEQUENCES = {
         ],
     },
 
+    tut_chat: {
+        id: "tut_chat",
+        doneKey: "wa_tut_chat_done",
+        steps: [
+            { type: "play_cue", cue: "tut_chat" },
+            { type: "set_flag", key: "wa_tut_chat_done", value: "true" },
+            { type: "callback", result: "segment_complete" },
+        ],
+    },
+
 };
 
 // ============================================================

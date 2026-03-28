@@ -1,0 +1,22 @@
+# ============================================================
+# wrangler.toml — Wobbly Anvil Fairy Worker
+#
+# SETUP:
+#   1. npm install -g wrangler
+#   2. wrangler login
+#   3. wrangler secret put ANTHROPIC_API_KEY
+#      (paste your key when prompted)
+#   4. wrangler deploy
+#
+# OPTIONAL: Set ALLOWED_ORIGIN in [vars] to lock CORS
+#   to your GitHub Pages URL.
+# ============================================================
+
+name = "wobbly-anvil-fairy"
+main = "fairy-worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+ALLOWED_ORIGIN = "*"
+# Lock to your domain once deployed:
+# ALLOWED_ORIGIN = "https://fardreamstudios.github.io"

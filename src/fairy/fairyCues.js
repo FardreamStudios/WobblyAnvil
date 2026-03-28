@@ -535,6 +535,29 @@ var TUT_FORGE_SPEAK = {
 // Pawn looks up cues by id from this map.
 // ============================================================
 
+// ============================================================
+// TUT_CHAT
+// Day 2 tutorial — fairy appears center screen, lasers at the
+// chat button, explains it, poofs out.
+// Layer: overlay (viewport-centered, above everything).
+// ============================================================
+
+var TUT_CHAT = {
+    id: "tut_chat",
+    description: "Tutorial — introduce fairy chat button on day 2",
+    layer: "overlay",
+    steps: [
+        { at: 0,    cmd: "poof_in",      spot: { x: 50, y: 50 }, scale: 1.0, duration: 300 },
+        { at: 400,  cmd: "set_tappable", value: true },
+        { at: 600,  cmd: "laser_on",     target: "btn_fairy_chat" },
+        { at: 1200, cmd: "speak",        text: "see that little button? if you ever want to talk — and i mean EVER — just press it. i'll be around.", duration: 5500 },
+        { at: 6800, cmd: "hide_speech" },
+        { at: 7000, cmd: "laser_off" },
+        { at: 7200, cmd: "set_tappable", value: false },
+        { at: 7300, cmd: "poof_out",     duration: 200 },
+    ],
+};
+
 var FAIRY_CUES = {
     silent_peek:     SILENT_PEEK,
     silent_poof:     SILENT_POOF,
@@ -559,6 +582,7 @@ var FAIRY_CUES = {
     tut_forge_exit:    TUT_FORGE_EXIT,
     laser_speak:       LASER_SPEAK,
     tut_forge_speak:   TUT_FORGE_SPEAK,
+    tut_chat:          TUT_CHAT,
 };
 
 // ============================================================

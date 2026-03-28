@@ -118,7 +118,6 @@ function MobileBtn(props) {
     }
 
     var textColor = disabled ? T.colors.bgHighlight : danger ? T.colors.red : color || T.colors.gold;
-    var hasImg = !!imgSrc;
     var iconFilter = disabled ? "brightness(0.3)" : "drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000) drop-shadow(0 0 2px rgba(0,0,0,0.6))";
 
     var btnProps = hasHold ? press.handlers : { onClick: disabled ? null : onClick };

@@ -56,6 +56,7 @@ var STATES = {
 var SEGMENT_HIGHLIGHT = {
     tut_rep:     "rep",
     tut_buttons: "btn_area",
+    tut_chat:    null,  // no highlight needed — fairy lasers at the button directly
     tut_forge:   null,  // forge tutorial manages its own highlights
 };
 
@@ -123,6 +124,7 @@ var _stateTimer = null;          // setTimeout id for auto-transitions
 var _tickTimer = null;           // setInterval id for ambient checks
 var _currentTier = null;         // cached DAY_TIERS entry
 var _appearancesToday = 0;       // daily appearance counter
+var _reactiveEnabled = false;     // gate for reactive triggers + ambient tick (flip true when reactive content is ready)
 var _devSkipPersist = false;     // skip localStorage writes (testing)
 var _tutorialTapCount = 0;       // taps during current tutorial segment (resets per segment)
 
@@ -280,9 +282,10 @@ function init(config) {
         _fsmState = STATES.DISMISSED;
     }
 
-    // Wire up bus subscriptions + ambient tick
+    // Wire up bus subscriptions (populates _tracked for tutorial use)
     _startWatching();
-    _startTicking();
+    // Ambient tick only runs when reactive mode is enabled
+    if (_reactiveEnabled) _startTicking();
 
     // --- Tutorial sequencer (M-15a) ---
     FairyTutorial.init({
@@ -631,6 +634,7 @@ function _resolveTokens(line, state) {
  */
 function processEvent(busTag, payload) {
     if (!_initialized) return null;
+    if (!_reactiveEnabled) return null;
     if (_fsmState === STATES.OFF || _fsmState === STATES.DISMISSED) return null;
     if (_fsmState === STATES.EXITING) return null;
     // Suppress reactive triggers during tutorial (POINTING state)
@@ -649,6 +653,7 @@ function processEvent(busTag, payload) {
  */
 function tick() {
     if (!_initialized) return null;
+    if (!_reactiveEnabled) return null;
     if (_fsmState === STATES.OFF || _fsmState === STATES.DISMISSED) return null;
     if (_fsmState === STATES.EXITING) return null;
 
@@ -817,7 +822,10 @@ function _onDayReady(payload) {
 
     // Lock UI immediately if tutorial will fire after settle delay.
     // Prevents player hitting sleep/forge during the wait.
-    var tutorialWillFire = !_isTutorialDecided() || (_isTutorialEnabled() && !_isFlagSet("wa_tut_buttons_done"));
+    var _dayReadyDay = (payload && payload.day) || (_stateProvider ? _stateProvider().day : 1) || 1;
+    var tutorialWillFire = !_isTutorialDecided()
+        || (_isTutorialEnabled() && !_isFlagSet("wa_tut_buttons_done"))
+        || (_isTutorialEnabled() && _dayReadyDay >= 2 && !_isFlagSet("wa_tut_chat_done"));
     if (tutorialWillFire) {
         _setTutorialHighlight("pending");
     }
@@ -916,6 +924,22 @@ function _checkPendingSegments() {
     // Forge tutorial is NOT auto-fired here — it triggers when
     // the player taps "Begin Forging" for the first time.
     // See App.js onBeginForge intercept.
+
+    // tut_chat — day 2+ only. Introduces fairy chat button.
+    if (!_isFlagSet("wa_tut_chat_done")) {
+        var chatDay = _stateProvider ? (_stateProvider().day || 1) : 1;
+        if (chatDay >= 2) {
+            _tutorialTapCount = 0;
+            _setState(STATES.POINTING);
+            _setTutorialHighlight(SEGMENT_HIGHLIGHT["tut_chat"]);
+            setTimeout(function() {
+                if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
+                FairyTutorial.start("tut_chat");
+            }, 500);
+            return;
+        }
+        // Day 1 — not ready yet, skip to "all done" below
+    }
 
     // if (!_isFlagSet("wa_tut_customer_done")) { ... }
 
@@ -1166,9 +1190,9 @@ function reset() {
         _currentTier = _getDayTier(state.day || 1);
     }
 
-    // Restart tick at potentially new interval
+    // Restart tick at potentially new interval (only if reactive enabled)
     _stopTicking();
-    _startTicking();
+    if (_reactiveEnabled) _startTicking();
 }
 
 function destroy() {
@@ -1189,6 +1213,7 @@ function destroy() {
     _onCommand       = null;
     _onStateChange   = null;
     _gameAction      = null;
+    _reactiveEnabled = false;
     _devSkipPersist  = false;
     _fsmState        = STATES.OFF;
     _cooldowns       = {};

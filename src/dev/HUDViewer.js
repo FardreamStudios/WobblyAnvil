@@ -12,7 +12,6 @@ import THEME from "../config/theme.js";
 import GameConstants from "../modules/constants.js";
 import DevZone, { TooltipProvider } from "./DevZone.js";
 
-var PHASES = GameConstants.PHASES;
 var T = THEME;
 
 var PHASE_LIST = ["idle", "select", "select_mat", "heat", "hammer", "sess_result", "quench"];

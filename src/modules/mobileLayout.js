@@ -551,6 +551,26 @@ function MobileLayout(props) {
                     <W.Label size={21} color="gold" bold font="heading" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>{props.gold || 0}g</W.Label>
                 </div>
 
+                {/* Fairy Chat Button — visible day 2+ when chatEnabled */}
+                <div data-fairy-target="btn_fairy_chat" style={{
+                    position: "absolute",
+                    bottom: "2%",
+                    right: isLeftHanded ? "auto" : "14%",
+                    left: isLeftHanded ? "14%" : "auto",
+                    zIndex: T.z.ui + 2,
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "4px 10px",
+                    background: barBoxStyle.background,
+                    border: barBoxStyle.border,
+                    borderRadius: barBoxStyle.borderRadius,
+                    visibility: (props.day || 1) >= 2 && props.chatEnabled !== false ? "visible" : "hidden",
+                    pointerEvents: (props.day || 1) >= 2 && props.chatEnabled !== false ? "auto" : "none",
+                    cursor: "pointer",
+                }} onClick={(props.day || 1) >= 2 && props.chatEnabled !== false ? props.onFairyChat : null}>
+                    <span style={{ fontSize: 20, lineHeight: 1 }}>{"\u2728"}</span>
+                </div>
+
                 {/* Sidebar background */}
                 <img src={IC.sidebar} alt="" draggable={false} style={{
                     position: "absolute",
