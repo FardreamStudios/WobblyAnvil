@@ -465,32 +465,36 @@ function DesktopLayout(props) {
                             {goldPops.map(function(p) { return <GoldPop key={p.id} amount={p.amount} onDone={function() { removeGoldPop(p.id); }} />; })}
                         </Panel></div>
                         <div data-fairy-target="btn_fairy_chat" style={{ visibility: day >= 2 && props.chatEnabled !== false ? "visible" : "hidden", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                            {props.fairyChatTextOpen && (
-                                <form style={{ display: "flex", gap: 4 }} onSubmit={function(e) {
-                                    e.preventDefault();
-                                    var inp = e.target.elements.fairyInput;
-                                    if (inp && inp.value.trim()) {
-                                        if (props.onFairyChatSend) props.onFairyChatSend(inp.value.trim());
-                                        inp.value = "";
-                                    }
-                                }}>
-                                    <input name="fairyInput" type="text" placeholder="talk to the fairy..."
-                                           autoComplete="off"
-                                           style={{
-                                               width: 150, padding: "8px 12px", borderRadius: 10,
-                                               background: "#0a0704", border: "1px solid #3d2e0f",
-                                               color: "#f0e6c8", fontSize: 12, fontFamily: "'Josefin Sans', sans-serif",
-                                               outline: "none", letterSpacing: 0.5,
-                                           }}
-                                    />
-                                    <button type="submit" style={{
-                                        padding: "8px 12px", borderRadius: 10,
-                                        background: "#1a1209", border: "1px solid #3d2e0f",
-                                        color: "#f59e0b", fontSize: 12, cursor: "pointer",
-                                        fontFamily: "'Josefin Sans', sans-serif", fontWeight: "bold",
-                                    }}>{">"}</button>
-                                </form>
-                            )}
+                            <form style={{
+                                display: "flex", gap: 4,
+                                visibility: props.fairyChatTextOpen ? "visible" : "hidden",
+                                pointerEvents: props.fairyChatTextOpen ? "auto" : "none",
+                                opacity: props.fairyChatTextOpen ? 1 : 0,
+                                transition: "opacity 0.15s ease",
+                            }} onSubmit={function(e) {
+                                e.preventDefault();
+                                var inp = e.target.elements.fairyInput;
+                                if (inp && inp.value.trim()) {
+                                    if (props.onFairyChatSend) props.onFairyChatSend(inp.value.trim());
+                                    inp.value = "";
+                                }
+                            }}>
+                                <input name="fairyInput" type="text" placeholder="talk to the fairy..."
+                                       autoComplete="off"
+                                       style={{
+                                           width: 150, padding: "8px 12px", borderRadius: 10,
+                                           background: "#0a0704", border: "1px solid #3d2e0f",
+                                           color: "#f0e6c8", fontSize: 12, fontFamily: "'Josefin Sans', sans-serif",
+                                           outline: "none", letterSpacing: 0.5,
+                                       }}
+                                />
+                                <button type="submit" style={{
+                                    padding: "8px 12px", borderRadius: 10,
+                                    background: "#1a1209", border: "1px solid #3d2e0f",
+                                    color: "#f59e0b", fontSize: 12, cursor: "pointer",
+                                    fontFamily: "'Josefin Sans', sans-serif", fontWeight: "bold",
+                                }}>{">"}</button>
+                            </form>
                             <button
                                 onClick={day >= 2 && props.chatEnabled !== false ? props.onFairyChatTap : null}
                                 onMouseDown={day >= 2 && props.chatEnabled !== false ? props.onFairyChatHoldStart : null}
@@ -507,7 +511,7 @@ function DesktopLayout(props) {
                                     boxShadow: props.fairyChatListening ? "0 0 12px rgba(245,158,11,0.4)" : "none",
                                     transition: "all 0.15s ease",
                                 }}
-                            >{props.fairyChatListening ? "\uD83D\uDD34" : "\u2728"}</button>
+                            >{"\u2728"}</button>
                         </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "row", gap: 12, alignItems: "center", padding: "0 8px" }}>

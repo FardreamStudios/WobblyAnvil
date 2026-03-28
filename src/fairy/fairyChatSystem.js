@@ -84,6 +84,7 @@ function _initSpeech() {
             transcript += event.results[i][0].transcript;
         }
         transcript = transcript.trim();
+        _listening = false;
         if (_onListeningEnd) _onListeningEnd(transcript);
 
         // Auto-send if we got something
@@ -99,7 +100,10 @@ function _initSpeech() {
     };
 
     _recognition.onend = function() {
+        var wasListening = _listening;
         _listening = false;
+        // Safety: ensure listening state clears even if onresult never fired (silence/abort)
+        if (wasListening && _onListeningEnd) _onListeningEnd("");
     };
 }
 
@@ -290,6 +294,7 @@ function stopListening() {
         console.warn("[FairyChatSystem] Failed to stop recognition:", e.message);
     }
     _listening = false;
+    if (_onListeningEnd) _onListeningEnd("");
     // onresult handler will fire sendMessage if transcript is non-empty
     // Reset idle timer in case no transcript comes back
     _resetIdleTimer();

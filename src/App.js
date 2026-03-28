@@ -179,6 +179,7 @@ export default function App() {
   var [fairyChatListening, setFairyChatListening] = useState(false);
   var [fairyChatTextOpen, setFairyChatTextOpen] = useState(false);
   var fairyChatDismissWarned = useRef(false);
+  var fairyChatHoldTimer = useRef(null);
 
   // --- Toast State (from useUIState) ---
   var toasts = ui.toasts, setToasts = ui.setToasts;
@@ -587,11 +588,22 @@ export default function App() {
 
   function handleFairyChatHoldStart() {
     if (!FAIRY_CONFIG.chatEnabled || !fairyChatOpen) return;
-    FairyChatSystem.startListening();
+    // Delay mic start — short taps should not trigger recording
+    if (fairyChatHoldTimer.current) clearTimeout(fairyChatHoldTimer.current);
+    fairyChatHoldTimer.current = setTimeout(function() {
+      fairyChatHoldTimer.current = null;
+      FairyChatSystem.startListening();
+    }, 300);
   }
 
   function handleFairyChatHoldEnd() {
     if (!FAIRY_CONFIG.chatEnabled || !fairyChatOpen) return;
+    // If released before 300ms, cancel — it was a tap, not a hold
+    if (fairyChatHoldTimer.current) {
+      clearTimeout(fairyChatHoldTimer.current);
+      fairyChatHoldTimer.current = null;
+      return;
+    }
     FairyChatSystem.stopListening();
   }
 
