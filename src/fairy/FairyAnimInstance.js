@@ -89,7 +89,7 @@ var POOF_FX_LEAD_MS = 100;
 // Speech Bubble Config
 // ============================================================
 var BUBBLE_GAP_VW = 0;             // % gap above sprite top edge to bubble bottom
-var BUBBLE_MAX_W_VW = 36;         // max bubble width in vw — wider for chat messages
+var BUBBLE_MAX_W_VW = 32;         // max bubble width in vw — wider for chat messages
 var BUBBLE_MIN_W_VW = 18;         // min bubble width in vw — prevents overly narrow wrapping
 var BUBBLE_LINE_H_VW = 2.4;       // estimated line height in vw
 var BUBBLE_PAD_VW = 3.5;          // vertical padding + border + tail in vw
