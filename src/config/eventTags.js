@@ -53,6 +53,7 @@ var EVENT_TAGS = {
     // --- UI ---
     UI_ADD_TOAST:           "event.ui.toast.add",
     UI_SET_LOCK:            "event.ui.lock.set",
+    UI_TUTORIAL_HIGHLIGHT:  "event.ui.tutorial.highlight",
 
     // --- VFX ---
     VFX_SHAKE_MYSTERY:      "event.vfx.mystery.shake",

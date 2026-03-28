@@ -51,6 +51,12 @@ var STATES = {
     OFF:        "off",
 };
 
+// Tutorial segment → UI target to highlight during that segment
+var SEGMENT_HIGHLIGHT = {
+    tut_rep:     "rep",
+    tut_buttons: "btn_area",
+};
+
 // How long each state persists before auto-transitioning (ms)
 // null = no auto-transition, requires explicit trigger
 var STATE_DURATIONS = {
@@ -224,6 +230,10 @@ function _isTutorialDecided() {
 
 function _isTutorialEnabled() {
     return _isFlagSet(LS_KEY_TUTORIAL_ON);
+}
+
+function _setTutorialHighlight(target) {
+    if (_bus) _bus.emit(EVENT_TAGS.UI_TUTORIAL_HIGHLIGHT, { target: target || null });
 }
 
 // ============================================================
@@ -825,6 +835,7 @@ function _onTutorialComplete(result, stored) {
             // Player opted in — persist and start first segment
             _persistFlag(LS_KEY_TUTORIAL_ON, "true");
             _tutorialTapCount = 0;
+            _setTutorialHighlight(SEGMENT_HIGHLIGHT["tut_rep"]);
             setTimeout(function() {
                 if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
                 FairyTutorial.start("tut_rep");
@@ -839,7 +850,8 @@ function _onTutorialComplete(result, stored) {
     }
 
     if (result === "segment_complete") {
-        // Segment done — clear tutorial mode, check for next pending segment
+        // Segment done — clear highlight, clear tutorial mode, check for next
+        _setTutorialHighlight(null);
         if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
         _setState(STATES.IDLE);
         _checkPendingSegments();
@@ -859,6 +871,7 @@ function _checkPendingSegments() {
     if (!_isFlagSet("wa_tut_rep_done")) {
         _tutorialTapCount = 0;
         _setState(STATES.POINTING);
+        _setTutorialHighlight(SEGMENT_HIGHLIGHT["tut_rep"]);
         setTimeout(function() {
             if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
             FairyTutorial.start("tut_rep");
@@ -868,6 +881,7 @@ function _checkPendingSegments() {
     if (!_isFlagSet("wa_tut_buttons_done")) {
         _tutorialTapCount = 0;
         _setState(STATES.POINTING);
+        _setTutorialHighlight(SEGMENT_HIGHLIGHT["tut_buttons"]);
         setTimeout(function() {
             if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: true });
             FairyTutorial.start("tut_buttons");
@@ -891,7 +905,8 @@ function _skipTutorialSegment() {
     var seq = seqId ? FairyTutorial.SEQUENCES[seqId] : null;
     FairyTutorial.cancel();
 
-    // Clear tutorial mode on AnimInstance
+    // Clear highlight and tutorial mode on AnimInstance
+    _setTutorialHighlight(null);
     if (_onCommand) _onCommand({ intent: "set_tutorial_mode", value: false });
 
     // Mark this segment done (skipped)

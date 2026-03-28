@@ -162,6 +162,7 @@ function DesktopLayout(props) {
     var activeScene = vfx.activeScene;
     var sceneActionOverride = vfx.sceneActionOverride, setSceneActionOverride = vfx.setSceneActionOverride;
     var propOverrides = vfx.propOverrides;
+    var tutorialHighlight = vfx.tutorialHighlight;
     var fxRef = vfx.fxRef;
     var sceneFxRef = props.sceneFxRef;
 
@@ -442,7 +443,7 @@ function DesktopLayout(props) {
 
                 {/* BOTTOM BAR */}
                 <GameFooter>
-                    <div data-fairy-target="btn_area" style={{ display: "flex", gap: 5, flexShrink: 0, height: 80 }}>
+                    <div data-fairy-target="btn_area" style={{ display: "flex", gap: 5, flexShrink: 0, height: 80, pointerEvents: tutorialHighlight ? "none" : "auto" }}>
                         {[["\uD83D\uDCA4", "Sleep", function() { sfx.click(); sleep(); }, input.sleep.disabled, input.sleep.redirectToRest, "btn_sleep"], ["\u23F3", "Rest", waitHour, input.rest.disabled, input.rest.redirectToRest, "btn_rest"], ["\uD83D\uDCE3", "Promote", promote, input.promote.disabled, input.promote.redirectToRest, null], ["\uD83D\uDDD1", "Scavenge", scavenge, input.scavenge.disabled, input.scavenge.redirectToRest, "btn_scavenge"]].map(function(b) {
                             var icon = b[0], label = b[1], fn = b[2], dis = b[3], needRest = b[4], fairyId = b[5];
                             var finalFn = needRest ? waitHour : fn;

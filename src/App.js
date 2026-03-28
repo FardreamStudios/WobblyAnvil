@@ -732,6 +732,9 @@ export default function App() {
               /* Options button */
               onOptions={function() { sfx.click(); setShowOptions(true); }}
 
+              /* Tutorial highlight */
+              tutorialHighlight={vfx.tutorialHighlight}
+
               /* Begin forge / WIP props */
               hasWip={!!wipWeapon}
               onBeginForge={function() { sfx.click(); setPhase(PHASES.SELECT); }}

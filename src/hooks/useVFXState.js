@@ -27,6 +27,7 @@ function useVFXState() {
     var [activeScene, setActiveScene] = useState("forge");
     var [sceneActionOverride, setSceneActionOverride] = useState(null);
     var [propOverrides, setPropOverrides] = useState({});
+    var [tutorialHighlight, setTutorialHighlight] = useState(null);
     var fxRef = useRef(null);
 
     // --- Bus: VFX & Lock Subscriptions ---
@@ -38,16 +39,19 @@ function useVFXState() {
             if (payload.opacity !== undefined) setMysteryVignetteOpacity(payload.opacity);
         }
         function onLock(payload) { setMysteryPending(payload.locked); }
+        function onHighlight(payload) { setTutorialHighlight(payload.target || null); }
 
         GameplayEventBus.on(EVENT_TAGS.VFX_SHAKE_MYSTERY, onShakeMystery);
         GameplayEventBus.on(EVENT_TAGS.VFX_SHAKE_WEAPON, onShakeWeapon);
         GameplayEventBus.on(EVENT_TAGS.VFX_SET_VIGNETTE, onVignette);
         GameplayEventBus.on(EVENT_TAGS.UI_SET_LOCK, onLock);
+        GameplayEventBus.on(EVENT_TAGS.UI_TUTORIAL_HIGHLIGHT, onHighlight);
         return function() {
             GameplayEventBus.off(EVENT_TAGS.VFX_SHAKE_MYSTERY, onShakeMystery);
             GameplayEventBus.off(EVENT_TAGS.VFX_SHAKE_WEAPON, onShakeWeapon);
             GameplayEventBus.off(EVENT_TAGS.VFX_SET_VIGNETTE, onVignette);
             GameplayEventBus.off(EVENT_TAGS.UI_SET_LOCK, onLock);
+            GameplayEventBus.off(EVENT_TAGS.UI_TUTORIAL_HIGHLIGHT, onHighlight);
         };
     }, []);
 
@@ -58,6 +62,7 @@ function useVFXState() {
             setMysteryShake(false); setWeaponShake(false);
             setMysteryVignette(null); setMysteryVignetteOpacity(1);
             setActiveScene("forge"); setSceneActionOverride(null); setPropOverrides({});
+            setTutorialHighlight(null);
         }
         GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
         return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
@@ -83,6 +88,7 @@ function useVFXState() {
         setSceneActionOverride: setSceneActionOverride,
         propOverrides: propOverrides,
         setPropOverrides: setPropOverrides,
+        tutorialHighlight: tutorialHighlight,
         fxRef: fxRef,
     };
 }

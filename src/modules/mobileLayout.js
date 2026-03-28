@@ -368,7 +368,7 @@ function MobileLayout(props) {
     Object.assign(col1Style, col1Nudge);
     var bowlDirection = isLeftHanded ? "row-reverse" : "row";
     var actionStrip = (
-        <div className={actionStripClass} data-fairy-target="btn_area" style={{ height: "100%", padding: "2vh 4px", gap: "1.5vh", overflow: "hidden" }}>
+        <div className={actionStripClass} data-fairy-target="btn_area" style={{ height: "100%", padding: "2vh 4px", gap: "1.5vh", overflow: "hidden", pointerEvents: props.tutorialHighlight ? "none" : "auto" }}>
             {isForging && phase === "sess_result" ? (
                 <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection }}>
                     <div style={col1Style}>
