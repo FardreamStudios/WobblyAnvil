@@ -339,7 +339,7 @@ function DesktopLayout(props) {
 
                                 {/* FORGE STATS OVERLAY */}
                                 {(phase !== PHASES.IDLE && phase !== PHASES.SELECT && phase !== PHASES.SELECT_MAT && qualScore > 0) && (
-                                    <div data-fairy-target="forge_info"><Panel style={{ position: "absolute", top: 10, left: 10, width: 160 }}>
+                                    <div data-fairy-target="forge_info" style={{ position: "absolute", top: 10, left: 10, width: 160, zIndex: 1 }}><Panel>
                                         <Row style={{ marginBottom: 3 }}><SectionLabel>MATERIAL</SectionLabel><span style={{ fontSize: 14, color: matData.color, fontWeight: "bold" }}>{matData.name}</span></Row>
                                         <Row style={{ marginBottom: 3 }}><SectionLabel>WEAPON</SectionLabel><span style={{ fontSize: 14, color: "#f0e6c8", fontWeight: "bold" }}>{weapon.name}</span></Row>
                                         <Row style={{ marginBottom: 3 }}><SectionLabel>SPEED</SectionLabel><span style={{ fontSize: 12, color: speedColor, fontWeight: "bold" }}>{speedLabel}</span></Row>
