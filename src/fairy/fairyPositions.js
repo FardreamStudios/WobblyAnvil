@@ -79,6 +79,7 @@ var FORGE_MAP = {
         { id: "far_right",     x: 90,  y: 40,  label: "far right back wall" },
         { id: "front_left",    x: 15,  y: 88,  label: "front left corner" },
         { id: "front_right",   x: 85,  y: 88,  label: "front right corner" },
+        { id: "village_outside", x: 65, y: 28, scaleOverride: 0.15, label: "tiny, outside forge in the village through doorway" },
     ],
 
     // --- Roam zones (simple bounds, fairy wanders freely inside) ---

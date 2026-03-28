@@ -9,7 +9,7 @@
 //   setPos({x, y, scale, rot, transition, transformOrigin})
 //   hide()              — clear fairy + speech + tappable
 //   poofFX(x, y)        — trigger particle burst at location
-//   showSpeech(text)     — show speech bubble
+//   showSpeech(text, hasMore) — show speech bubble (hasMore shows typing indicator)
 //   hideSpeech()         — dismiss speech bubble
 //   setTappable(bool)    — enable/disable tap interaction
 //   setAnim(name)        — switch sprite anim state (future)
@@ -54,6 +54,15 @@ var FAIRY_POP_RATE_MIN = 0.55;
 var FAIRY_POP_RATE_MAX = 1.05;
 var FAIRY_ACCEPT_SRC  = PUB + "/audio/sSpecialAccept.mp3";
 var FAIRY_DECLINE_SRC = PUB + "/audio/sSpecialDecline.mp3";
+
+// --- Inject typing indicator animation CSS ---
+(function() {
+    if (document.getElementById("fairy-typing-css")) return;
+    var s = document.createElement("style");
+    s.id = "fairy-typing-css";
+    s.textContent = "@keyframes fairyTypingPulse { 0%,100%{opacity:0.3} 50%{opacity:1} }";
+    document.head.appendChild(s);
+})();
 
 // ============================================================
 // Sprite Params
@@ -379,6 +388,16 @@ function SpeechBubble(props) {
                 }}>
                     {props.text}
                 </div>
+                {props.hasMore && (
+                    <div style={{
+                        textAlign: "center",
+                        marginTop: 2,
+                        fontSize: "clamp(10px, 1.8vw, 14px)",
+                        letterSpacing: 4,
+                        color: "#9a7acc",
+                        animation: "fairyTypingPulse 1.2s ease-in-out infinite",
+                    }}>...</div>
+                )}
             </div>
             {/* Tail arrow — always bottom, points toward fairy */}
             <div style={{
@@ -660,6 +679,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
     var [pos, setPos] = useState(null);
     var [poofAt, setPoofAt] = useState(null);
     var [speechText, setSpeechText] = useState(null);
+    var [speechHasMore, setSpeechHasMore] = useState(false);
     var [choiceData, setChoiceData] = useState(null);  // { text, options } for choice bubble
     var [tappable, setTappable] = useState(false);
     var [laserTarget, setLaserTargetState] = useState(null); // {x, y} viewport % — bubble dodges away
@@ -898,6 +918,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                 if (!mountedRef.current) return;
                 setPos(null);
                 setSpeechText(null);
+                setSpeechHasMore(false);
                 setChoiceData(null);
                 setTappable(false);
                 setLaserTargetState(null);
@@ -907,13 +928,15 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                 setPoofAt({ x: x, y: y });
                 schedule(function() { setPoofAt(null); }, POOF_FX_DURATION_MS);
             },
-            showSpeech: function(text) {
+            showSpeech: function(text, hasMore) {
                 if (!mountedRef.current) return;
                 setSpeechText(text);
+                setSpeechHasMore(!!hasMore);
             },
             hideSpeech: function() {
                 if (!mountedRef.current) return;
                 setSpeechText(null);
+                setSpeechHasMore(false);
             },
             setTappable: function(val) {
                 if (!mountedRef.current) return;
@@ -1016,7 +1039,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             )}
 
             {showFairy && pos && (
-                <SpeechBubble x={pos.x} y={pos.y} text={speechText} visible={speechText !== null} scale={pos.scale} laserTarget={laserTarget} />
+                <SpeechBubble x={pos.x} y={pos.y} text={speechText} visible={speechText !== null} scale={pos.scale} laserTarget={laserTarget} hasMore={speechHasMore} />
             )}
 
             {showFairy && pos && (
