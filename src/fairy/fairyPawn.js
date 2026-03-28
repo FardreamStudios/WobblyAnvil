@@ -173,7 +173,7 @@ function handleCommand(cmd) {
     // Show speech on already-visible fairy (used by chat system)
     if (cmd.intent === "show_speech") {
         if (_animRef && _animRef.current && cmd.line) {
-            _animRef.current.showSpeech(cmd.line);
+            _animRef.current.showSpeech(cmd.line, cmd.hasMore);
         }
         return;
     }
