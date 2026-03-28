@@ -36,6 +36,7 @@ import FairyRulesTree   from "./fairyRulesTree.js";
 import FairyAPI         from "./fairyAPI.js";
 import FairyTutorial    from "./fairyTutorial.js";
 import ForgeTutorial    from "../tutorials/forgeTutorial.js";
+import FairyChatSystem  from "./fairyChatSystem.js";
 import EVENT_TAGS       from "../config/eventTags.js";
 
 // ============================================================
@@ -127,6 +128,11 @@ var _appearancesToday = 0;       // daily appearance counter
 var _reactiveEnabled = false;     // gate for reactive triggers + ambient tick (flip true when reactive content is ready)
 var _devSkipPersist = false;     // skip localStorage writes (testing)
 var _tutorialTapCount = 0;       // taps during current tutorial segment (resets per segment)
+
+// --- Chat state ---
+var _chatActive = false;         // true while chat session is open
+var _chatDismissWarned = false;  // two-tap dismiss pattern
+var _chatHoldTimer = null;       // hold-to-record delay timer
 
 // Cooldown tracking: { triggerId: lastFiredTimestamp }
 var _cooldowns = {};
@@ -313,7 +319,22 @@ function init(config) {
         };
         _bus.on(EVENT_TAGS.QTE_SANDBOX_FROZEN, _qteFrozenHandler);
         _busHandlers.push({ tag: EVENT_TAGS.QTE_SANDBOX_FROZEN, handler: _qteFrozenHandler });
+
+        // --- Fairy Chat bus subscriptions ---
+        _subscribeChatTag(EVENT_TAGS.FAIRY_CHAT_TAP, _onChatTap);
+        _subscribeChatTag(EVENT_TAGS.FAIRY_CHAT_HOLD_START, _onChatHoldStart);
+        _subscribeChatTag(EVENT_TAGS.FAIRY_CHAT_HOLD_END, _onChatHoldEnd);
+        _subscribeChatTag(EVENT_TAGS.FAIRY_CHAT_DISMISS, _onChatDismiss);
+        _subscribeChatTag(EVENT_TAGS.FAIRY_CHAT_SEND, _onChatSend);
+        _subscribeChatTag(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, _onChatSpeak);
+        _subscribeChatTag(EVENT_TAGS.UI_FAIRY_CHAT_CLOSE, _onChatClosed);
     }
+
+    // --- Init FairyChatSystem (owned by controller) ---
+    FairyChatSystem.init({
+        bus: _bus,
+        stateProvider: _stateProvider,
+    });
 }
 
 // ============================================================
@@ -792,6 +813,115 @@ function _waitForPawn(callback) {
     setTimeout(check, interval);
 }
 
+// ============================================================
+// FAIRY CHAT — Bus Handlers
+// Controller owns fairy presentation for chat. FairyChatSystem
+// owns conversation state, speech-to-text, idle, and API.
+// ============================================================
+
+/** Helper: subscribe a chat tag and track for cleanup */
+function _subscribeChatTag(tag, handler) {
+    if (!_bus) return;
+    _bus.on(tag, handler);
+    _busHandlers.push({ tag: tag, handler: handler });
+}
+
+/** FAIRY_CHAT_TAP — player tapped the chat button */
+function _onChatTap() {
+    // Don't interrupt tutorials
+    if (FairyTutorial.isRunning() || ForgeTutorial.isRunning()) return;
+
+    if (!_chatActive) {
+        // Summon fairy + open chat
+        _chatDismissWarned = false;
+        _chatActive = true;
+        _sendCommand({ intent: "cue", cue: "chat_idle", line: null, target: null, category: "chat" });
+        _sendCommand({ intent: "set_chat_mode", value: true });
+        FairyChatSystem.openChat();
+        return;
+    }
+    // Already open — toggle text field
+    if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_TEXT_TOGGLE);
+}
+
+/** FAIRY_CHAT_HOLD_START — player started holding the chat button */
+function _onChatHoldStart() {
+    if (!_chatActive) return;
+    // Delay mic start — short taps should not trigger recording
+    if (_chatHoldTimer) clearTimeout(_chatHoldTimer);
+    _chatHoldTimer = setTimeout(function() {
+        _chatHoldTimer = null;
+        FairyChatSystem.startListening();
+    }, 300);
+}
+
+/** FAIRY_CHAT_HOLD_END — player released the chat button */
+function _onChatHoldEnd() {
+    if (!_chatActive) return;
+    // If released before 300ms, cancel — it was a tap, not a hold
+    if (_chatHoldTimer) {
+        clearTimeout(_chatHoldTimer);
+        _chatHoldTimer = null;
+        return;
+    }
+    FairyChatSystem.stopListening();
+}
+
+/** FAIRY_CHAT_DISMISS — player tapped fairy during chat (two-tap pattern) */
+function _onChatDismiss() {
+    if (!_chatActive) return;
+    // Don't dismiss during tutorials — fairy tap is handled by tutorial system
+    if (FairyTutorial.isRunning() || ForgeTutorial.isRunning()) return;
+
+    if (!_chatDismissWarned) {
+        _chatDismissWarned = true;
+        _sendCommand({ intent: "show_speech", line: "you trying to get rid of me?", category: "chat" });
+        return;
+    }
+
+    // Second tap — dismiss
+    _closeChatSession();
+}
+
+/** FAIRY_CHAT_SEND — player submitted text */
+function _onChatSend(payload) {
+    if (!_chatActive) return;
+    var text = payload && payload.text ? payload.text : "";
+    if (text.length > 0) {
+        FairyChatSystem.sendMessage(text);
+    }
+}
+
+/** UI_FAIRY_CHAT_SPEAK — chat system has a line for the fairy to say */
+function _onChatSpeak(payload) {
+    if (!payload || !payload.line) return;
+    // Route through pawn's speech bubble (fairy is already on-screen via chat_idle)
+    _sendCommand({ intent: "show_speech", line: payload.line });
+}
+
+/** UI_FAIRY_CHAT_CLOSE — chat system closed (idle timeout or explicit) */
+function _onChatClosed() {
+    if (!_chatActive) return;
+    _closeChatSession();
+}
+
+/** Internal: tear down chat state and dismiss fairy */
+function _closeChatSession() {
+    _chatActive = false;
+    _chatDismissWarned = false;
+    if (_chatHoldTimer) {
+        clearTimeout(_chatHoldTimer);
+        _chatHoldTimer = null;
+    }
+    FairyChatSystem.closeChat();
+    _sendCommand({ intent: "set_chat_mode", value: false });
+    _sendCommand({ intent: "dismiss" });
+}
+
+// ============================================================
+// COMMAND DISPATCH
+// ============================================================
+
 function _sendCommand(cmd) {
     if (_onCommand) {
         _onCommand(cmd);
@@ -1169,6 +1299,18 @@ function reset() {
         _stateTimer = null;
     }
 
+    // Close any active chat session
+    if (_chatActive) {
+        FairyChatSystem.closeChat();
+    }
+    _chatActive = false;
+    _chatDismissWarned = false;
+    if (_chatHoldTimer) {
+        clearTimeout(_chatHoldTimer);
+        _chatHoldTimer = null;
+    }
+    FairyChatSystem.clearHistory();
+
     FairyTutorial.cancel();
     _fsmState     = STATES.IDLE;
     _cooldowns    = {};
@@ -1200,6 +1342,14 @@ function destroy() {
     _stopTicking();
     FairyTutorial.destroy();
     if (ForgeTutorial.isRunning()) ForgeTutorial.cancel();
+    FairyChatSystem.destroy();
+
+    if (_chatHoldTimer) {
+        clearTimeout(_chatHoldTimer);
+        _chatHoldTimer = null;
+    }
+    _chatActive = false;
+    _chatDismissWarned = false;
 
     if (_stateTimer) {
         clearTimeout(_stateTimer);

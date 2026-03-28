@@ -13,12 +13,12 @@ var FAIRY_CONFIG = {
     // --- Mode ---
     // "mock"  — dev mode, returns gibberlese after fake delay
     // "live"  — production, calls Cloudflare Worker
-    mode: "mock",
+    mode: "live",
 
     // --- Production Worker URL ---
     // Set this to your deployed Cloudflare Worker URL.
     // The worker holds the Anthropic API key — never expose it client-side.
-    workerUrl: "",
+    workerUrl: "https://wobbly-anvil-fairy.wobblyforge.workers.dev/",
 
     // --- Timeouts ---
     requestTimeoutMs: 6000,     // max wait for API response (chat needs more than reactive)

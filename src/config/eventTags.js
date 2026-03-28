@@ -86,6 +86,21 @@ var EVENT_TAGS = {
     GAME_SESSION_OVER:      "event.game.session.over",
     GAME_SESSION_NEW:       "event.game.session.new",
 
+    // --- Fairy Chat (input from player) ---
+    FAIRY_CHAT_TAP:         "event.fairy.chat.tap",
+    FAIRY_CHAT_HOLD_START:  "event.fairy.chat.hold.start",
+    FAIRY_CHAT_HOLD_END:    "event.fairy.chat.hold.end",
+    FAIRY_CHAT_DISMISS:     "event.fairy.chat.dismiss",
+    FAIRY_CHAT_SEND:        "event.fairy.chat.send",
+
+    // --- Fairy Chat (UI state broadcasts) ---
+    UI_FAIRY_CHAT_OPEN:     "event.ui.fairy.chat.open",
+    UI_FAIRY_CHAT_CLOSE:    "event.ui.fairy.chat.close",
+    UI_FAIRY_CHAT_SPEAK:    "event.ui.fairy.chat.speak",
+    UI_FAIRY_CHAT_LISTENING:"event.ui.fairy.chat.listening",
+    UI_FAIRY_CHAT_WAITING:  "event.ui.fairy.chat.waiting",
+    UI_FAIRY_CHAT_TEXT_TOGGLE:"event.ui.fairy.chat.text.toggle",
+
     // --- FX Cues (presentation only — no state mutations) ---
     FX_HEAT_RESULT:         "fx.forge.heat",
     FX_HAMMER_HIT:          "fx.forge.hammer",

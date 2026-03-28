@@ -542,6 +542,25 @@ var TUT_FORGE_SPEAK = {
 // Layer: overlay (viewport-centered, above everything).
 // ============================================================
 
+// ============================================================
+// CHAT IDLE
+// Fairy poofs in and stays visible for chat interaction.
+// No speech, no auto-exit. waitForInput prevents auto-complete.
+// Dismissed via controller when chat closes.
+// Layer: scene (appears inside the forge).
+// ============================================================
+
+var CHAT_IDLE = {
+    id: "chat_idle",
+    description: "Poof in and idle for chat — no auto-exit",
+    layer: "scene",
+    waitForInput: true,
+    steps: [
+        { at: 0,    cmd: "poof_in",      spot: null, duration: 250 },
+        { at: 350,  cmd: "set_tappable",  value: true },
+    ],
+};
+
 var TUT_CHAT = {
     id: "tut_chat",
     description: "Tutorial — introduce fairy chat button on day 2",
@@ -583,6 +602,7 @@ var FAIRY_CUES = {
     laser_speak:       LASER_SPEAK,
     tut_forge_speak:   TUT_FORGE_SPEAK,
     tut_chat:          TUT_CHAT,
+    chat_idle:         CHAT_IDLE,
 };
 
 // ============================================================

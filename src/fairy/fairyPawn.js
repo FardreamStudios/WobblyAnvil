@@ -170,6 +170,22 @@ function handleCommand(cmd) {
         return;
     }
 
+    // Show speech on already-visible fairy (used by chat system)
+    if (cmd.intent === "show_speech") {
+        if (_animRef && _animRef.current && cmd.line) {
+            _animRef.current.showSpeech(cmd.line);
+        }
+        return;
+    }
+
+    // Set chat mode on AnimInstance (taps route to onChatTap)
+    if (cmd.intent === "set_chat_mode") {
+        if (_animRef && _animRef.current && _animRef.current.setChatMode) {
+            _animRef.current.setChatMode(cmd.value);
+        }
+        return;
+    }
+
     // Clear intent — hide speech + retract laser, keep fairy visible
     if (cmd.intent === "clear") {
         _cancelTimers();

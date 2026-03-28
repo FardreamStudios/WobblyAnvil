@@ -5,26 +5,23 @@
 // idle timeout, and API dispatch. No React. No DOM rendering.
 //
 // LIFECYCLE:
-//   init(config)      — store callbacks + state provider
+//   init(config)      — store bus + state provider
 //   destroy()         — teardown
-//   openChat()        — player pressed the chat button
+//   openChat()        — chat session started
 //   closeChat()       — manual or idle-timeout dismiss
 //   sendMessage(text) — send player text to LLM
 //   startListening()  — begin speech recognition (hold)
 //   stopListening()   — end speech recognition (release)
 //
-// CALLBACKS (injected via init):
-//   onFairySpeak(line)       — fairy has a line to display
-//   onChatOpen()             — UI should show chat state
-//   onChatClose()            — UI should hide chat state
-//   onListeningStart()       — mic is active
-//   onListeningEnd(text)     — mic stopped, transcript ready
-//   onWaiting()              — waiting for API response
-//   stateProvider()          — fn() → game state snapshot
-//
 // COMMUNICATION:
+//   Emits UI bus tags for state changes:
+//     UI_FAIRY_CHAT_OPEN      — chat session started
+//     UI_FAIRY_CHAT_CLOSE     — chat session ended
+//     UI_FAIRY_CHAT_SPEAK     — fairy has a line { line }
+//     UI_FAIRY_CHAT_LISTENING — mic state { active }
+//     UI_FAIRY_CHAT_WAITING   — waiting for API { active }
 //   Talks to FairyAPI for LLM calls.
-//   Does NOT talk to pawn/controller — App.js bridges.
+//   Controller owns fairy presentation — subscribes to SPEAK.
 //
 // PORTABLE: Pure JS. No React. Uses Web Speech API.
 // ============================================================
@@ -32,19 +29,15 @@
 import FAIRY_CONFIG     from "./fairyConfig.js";
 import FairyAPI         from "./fairyAPI.js";
 import FairyPersonality from "./fairyPersonality.js";
+import EVENT_TAGS       from "../config/eventTags.js";
 
 // ============================================================
 // INTERNAL STATE
 // ============================================================
 
 var _initialized = false;
+var _bus = null;                 // GameplayEventBus ref
 var _stateProvider = null;       // fn() → game state
-var _onFairySpeak = null;        // fn(line) — display fairy speech
-var _onChatOpen = null;          // fn() — UI open
-var _onChatClose = null;         // fn() — UI close
-var _onListeningStart = null;    // fn()
-var _onListeningEnd = null;      // fn(transcript)
-var _onWaiting = null;           // fn() — show loading state
 
 // --- Conversation ---
 var _history = [];               // [ { role: "user"|"fairy", text: "..." }, ... ]
@@ -85,7 +78,7 @@ function _initSpeech() {
         }
         transcript = transcript.trim();
         _listening = false;
-        if (_onListeningEnd) _onListeningEnd(transcript);
+        if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
 
         // Auto-send if we got something
         if (transcript.length > 0) {
@@ -96,14 +89,13 @@ function _initSpeech() {
     _recognition.onerror = function(event) {
         console.warn("[FairyChatSystem] Speech error:", event.error);
         _listening = false;
-        if (_onListeningEnd) _onListeningEnd("");
+        if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
     };
 
     _recognition.onend = function() {
         var wasListening = _listening;
         _listening = false;
-        // Safety: ensure listening state clears even if onresult never fired (silence/abort)
-        if (wasListening && _onListeningEnd) _onListeningEnd("");
+        if (wasListening && _bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
     };
 }
 
@@ -152,13 +144,8 @@ function init(config) {
         return;
     }
 
-    _stateProvider     = config.stateProvider     || function() { return {}; };
-    _onFairySpeak      = config.onFairySpeak      || null;
-    _onChatOpen        = config.onChatOpen        || null;
-    _onChatClose       = config.onChatClose       || null;
-    _onListeningStart  = config.onListeningStart  || null;
-    _onListeningEnd    = config.onListeningEnd    || null;
-    _onWaiting         = config.onWaiting         || null;
+    _bus           = config.bus            || null;
+    _stateProvider = config.stateProvider   || function() { return {}; };
 
     _initSpeech();
     _initialized = true;
@@ -170,13 +157,8 @@ function destroy() {
         try { _recognition.abort(); } catch (e) {}
         _recognition = null;
     }
+    _bus = null;
     _stateProvider = null;
-    _onFairySpeak = null;
-    _onChatOpen = null;
-    _onChatClose = null;
-    _onListeningStart = null;
-    _onListeningEnd = null;
-    _onWaiting = null;
     _history = [];
     _initialized = false;
     _speechSupported = false;
@@ -191,12 +173,12 @@ function openChat() {
     if (_chatOpen) return;
 
     _chatOpen = true;
-    if (_onChatOpen) _onChatOpen();
+    if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_OPEN);
 
     // Fairy greeting
     var greeting = _pickGreeting();
     _history.push({ role: "fairy", text: greeting });
-    if (_onFairySpeak) _onFairySpeak(greeting);
+    if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: greeting });
 
     _resetIdleTimer();
 }
@@ -211,7 +193,7 @@ function closeChat() {
         stopListening();
     }
 
-    if (_onChatClose) _onChatClose();
+    if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_CLOSE);
     // History is NOT cleared — persists for the session
 }
 
@@ -245,7 +227,7 @@ function sendMessage(text) {
     _trimHistory();
 
     // Show waiting state
-    if (_onWaiting) _onWaiting();
+    if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_WAITING, { active: true });
 
     // Get game state snapshot
     var gameState = _stateProvider ? _stateProvider() : {};
@@ -257,7 +239,10 @@ function sendMessage(text) {
         _history.push({ role: "fairy", text: line });
         _trimHistory();
 
-        if (_onFairySpeak) _onFairySpeak(line);
+        if (_bus) {
+            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_WAITING, { active: false });
+            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: line });
+        }
         _resetIdleTimer();
     });
 }
@@ -274,13 +259,14 @@ function startListening() {
     _clearIdleTimer();
 
     _listening = true;
-    if (_onListeningStart) _onListeningStart();
+    if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: true });
 
     try {
         _recognition.start();
     } catch (e) {
         console.warn("[FairyChatSystem] Failed to start recognition:", e.message);
         _listening = false;
+        if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
         _resetIdleTimer();
     }
 }
@@ -294,9 +280,7 @@ function stopListening() {
         console.warn("[FairyChatSystem] Failed to stop recognition:", e.message);
     }
     _listening = false;
-    if (_onListeningEnd) _onListeningEnd("");
-    // onresult handler will fire sendMessage if transcript is non-empty
-    // Reset idle timer in case no transcript comes back
+    if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
     _resetIdleTimer();
 }
 
