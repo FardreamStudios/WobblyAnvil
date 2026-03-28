@@ -125,6 +125,70 @@ function _clearIdleTimer() {
 }
 
 // ============================================================
+// BUBBLE SPLITTING
+// Splits long responses at sentence boundaries into chunks
+// that fit comfortably in the speech bubble. Each chunk is
+// emitted as a separate UI_FAIRY_CHAT_SPEAK with a stagger.
+// ============================================================
+
+var _splitTimers = [];
+
+function _clearSplitTimers() {
+    for (var i = 0; i < _splitTimers.length; i++) {
+        clearTimeout(_splitTimers[i]);
+    }
+    _splitTimers = [];
+}
+
+/**
+ * Split a line into bubble-sized chunks.
+ * Tries sentence boundaries first (. ? !), falls back to word count.
+ */
+function _splitIntoBubbles(line) {
+    var threshold = FAIRY_CONFIG.chatBubbleSplitWords || 12;
+    var words = line.split(/\s+/);
+    if (words.length <= threshold) return [line];
+
+    // Split at sentence boundaries
+    var sentences = line.split(/(?<=[.!?])\s+/);
+    var chunks = [];
+    var current = "";
+
+    for (var i = 0; i < sentences.length; i++) {
+        var candidate = current.length > 0 ? current + " " + sentences[i] : sentences[i];
+        var candidateWords = candidate.split(/\s+/).length;
+
+        if (candidateWords > threshold && current.length > 0) {
+            // Current chunk is full — push it and start new
+            chunks.push(current.trim());
+            current = sentences[i];
+        } else {
+            current = candidate;
+        }
+    }
+    if (current.trim().length > 0) {
+        chunks.push(current.trim());
+    }
+
+    // Safety: if any chunk is still too long (no sentence breaks),
+    // hard-split at word count
+    var final = [];
+    for (var c = 0; c < chunks.length; c++) {
+        var cWords = chunks[c].split(/\s+/);
+        if (cWords.length <= threshold + 4) {
+            final.push(chunks[c]);
+        } else {
+            // Hard split
+            for (var w = 0; w < cWords.length; w += threshold) {
+                final.push(cWords.slice(w, w + threshold).join(" "));
+            }
+        }
+    }
+
+    return final.length > 0 ? final : [line];
+}
+
+// ============================================================
 // GREETING
 // ============================================================
 
@@ -188,6 +252,7 @@ function closeChat() {
 
     _chatOpen = false;
     _clearIdleTimer();
+    _clearSplitTimers();
 
     if (_listening) {
         stopListening();
@@ -246,7 +311,25 @@ function sendMessage(text) {
 
         if (_bus) {
             _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_WAITING, { active: false });
-            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: line });
+
+            // Split long responses into multiple bubbles
+            var bubbles = _splitIntoBubbles(line);
+            _clearSplitTimers();
+
+            // Emit first bubble immediately
+            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[0] });
+
+            // Stagger remaining bubbles
+            var delay = FAIRY_CONFIG.chatBubbleDelayMs || 2800;
+            for (var b = 1; b < bubbles.length; b++) {
+                (function(idx) {
+                    var t = setTimeout(function() {
+                        if (!_chatOpen) return;
+                        if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[idx] });
+                    }, delay * idx);
+                    _splitTimers.push(t);
+                })(b);
+            }
         }
         _resetIdleTimer();
     });

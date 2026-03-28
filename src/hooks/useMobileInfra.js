@@ -106,15 +106,24 @@ function useFullscreenState() {
 
     useEffect(function() {
         function sync() { setIsFull(isFullscreenActive()); }
+        // Standard fullscreen events
         document.addEventListener("fullscreenchange", sync);
         document.addEventListener("webkitfullscreenchange", sync);
         document.addEventListener("mozfullscreenchange", sync);
         document.addEventListener("MSFullscreenChange", sync);
+        // Fallback: permission dialogs can silently exit fullscreen
+        // without firing fullscreenchange on some mobile browsers.
+        document.addEventListener("visibilitychange", sync);
+        window.addEventListener("focus", sync);
+        window.addEventListener("resize", sync);
         return function() {
             document.removeEventListener("fullscreenchange", sync);
             document.removeEventListener("webkitfullscreenchange", sync);
             document.removeEventListener("mozfullscreenchange", sync);
             document.removeEventListener("MSFullscreenChange", sync);
+            document.removeEventListener("visibilitychange", sync);
+            window.removeEventListener("focus", sync);
+            window.removeEventListener("resize", sync);
         };
     }, []);
 
@@ -172,6 +181,38 @@ function useFullscreenPersistence(isFull) {
             return function() { clearTimeout(timer); };
         }
     }, [isFull]);
+
+    // Recovery: when app regains focus after a permission dialog
+    // (or any system interruption), attempt to re-enter fullscreen
+    // if we were previously fullscreen and user didn't manually exit.
+    useEffect(function() {
+        function onFocusRecovery() {
+            if (!wasFull.current) return;
+            if (userExitedFullscreen.current) return;
+            if (isFullscreenActive()) return;
+            // Delay lets the browser settle after dialog dismissal.
+            // Some browsers need two attempts at different timings.
+            setTimeout(function() {
+                if (!isFullscreenActive() && !userExitedFullscreen.current) {
+                    requestFullscreen(document.documentElement);
+                }
+            }, 400);
+            setTimeout(function() {
+                if (!isFullscreenActive() && !userExitedFullscreen.current) {
+                    requestFullscreen(document.documentElement);
+                }
+            }, 1200);
+        }
+        function onVisChange() {
+            if (document.visibilityState === "visible") onFocusRecovery();
+        }
+        document.addEventListener("visibilitychange", onVisChange);
+        window.addEventListener("focus", onFocusRecovery);
+        return function() {
+            document.removeEventListener("visibilitychange", onVisChange);
+            window.removeEventListener("focus", onFocusRecovery);
+        };
+    }, []);
 
     useEffect(function() {
         function onOrientationChange() {

@@ -38,8 +38,10 @@ var FAIRY_CONFIG = {
     chatMaxHistory: 15,         // max exchanges stored in local memory
     chatSendHistory: 4,         // exchanges sent per API call (keep small for free tier)
     chatModel: "claude-haiku-4-5-20251001",  // cheapest/fastest for one-liners
-    chatMaxTokens: 150,         // token budget for chat responses (1-3 sentences)
-    chatMaxResponseWords: 50,   // word truncation limit for chat (vs 15 for reactive)
+    chatMaxTokens: 100,         // token budget for chat responses (1-2 sentences)
+    chatMaxResponseWords: 30,   // word truncation limit for chat (vs 15 for reactive)
+    chatBubbleSplitWords: 12,   // split long responses into multiple bubbles at this word count
+    chatBubbleDelayMs: 4500,    // ms between staggered chat bubbles
 };
 
 export default FAIRY_CONFIG;
