@@ -232,8 +232,13 @@ function sendMessage(text) {
     // Get game state snapshot
     var gameState = _stateProvider ? _stateProvider() : {};
 
+    // Call API — send history WITHOUT the message we just pushed,
+    // because fairyAPI also sends body.message separately.
+    // Without this, the player's message appears twice.
+    var historyForApi = _history.slice(0, _history.length - 1);
+
     // Call API
-    FairyAPI.requestChat(text, _history, gameState).then(function(line) {
+    FairyAPI.requestChat(text, historyForApi, gameState).then(function(line) {
         if (!_chatOpen) return; // closed while waiting
 
         _history.push({ role: "fairy", text: line });
