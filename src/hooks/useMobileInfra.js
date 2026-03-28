@@ -106,23 +106,15 @@ function useFullscreenState() {
 
     useEffect(function() {
         function sync() { setIsFull(isFullscreenActive()); }
-        // Standard fullscreen change events
         document.addEventListener("fullscreenchange", sync);
         document.addEventListener("webkitfullscreenchange", sync);
         document.addEventListener("mozfullscreenchange", sync);
         document.addEventListener("MSFullscreenChange", sync);
-        // Catch silent fullscreen exits (permission dialogs, browser chrome)
-        document.addEventListener("visibilitychange", sync);
-        window.addEventListener("focus", sync);
-        window.addEventListener("resize", sync);
         return function() {
             document.removeEventListener("fullscreenchange", sync);
             document.removeEventListener("webkitfullscreenchange", sync);
             document.removeEventListener("mozfullscreenchange", sync);
             document.removeEventListener("MSFullscreenChange", sync);
-            document.removeEventListener("visibilitychange", sync);
-            window.removeEventListener("focus", sync);
-            window.removeEventListener("resize", sync);
         };
     }, []);
 
@@ -186,7 +178,10 @@ function useFullscreenPersistence(isFull) {
             setTimeout(function() {
                 var w = window.innerWidth, h = window.innerHeight;
                 var isLandscape = w > h;
-                if (isLandscape && !isFullscreenActive() && !userExitedFullscreen.current) {
+                if (isLandscape && !isFullscreenActive()) {
+                    // Rotating to landscape is an intentional "I want to play" gesture.
+                    // Always fullscreen, even if user previously tapped X.
+                    userExitedFullscreen.current = false;
                     requestFullscreen(document.documentElement);
                 }
             }, 500);

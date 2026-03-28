@@ -364,7 +364,7 @@ function MobileLayout(props) {
                 </div>
                 <div style={{ display: "flex", width: 40 }}>
                     <MobileBtn icon={isFull ? "\u2716" : "\u26F6"} iconSize={32} onClick={function() {
-                        if (isFull) { userExitedFullscreen.current = true; exitFullscreen(); }
+                        if (isFullscreenActive()) { userExitedFullscreen.current = true; exitFullscreen(); }
                         else { userExitedFullscreen.current = false; requestFullscreen(document.documentElement); }
                     }} />
                 </div>
