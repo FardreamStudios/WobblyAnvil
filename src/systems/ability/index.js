@@ -45,7 +45,7 @@ var COMPLEX_ABILITIES = [
     MysteryVisitorAbility,
     MysteryShadowAbility,
     HotStreakAbility,
-    ShameDebuffAbility,
+    // ShameDebuffAbility — unhooked, firing unexpectedly on Day 1 quest expiry
     RoyalAttentionAbility,
     MomentumAbility,
     OverworkedAbility,

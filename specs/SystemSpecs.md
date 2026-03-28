@@ -456,9 +456,9 @@ Each spec below covers one system or module. Format: what it does, why we need i
 
 **What it does:** Reactive gameplay ability system. Abilities are self-contained definitions (one per file) that watch the bus for triggers, self-activate when conditions are met, run behavior (emit bus tags, register modifiers), and self-terminate when end conditions are met or scope expires.
 
-**Morning abilities live:** festival, merchantVisit, ratInfestation, fire, weatherEvent, cursedForge, mysteryVisitor, mysteryShadow. Morning roll handled by `AbilityManager.rollMorning()`.
+**Morning abilities live:** See `morningEventsTable.js` for full list (13+ data-driven events including festival, merchant_visit, blessing_of_flame, tax_collector, traveling_smith, royal_inspection, cursed_forge, fire, flood, rat_infestation, backpain, mom, slow_morning). Complex morning abilities: mysteryVisitor, mysteryShadow. Morning roll handled by `AbilityManager.rollMorning()`.
 
-**Reactive abilities live:** hotStreak, shameDebuff, royalAttention.
+**Reactive abilities live:** hotStreak, shameDebuff, royalAttention, momentum, overworked.
 
 **Key features:**
 - Lifecycle: Registered → Watching → Active → Ending → Dead
@@ -467,7 +467,7 @@ Each spec below covers one system or module. Format: what it does, why we need i
 - Toast buffer: Morning abilities queue toasts via `queueToast()`, flushed by `useDayVM.buildDayQueue`.
 - Diagnostics: warning log at 10+ active abilities.
 
-**Modifier attributes currently wired:** `heatPerfectZone`, `materialPrice`, `customerChance`, `repGain`.
+**Modifier attributes currently wired (non-exhaustive):** `heatPerfectZone`, `materialPrice`, `customerChance`, `repGain`, `maxStamina`. See individual ability files and `morningEventsTable.js` for full modifier declarations.
 
 **Architecture:** Each ability is a single JS file exporting a definition object. `index.js` collects all definitions for bulk registration. Adding a new ability = one file + one import line.
 

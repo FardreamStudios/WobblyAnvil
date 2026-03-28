@@ -108,14 +108,6 @@ var MomentumAbility = {
 
         // Reset counter for next day
         _salesThisDay = 0;
-
-        // Modifiers auto-removed by manager (matched by source)
-        ctx.bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
-            msg:      "MOMENTUM FADES\nA new day, a fresh start.",
-            icon:     "\uD83C\uDF19",
-            color:    "#8a7a64",
-            duration: 3000,
-        });
     },
 };
 

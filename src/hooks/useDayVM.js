@@ -44,7 +44,6 @@ function useDayVM(deps) {
     var day = dayState.day, setDay = dayState.setDay;
     var hour = dayState.hour, setHour = dayState.setHour;
     var setStamina = dayState.setStamina;
-    var setForcedExhaustion = dayState.setForcedExhaustion;
     var setLateToastShown = dayState.setLateToastShown;
 
     // --- Economy state (modifier resets) ---
@@ -55,7 +54,6 @@ function useDayVM(deps) {
     var setPriceDebuff = economy.setPriceDebuff;
     var setMatDiscount = economy.setMatDiscount;
     var setGlobalMatMult = economy.setGlobalMatMult;
-    var setGuaranteedCustomers = economy.setGuaranteedCustomers;
 
     // --- Quest state ---
     var royalQuest = quest.royalQuest, setRoyalQuest = quest.setRoyalQuest;
@@ -125,9 +123,9 @@ function useDayVM(deps) {
         }
         console.log("[TRACE doSleep] spawnQuestNum:", spawnQuestNum, "resolutionToast:", !!resolutionToast, "newDay:", day + 1);
         setLateToastShown(false); setDay(newDay); setHour(WAKE_HOUR); setStamina(ns);
-        setForcedExhaustion(false);
         setPriceBonus(1.0); setPriceDebuff(1.0); setMatDiscount(null); setGlobalMatMult(1.0);
-        setGuaranteedCustomers(false); setPromoteUses(0);
+        // setGuaranteedCustomers removed — CustomerSubSystem owns this via DAY_CYCLE_START
+        setPromoteUses(0);
         sfx.setMode("idle");
         forgeOnSleep();
         setActiveToast(null); sfx.resetDay(); sfx.setMode("idle");

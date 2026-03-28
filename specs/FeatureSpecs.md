@@ -12,7 +12,7 @@ Each spec below covers a gameplay or UX feature. Format: what it does, how it wo
 
 **Full spec:** See `FairyFeatureSpecs.md` for the three-layer architecture (Controller → Pawn → AnimInstance), file locations, milestones, and build order.
 
-**Current state:** Controller (`src/fairy/fairyController.js`), rules tree, personality data, animation proto, and LLM client all built. Remaining work is the pawn layer, anim refactor, controller upgrade with day-gating, and end-to-end wiring.
+**Current state:** Core pipeline live (M-1 through M-12 complete). Controller FSM + rules eval + day-gating, Pawn cue playback + position resolution + laser FX, AnimInstance sprite/FX/bubble rendering all wired end-to-end. Persistence and player toggle shipped. Fairy tutorial (M-15) in progress. Remaining: tutorial completion, special cues (M-13), gibberish audio (M-14).
 
 **Character bible:** See `FairyCharacter.md` for identity, voice rules, pacing, abilities, and LLM integration design.
 

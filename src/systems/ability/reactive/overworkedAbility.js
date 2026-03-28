@@ -69,15 +69,7 @@ var OverworkedAbility = {
     },
 
     // --- Cleanup ---
-    onEnd: function(ctx) {
-        // Modifier auto-removed by manager
-        ctx.bus.emit(EVENT_TAGS.UI_ADD_TOAST, {
-            msg:      "RESTED\nA good night's sleep restores your strength.",
-            icon:     "\uD83D\uDCA4",
-            color:    "#4ade80",
-            duration: 3000,
-        });
-    },
+    onEnd: null,
 };
 
 export default OverworkedAbility;
