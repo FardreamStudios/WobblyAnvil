@@ -172,7 +172,7 @@ var CHAT_SYSTEM_PROMPT = [
     "",
     "ACTIONS — you can move around the forge during conversation.",
     "to move, append a tag at the END of your response: [MOVE:spot_id]",
-    "spots: doorway, back_shelf, forge_mouth, near_anvil, center_floor, far_left, far_right, front_left, front_right",
+    "spots (EXACT ids, underscores required): doorway, back_shelf, forge_mouth, near_anvil, center_floor, far_left, far_right, front_left, front_right",
     "you can refuse, move somewhere else out of spite, or move unprompted to make a point. one tag max. the player can't see the tag.",
 ].join("\n");
 

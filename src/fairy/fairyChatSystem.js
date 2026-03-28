@@ -198,6 +198,32 @@ function _splitIntoBubbles(line) {
 var _ACTION_RE = /\[MOVE:([a-z_]+)\]/i;
 
 /**
+ * Fuzzy-match an LLM spot id against the registry.
+ * LLMs drop underscores (e.g. "farleft" instead of "far_left").
+ * Strips underscores from both sides before comparing.
+ * Returns the canonical registry id, or null if no match.
+ */
+function _fuzzyMatchSpot(rawSpot) {
+    var validSpots = FairyPositions.listSpots("forge");
+    var stripped = rawSpot.replace(/_/g, "");
+
+    // Exact match first (fast path)
+    for (var i = 0; i < validSpots.length; i++) {
+        if (validSpots[i] === rawSpot) return validSpots[i];
+    }
+
+    // Fuzzy match — compare without underscores
+    for (var j = 0; j < validSpots.length; j++) {
+        if (validSpots[j].replace(/_/g, "") === stripped) {
+            console.log("[FairyChatSystem] Fuzzy-matched spot:", rawSpot, "→", validSpots[j]);
+            return validSpots[j];
+        }
+    }
+
+    return null;
+}
+
+/**
  * Parse and strip action tags from an LLM response.
  * @param {string} line — raw LLM response
  * @returns {{ text: string, action: Object|null }}
@@ -209,16 +235,11 @@ function _parseActions(line) {
     // Strip the tag from display text
     var cleanText = line.replace(match[0], "").trim();
 
-    // Validate spot against position registry
-    var spotId = match[1].toLowerCase();
-    var validSpots = FairyPositions.listSpots("forge");
-    var isValid = false;
-    for (var i = 0; i < validSpots.length; i++) {
-        if (validSpots[i] === spotId) { isValid = true; break; }
-    }
+    // Validate + fuzzy-match spot against position registry
+    var spotId = _fuzzyMatchSpot(match[1].toLowerCase());
 
-    if (!isValid) {
-        console.warn("[FairyChatSystem] LLM requested invalid spot:", spotId);
+    if (!spotId) {
+        console.warn("[FairyChatSystem] LLM requested invalid spot:", match[1]);
         return { text: cleanText, action: null };
     }
 
