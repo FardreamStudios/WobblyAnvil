@@ -362,20 +362,20 @@ function MobileLayout(props) {
                 <div style={{ display: "flex", width: 40 }}>
                     <MobileBtn icon={"\u2699"} iconSize={32} onClick={props.onOptions} />
                 </div>
-                <div style={{ display: "flex", width: 40 }}>
-                    <MobileBtn icon={isFullscreenActive() ? "\u2716" : "\u26F6"} iconSize={32}
-                               onClick={function() {
-                                   // Tap = always request fullscreen (recovery from mic dialog, etc.)
-                                   userExitedFullscreen.current = false;
-                                   requestFullscreen(document.documentElement);
-                               }}
-                               onHoldAction={function() {
-                                   // Hold = intentional exit
-                                   userExitedFullscreen.current = true;
-                                   exitFullscreen();
-                               }}
-                               holdContent="Hold to exit fullscreen"
-                    />
+                <div style={{ display: "flex", width: 40, alignItems: "center", justifyContent: "center" }}>
+                    <button onClick={function() {
+                        // Always request fullscreen — raw handler preserves gesture chain.
+                        // Browsers block requestFullscreen if the gesture is consumed
+                        // by preventDefault (which usePressHold does on touchEnd).
+                        userExitedFullscreen.current = false;
+                        requestFullscreen(document.documentElement);
+                    }} style={{
+                        background: "transparent", border: "none", color: T.colors.gold,
+                        fontSize: 32, lineHeight: 1, cursor: "pointer", padding: 0,
+                        width: "100%", height: "100%", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        WebkitTapHighlightColor: "transparent",
+                    }}>{"\u26F6"}</button>
                 </div>
             </div>
         </div>
