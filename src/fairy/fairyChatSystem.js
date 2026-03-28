@@ -362,6 +362,12 @@ function sendMessage(text) {
     // Get game state snapshot
     var gameState = _stateProvider ? _stateProvider() : {};
 
+    // Inject random obsession nudge — keeps personality front-of-mind per turn
+    var nudges = FairyPersonality.OBSESSION_NUDGES;
+    if (nudges && nudges.length > 0) {
+        gameState.obsessionNudge = nudges[Math.floor(Math.random() * nudges.length)];
+    }
+
     // Call API — send history WITHOUT the message we just pushed,
     // because fairyAPI also sends body.message separately.
     // Without this, the player's message appears twice.
