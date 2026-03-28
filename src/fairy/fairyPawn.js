@@ -517,7 +517,6 @@ function _executePoof(step) {
     if (!anim) return;
 
     var pos = null;
-    var layer = _activeCue ? _activeCue.layer : "overlay";
 
     // --- Edge peek ---
     if (step.peek) {

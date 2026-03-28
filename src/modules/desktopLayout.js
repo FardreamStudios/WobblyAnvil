@@ -27,7 +27,6 @@ var TAG_COLORS = GameConstants.TAG_COLORS;
 var COL_W = GameConstants.COL_W;
 var STRESS_MAX = GameConstants.STRESS_MAX;
 var BALANCE = GameConstants.BALANCE;
-var UPGRADES = GameConstants.UPGRADES;
 
 // --- Destructure Utilities ---
 var getQualityTier = GameUtils.getQualityTier;
@@ -154,7 +153,6 @@ function DesktopLayout(props) {
     var wipWeapon = forge.wipWeapon;
 
     // --- Mystery Event Tracking (from quest) ---
-    var pendingMystery = quest.pendingMystery;
     var goodEventUsed = quest.goodEventUsed;
 
     // --- VFX State ---
@@ -180,8 +178,8 @@ function DesktopLayout(props) {
     var heatSpeedMult = forgeVM.heatSpeedMult, hammerSpeedMult = forgeVM.hammerSpeedMult, quenchSpeedMult = forgeVM.quenchSpeedMult;
     var speedLabel = forgeVM.speedLabel, speedColor = forgeVM.speedColor;
     var strikeLabel = forgeVM.strikeLabel, strikeColor = forgeVM.strikeColor;
-    var stressColor = forgeVM.stressColor, stressLabel2 = forgeVM.stressLabel2;
-    var showBars = forgeVM.showBars, isQTEActive = forgeVM.isQTEActive, diffColor = forgeVM.diffColor;
+    var stressColor = forgeVM.stressColor;
+    var isQTEActive = forgeVM.isQTEActive, diffColor = forgeVM.diffColor;
     var qtePosRef = forgeVM.qtePosRef, qteProcessing = forgeVM.qteProcessing;
     var onForgeClick = forgeVM.onForgeClick;
     var scrapWip = forgeVM.scrapWip;
@@ -227,10 +225,8 @@ function DesktopLayout(props) {
     // --- Callbacks from props ---
     var onActiveToastDone = props.onActiveToastDone;
     var removeToast = props.removeToast;
-    var addToast = props.addToast;
     var setGameOver = props.setGameOver;
     var setStamina = props.setStamina;
-    var setSetShowGiveUp = setShowGiveUp;
 
 
     return (

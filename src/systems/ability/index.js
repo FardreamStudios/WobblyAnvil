@@ -32,7 +32,6 @@ import MysteryVisitorAbility from "./morning/mysteryVisitorAbility.js";
 import MysteryShadowAbility from "./morning/mysteryShadowAbility.js";
 // --- Reactive abilities ---
 import HotStreakAbility from "./reactive/hotStreakAbility.js";
-import ShameDebuffAbility from "./reactive/shameDebuffAbility.js";
 import RoyalAttentionAbility from "./reactive/royalAttentionAbility.js";
 import MomentumAbility from "./reactive/momentumAbility.js";
 import OverworkedAbility from "./reactive/overworkedAbility.js";

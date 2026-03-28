@@ -29,8 +29,6 @@
 // time so the bubble stays up long enough to read.
 // Tune these three values to adjust pacing globally.
 // ============================================================
-var SPEECH_BASE_MS      = 1200;   // minimum floor — no hold shorter than this
-var SPEECH_MS_PER_WORD  = 390;    // per word on top of base (~40% slower reading pace)
 var SPEECH_PADDING_MS   = 200;    // breathing room after calculated duration
 
 // ============================================================
@@ -150,8 +148,6 @@ var FORGE_STEPS = [
 var _presenter = null;      // { say, pointAt, interact, clearAll }
 var _gameAction = null;     // fn(name, params)
 var _onComplete = null;     // fn(result)
-var _onEvent = null;        // fn injected by controller to receive bus events
-
 var _steps = null;          // current step array
 var _stepIndex = -1;
 var _waiting = false;

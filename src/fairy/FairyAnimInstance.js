@@ -300,8 +300,6 @@ function SpeechBubble(props) {
     var estHeightPct = (estHeightPx / window.innerHeight) * 100;
 
     var fairyScale = props.scale || 1;
-    var halfSpriteVw = (SPRITE_CFG.sizePct / 2) * fairyScale;
-    var halfBubbleVw = BUBBLE_MAX_W_VW / 2;
 
     // Bubble extends toward screen center from the fairy
     var bubbleLeft;
@@ -430,7 +428,6 @@ function ChoiceBubble(props) {
     if (!displaying || !props.data) return null;
 
     var fairyScale = props.scale || 1;
-    var choiceMaxW = 48; // choice bubble max width vw
 
     // Bubble extends toward screen center from the fairy
     var bubbleLeft;

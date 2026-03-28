@@ -145,9 +145,6 @@ var MysteryShadowAbility = {
     onActivate: function(ctx) {
         var bus = ctx.bus;
         var endSelf = ctx.endSelf;
-        // Capture manager ref so we can read live state at fire time
-        // ctx.state is a snapshot from activation — stale by sleep time
-        var manager = ctx.manager;
         var getState = ctx.getState;
         var fired = false;
 

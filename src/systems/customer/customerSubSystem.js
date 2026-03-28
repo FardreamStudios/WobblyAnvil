@@ -250,7 +250,6 @@ function _attemptSpawn(newHour, finishedOverride) {
 
     // --- Pick customer type + match weapon ---
     var shuffled = CUST_TYPES.slice().sort(function() { return Math.random() - 0.5; });
-    var matched = false;
 
     shuffled.some(function(ct) {
         var match = items.find(function(w) {
@@ -266,7 +265,6 @@ function _attemptSpawn(newHour, finishedOverride) {
             });
             _bus.emit(EVENT_TAGS.FX_DOORBELL, {});
 
-            matched = true;
             return true;  // break .some()
         }
         return false;

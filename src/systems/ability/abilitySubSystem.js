@@ -345,11 +345,9 @@ function resolveValue(attribute, baseValue) {
     var result = baseValue;
 
     // 1. Override (last override wins)
-    var hasOverride = false;
     for (var i = mods.length - 1; i >= 0; i--) {
         if (mods[i].operation === "override") {
             result = mods[i].value;
-            hasOverride = true;
             break;
         }
     }
@@ -419,8 +417,6 @@ function flushToasts() {
 // 4. Weighted-random picks ONE winner.
 // 5. Activates it. Returns { id, instance } or null.
 // ============================================================
-
-var MORNING_TRIGGER_TAG = "game.day.morning_phase";
 
 function rollMorning(payload) {
     if (!_initialized) return null;

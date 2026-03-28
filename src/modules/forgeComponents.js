@@ -23,7 +23,7 @@ var PHASES = GameConstants.PHASES;
 var BALANCE = GameConstants.BALANCE;
 var QTE_COLOR_RAMP = GameConstants.QTE_COLOR_RAMP;
 var positionToColumn = GameUtils.positionToColumn;
-var calcQteResult = GameUtils.calcQteResult;
+var clamp = GameUtils.clamp;
 
 // --- QTE Speed Constants (sourced from BALANCE in constants.js) ---
 var HEAT_SPEED_BASE = BALANCE.heatSpeedBase;
@@ -41,7 +41,6 @@ var SPRITE_FULL = PUB + "/images/ui/waPixelBarTinyFull.png";
 
 // --- Sprite Bar Constants ---
 var BAR_COLS = 30;
-var BAR_MAX_W = 480;  // fits inside QTE_W
 var BAR_HEIGHT = 52;  // matches old bar height
 var HEIGHT_EXPONENT = 2.4;  // power curve for column heights
 

@@ -71,12 +71,6 @@ var STATE_DURATIONS = {
     off:        null,
 };
 
-// Escalation: how many times a trigger can be ignored before
-// the fairy escalates through pointing → escalating → flustered → exit
-var IGNORE_THRESHOLD_ESCALATE  = 2;
-var IGNORE_THRESHOLD_FLUSTERED = 4;
-var IGNORE_THRESHOLD_EXIT      = 6;
-
 // Ambient tick interval (ms) — how often we poll for idle triggers
 var TICK_INTERVAL_MS = 10000;
 
@@ -137,9 +131,6 @@ var _cooldowns = {};
 
 // Once-flags: { triggerId: true } — triggers with once:true
 var _onceFired = {};
-
-// Ignore counts: { triggerId: count } — for escalation (M-7)
-var _ignoreCounts = {};
 
 // Shuffle-deck pools: { category: { lines: [...], index: int } }
 var _decks = {};
@@ -1158,7 +1149,6 @@ function reset() {
     _fsmState     = STATES.IDLE;
     _cooldowns    = {};
     _onceFired    = _loadOnceFlags();  // reload taught topics, don't clear
-    _ignoreCounts = {};
     _decks        = {};
     _appearancesToday = 0;
     _tracked.lastWeaponQuality      = 0;
@@ -1203,7 +1193,6 @@ function destroy() {
     _fsmState        = STATES.OFF;
     _cooldowns       = {};
     _onceFired       = {};
-    _ignoreCounts    = {};
     _decks           = {};
     _sortedTriggers  = null;
     _busHandlers     = [];

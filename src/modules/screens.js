@@ -4,55 +4,16 @@
 // Pure display, no game state.
 // ============================================================
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import GameConstants from "./constants.js";
 import UIComponents from "./uiComponents.js";
 import HowToPlay from "../components/HowToPlay.js";
 import FairyAnimInstance from "../fairy/FairyAnimInstance";
 
-var FTUE_TOASTS = GameConstants.FTUE_TOASTS;
 var SectionLabel = UIComponents.SectionLabel;
 
 var PUB = process.env.PUBLIC_URL || "";
 var MENU_BG = PUB + "/images/menu/menuBg.png";
-
-// --- MenuSprite ---
-// Lightweight inline spritesheet animator.
-// All sizing in viewport units — scales with screen.
-// Accepts a cfg object: { sheet, frames, frameW, frameH, fps, sizeVw, xVw, yVh }
-
-function MenuSprite(props) {
-    var cfg = props.cfg;
-    var frameRef = useRef(0);
-    var [frame, setFrame] = useState(0);
-
-    useEffect(function() {
-        var ms = Math.round(1000 / (cfg.fps || 8));
-        var id = setInterval(function() {
-            frameRef.current = (frameRef.current + 1) % cfg.frames;
-            setFrame(frameRef.current);
-        }, ms);
-        return function() { clearInterval(id); };
-    }, [cfg.frames, cfg.fps]);
-
-    var aspect = cfg.frameH / cfg.frameW;
-    var widthStr = cfg.sizeVw + "vw";
-    var heightStr = (cfg.sizeVw * aspect) + "vw";
-
-    var style = {
-        width: widthStr,
-        height: heightStr,
-        backgroundImage: "url(" + cfg.sheet + ")",
-        backgroundPosition: -(frame * 100) + "% 0%",
-        backgroundSize: (cfg.frames * 100) + "% 100%",
-        backgroundRepeat: "no-repeat",
-        imageRendering: "pixelated",
-        transform: "translate(" + cfg.xVw + "vw, " + cfg.yVh + "vh)",
-    };
-    if (props.style) { Object.assign(style, props.style); }
-
-    return <div style={style} />;
-}
 
 // --- Main Menu ---
 // Background image: drop a dark atmospheric image at /images/menu/menuBg.png
