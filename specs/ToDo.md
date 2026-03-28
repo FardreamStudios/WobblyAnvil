@@ -38,7 +38,7 @@
 - [x] **Speech bubble rewrite** — `FairyAnimInstance.js` SpeechBubble + ChoiceBubble fully reworked. Removed flipBelow logic (no more below-fairy placement). Bubble anchors to sprite top edge, extends toward screen center based on fairy X position (left/center/right zones). Viewport edge clamping with tail tracking. `width: max-content` fix for overflow-hidden parent. Removed laser dodge (by-design: fairy offset from target, no overlap). Tail always points toward fairy. Both bubbles share same positioning logic.
 - [x] **Fairy position mirroring** — `fairyPositions.js` `resolveUITarget()` now auto-mirrors X offset when element is on right half of viewport (handedness support). Rep bar offset tuned to `{ x: 80, y: 160 }`.
 - [x] **Button tutorial text update** — Sleep button text rewritten with more personality. Timings shifted +1000ms across tut_buttons cue.
-- [x] **Mystery toast bug** — `mysteryVisitorAbility.js` + `mysteryShadowAbility.js` foreshadow `UI_ADD_TOAST` replaced with `DAY_MORNING_EVENT_DISPLAY` emit (event bar, not toast).
+- [x] **Mystery event display bug** — `mysteryVisitorAbility.js` + `mysteryShadowAbility.js` foreshadow emit used `msg` field instead of `id`/`title`/`desc`/`tag`, crashing desktop event bar (`mEvent.title.toUpperCase()` on undefined). Fixed payload shape to match `DAY_MORNING_EVENT_DISPLAY` contract. Original `UI_ADD_TOAST` → `DAY_MORNING_EVENT_DISPLAY` conversion done earlier (event bar, not toast).
 - [x] **Merge splash + menu screens** — `SplashScreen` deleted. `MainMenu` gains `audioReady` + `onAudioWarmup` props. `useUIState` default `"splash"` → `"menu"`. One component, one visual.
 - [x] **Tutorial tap behavior** — `tutorialMode` flag on AnimInstance. First tap: cancel/stash/replay warning. Second tap: skip section, dismiss at current pos, continue to next. Pawn `showWarning` + `_dismissFairy` position fix. Controller `_persistFlag` writes runtime `_flagMemory`. Sequencer gains `setFlag()` API.
 
@@ -68,13 +68,14 @@ See `FairyFeatureSpecs.md` for full architecture and milestone details. Core thr
 - [x] **M-11: Laser FX** — Beam from fairy to target UI element via cue step.
 - [x] **M-12: Persistence + toggle** — localStorage for taught topics. On/off toggle in options menu.
 - [x] **M-15: Fairy Tutorial** — Step sequencer (`fairyTutorial.js`), opt-in gate, per-segment architecture, DAY_READY timing, tap-to-skip, `devSkipPersist`. First segment `tut_rep` (laser at rep bar). Needs end-to-end testing.
-- [ ] **M-15 testing** — Intro flow working. tut_rep and tut_buttons both fire and complete. Tutorial tap warning + skip working (cancel/stash/replay pattern). Dismiss poof at correct position. `devSkipPersist: true` still set in App.js controller init — remove when done testing. Day 2+ fairy firing needs verification (useDayVM toastsQueuedRef fix deployed but untested). Debug logs: fairyTutorial.js still has `console.log` on `start()` call.
-- [ ] **Tutorial lockout mode** — Controller emits `UI_SET_LOCK` on bus when tutorial starts, `UI_SET_LOCK {locked: false}` on complete/skip. Reuses existing lock mechanism (mystery events already use it). Files: `fairyController.js` — emit in `_onTutorialComplete` intro_complete→show me path, and in `_checkPendingSegments` before starting segments. Clear on `_skipTutorialSegment` and `segment_complete`.
-- [ ] **Fairy forge tutorial (tut_forge)** — Fairy simulates a forge session during tutorial. Waves laser at QTE bar, bar flashes/freezes, fairy explains each phase. Requires QTE pause contract (DES-3 QTE Pause). New cue in `fairyCues.js`, new sequence in `fairyTutorial.js`. Blocked by: QTE pause/resume, tutorial lockout.
+- [x] **M-15 testing** — Intro flow, tut_rep, tut_buttons all fire and complete. Tutorial tap warning + skip working (cancel/stash/replay pattern). Dismiss poof at correct position. Day 2+ fairy firing verified. `devSkipPersist: true` still set in App.js — remove when forge tutorial verified. Debug logs in fairyTutorial.js kept intentionally during build.
+- [x] **Fairy forge tutorial (tut_forge)** — `forgeTutorial.js` built. Full guided forge session: sandbox mode, weapon/material select, heat/hammer/quench QTE walkthrough with auto-freeze, session result buttons explained. Controller delegates via presenter + gameAction contract. Tap-to-skip cancels and cleans up sandbox. Wired in both mobile + desktop.
+- [ ] **Tutorial lockout mode** — Controller uses `_setTutorialHighlight` to block buttons during tutorial, but does NOT emit `UI_SET_LOCK` on bus (full input lock). Decide if full lock is needed or if highlight-only blocking is sufficient. Files: `fairyController.js`.
 - [ ] **M-13: Special cues** — `super_saiyan`, `chase_event`, `running_head`, `fairy_insight`. Day-gated. LOW PRIORITY.
 - [ ] **M-14: Gibberish speech audio** — Procedural via Web Audio, synced to speech bubbles. Can defer.
 
-### DES-3 — QTE Pause (blocked by DES-2 + Fairy M-7 ✅)
+### DES-3 — QTE Pause (nice-to-have, not blocking)
+Forge tutorial shipped using sandbox auto-freeze instead. QTE Pause is only needed if we want fairy to interrupt a *real* (non-sandbox) QTE mid-play.
 - [ ] **Pause/resume contract** — Freeze needle/notes at exact position in QTE Runner.
 - [ ] **Pause overlay** — Dim + "TAP TO RESUME" + auto-resume timeout.
 - [ ] **Fairy pause triggers** — First-time QTE encounter → fairy pauses and explains.
@@ -97,6 +98,8 @@ See `FairyFeatureSpecs.md` for full architecture and milestone details. Core thr
 - [ ] **Fix shelf images** — Remove visible background border on weapon shelf display sprites.
 - [ ] **FairyAnimInstance audio cleanup** — `new Audio()` direct usage in `src/fairy/FairyAnimInstance.js` should wire through main audio system for volume/mute consistency.
 - [ ] **Delete old FairyAnim.js** — `src/components/FairyAnim.js` replaced by `src/fairy/FairyAnimInstance.js`. Remove if still on disk.
+- [ ] **Remove `devSkipPersist: true`** — In App.js FairyController init. Remove once forge tutorial end-to-end is verified on both mobile + desktop.
+- [ ] **Strip debug logs from forgeTutorial.js** — `console.log` calls on init, step advance, auto_delay, wait_event. Remove after forge tutorial build is complete.
 
 ### ⚠️ Character/NPC System Improvements (HIGH PRIORITY — multiplies across all future characters)
 See `FairyFeatureSpecs.md` "Character/NPC System Improvements" section for full details and learnings.
