@@ -31,7 +31,7 @@ function MobileBtn(props) {
     var hasHold = !!holdContent;
     var press = usePressHold({
         onClick: (!disabled && onClick) ? onClick : null,
-        onHold: hasHold ? function() { setShowPop(true); } : null,
+        onHold: hasHold ? function() { setShowPop(true); if (props.onHoldAction) props.onHoldAction(); } : null,
         disabled: disabled,
     });
 
