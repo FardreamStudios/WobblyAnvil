@@ -100,9 +100,6 @@ var useLayoutMode = GameLayout.useLayoutMode;
 
 // --- Destructure Mobile Layout ---
 var MobileLayout = MobileLayoutModule.MobileLayout;
-var requestFullscreen = MobileLayoutModule.requestFullscreen;
-var isFullscreenActive = MobileLayoutModule.isFullscreenActive;
-var userExitedFullscreen = MobileLayoutModule.userExitedFullscreen;
 
 // ============================================================
 // Main App Component
@@ -137,25 +134,6 @@ export default function App() {
     });
     return function() { FXCueSubSystem.destroy(); };
   }, []);
-
-  // --- Mobile: request fullscreen on landscape (all screens) ---
-  useEffect(function() {
-    if (!isMobile) return;
-    function onOrientationChange() {
-      setTimeout(function() {
-        var w = window.innerWidth, h = window.innerHeight;
-        if (w > h && !isFullscreenActive() && !userExitedFullscreen.current) {
-          requestFullscreen(document.documentElement);
-        }
-      }, 500);
-    }
-    window.addEventListener("orientationchange", onOrientationChange);
-    window.addEventListener("resize", onOrientationChange);
-    return function() {
-      window.removeEventListener("orientationchange", onOrientationChange);
-      window.removeEventListener("resize", onOrientationChange);
-    };
-  }, [isMobile]);
 
   // --- UI State (from useUIState) ---
   var screen = ui.screen, setScreen = ui.setScreen;

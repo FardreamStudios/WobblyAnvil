@@ -31,6 +31,7 @@ import FairyAPI         from "./fairyAPI.js";
 import FairyPersonality from "./fairyPersonality.js";
 import FairyPositions   from "./fairyPositions.js";
 import EVENT_TAGS       from "../config/eventTags.js";
+import MobileInfra      from "../hooks/useMobileInfra.js";
 
 // ============================================================
 // INTERNAL STATE
@@ -79,6 +80,7 @@ function _initSpeech() {
         }
         transcript = transcript.trim();
         _listening = false;
+        MobileInfra.permissionPending.current = false;
         if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
 
         // Auto-send if we got something
@@ -90,12 +92,14 @@ function _initSpeech() {
     _recognition.onerror = function(event) {
         console.warn("[FairyChatSystem] Speech error:", event.error);
         _listening = false;
+        MobileInfra.permissionPending.current = false;
         if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
     };
 
     _recognition.onend = function() {
         var wasListening = _listening;
         _listening = false;
+        MobileInfra.permissionPending.current = false;
         if (wasListening && _bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
     };
 }
@@ -418,10 +422,13 @@ function startListening() {
     if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: true });
 
     try {
+        // Signal fullscreen recovery to pause — mic permission dialog exits fullscreen
+        MobileInfra.permissionPending.current = true;
         _recognition.start();
     } catch (e) {
         console.warn("[FairyChatSystem] Failed to start recognition:", e.message);
         _listening = false;
+        MobileInfra.permissionPending.current = false;
         if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
         _resetIdleTimer();
     }

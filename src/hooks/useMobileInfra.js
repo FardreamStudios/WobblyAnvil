@@ -26,31 +26,67 @@ function requestFullscreen(el) {
     else if (el.mozRequestFullScreen) promise = el.mozRequestFullScreen();
     else if (el.msRequestFullscreen) promise = el.msRequestFullscreen();
     if (promise && promise.then) {
-        promise.then(function() {
-            try {
-                if (window.screen.orientation && window.screen.orientation.lock) {
-                    window.screen.orientation.lock("landscape").catch(function() {});
-                }
-            } catch (e) {}
-        }).catch(function() {});
+        promise.catch(function() {});
     }
     return promise;
 }
 
 function exitFullscreen() {
-    try {
-        if (window.screen.orientation && window.screen.orientation.unlock) {
-            window.screen.orientation.unlock();
-        }
-    } catch (e) {}
+    _unlockOrientation();
     if (document.exitFullscreen) return document.exitFullscreen();
     if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
     if (document.mozCancelFullScreen) return document.mozCancelFullScreen();
     if (document.msExitFullscreen) return document.msExitFullscreen();
 }
 
+/**
+ * Lock orientation to landscape. Only call when stably in fullscreen.
+ */
+function _lockOrientation() {
+    try {
+        if (window.screen.orientation && window.screen.orientation.lock) {
+            window.screen.orientation.lock("landscape").catch(function() {});
+        }
+    } catch (e) {}
+}
+
+/**
+ * Unlock orientation. Called on ANY fullscreen exit (user or unexpected).
+ */
+function _unlockOrientation() {
+    try {
+        if (window.screen.orientation && window.screen.orientation.unlock) {
+            window.screen.orientation.unlock();
+        }
+    } catch (e) {}
+}
+
+/**
+ * Cooldown-guarded fullscreen restore. Prevents rapid-fire attempts.
+ * Returns true if attempt was made, false if skipped.
+ */
+function _tryRestore() {
+    if (permissionPending.current) return false;
+    if (userExitedFullscreen.current) return false;
+    if (isFullscreenActive()) return false;
+    var now = Date.now();
+    if (now - _lastRestoreAttemptMs < RESTORE_COOLDOWN_MS) return false;
+    _lastRestoreAttemptMs = now;
+    requestFullscreen(document.documentElement);
+    return true;
+}
+
 // --- Shared mutable ref for user-initiated fullscreen exit ---
 var userExitedFullscreen = { current: false };
+
+// --- Permission dialog grace period ---
+// Set true before any API that triggers a browser permission dialog
+// (e.g. mic, camera). Recovery paths skip while true.
+var permissionPending = { current: false };
+
+// --- Recovery cooldown ---
+var _lastRestoreAttemptMs = 0;
+var RESTORE_COOLDOWN_MS = 2000;
 
 // ============================================================
 // WAKE LOCK HOOK
@@ -175,10 +211,9 @@ function useFullscreenPersistence(isFull) {
             if (!restoreArmed.current) return;
             if (isFullscreenActive()) { _disarmRestore(); return; }
             if (userExitedFullscreen.current) { _disarmRestore(); return; }
+            if (permissionPending.current) return; // don't fight permission dialog
             restoreArmed.current = false;
             requestFullscreen(document.documentElement);
-            // Keep listeners alive briefly — if requestFullscreen fails silently,
-            // next tap will try again. Clean up after success.
             setTimeout(_disarmRestore, 500);
         }
         function _disarmRestore() {
@@ -189,63 +224,63 @@ function useFullscreenPersistence(isFull) {
         function _armRestore() {
             if (restoreArmed.current) return;
             restoreArmed.current = true;
-            // Capture phase so it fires before any button handlers
             document.addEventListener("touchstart", onTapRestore, true);
             document.addEventListener("click", onTapRestore, true);
         }
 
-        // Expose arm/disarm on the ref so other effects can use them
         restoreArmed._arm = _armRestore;
         restoreArmed._disarm = _disarmRestore;
 
         return _disarmRestore;
     }, []);
 
+    // Fullscreen state transitions — orientation lock/unlock + recovery
     useEffect(function() {
         if (isFull) {
             wasFull.current = true;
             userExitedFullscreen.current = false;
-            // If we're back in fullscreen, disarm restore listener
             if (restoreArmed._disarm) restoreArmed._disarm();
+            // Stable fullscreen — now safe to lock orientation
+            _lockOrientation();
         }
-        if (!isFull && wasFull.current && !userExitedFullscreen.current) {
-            // Fullscreen dropped unexpectedly — try auto-restore first,
-            // then arm tap-to-restore as fallback (covers permission dialog case
-            // where auto-restore fails due to missing user gesture).
-            var timer = setTimeout(function() {
-                if (!isFullscreenActive() && !userExitedFullscreen.current) {
-                    requestFullscreen(document.documentElement);
-                    // If that fails (no gesture), arm tap restore
-                    setTimeout(function() {
-                        if (!isFullscreenActive() && !userExitedFullscreen.current) {
-                            if (restoreArmed._arm) restoreArmed._arm();
-                        }
-                    }, 300);
-                }
-            }, 300);
-            return function() { clearTimeout(timer); };
+        if (!isFull && wasFull.current) {
+            // Fullscreen dropped — always unlock orientation so player can rotate
+            _unlockOrientation();
+
+            if (!userExitedFullscreen.current) {
+                // Unexpected drop — try auto-restore with cooldown guard
+                var timer = setTimeout(function() {
+                    if (_tryRestore()) {
+                        // If that fails (no gesture), arm tap restore
+                        setTimeout(function() {
+                            if (!isFullscreenActive() && !userExitedFullscreen.current && !permissionPending.current) {
+                                if (restoreArmed._arm) restoreArmed._arm();
+                            }
+                        }, 500);
+                    } else if (!permissionPending.current) {
+                        // Cooldown blocked us — just arm tap restore
+                        if (restoreArmed._arm) restoreArmed._arm();
+                    }
+                }, 400);
+                return function() { clearTimeout(timer); };
+            }
         }
     }, [isFull]);
 
-    // Recovery: when app regains focus after a permission dialog
-    // (or any system interruption), attempt to re-enter fullscreen.
-    // If auto attempt fails, arm tap-to-restore.
+    // Recovery: when app regains focus after a permission dialog or system interruption
     useEffect(function() {
         function onFocusRecovery() {
             if (!wasFull.current) return;
             if (userExitedFullscreen.current) return;
             if (isFullscreenActive()) return;
+            if (permissionPending.current) return; // still in dialog — don't fight it
             setTimeout(function() {
-                if (!isFullscreenActive() && !userExitedFullscreen.current) {
-                    requestFullscreen(document.documentElement);
-                }
-            }, 400);
-            // Fallback: arm tap restore in case auto fails
-            setTimeout(function() {
-                if (!isFullscreenActive() && !userExitedFullscreen.current) {
+                if (_tryRestore()) return;
+                // Auto failed — arm tap restore
+                if (!permissionPending.current) {
                     if (restoreArmed._arm) restoreArmed._arm();
                 }
-            }, 800);
+            }, 500);
         }
         function onVisChange() {
             if (document.visibilityState === "visible") onFocusRecovery();
@@ -258,14 +293,14 @@ function useFullscreenPersistence(isFull) {
         };
     }, []);
 
+    // Landscape rotation = intentional "I want to play" gesture
     useEffect(function() {
         function onOrientationChange() {
             setTimeout(function() {
+                if (permissionPending.current) return;
                 var w = window.innerWidth, h = window.innerHeight;
                 var isLandscape = w > h;
                 if (isLandscape && !isFullscreenActive()) {
-                    // Rotating to landscape is an intentional "I want to play" gesture.
-                    // Always fullscreen, even if user previously tapped X.
                     userExitedFullscreen.current = false;
                     requestFullscreen(document.documentElement);
                 }
@@ -285,6 +320,7 @@ var MobileInfra = {
     requestFullscreen: requestFullscreen,
     exitFullscreen: exitFullscreen,
     userExitedFullscreen: userExitedFullscreen,
+    permissionPending: permissionPending,
     useWakeLock: useWakeLock,
     useFullscreenState: useFullscreenState,
     useViewportInfo: useViewportInfo,
