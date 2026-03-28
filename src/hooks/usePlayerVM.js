@@ -17,8 +17,6 @@ import AbilityManager from "../systems/ability/abilitySubSystem.js";
 
 // --- Utilities ---
 var xpForLevel = GameUtils.xpForLevel;
-var getSmithRank = GameUtils.getSmithRank;
-var getNextRank = GameUtils.getNextRank;
 
 // ============================================================
 // Hook

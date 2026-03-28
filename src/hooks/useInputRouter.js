@@ -37,7 +37,6 @@ function useInputRouter(deps) {
     var isForging       = deps.isForging;
     var activeCustomer  = deps.activeCustomer;
     var toastQueue      = deps.toastQueue;
-    var activeToast     = deps.activeToast;
     var mysteryPending  = deps.mysteryPending;
     var finished        = deps.finished;
     var promoteUses     = deps.promoteUses;

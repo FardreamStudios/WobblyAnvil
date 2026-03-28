@@ -25,7 +25,6 @@ function useEconomyVM(deps) {
     // --- Unpack dependencies from App.js ---
     var economy = deps.economy;
     var quest = deps.quest;
-    var sfx = deps.sfx;
     var addToast = deps.addToast;
 
     // --- Economy state ---

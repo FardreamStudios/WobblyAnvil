@@ -42,11 +42,8 @@ var qualityValue = GameUtils.qualityValue;
 var calcSpeedMultiplier = GameUtils.calcSpeedMultiplier;
 var calcStrikeMultiplier = GameUtils.calcStrikeMultiplier;
 var calcQteResult = GameUtils.calcQteResult;
-var columnToPosition = GameUtils.columnToPosition;
-var positionToColumn = GameUtils.positionToColumn;
 var qualityGainMultiplier = GameUtils.qualityGainMultiplier;
 var randScrapToast = GameUtils.randScrapToast;
-var canAffordTime = GameUtils.canAffordTime;
 
 // --- Heat gameplay mapping (tier.id → bonus strikes) ---
 var HEAT_STRIKE_MAP = { perfect: 2, great: 1, good: 0, poor: 0, bad: 0 };
@@ -75,7 +72,6 @@ function useForgeVM(deps) {
     var gold = deps.gold;
     var inv = deps.inv;
     var finished = deps.finished;
-    var hour = deps.hour;
     var stamina = deps.stamina;
     var stats = deps.stats;
     var upgrades = deps.upgrades;
@@ -90,10 +86,10 @@ function useForgeVM(deps) {
     var qualScore = forge.qualScore, setQualScore = forge.setQualScore;
     var stress = forge.stress, setStress = forge.setStress;
     var forgeSess = forge.forgeSess, setForgeSess = forge.setForgeSess;
-    var bonusStrikes = forge.bonusStrikes, setBonusStrikes = forge.setBonusStrikes;
+    var setBonusStrikes = forge.setBonusStrikes;
     var sessResult = forge.sessResult, setSessResult = forge.setSessResult;
-    var forgeBubble = forge.forgeBubble, setForgeBubble = forge.setForgeBubble;
-    var qteFlash = forge.qteFlash, setQteFlash = forge.setQteFlash;
+    var setForgeBubble = forge.setForgeBubble;
+    var setQteFlash = forge.setQteFlash;
     var strikesLeft = forge.strikesLeft, setStrikesLeft = forge.setStrikesLeft;
     var isSandbox = forge.isSandbox;
 
@@ -317,8 +313,7 @@ function useForgeVM(deps) {
                 GameplayEventBus.emit(EVENT_TAGS.FX_ROYAL_DECREE, {});
             }
         }
-        var nf = finished;
-        if (!isQuestDelivery) { nf = finished.concat([item]); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { addFinished: item }); }
+        if (!isQuestDelivery) { GameplayEventBus.emit(EVENT_TAGS.ECONOMY_SET_INVENTORY, { addFinished: item }); }
         var toastMsg = isQuestDelivery ? (questComplete ? "DECREE FULFILLED\n" + q.label + " " + weapon.name : "DELIVERED " + deliveredSoFar + "/" + questQty + "\n" + q.label + " " + weapon.name) : q.label.toUpperCase() + " " + weapon.name + "\n~" + val + "g added to shelf";
         addToast(toastMsg, "", questComplete ? "#4ade80" : isQuestDelivery ? "#f59e0b" : q.weaponColor);
         GameplayEventBus.emit(EVENT_TAGS.FORGE_SESSION_COMPLETE, { quality: nq, weaponKey: wKey, matKey: matKey });
