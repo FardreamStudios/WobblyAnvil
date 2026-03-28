@@ -552,6 +552,7 @@ function MobileLayout(props) {
                 </div>
 
                 {/* Fairy Chat Button — visible day 2+ when chatEnabled */}
+                {/* Tap: summon fairy / toggle text field. Hold: mic record. */}
                 <div data-fairy-target="btn_fairy_chat" style={{
                     position: "absolute",
                     bottom: "2%",
@@ -559,16 +560,57 @@ function MobileLayout(props) {
                     left: isLeftHanded ? "14%" : "auto",
                     zIndex: T.z.ui + 2,
                     display: "flex",
+                    flexDirection: "column",
                     alignItems: "center",
-                    padding: "4px 10px",
-                    background: barBoxStyle.background,
-                    border: barBoxStyle.border,
-                    borderRadius: barBoxStyle.borderRadius,
+                    gap: 6,
                     visibility: (props.day || 1) >= 2 && props.chatEnabled !== false ? "visible" : "hidden",
                     pointerEvents: (props.day || 1) >= 2 && props.chatEnabled !== false ? "auto" : "none",
-                    cursor: "pointer",
-                }} onClick={(props.day || 1) >= 2 && props.chatEnabled !== false ? props.onFairyChat : null}>
-                    <span style={{ fontSize: 20, lineHeight: 1 }}>{"\u2728"}</span>
+                }}>
+                    {/* Text field — shown above button when fairyChatTextOpen */}
+                    {props.fairyChatTextOpen && (
+                        <form style={{ display: "flex", gap: 4 }} onSubmit={function(e) {
+                            e.preventDefault();
+                            var inp = e.target.elements.fairyInput;
+                            if (inp && inp.value.trim()) {
+                                if (props.onFairyChatSend) props.onFairyChatSend(inp.value.trim());
+                                inp.value = "";
+                            }
+                        }}>
+                            <input name="fairyInput" type="text" placeholder="talk to the fairy..."
+                                   autoComplete="off"
+                                   style={{
+                                       width: 140, padding: "7px 10px", borderRadius: 10,
+                                       background: "#0a0704", border: "1px solid #3d2e0f",
+                                       color: "#f0e6c8", fontSize: 11, fontFamily: "'Josefin Sans', sans-serif",
+                                       outline: "none", letterSpacing: 0.5,
+                                   }}
+                            />
+                            <button type="submit" style={{
+                                padding: "7px 10px", borderRadius: 10,
+                                background: "#1a1209", border: "1px solid #3d2e0f",
+                                color: "#f59e0b", fontSize: 11, cursor: "pointer",
+                                fontFamily: "'Josefin Sans', sans-serif", fontWeight: "bold",
+                            }}>{">"}</button>
+                        </form>
+                    )}
+                    {/* The ✨ button */}
+                    <div style={{
+                        padding: "4px 10px",
+                        background: props.fairyChatListening ? "#2a1f0a" : barBoxStyle.background,
+                        border: props.fairyChatListening ? "1px solid #f59e0b" : barBoxStyle.border,
+                        borderRadius: barBoxStyle.borderRadius,
+                        cursor: "pointer",
+                        boxShadow: props.fairyChatListening ? "0 0 12px rgba(245,158,11,0.4)" : "none",
+                        transition: "all 0.15s ease",
+                    }}
+                         onClick={props.onFairyChatTap || null}
+                         onMouseDown={props.onFairyChatHoldStart || null}
+                         onMouseUp={props.onFairyChatHoldEnd || null}
+                         onTouchStart={function(e) { if (props.onFairyChatHoldStart) { e.preventDefault(); props.onFairyChatHoldStart(); } }}
+                         onTouchEnd={function(e) { if (props.onFairyChatHoldEnd) { e.preventDefault(); props.onFairyChatHoldEnd(); } }}
+                    >
+                        <span style={{ fontSize: 20, lineHeight: 1 }}>{props.fairyChatListening ? "\uD83D\uDD34" : "\u2728"}</span>
+                    </div>
                 </div>
 
                 {/* Sidebar background */}

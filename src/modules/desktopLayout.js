@@ -464,7 +464,51 @@ function DesktopLayout(props) {
                             <div style={{ fontSize: 28, color: "#f59e0b", fontWeight: "bold", lineHeight: 1 }}>{gold}g</div>
                             {goldPops.map(function(p) { return <GoldPop key={p.id} amount={p.amount} onDone={function() { removeGoldPop(p.id); }} />; })}
                         </Panel></div>
-                        <div data-fairy-target="btn_fairy_chat" style={{ visibility: day >= 2 && props.chatEnabled !== false ? "visible" : "hidden" }}><button onClick={day >= 2 && props.chatEnabled !== false ? props.onFairyChat : null} disabled={day < 2} style={{ height: 80, padding: "0 14px", fontSize: 20, flexShrink: 0, background: "#0f0b06", border: "1px solid " + (day >= 2 ? "#3d2e0f" : "#1a1209"), borderRadius: 8, color: day >= 2 ? "#f0e6c8" : "#2a1f0a", cursor: day >= 2 ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center" }}>{"\u2728"}</button></div>
+                        <div data-fairy-target="btn_fairy_chat" style={{ visibility: day >= 2 && props.chatEnabled !== false ? "visible" : "hidden", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                            {props.fairyChatTextOpen && (
+                                <form style={{ display: "flex", gap: 4 }} onSubmit={function(e) {
+                                    e.preventDefault();
+                                    var inp = e.target.elements.fairyInput;
+                                    if (inp && inp.value.trim()) {
+                                        if (props.onFairyChatSend) props.onFairyChatSend(inp.value.trim());
+                                        inp.value = "";
+                                    }
+                                }}>
+                                    <input name="fairyInput" type="text" placeholder="talk to the fairy..."
+                                           autoComplete="off"
+                                           style={{
+                                               width: 150, padding: "8px 12px", borderRadius: 10,
+                                               background: "#0a0704", border: "1px solid #3d2e0f",
+                                               color: "#f0e6c8", fontSize: 12, fontFamily: "'Josefin Sans', sans-serif",
+                                               outline: "none", letterSpacing: 0.5,
+                                           }}
+                                    />
+                                    <button type="submit" style={{
+                                        padding: "8px 12px", borderRadius: 10,
+                                        background: "#1a1209", border: "1px solid #3d2e0f",
+                                        color: "#f59e0b", fontSize: 12, cursor: "pointer",
+                                        fontFamily: "'Josefin Sans', sans-serif", fontWeight: "bold",
+                                    }}>{">"}</button>
+                                </form>
+                            )}
+                            <button
+                                onClick={day >= 2 && props.chatEnabled !== false ? props.onFairyChatTap : null}
+                                onMouseDown={day >= 2 && props.chatEnabled !== false ? props.onFairyChatHoldStart : null}
+                                onMouseUp={day >= 2 && props.chatEnabled !== false ? props.onFairyChatHoldEnd : null}
+                                disabled={day < 2}
+                                style={{
+                                    height: 80, padding: "0 14px", fontSize: 20, flexShrink: 0,
+                                    background: props.fairyChatListening ? "#1a1209" : "#0f0b06",
+                                    border: "1px solid " + (props.fairyChatListening ? "#f59e0b" : day >= 2 ? "#3d2e0f" : "#1a1209"),
+                                    borderRadius: 8,
+                                    color: day >= 2 ? "#f0e6c8" : "#2a1f0a",
+                                    cursor: day >= 2 ? "pointer" : "default",
+                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                    boxShadow: props.fairyChatListening ? "0 0 12px rgba(245,158,11,0.4)" : "none",
+                                    transition: "all 0.15s ease",
+                                }}
+                            >{props.fairyChatListening ? "\uD83D\uDD34" : "\u2728"}</button>
+                        </div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "row", gap: 12, alignItems: "center", padding: "0 8px" }}>
                         {[["SFX", sfxVol, function(e) { var v = parseFloat(e.target.value); setSfxVol(v); sfx.setSfxVol(v); }], ["MUS", musicVol, function(e) { var v = parseFloat(e.target.value); setMusicVol(v); sfx.setMusicVol(v); }]].map(function(r) { return (<label key={r[0]} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#f0e6c8", letterSpacing: 2, fontFamily: "monospace", fontWeight: "bold" }}>{r[0]}<input type="range" min="0" max="1" step="0.05" value={r[1]} onChange={r[2]} style={{ width: 72, accentColor: "#f59e0b", cursor: "pointer" }} /></label>); })}

@@ -175,9 +175,10 @@ export default function App() {
 
   // --- Fairy Chat State ---
   var [fairyChatOpen, setFairyChatOpen] = useState(false);
-  var [fairyChatLine, setFairyChatLine] = useState(null);
   var [fairyChatWaiting, setFairyChatWaiting] = useState(false);
   var [fairyChatListening, setFairyChatListening] = useState(false);
+  var [fairyChatTextOpen, setFairyChatTextOpen] = useState(false);
+  var fairyChatDismissWarned = useRef(false);
 
   // --- Toast State (from useUIState) ---
   var toasts = ui.toasts, setToasts = ui.setToasts;
@@ -405,12 +406,12 @@ export default function App() {
           activeDecree: !!(rq && !rq.fulfilled), daysLeft: rq ? rq.daysLeft : null,
         };
       },
-      onFairySpeak: function(line) { setFairyChatLine(line); setFairyChatWaiting(false); },
-      onChatOpen: function() { setFairyChatOpen(true); },
-      onChatClose: function() { setFairyChatOpen(false); setFairyChatLine(null); setFairyChatWaiting(false); setFairyChatListening(false); },
+      onFairySpeak: function(line) { setFairyChatWaiting(false); if (fairyAnimRef.current) fairyAnimRef.current.showSpeech(line); },
+      onChatOpen: function() { setFairyChatOpen(true); if (fairyAnimRef.current) { fairyAnimRef.current.setChatMode(true); fairyAnimRef.current.setTappable(true); } },
+      onChatClose: function() { setFairyChatOpen(false); setFairyChatWaiting(false); setFairyChatListening(false); setFairyChatTextOpen(false); fairyChatDismissWarned.current = false; if (fairyAnimRef.current) { fairyAnimRef.current.hideSpeech(); fairyAnimRef.current.setChatMode(false); } },
       onListeningStart: function() { setFairyChatListening(true); },
       onListeningEnd: function() { setFairyChatListening(false); },
-      onWaiting: function() { setFairyChatWaiting(true); },
+      onWaiting: function() { setFairyChatWaiting(true); if (fairyAnimRef.current) fairyAnimRef.current.showSpeech("..."); },
     });
 
     return function() {
@@ -564,91 +565,55 @@ export default function App() {
   if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu audioReady={audioReady} onAudioWarmup={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setAudioReady(true); }} onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 
   // ============================================================
-  // FAIRY CHAT OVERLAY (shared by mobile + desktop)
+  // FAIRY CHAT — BUTTON STATE MACHINE
   // ============================================================
-  var fairyChatOverlay = fairyChatOpen ? (
-      <div style={{
-        position: "fixed", bottom: 80, left: "50%", transform: "translateX(-50%)",
-        zIndex: 200, display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-        pointerEvents: "auto",
-      }}>
-        {/* Fairy speech bubble */}
-        <div style={{
-          background: "#120e08", border: "2px solid #3d2e0f", borderRadius: 16,
-          padding: "12px 18px", maxWidth: 280, minWidth: 160, minHeight: 36,
-          fontFamily: "'Josefin Sans', sans-serif", fontSize: 13, color: "#f0e6c8",
-          lineHeight: 1.5, textAlign: "center", letterSpacing: 0.5,
-          boxShadow: "0 6px 24px rgba(0,0,0,0.85)",
-        }}>
-          {fairyChatWaiting ? (
-              <span style={{ color: "#8a7a64", fontStyle: "italic", letterSpacing: 1 }}>{"..."}</span>
-          ) : fairyChatLine ? (
-              <span>{fairyChatLine}</span>
-          ) : null}
-        </div>
+  // ✨ button tap: fairy off → summon fairy. fairy on + no text field → open text field. fairy on + text field open → close text field.
+  // ✨ button hold: fairy on → mic record. release → send.
+  function handleFairyChatTap() {
+    if (!FAIRY_CONFIG.chatEnabled) return;
+    sfx.click();
 
-        {/* Input area */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* Mic button (hold to talk) — only if speech supported */}
-          {FairyChatSystem.isSpeechSupported() && (
-              <button
-                  onMouseDown={function() { FairyChatSystem.startListening(); }}
-                  onMouseUp={function() { FairyChatSystem.stopListening(); }}
-                  onTouchStart={function(e) { e.preventDefault(); FairyChatSystem.startListening(); }}
-                  onTouchEnd={function(e) { e.preventDefault(); FairyChatSystem.stopListening(); }}
-                  style={{
-                    width: 48, height: 48, borderRadius: "50%",
-                    background: fairyChatListening ? "#f59e0b" : "#1a1209",
-                    border: "2px solid " + (fairyChatListening ? "#f59e0b" : "#3d2e0f"),
-                    color: fairyChatListening ? "#0a0704" : "#8a7a64",
-                    fontSize: 22, cursor: "pointer", display: "flex",
-                    alignItems: "center", justifyContent: "center",
-                    boxShadow: fairyChatListening ? "0 0 16px rgba(245,158,11,0.5)" : "none",
-                    transition: "all 0.15s ease",
-                  }}
-              >{fairyChatListening ? "\uD83D\uDD34" : "\uD83C\uDF99"}</button>
-          )}
+    if (!fairyChatOpen) {
+      // State: fairy not visible → summon + open chat
+      fairyChatDismissWarned.current = false;
+      FairyPawn.handleCommand({ intent: "cue", cue: "speak_in_scene", line: null, target: null, category: "chat" });
+      FairyChatSystem.openChat();
+      return;
+    }
 
-          {/* Text fallback — always available */}
-          <form style={{ display: "flex", gap: 4 }} onSubmit={function(e) {
-            e.preventDefault();
-            var input = e.target.elements.fairyInput;
-            if (input && input.value.trim()) {
-              FairyChatSystem.sendMessage(input.value.trim());
-              input.value = "";
-            }
-          }}>
-            <input name="fairyInput" type="text" placeholder="talk to the fairy..."
-                   autoComplete="off"
-                   style={{
-                     width: 160, padding: "8px 12px", borderRadius: 12,
-                     background: "#0a0704", border: "1px solid #3d2e0f",
-                     color: "#f0e6c8", fontSize: 12, fontFamily: "'Josefin Sans', sans-serif",
-                     outline: "none", letterSpacing: 0.5,
-                   }}
-            />
-            <button type="submit" style={{
-              padding: "8px 12px", borderRadius: 12,
-              background: "#1a1209", border: "1px solid #3d2e0f",
-              color: "#f59e0b", fontSize: 12, cursor: "pointer",
-              fontFamily: "'Josefin Sans', sans-serif", fontWeight: "bold",
-              letterSpacing: 1,
-            }}>{">"}</button>
-          </form>
+    // Fairy is visible — toggle text field
+    setFairyChatTextOpen(function(prev) { return !prev; });
+  }
 
-          {/* Close button */}
-          <button onClick={function() { FairyChatSystem.closeChat(); FairyPawn.handleCommand({ intent: "dismiss" }); }}
-                  style={{
-                    width: 32, height: 32, borderRadius: "50%",
-                    background: "#1a1209", border: "1px solid #3d2e0f",
-                    color: "#8a7a64", fontSize: 14, cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                  }}
-          >{"✕"}</button>
-        </div>
-      </div>
-  ) : null;
+  function handleFairyChatHoldStart() {
+    if (!FAIRY_CONFIG.chatEnabled || !fairyChatOpen) return;
+    FairyChatSystem.startListening();
+  }
 
+  function handleFairyChatHoldEnd() {
+    if (!FAIRY_CONFIG.chatEnabled || !fairyChatOpen) return;
+    FairyChatSystem.stopListening();
+  }
+
+  // Tap-on-fairy dismiss: first tap = warning, second = dismiss
+  function handleFairyChatDismiss() {
+    if (!fairyChatOpen) return;
+
+    if (!fairyChatDismissWarned.current) {
+      fairyChatDismissWarned.current = true;
+      if (fairyAnimRef.current) fairyAnimRef.current.showSpeech("you trying to get rid of me?");
+      return;
+    }
+
+    // Second tap — dismiss
+    fairyChatDismissWarned.current = false;
+    setFairyChatTextOpen(false);
+    FairyChatSystem.closeChat();
+    FairyPawn.handleCommand({ intent: "dismiss" });
+  }
+
+  // ============================================================
+  // FAIRY CHAT OVERLAY (shared by mobile + desktop)
   // ============================================================
   // MOBILE RENDER BRANCH
   // ============================================================
@@ -897,12 +862,14 @@ export default function App() {
               staminaPct={Math.round((stamina / maxStam) * 100)}
               onToggleHand={function() { setHandedness(function(h) { return h === "right" ? "left" : "right"; }); }}
               chatEnabled={FAIRY_CONFIG.chatEnabled}
-              onFairyChat={function() {
-                if (!FAIRY_CONFIG.chatEnabled) return;
-                sfx.click();
-                FairyPawn.handleCommand({ intent: "cue", cue: "speak_in_scene", line: null, target: null, category: "chat" });
-                FairyChatSystem.openChat();
-              }}
+              onFairyChatTap={handleFairyChatTap}
+              onFairyChatHoldStart={handleFairyChatHoldStart}
+              onFairyChatHoldEnd={handleFairyChatHoldEnd}
+              onFairyChatSend={function(text) { FairyChatSystem.sendMessage(text); }}
+              fairyChatOpen={fairyChatOpen}
+              fairyChatTextOpen={fairyChatTextOpen}
+              fairyChatListening={fairyChatListening}
+              fairyChatWaiting={fairyChatWaiting}
           />
           {showOptions && (<div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Josefin Sans', sans-serif" }} onClick={function(e) { if (e.target === e.currentTarget) setShowOptions(false); }}>
             <div style={{ padding: "24px 28px", width: 300, maxHeight: "80vh", overflowY: "auto", background: "#0f0b06", border: "2px solid #2a1f0a", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.9)" }}>
@@ -922,8 +889,7 @@ export default function App() {
               </div>
             </div>
           </div>)}
-          <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} />
-          {fairyChatOverlay}
+          <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} onChatTap={handleFairyChatDismiss} />
           <DevBanner />
         </>
     );
@@ -980,15 +946,16 @@ export default function App() {
             fairyEnabled={fairyEnabled}
             onFairyToggle={function(val) { setFairyEnabled(val); FairyController.setEnabled(val); }}
             chatEnabled={FAIRY_CONFIG.chatEnabled}
-            onFairyChat={function() {
-              if (!FAIRY_CONFIG.chatEnabled) return;
-              sfx.click();
-              FairyPawn.handleCommand({ intent: "cue", cue: "speak_in_scene", line: null, target: null, category: "chat" });
-              FairyChatSystem.openChat();
-            }}
+            onFairyChatTap={handleFairyChatTap}
+            onFairyChatHoldStart={handleFairyChatHoldStart}
+            onFairyChatHoldEnd={handleFairyChatHoldEnd}
+            onFairyChatSend={function(text) { FairyChatSystem.sendMessage(text); }}
+            fairyChatOpen={fairyChatOpen}
+            fairyChatTextOpen={fairyChatTextOpen}
+            fairyChatListening={fairyChatListening}
+            fairyChatWaiting={fairyChatWaiting}
         />
-        <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} />
-        {fairyChatOverlay}
+        <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} onChatTap={handleFairyChatDismiss} />
       </>
   );
 }

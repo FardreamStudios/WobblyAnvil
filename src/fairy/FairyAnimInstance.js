@@ -15,6 +15,7 @@
 //   setAnim(name)        — switch sprite anim state (future)
 //   resetIrritation()    — reset tap tier to 0
 //   setTutorialMode(bool) — when true, taps route to onTutorialTap instead of irritation
+//   setChatMode(bool)     — when true, taps route to onChatTap instead of irritation
 //   getState()           — {pos, tappable, irritation}
 //   playPop()            — poof sound
 //   playTapPop()         — lighter tap sound
@@ -29,6 +30,7 @@
 //   getDodgeSpot(cx,cy)  — pawn provides dodge destination
 //   onChoiceSelect(answer) — fired when player taps a choice option
 //   onTutorialTap()      — fired when player taps fairy during tutorial mode
+//   onChatTap()          — fired when player taps fairy during chat mode
 //
 // POSITIONING: Outer div uses left/top in % + transform.
 // Pawn controls transformOrigin per layer:
@@ -673,6 +675,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
     var lastTapRef = useRef(0);          // timestamp for cooldown
     var ignoreTapsRef = useRef(false);   // true at max irritation
     var tutorialModeRef = useRef(false); // true during tutorial — taps route to onTutorialTap
+    var chatModeRef = useRef(false);     // true during chat — taps route to onChatTap
 
     // --- Safe timeout that auto-cleans on unmount ---
     var schedule = useCallback(function(fn, ms) {
@@ -823,6 +826,12 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             return;
         }
 
+        // Chat mode — skip irritation/dodge, notify App for 2-tap dismiss
+        if (chatModeRef.current) {
+            if (props.onChatTap) props.onChatTap();
+            return;
+        }
+
         var tier = irritationRef.current;
         var currentPos = pos;
         if (!currentPos) return;
@@ -920,6 +929,9 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             },
             setTutorialMode: function(val) {
                 tutorialModeRef.current = !!val;
+            },
+            setChatMode: function(val) {
+                chatModeRef.current = !!val;
             },
             getState: function() {
                 return {
