@@ -166,16 +166,61 @@ function useViewportInfo() {
 
 function useFullscreenPersistence(isFull) {
     var wasFull = useRef(false);
+    var restoreArmed = useRef(false);
+
+    // One-shot tap-to-restore: arms when fullscreen drops unexpectedly.
+    // Next user tap anywhere re-enters fullscreen (real gesture = browser allows it).
+    useEffect(function() {
+        function onTapRestore() {
+            if (!restoreArmed.current) return;
+            if (isFullscreenActive()) { _disarmRestore(); return; }
+            if (userExitedFullscreen.current) { _disarmRestore(); return; }
+            restoreArmed.current = false;
+            requestFullscreen(document.documentElement);
+            // Keep listeners alive briefly — if requestFullscreen fails silently,
+            // next tap will try again. Clean up after success.
+            setTimeout(_disarmRestore, 500);
+        }
+        function _disarmRestore() {
+            restoreArmed.current = false;
+            document.removeEventListener("touchstart", onTapRestore, true);
+            document.removeEventListener("click", onTapRestore, true);
+        }
+        function _armRestore() {
+            if (restoreArmed.current) return;
+            restoreArmed.current = true;
+            // Capture phase so it fires before any button handlers
+            document.addEventListener("touchstart", onTapRestore, true);
+            document.addEventListener("click", onTapRestore, true);
+        }
+
+        // Expose arm/disarm on the ref so other effects can use them
+        restoreArmed._arm = _armRestore;
+        restoreArmed._disarm = _disarmRestore;
+
+        return _disarmRestore;
+    }, []);
 
     useEffect(function() {
         if (isFull) {
             wasFull.current = true;
             userExitedFullscreen.current = false;
+            // If we're back in fullscreen, disarm restore listener
+            if (restoreArmed._disarm) restoreArmed._disarm();
         }
         if (!isFull && wasFull.current && !userExitedFullscreen.current) {
+            // Fullscreen dropped unexpectedly — try auto-restore first,
+            // then arm tap-to-restore as fallback (covers permission dialog case
+            // where auto-restore fails due to missing user gesture).
             var timer = setTimeout(function() {
                 if (!isFullscreenActive() && !userExitedFullscreen.current) {
                     requestFullscreen(document.documentElement);
+                    // If that fails (no gesture), arm tap restore
+                    setTimeout(function() {
+                        if (!isFullscreenActive() && !userExitedFullscreen.current) {
+                            if (restoreArmed._arm) restoreArmed._arm();
+                        }
+                    }, 300);
                 }
             }, 300);
             return function() { clearTimeout(timer); };
@@ -183,25 +228,24 @@ function useFullscreenPersistence(isFull) {
     }, [isFull]);
 
     // Recovery: when app regains focus after a permission dialog
-    // (or any system interruption), attempt to re-enter fullscreen
-    // if we were previously fullscreen and user didn't manually exit.
+    // (or any system interruption), attempt to re-enter fullscreen.
+    // If auto attempt fails, arm tap-to-restore.
     useEffect(function() {
         function onFocusRecovery() {
             if (!wasFull.current) return;
             if (userExitedFullscreen.current) return;
             if (isFullscreenActive()) return;
-            // Delay lets the browser settle after dialog dismissal.
-            // Some browsers need two attempts at different timings.
             setTimeout(function() {
                 if (!isFullscreenActive() && !userExitedFullscreen.current) {
                     requestFullscreen(document.documentElement);
                 }
             }, 400);
+            // Fallback: arm tap restore in case auto fails
             setTimeout(function() {
                 if (!isFullscreenActive() && !userExitedFullscreen.current) {
-                    requestFullscreen(document.documentElement);
+                    if (restoreArmed._arm) restoreArmed._arm();
                 }
-            }, 1200);
+            }, 800);
         }
         function onVisChange() {
             if (document.visibilityState === "visible") onFocusRecovery();
