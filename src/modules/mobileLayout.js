@@ -146,58 +146,6 @@ function ShelfItem(props) {
     );
 }
 
-// --- Mobile Bottom Bar ---
-
-function MobileBottomBar(props) {
-    var finished = props.finished || [];
-    var T = THEME;
-    return (
-        <W.Strip className="mobile-bottom-bar" gap="sm" pad="md" h={T.layout.bottomBarH}
-                 bg="bgPanel" style={{ borderTop: T.borders.thin, flexShrink: 0, fontFamily: T.fonts.body }}>
-            <W.Strip className="mobile-bottom-panel" gap="md" pad="md" h={32}
-                     bg="bgMid" border="thinMid" radius="md">
-                <W.Label size="sm" color={props.timeColor || T.colors.green} bold>
-                    {props.timeLabel || "8:00AM"}
-                </W.Label>
-                <div style={{ width: 60, height: T.layout.barHeightSm, background: T.colors.bgDeep, borderRadius: T.radius.sm, overflow: "hidden", border: T.borders.thinMid }}>
-                    <div style={{ height: "100%", width: (props.timePct || 100) + "%", background: props.timeColor || T.colors.green, borderRadius: T.radius.sm }} />
-                </div>
-            </W.Strip>
-            <W.Strip className="mobile-bottom-panel" gap="md" pad="md" h={32}
-                     bg="bgMid" border="thinMid" radius="md">
-                <W.Label size="xxs" color="textLabel" spacing="tight" font="heading">STAM</W.Label>
-                <W.Label size="sm" color={props.staminaColor || T.colors.gold} bold>
-                    {props.stamina || 0}/{props.maxStam || 5}
-                </W.Label>
-                <div style={{ width: 50, height: T.layout.barHeightSm, background: T.colors.bgDeep, borderRadius: T.radius.sm, overflow: "hidden", border: T.borders.thinMid }}>
-                    <div style={{ height: "100%", width: (props.staminaPct || 100) + "%", background: props.staminaColor || T.colors.gold, borderRadius: T.radius.sm }} />
-                </div>
-            </W.Strip>
-            <W.Strip className="mobile-bottom-panel" gap="xs"
-                     style={{ flex: 1, minWidth: 0, overflowX: "auto", overflowY: "hidden" }}
-                     bg="bgMid" border="thinMid" radius="md" pad="md" h={32}>
-                {finished.length === 0 && (
-                    <W.Label size="xxs" color="borderLight" spacing="tight">SHELF EMPTY</W.Label>
-                )}
-                {finished.map(function(w) {
-                    return <ShelfItem key={w.id} item={w} />;
-                })}
-            </W.Strip>
-            <div data-fairy-target="gold-portrait" style={{ flexShrink: 0 }}><W.Label size={21} color="gold" bold font="heading">
-                {props.gold || 0}g
-            </W.Label></div>
-            <W.Btn onClick={props.onOptions} icon={"\u2699"}
-                   color="textLabel" bg="bgWarm" size={20} radius="md"
-                   w={32} h={32} bold={false} upper={false}
-                   style={{ padding: 0, flexShrink: 0, border: THEME.borders.thin }} />
-            <W.Btn onClick={props.onToggleFullscreen} icon={props.isFull ? "\u2716" : "\u26F6"}
-                   color="textLabel" bg="bgWarm" size={16} radius="md"
-                   w={32} h={32} bold={false} upper={false}
-                   style={{ padding: 0, flexShrink: 0, border: THEME.borders.thin }} />
-        </W.Strip>
-    );
-}
-
 // --- Mobile Layout ---
 
 function MobileLayout(props) {
