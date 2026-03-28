@@ -215,7 +215,10 @@ function startDay(dayNumber) {
 
     // 3. MORNING ROLL — pick one weighted morning event via AbilityManager
     if (_abilityManager && _abilityManager.rollMorning) {
-        _abilityManager.rollMorning({ day: _day });
+        var _rollResult = _abilityManager.rollMorning({ day: _day });
+        console.log("[TRACE GameMode.startDay] day:", _day, "rollMorning result:", _rollResult ? _rollResult.id : "null/none");
+    } else {
+        console.warn("[TRACE GameMode.startDay] day:", _day, "NO abilityManager!", !!_abilityManager);
     }
 
     // 4. DAY_OPEN — customers can arrive, gameplay begins
@@ -253,6 +256,7 @@ function triggerLate() {
 function sleep(sleepHour) {
     if (_gameOver) return;
 
+    console.log("[TRACE GameMode.sleep] day:", _day, "sleepHour:", sleepHour, "dayPhase:", _dayPhase);
     _dayPhase = "sleeping";
 
     // Exit any active sub-mode

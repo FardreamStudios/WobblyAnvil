@@ -17,6 +17,7 @@ function useDayState() {
     var [hour, setHour] = useState(WAKE_HOUR);
     var [stamina, setStamina] = useState(BASE_STAMINA);
     var [lateToastShown, setLateToastShown] = useState(false);
+    var [forcedExhaustion, setForcedExhaustion] = useState(false);
     var [gameOver, setGameOver] = useState(false);
 
     // --- Bus: Day Subscriptions ---
@@ -41,7 +42,7 @@ function useDayState() {
     useEffect(function() {
         function onNewGame() {
             setDay(1); setHour(WAKE_HOUR); setStamina(BASE_STAMINA);
-            setLateToastShown(false); setGameOver(false);
+            setLateToastShown(false); setForcedExhaustion(false); setGameOver(false);
         }
         GameplayEventBus.on(EVENT_TAGS.GAME_SESSION_NEW, onNewGame);
         return function() { GameplayEventBus.off(EVENT_TAGS.GAME_SESSION_NEW, onNewGame); };
@@ -58,6 +59,8 @@ function useDayState() {
         setLateToastShown: setLateToastShown,
         gameOver: gameOver,
         setGameOver: setGameOver,
+        forcedExhaustion: forcedExhaustion,
+        setForcedExhaustion: setForcedExhaustion,
     };
 }
 

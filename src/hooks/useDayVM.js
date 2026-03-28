@@ -85,6 +85,7 @@ function useDayVM(deps) {
     function buildDayQueue(newDay, state, pendingQuestNum) {
         // Morning events now handled by AbilityManager.rollMorning()
         // called from GameMode.startDay(). This just builds structural toasts.
+        console.log("[TRACE buildDayQueue] newDay:", newDay, "pendingQuestNum:", pendingQuestNum);
         var queue = [];
         queue.push({ id: "gm_" + newDay, msg: "DAY " + newDay + "\nGood morning, blacksmith.", icon: "", color: "#f59e0b" });
         if (pendingQuestNum != null) {
@@ -97,6 +98,7 @@ function useDayVM(deps) {
         }
         // Append any morning ability toasts (buffered by AbilityManager)
         var abilityToasts = AbilityManager.flushToasts();
+        console.log("[TRACE buildDayQueue] abilityToasts count:", abilityToasts.length, abilityToasts.map(function(t) { return t.id; }));
         for (var a = 0; a < abilityToasts.length; a++) {
             queue.push(abilityToasts[a]);
         }
@@ -104,6 +106,7 @@ function useDayVM(deps) {
     }
 
     function doSleep() {
+        console.log("[TRACE doSleep] day:", day, "hour:", hour, "royalQuest:", royalQuest ? { id: royalQuest.id, deadline: royalQuest.deadline, fulfilled: royalQuest.fulfilled } : null, "questNum:", questNum);
         var late = Math.max(0, hour - 24), ns = Math.max(1, maxStam - Math.floor(late)), newDay = day + 1;
         var resolutionToast = null, spawnQuestNum = null;
         if (royalQuest && newDay >= royalQuest.deadline) {
@@ -120,6 +123,7 @@ function useDayVM(deps) {
             }
             setRoyalQuest(null);
         }
+        console.log("[TRACE doSleep] spawnQuestNum:", spawnQuestNum, "resolutionToast:", !!resolutionToast, "newDay:", day + 1);
         setLateToastShown(false); setDay(newDay); setHour(WAKE_HOUR); setStamina(ns);
         setForcedExhaustion(false);
         setPriceBonus(1.0); setPriceDebuff(1.0); setMatDiscount(null); setGlobalMatMult(1.0);
@@ -133,8 +137,10 @@ function useDayVM(deps) {
         gm.startDay(newDay);
         setTimeout(function() {
             var state = { gold: gold, inv: inv, finished: finished, hasSoldWeapon: hasSoldWeapon, lastSleepHour: hour, stamina: ns, unlockedBP: unlockedBP, reputation: reputation };
+            console.log("[TRACE setTimeout] firing for day", newDay, "spawnQuestNum:", spawnQuestNum);
             var dayQueue = buildDayQueue(newDay, state, spawnQuestNum);
             var fullQueue = resolutionToast ? [{ id: "res_" + newDay, msg: resolutionToast.msg, icon: resolutionToast.icon, color: resolutionToast.color }].concat(dayQueue) : dayQueue;
+            console.log("[TRACE setTimeout] fullQueue length:", fullQueue.length, "ids:", fullQueue.map(function(t) { return t.id; }));
             setToastQueue(fullQueue);
             if (toastsQueuedRef) toastsQueuedRef.current = true;
         }, 300);
