@@ -897,7 +897,7 @@ function _onChatSend(payload) {
 function _onChatSpeak(payload) {
     if (!payload || !payload.line) return;
     // Route through pawn's speech bubble (fairy is already on-screen via chat_idle)
-    _sendCommand({ intent: "show_speech", line: payload.line });
+    _sendCommand({ intent: "show_speech", line: payload.line, hasMore: payload.hasMore || false });
 
     // Handle LLM-requested movement (parsed by fairyChatSystem)
     if (payload.action && payload.action.type === "move" && payload.action.spot) {

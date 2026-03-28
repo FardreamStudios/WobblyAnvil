@@ -363,18 +363,19 @@ function sendMessage(text) {
             _clearSplitTimers();
 
             // Emit first bubble immediately — attach action to first bubble only
-            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[0], action: action || null });
+            var hasMore = bubbles.length > 1;
+            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[0], action: action || null, hasMore: hasMore });
 
             // Stagger remaining bubbles (no action on subsequent bubbles)
             var delay = FAIRY_CONFIG.chatBubbleDelayMs || 2800;
             for (var b = 1; b < bubbles.length; b++) {
-                (function(idx) {
+                (function(idx, isLast) {
                     var t = setTimeout(function() {
                         if (!_chatOpen) return;
-                        if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[idx] });
+                        if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[idx], hasMore: !isLast });
                     }, delay * idx);
                     _splitTimers.push(t);
-                })(b);
+                })(b, b === bubbles.length - 1);
             }
         }
         _resetIdleTimer();
