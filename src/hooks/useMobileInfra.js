@@ -32,33 +32,10 @@ function requestFullscreen(el) {
 }
 
 function exitFullscreen() {
-    _unlockOrientation();
     if (document.exitFullscreen) return document.exitFullscreen();
     if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
     if (document.mozCancelFullScreen) return document.mozCancelFullScreen();
     if (document.msExitFullscreen) return document.msExitFullscreen();
-}
-
-/**
- * Lock orientation to landscape. Only call when stably in fullscreen.
- */
-function _lockOrientation() {
-    try {
-        if (window.screen.orientation && window.screen.orientation.lock) {
-            window.screen.orientation.lock("landscape").catch(function() {});
-        }
-    } catch (e) {}
-}
-
-/**
- * Unlock orientation. Called on ANY fullscreen exit (user or unexpected).
- */
-function _unlockOrientation() {
-    try {
-        if (window.screen.orientation && window.screen.orientation.unlock) {
-            window.screen.orientation.unlock();
-        }
-    } catch (e) {}
 }
 
 /**
@@ -234,19 +211,14 @@ function useFullscreenPersistence(isFull) {
         return _disarmRestore;
     }, []);
 
-    // Fullscreen state transitions — orientation lock/unlock + recovery
+    // Fullscreen state transitions — recovery
     useEffect(function() {
         if (isFull) {
             wasFull.current = true;
             userExitedFullscreen.current = false;
             if (restoreArmed._disarm) restoreArmed._disarm();
-            // Stable fullscreen — now safe to lock orientation
-            _lockOrientation();
         }
         if (!isFull && wasFull.current) {
-            // Fullscreen dropped — always unlock orientation so player can rotate
-            _unlockOrientation();
-
             if (!userExitedFullscreen.current) {
                 // Unexpected drop — try auto-restore with cooldown guard
                 var timer = setTimeout(function() {
@@ -293,22 +265,6 @@ function useFullscreenPersistence(isFull) {
         };
     }, []);
 
-    // Landscape rotation = intentional "I want to play" gesture
-    useEffect(function() {
-        function onOrientationChange() {
-            setTimeout(function() {
-                if (permissionPending.current) return;
-                var w = window.innerWidth, h = window.innerHeight;
-                var isLandscape = w > h;
-                if (isLandscape && !isFullscreenActive()) {
-                    userExitedFullscreen.current = false;
-                    requestFullscreen(document.documentElement);
-                }
-            }, 500);
-        }
-        window.addEventListener("orientationchange", onOrientationChange);
-        return function() { window.removeEventListener("orientationchange", onOrientationChange); };
-    }, []);
 }
 
 // ============================================================

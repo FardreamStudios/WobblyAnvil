@@ -364,11 +364,14 @@ function MobileLayout(props) {
                 </div>
                 <div style={{ display: "flex", width: 40, alignItems: "center", justifyContent: "center" }}>
                     <button onClick={function() {
-                        // Always request fullscreen — raw handler preserves gesture chain.
-                        // Browsers block requestFullscreen if the gesture is consumed
-                        // by preventDefault (which usePressHold does on touchEnd).
-                        userExitedFullscreen.current = false;
-                        requestFullscreen(document.documentElement);
+                        // Poll current state on every tap — true toggle.
+                        if (isFullscreenActive()) {
+                            userExitedFullscreen.current = true;
+                            exitFullscreen();
+                        } else {
+                            userExitedFullscreen.current = false;
+                            requestFullscreen(document.documentElement);
+                        }
                     }} style={{
                         background: "transparent", border: "none", color: T.colors.gold,
                         fontSize: 32, lineHeight: 1, cursor: "pointer", padding: 0,
