@@ -61,7 +61,16 @@ function usePlayerVM(deps) {
     useEffect(function() {
         var cur = xp, lv = level, pts = 0;
         while (cur >= xpForLevel(lv)) { cur -= xpForLevel(lv); lv++; pts++; }
-        if (pts > 0) { setXp(cur); setLevel(lv); setStatPoints(function(p) { return p + pts; }); GameplayEventBus.emit(EVENT_TAGS.FX_LEVEL_UP, {}); }
+        if (pts > 0) {
+            setXp(cur); setLevel(lv); setStatPoints(function(p) { return p + pts; });
+            GameplayEventBus.emit(EVENT_TAGS.FX_LEVEL_UP, { level: lv });
+            GameplayEventBus.emit(EVENT_TAGS.UI_ADD_TOAST, {
+                msg: "LEVEL UP\nYou are now Level " + lv + "! +" + pts + " stat " + (pts > 1 ? "points" : "point") + ".",
+                icon: "",
+                color: "#4ade80",
+                duration: 3500,
+            });
+        }
     }, [xp]);
 
     function loseXp(amount) { setXp(function(prev) { return Math.max(0, prev - amount); }); }
