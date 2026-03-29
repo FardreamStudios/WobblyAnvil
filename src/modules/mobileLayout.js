@@ -425,7 +425,7 @@ function MobileLayout(props) {
     // --- Center content ---
     var forgeBtnPos = { position: "absolute", top: "55%", left: "50%", transform: "translate(-50%, -50%)", zIndex: T.z.ui };
     var center = (
-        <div className="mobile-center" data-fairy-target="scene" onClick={isQTEActive && !props.tutorialHighlight ? props.onForgeClick : null} onTouchStart={isQTEActive && !props.tutorialHighlight ? function(e) { e.preventDefault(); props.onForgeClick(); } : null} style={{ cursor: isQTEActive && !props.tutorialHighlight ? "pointer" : "default" }}>
+        <div className="mobile-center" data-fairy-target="scene">
             {props.overlay}
             {props.scene}
             {props.forgeUI}
@@ -668,6 +668,20 @@ function MobileLayout(props) {
                 }}>
                     {actionStrip}
                 </div>
+                {/* QTE full-screen tap overlay — covers entire middle zone during active QTE */}
+                {isQTEActive && !props.tutorialHighlight && (
+                    <div
+                        onClick={props.onForgeClick}
+                        onTouchStart={function(e) { e.preventDefault(); props.onForgeClick(); }}
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            zIndex: T.z.fairy - 1,
+                            background: "transparent",
+                            cursor: "pointer",
+                        }}
+                    />
+                )}
                 {drawer}
             </div>
         </MobileShell>
