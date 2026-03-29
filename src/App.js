@@ -53,6 +53,11 @@ import ANALYTICS_CONFIG from "./config/analyticsConfig.js";
 import FairyAnimInstance from "./fairy/FairyAnimInstance";
 import MicPrompt from "./components/MicPrompt.js";
 import FairyChatSystem from "./fairy/fairyChatSystem.js";
+import ScavengeMenuModule from "./modules/ScavengeMenu.js";
+import BattleViewModule from "./battle/BattleView.js";
+
+var ScavengeMenu = ScavengeMenuModule.ScavengeMenu;
+var BattleView = BattleViewModule.BattleView;
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -152,6 +157,9 @@ export default function App() {
   var [fairyEnabled, setFairyEnabled] = useState(function() {
     try { return localStorage.getItem("wa_fairy_enabled") !== "false"; } catch(e) { return true; }
   });
+
+  // --- Scavenge mode (null = normal, "menu" = choice overlay, "battle" = battle view) ---
+  var [scavengeMode, setScavengeMode] = useState(null);
 
   // --- Fairy Chat VM (bus-driven, no App.js logic) ---
   var chatVM = useFairyChatVM(GameplayEventBus);
@@ -530,6 +538,20 @@ export default function App() {
   if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu audioReady={audioReady} onAudioWarmup={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setAudioReady(true); }} onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 
   // ============================================================
+  // SCAVENGE BATTLE — Full-screen takeover
+  // ============================================================
+  if (scavengeMode === "battle") {
+    return (
+        <BattleView
+            handedness={handedness}
+            onExit={function() { setScavengeMode(null); }}
+            zoneName="Back Alley"
+            waveLabel="Wave 1/2"
+        />
+    );
+  }
+
+  // ============================================================
   // FAIRY CHAT OVERLAY (shared by mobile + desktop)
   // ============================================================
   // MOBILE RENDER BRANCH
@@ -733,7 +755,7 @@ export default function App() {
               noStamina={input.noStamina}
               onPromote={promote}
               promoteDisabled={input.promote.disabled}
-              onScavenge={scavenge}
+              onScavenge={function() { sfx.click(); setScavengeMode("menu"); }}
               scavengeDisabled={input.scavenge.disabled}
               onShop={function() { sfx.click(); setShowShop(true); }}
               shopDisabled={input.shop.disabled}
@@ -796,6 +818,14 @@ export default function App() {
               </div>
             </div>
           </div>)}
+          {scavengeMode === "menu" && (
+              <ScavengeMenu
+                  onQuickScavenge={function() { setScavengeMode(null); scavenge(); }}
+                  onExtendedScavenge={function() { setScavengeMode("battle"); }}
+                  onCancel={function() { setScavengeMode(null); }}
+                  handedness={handedness}
+              />
+          )}
           <FairyAnimInstance sfx={sfx} ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} onChatTap={function() { GameplayEventBus.emit(EVENT_TAGS.FAIRY_CHAT_DISMISS); }} />
           <DevBanner />
         </>
@@ -824,7 +854,7 @@ export default function App() {
             playerVM={playerVM}
             economyVM={{ earnGold: earnGold, spendGold: spendGold, popGold: popGold, removeGoldPop: removeGoldPop, handleSell: handleSell, handleRefuse: handleRefuse, onSellMaterial: onSellMaterial }}
             shopVM={shopVM}
-            dayVM={{ waitHour: waitHour, sleep: sleep, scavenge: scavenge, promote: promote }}
+            dayVM={{ waitHour: waitHour, sleep: sleep, scavenge: function() { sfx.click(); setScavengeMode("menu"); }, promote: promote }}
             input={input}
             derived={{
               smithRank: smithRank,
@@ -854,6 +884,14 @@ export default function App() {
             onFairyToggle={function(val) { setFairyEnabled(val); FairyController.setEnabled(val); }}
             {...chatVM}
         />
+        {scavengeMode === "menu" && (
+            <ScavengeMenu
+                onQuickScavenge={function() { setScavengeMode(null); scavenge(); }}
+                onExtendedScavenge={function() { setScavengeMode("battle"); }}
+                onCancel={function() { setScavengeMode(null); }}
+                handedness={handedness}
+            />
+        )}
         <FairyAnimInstance sfx={sfx} ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} onChatTap={function() { GameplayEventBus.emit(EVENT_TAGS.FAIRY_CHAT_DISMISS); }} />
       </>
   );
