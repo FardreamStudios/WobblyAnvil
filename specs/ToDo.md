@@ -6,6 +6,13 @@
 
 - [ ] **Build QTE System (DES-2)** — Decouple QTEs into a plugin system so any game system can request one and get a result back. RhythmQTE already exists as self-contained module — needs `onComplete` interface to conform to plugin contract.
 - [ ] **Extract QTE constants** — Move tier tables, color ramp, and speed tuning from constants.js into `qteConstants.js`. Spec written in SystemSpecs.
+- [ ] **Scavenge Battle System** — Shell wired (menu, battle view, circle timing QTE). Next: music transition fix, then ATB gauge or battle state machine. See `ScavengeBattleSpecs.md`.
+
+---
+
+## KNOWN BUGS
+
+- [ ] **Battle music transition** — Main game music keeps playing when entering battle view. Need to mute ambient on battle enter, restore on exit. Check `useAmbientAudio` hook and `sfx.setMode("forge")` pattern in `useForgeVM` for reference.
 
 ---
 

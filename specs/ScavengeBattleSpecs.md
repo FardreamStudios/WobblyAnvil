@@ -1,7 +1,7 @@
 # Scavenge Battle System — Feature Spec
 
 **Codename:** Dumpster Diving RPG  
-**Status:** 🔵 DESIGN  
+**Status:** 🟡 IN PROGRESS — Shell wired, menu + battle view + QTE plugin built. Battle internals next.  
 **Dependencies:** DES-2 QTE System (plugin contract)  
 **Tone:** Opt-in, comedic, absurd. You are a blacksmith beating up sentient garbage for profit.
 
@@ -527,8 +527,11 @@ src/battle/
 ├── ActionPanel.js              # Action side — HP, ATB, QTE zone, menu
 ├── ActionMenu.js               # Data-driven action button strip
 ├── ATBGauge.js                 # Single ATB bar component (reused per member/enemy)
-├── LootScreen.js               # End-of-encounter loot display
-└── circleTimingQTE.js          # QTE plugin (DES-2 contract)
+└── LootScreen.js               # End-of-encounter loot display
+
+src/modules/
+├── ScavengeMenu.js             # Quick/Extended choice overlay (host UI, not battle)
+└── circleTimingQTE.js          # QTE plugin (DES-2 contract, portable)
 ```
 
 ### Ownership
@@ -540,7 +543,12 @@ src/battle/
 | `battleResolver.js` | Damage math, loot rolls, flee chance | State mutation (returns deltas) |
 | `useBattleVM.js` | Display props, animation triggers | Game logic |
 | `BattleView.js` | Layout structure, handedness flip | Business logic |
-| `circleTimingQTE.js` | Ring animation, hit detection | Context (battle, forge, etc.) |
+
+**External dependencies (not in `src/battle/`):**
+| File | Location | Role |
+|------|----------|------|
+| `circleTimingQTE.js` | `src/modules/` | QTE plugin — portable, used by battle but not owned by it |
+| `ScavengeMenu.js` | `src/modules/` | Entry menu — host UI that gates battle entry |
 
 ### Component Tree
 
