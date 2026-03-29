@@ -194,6 +194,15 @@ function handleCommand(cmd) {
         return;
     }
 
+    // Show gold drop visual near fairy (used by chat gift system)
+    if (cmd.intent === "show_gold_drop") {
+        if (_animRef && _animRef.current && _animRef.current.showGoldDrop) {
+            var gpos = _currentPos || { x: 50, y: 50 };
+            _animRef.current.showGoldDrop(gpos.x, gpos.y);
+        }
+        return;
+    }
+
     // Set chat mode on AnimInstance (taps route to onChatTap)
     if (cmd.intent === "set_chat_mode") {
         if (_animRef && _animRef.current && _animRef.current.setChatMode) {

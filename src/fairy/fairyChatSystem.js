@@ -200,6 +200,7 @@ function _splitIntoBubbles(line) {
 // ============================================================
 
 var _ACTION_RE = /\[MOVE:([a-z_]+)\]/i;
+var _GIVE_RE = /\[GIVE:gold\]/i;
 
 /**
  * Fuzzy-match an LLM spot id against the registry.
@@ -229,27 +230,38 @@ function _fuzzyMatchSpot(rawSpot) {
 
 /**
  * Parse and strip action tags from an LLM response.
+ * Supports [MOVE:spot_id] and [GIVE:gold]. Both can appear in same response.
  * @param {string} line — raw LLM response
- * @returns {{ text: string, action: Object|null }}
+ * @returns {{ text: string, action: Object|null, gift: Object|null }}
  */
 function _parseActions(line) {
-    var match = _ACTION_RE.exec(line);
-    if (!match) return { text: line, action: null };
+    var action = null;
+    var gift = null;
+    var cleanText = line;
 
-    // Strip the tag from display text
-    var cleanText = line.replace(match[0], "").trim();
+    // Parse MOVE
+    var moveMatch = _ACTION_RE.exec(cleanText);
+    if (moveMatch) {
+        cleanText = cleanText.replace(moveMatch[0], "").trim();
+        var spotId = _fuzzyMatchSpot(moveMatch[1].toLowerCase());
+        if (spotId) {
+            action = { type: "move", spot: spotId };
+        } else {
+            console.warn("[FairyChatSystem] LLM requested invalid spot:", moveMatch[1]);
+        }
+    }
 
-    // Validate + fuzzy-match spot against position registry
-    var spotId = _fuzzyMatchSpot(match[1].toLowerCase());
-
-    if (!spotId) {
-        console.warn("[FairyChatSystem] LLM requested invalid spot:", match[1]);
-        return { text: cleanText, action: null };
+    // Parse GIVE
+    var giveMatch = _GIVE_RE.exec(cleanText);
+    if (giveMatch) {
+        cleanText = cleanText.replace(giveMatch[0], "").trim();
+        gift = { type: "gold", amount: 50 };
     }
 
     return {
         text: cleanText,
-        action: { type: "move", spot: spotId },
+        action: action,
+        gift: gift,
     };
 }
 
@@ -381,6 +393,7 @@ function sendMessage(text) {
         var parsed = _parseActions(line);
         var displayText = parsed.text;
         var action = parsed.action;
+        var gift = parsed.gift;
 
         // Store the clean text (no action tags) in history
         _history.push({ role: "fairy", text: displayText });
@@ -395,7 +408,7 @@ function sendMessage(text) {
 
             // Emit first bubble immediately — attach action to first bubble only
             var hasMore = bubbles.length > 1;
-            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[0], action: action || null, hasMore: hasMore });
+            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[0], action: action || null, gift: gift || null, hasMore: hasMore });
 
             // Stagger remaining bubbles (no action on subsequent bubbles)
             var delay = FAIRY_CONFIG.chatBubbleDelayMs || 2800;

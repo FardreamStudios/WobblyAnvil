@@ -54,6 +54,11 @@ var FAIRY_POP_RATE_MIN = 0.55;
 var FAIRY_POP_RATE_MAX = 1.05;
 var FAIRY_ACCEPT_SRC  = PUB + "/audio/sSpecialAccept.mp3";
 var FAIRY_DECLINE_SRC = PUB + "/audio/sSpecialDecline.mp3";
+var GOLD_BAG_SRC      = PUB + "/images/icons/waIconBagCoins.png";
+var GOLD_DROP_HOLD_MS  = 1800;   // how long gold bag stays visible
+var GOLD_DROP_FADE_MS  = 400;    // fade-out duration
+var GOLD_DROP_SIZE_VW  = 8;      // gold bag size in vw
+var GOLD_DROP_FLOAT_VH = 12;     // how far the +50 text floats up in vh
 
 // --- Inject typing indicator animation CSS ---
 (function() {
@@ -273,6 +278,95 @@ function PoofFX(props) {
             <div style={ringStyle} />
             <div style={{ position: "absolute", left: props.x + "%", top: props.y + "%", width: 0, height: 0, pointerEvents: "none", zIndex: 4 }}>
                 {sparkElements}
+            </div>
+        </div>
+    );
+}
+
+// ============================================================
+// Gold Drop — bag image + floating "+50" text
+// Triggered by fairy chat gift. Scales in, holds, fades out.
+// Green text floats upward like in-game gold pops.
+// ============================================================
+
+function GoldDrop(props) {
+    // props: { x, y, visible }
+    var [phase, setPhase] = useState("hidden"); // hidden | pop | hold | fade
+    var timerRef = useRef(null);
+
+    useEffect(function() {
+        if (props.visible) {
+            setPhase("pop");
+            // pop → hold
+            timerRef.current = setTimeout(function() {
+                setPhase("hold");
+                // hold → fade
+                timerRef.current = setTimeout(function() {
+                    setPhase("fade");
+                    // fade → hidden
+                    timerRef.current = setTimeout(function() {
+                        setPhase("hidden");
+                    }, GOLD_DROP_FADE_MS);
+                }, GOLD_DROP_HOLD_MS);
+            }, 200);
+        } else {
+            setPhase("hidden");
+        }
+        return function() {
+            if (timerRef.current) clearTimeout(timerRef.current);
+        };
+    }, [props.visible]);
+
+    if (phase === "hidden") return null;
+
+    var bagScale = phase === "pop" ? 0 : phase === "fade" ? 0 : 1;
+    var bagOpacity = phase === "fade" ? 0 : 1;
+    var textY = (phase === "hold" || phase === "fade") ? -GOLD_DROP_FLOAT_VH : 0;
+    var textOpacity = phase === "pop" ? 0 : phase === "fade" ? 0 : 1;
+
+    return (
+        <div style={{
+            position: "absolute",
+            left: props.x + "%",
+            top: props.y + "%",
+            transform: "translate(-50%, -50%)",
+            pointerEvents: "none",
+            zIndex: 10,
+        }}>
+            {/* Gold bag image */}
+            <img
+                src={GOLD_BAG_SRC}
+                alt=""
+                style={{
+                    width: GOLD_DROP_SIZE_VW + "vw",
+                    height: GOLD_DROP_SIZE_VW + "vw",
+                    objectFit: "contain",
+                    imageRendering: "pixelated",
+                    transform: "scale(" + bagScale + ")",
+                    opacity: bagOpacity,
+                    transition: phase === "pop"
+                        ? "transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1)"
+                        : "transform " + GOLD_DROP_FADE_MS + "ms ease-out, opacity " + GOLD_DROP_FADE_MS + "ms ease-out",
+                    display: "block",
+                }}
+            />
+            {/* Floating +50 text */}
+            <div style={{
+                position: "absolute",
+                left: "50%",
+                top: "0%",
+                transform: "translate(-50%, " + textY + "vh)",
+                fontFamily: "monospace",
+                fontSize: "clamp(14px, 2.5vw, 20px)",
+                fontWeight: "bold",
+                color: "#4ade80",
+                textShadow: "0 1px 4px rgba(0,0,0,0.7), 0 0 8px rgba(74, 222, 128, 0.4)",
+                opacity: textOpacity,
+                transition: "transform 800ms ease-out, opacity " + GOLD_DROP_FADE_MS + "ms ease-out",
+                whiteSpace: "nowrap",
+                pointerEvents: "none",
+            }}>
+                +50g
             </div>
         </div>
     );
@@ -727,6 +821,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
     var [choiceData, setChoiceData] = useState(null);  // { text, options } for choice bubble
     var [tappable, setTappable] = useState(false);
     var [laserTarget, setLaserTargetState] = useState(null); // {x, y} viewport % — bubble dodges away
+    var [goldDropAt, setGoldDropAt] = useState(null); // {x, y} for gold bag drop visual
 
     // Timeout tracking
     var timeoutsRef = useRef([]);        // all timeouts (unmount cleanup)
@@ -1030,6 +1125,18 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                 if (!mountedRef.current) return;
                 setLaserTargetState(null);
             },
+            showGoldDrop: function(x, y) {
+                if (!mountedRef.current) return;
+                // Reset then trigger — ensures re-trigger if already showing
+                setGoldDropAt(null);
+                setTimeout(function() {
+                    if (mountedRef.current) setGoldDropAt({ x: x, y: y });
+                }, 30);
+                // Auto-clear after animation completes
+                schedule(function() {
+                    setGoldDropAt(null);
+                }, GOLD_DROP_HOLD_MS + GOLD_DROP_FADE_MS + 300);
+            },
         };
     });
 
@@ -1039,7 +1146,8 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
     // --- Don't render when nothing is active ---
     var showFairy = pos !== null;
     var showFX = poofAt !== null;
-    if (!showFairy && !showFX) return null;
+    var showGoldDrop = goldDropAt !== null;
+    if (!showFairy && !showFX && !showGoldDrop) return null;
 
     var transMs = showFairy ? (pos.transition || 0) : 0;
     var tOrigin = (showFairy && pos.transformOrigin) ? pos.transformOrigin : "50% 50%";
@@ -1053,6 +1161,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             overflow: "hidden",
         }}>
             {showFX && <PoofFX x={poofAt.x} y={poofAt.y} />}
+            {showGoldDrop && <GoldDrop x={goldDropAt.x} y={goldDropAt.y} visible={true} />}
 
             {showFairy && (
                 <div

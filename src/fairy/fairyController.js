@@ -903,6 +903,13 @@ function _onChatSpeak(payload) {
     if (payload.action && payload.action.type === "move" && payload.action.spot) {
         _sendCommand({ intent: "moveTo", spot: payload.action.spot });
     }
+
+    // Handle gold gift (parsed by fairyChatSystem)
+    if (payload.gift && payload.gift.type === "gold") {
+        var amount = payload.gift.amount || 50;
+        if (_bus) _bus.emit(EVENT_TAGS.ECONOMY_EARN_GOLD, { amount: amount });
+        _sendCommand({ intent: "show_gold_drop" });
+    }
 }
 
 /** UI_FAIRY_CHAT_CLOSE — chat system closed (idle timeout or explicit) */
