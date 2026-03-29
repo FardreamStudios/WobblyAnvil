@@ -117,8 +117,7 @@ function useForgeVM(deps) {
     var matDiffMod = matData.difficultyModifier;
     var effDiff = weapon.difficulty + matDiffMod;
     var isExhausted = stamina <= 0;
-    var baseCost = isExhausted ? BALANCE.sessCostExhausted : BALANCE.sessCostNormal;
-    var sessCost = Math.round(AbilityManager.resolveValue("forgeCostMult", 1.0) * baseCost);
+    var sessCost = Math.round(AbilityManager.resolveValue("forgeCostMult", 1.0) * BALANCE.sessCostNormal);
     var maxStam = Math.max(1, AbilityManager.resolveValue("maxStamina", BASE_STAMINA + stats.brawn));
     // heatPerfectZone modifier scales PERFECT + GREAT zone widths in HEAT_TIERS
     var heatModifierScale = AbilityManager.resolveValue("heatPerfectZone", 1.0);

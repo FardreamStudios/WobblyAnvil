@@ -1,7 +1,9 @@
 // ============================================================
 // useInputRouter.js — Wobbly Anvil Input Router
-// Single source of truth for every button's disabled state
-// and stamina-redirect ("needRest") flag.
+// Single source of truth for every button's disabled state.
+//
+// Stamina policy: exhausted (stamina <= 0) is a hard block on
+// all stamina-consuming actions. Player must rest to recover.
 //
 // Pattern: consumes raw state from all domain hooks,
 // returns a flat object of named action gates.
@@ -17,7 +19,8 @@ var REST_HOUR_LIMIT = GameConstants.REST_HOUR_LIMIT;
 var canAffordTime = GameUtils.canAffordTime;
 
 // ------------------------------------------------------------
-// Helper: build an action gate with disabled + redirectToRest
+// Helper: build an action gate object.
+// redirectToRest kept for backward compat — always false now.
 // ------------------------------------------------------------
 function gate(disabled, redirectToRest) {
     return { disabled: disabled, redirectToRest: !!redirectToRest };
@@ -60,24 +63,21 @@ function useInputRouter(deps) {
     var canRest         = canAffordTime(hour, 2);
     var canAffordSess   = canAffordTime(hour, sessCost);
 
-    // Redirect pattern: exhausted but CAN rest → swap action to waitHour
-    var staminaRedirect = exhausted && canRest;
-    // Hard block: exhausted and CAN'T even rest
-    var staminaBlock    = exhausted && !canRest;
-
     // ============================================================
     // Action Gates
+    // Exhausted = hard block on all stamina-consuming actions.
+    // Player must rest (waitHour) to regain stamina before forging.
     // ============================================================
 
     // --- Idle phase actions ---
 
     var beginForge = gate(
-        isLocked || (!canAffordSess && !staminaRedirect),
-        staminaRedirect
+        isLocked || exhausted || !canAffordSess,
+        false
     );
 
     var resumeWip = gate(
-        isLocked || !canAffordSess,
+        isLocked || exhausted || !canAffordSess,
         false
     );
 
@@ -94,15 +94,15 @@ function useInputRouter(deps) {
         || finished.length === 0
         || promoteUses >= BALANCE.maxPromoteUses
         || !canAffordTime(hour, 1),
-        staminaRedirect
+        false
     );
 
     var scavenge = gate(
         isLocked
         || hour >= 24
         || !canAffordTime(hour, 1)
-        || staminaBlock,
-        staminaRedirect
+        || exhausted,
+        false
     );
 
     var shop = gate(isLocked, false);
@@ -112,8 +112,8 @@ function useInputRouter(deps) {
     // --- Forging phase actions ---
 
     var forge = gate(
-        isLocked || staminaBlock || !canAffordSess,
-        staminaRedirect
+        isLocked || exhausted || !canAffordSess,
+        false
     );
 
     var normalize = gate(
@@ -122,8 +122,8 @@ function useInputRouter(deps) {
     );
 
     var quench = gate(
-        (exhausted && !canRest) || (!canAffordSess && !exhausted),
-        staminaRedirect
+        exhausted || !canAffordSess,
+        false
     );
 
     // --- Weapon select ---

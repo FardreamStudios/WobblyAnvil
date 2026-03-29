@@ -339,9 +339,8 @@ var FIRE_FX_MOBILE = {
 
 // --- Centralized Balance Table ---
 var BALANCE = {
-    // Forge session time costs
+    // Forge session time cost (hours)
     sessCostNormal: 2,
-    sessCostExhausted: 4,
 
     // (heatWinLo / heatWinHi removed — peak + zone widths now in HEAT_TIERS)
     // (quenchPerfect / quenchGood / quenchPoorExtra removed — zone widths now in QUENCH_TIERS)
