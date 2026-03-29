@@ -556,7 +556,7 @@ var CHAT_IDLE = {
     layer: "overlay",
     waitForInput: true,
     steps: [
-        { at: 0,    cmd: "poof_in",      spot: { x: 70, y: 82 }, scale: 1.0, duration: 250 },
+        { at: 0,    cmd: "poof_in",      spot: { x: 70, y: 82 }, scale: 2.5, duration: 250 },
         { at: 350,  cmd: "set_tappable",  value: true },
     ],
 };

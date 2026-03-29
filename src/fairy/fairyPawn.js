@@ -90,6 +90,7 @@ var _timerIds = [];
 var _currentPos = null;          // last setPos sent
 var _visible = false;            // fairy currently on screen
 var _laserEl = null;             // SVG overlay element for laser beam (M-11)
+var _chatSpeechTimer = null;     // auto-dismiss timer for show_speech intent
 
 // ============================================================
 // LIFECYCLE
@@ -118,6 +119,7 @@ function destroy() {
     cancelCue();
     _clearTimers();
     _destroyLaser();
+    if (_chatSpeechTimer) { clearTimeout(_chatSpeechTimer); _chatSpeechTimer = null; }
 
     _animRef = null;
     _onPawnEvent = null;
@@ -172,8 +174,22 @@ function handleCommand(cmd) {
 
     // Show speech on already-visible fairy (used by chat system)
     if (cmd.intent === "show_speech") {
+        // Cancel previous auto-dismiss
+        if (_chatSpeechTimer) { clearTimeout(_chatSpeechTimer); _chatSpeechTimer = null; }
+
         if (_animRef && _animRef.current && cmd.line) {
             _animRef.current.showSpeech(cmd.line, cmd.hasMore);
+
+            // Auto-dismiss after read time (skip if more bubbles incoming)
+            if (!cmd.hasMore) {
+                var readMs = Math.max(MIN_READ_MS, cmd.line.length * MS_PER_CHAR + 1000);
+                _chatSpeechTimer = setTimeout(function() {
+                    _chatSpeechTimer = null;
+                    if (_animRef && _animRef.current) {
+                        _animRef.current.hideSpeech();
+                    }
+                }, readMs);
+            }
         }
         return;
     }
@@ -202,13 +218,13 @@ function handleCommand(cmd) {
         var anim = _animRef && _animRef.current;
         if (!anim) return;
 
-        // Overlay mode: use spot x/y but force scale 1.0 (no depth shrink)
+        // Overlay mode: use spot's scaleOverride (no depth-curve shrink)
         // Scene mode: full depth-curve resolution
         var isOverlay = _activeCue && _activeCue.layer === "overlay";
         var dest = _resolveSceneSpot(cmd.spot);
         if (!dest) return;
 
-        var moveScale = isOverlay ? 1.0 : (dest.scale || 1.0);
+        var moveScale = isOverlay ? (dest.scale || 2.5) : (dest.scale || 1.0);
         var moveTOrigin = isOverlay ? "50% 50%" : "50% 100%";
 
         var oldPos = _currentPos || { x: 50, y: 50, scale: 1.0 };

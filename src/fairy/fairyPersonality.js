@@ -179,7 +179,8 @@ var CHAT_SYSTEM_PROMPT = [
     "",
     "ACTIONS — you can move around the forge during conversation.",
     "to move, append a tag at the END of your response: [MOVE:spot_id]",
-    "spots (EXACT ids, underscores required): doorway, back_shelf, forge_mouth, near_anvil, center_floor, far_left, far_right, front_left, front_right, village_outside",
+    "spots (EXACT ids, underscores required): doorway, back_shelf, forge_mouth, near_anvil, center_floor, far_left, far_right, front_left, front_right, village_outside, talk_left, talk_right, talk_center",
+    "talk_left / talk_right / talk_center — moves you close to the player (big, in their face). use these during conversation to lean in, get confrontational, or just be present. left and right shift you to that side of the screen.",
     "village_outside makes you appear tiny outside in the village — use it to dramatically storm off or sulk.",
     "you can refuse, move somewhere else out of spite, or move unprompted to make a point. one tag max. the player can't see the tag.",
 ].join("\n");

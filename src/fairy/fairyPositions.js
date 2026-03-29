@@ -80,6 +80,10 @@ var FORGE_MAP = {
         { id: "front_left",    x: 15,  y: 88,  label: "front left corner" },
         { id: "front_right",   x: 85,  y: 88,  label: "front right corner" },
         { id: "village_outside", x: 65, y: 28, scaleOverride: 0.15, label: "tiny, outside forge in the village through doorway" },
+        // --- Chat overlay positions (scaleOverride bypasses depth curve) ---
+        { id: "talk_left",    x: 25,  y: 82,  scaleOverride: 2.5, label: "close overlay, left side" },
+        { id: "talk_right",   x: 75,  y: 82,  scaleOverride: 2.5, label: "close overlay, right side" },
+        { id: "talk_center",  x: 50,  y: 82,  scaleOverride: 2.5, label: "close overlay, center" },
     ],
 
     // --- Roam zones (simple bounds, fairy wanders freely inside) ---

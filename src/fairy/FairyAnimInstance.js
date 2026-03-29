@@ -292,6 +292,7 @@ function SpeechBubble(props) {
     useEffect(function() {
         if (props.visible) {
             setDisplaying(true);
+            if (props.text) playSpeechBeep(estimateSyllables(props.text));
             var t = setTimeout(function() { setShow(true); }, 30);
             return function() { clearTimeout(t); };
         } else {
@@ -854,7 +855,6 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                     ? pickRandom(IRRITATION_LINES[3])
                     : pickRandom(IRRITATION_LINES[tier]);
                 setSpeechText(line);
-                playSpeechBeep(estimateSyllables(line));
 
                 var readMs = readTimeMs(line);
 
@@ -914,7 +914,6 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             setTappable(false);
             var nuclearLine = pickRandom(IRRITATION_LINES[4]);
             setSpeechText(nuclearLine);
-            playSpeechBeep(estimateSyllables(nuclearLine));
             var nuclearReadMs = readTimeMs(nuclearLine);
 
             scheduleExit(function() {
@@ -937,7 +936,6 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
         // --- Tier 0-1: Stay in place, show reaction ---
         var reactionLine = pickRandom(IRRITATION_LINES[tier]);
         setSpeechText(reactionLine);
-        playSpeechBeep(estimateSyllables(reactionLine));
         var reactionReadMs = readTimeMs(reactionLine);
 
         irritationRef.current = Math.min(tier + 1, 4);
@@ -978,7 +976,6 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                 if (!mountedRef.current) return;
                 setSpeechText(text);
                 setSpeechHasMore(!!hasMore);
-                if (text) playSpeechBeep(estimateSyllables(text));
             },
             hideSpeech: function() {
                 if (!mountedRef.current) return;
