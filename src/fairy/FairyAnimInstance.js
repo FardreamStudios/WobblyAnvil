@@ -386,7 +386,6 @@ function SpeechBubble(props) {
     useEffect(function() {
         if (props.visible) {
             setDisplaying(true);
-            if (props.text) playSpeechBeep(estimateSyllables(props.text));
             var t = setTimeout(function() { setShow(true); }, 30);
             return function() { clearTimeout(t); };
         } else {
@@ -395,6 +394,13 @@ function SpeechBubble(props) {
             return function() { clearTimeout(t2); };
         }
     }, [props.visible]);
+
+    // Beep on every text change (handles staggered multi-bubble chat)
+    useEffect(function() {
+        if (props.visible && props.text) {
+            playSpeechBeep(estimateSyllables(props.text));
+        }
+    }, [props.text]);
 
     if (!displaying || !props.text) return null;
 
