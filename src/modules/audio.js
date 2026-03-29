@@ -219,6 +219,10 @@ function useAudio() {
         // --- Build the API Object ---
 
         audioRef.current = {
+            // Low-level access (for external systems routing through SFX gain)
+            getContext: getContext,
+            getSfxGain: function() { getContext(); return _sfxGain; },
+
             // Mode control
             setMode: setMode,
 

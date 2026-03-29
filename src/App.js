@@ -798,7 +798,7 @@ export default function App() {
               </div>
             </div>
           </div>)}
-          <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} onChatTap={function() { GameplayEventBus.emit(EVENT_TAGS.FAIRY_CHAT_DISMISS); }} />
+          <FairyAnimInstance sfx={sfx} ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} onChatTap={function() { GameplayEventBus.emit(EVENT_TAGS.FAIRY_CHAT_DISMISS); }} />
           <DevBanner />
         </>
     );
@@ -856,7 +856,7 @@ export default function App() {
             onFairyToggle={function(val) { setFairyEnabled(val); FairyController.setEnabled(val); }}
             {...chatVM}
         />
-        <FairyAnimInstance ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} onChatTap={function() { GameplayEventBus.emit(EVENT_TAGS.FAIRY_CHAT_DISMISS); }} />
+        <FairyAnimInstance sfx={sfx} ref={fairyAnimRef} getDodgeSpot={FairyPawn.getDodgeSpot} onTapExit={FairyPawn.onTapExit} onTapDodge={FairyPawn.onTapDodge} onTutorialTap={FairyPawn.onTutorialTap} onChoiceSelect={FairyPawn.onChoiceSelect} onChatTap={function() { GameplayEventBus.emit(EVENT_TAGS.FAIRY_CHAT_DISMISS); }} />
       </>
   );
 }

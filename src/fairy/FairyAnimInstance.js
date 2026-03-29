@@ -744,6 +744,8 @@ function playDecline() {
 
 // ============================================================
 // Speech Beep — procedural syllable chirps via WebAudio
+// Routes through global audio system's SFX gain for volume/mute respect.
+// FAIRY_VOICE_GAIN applies a 35% reduction as base fairy voice level.
 // ============================================================
 var BEEP_PITCH_LOW = 530;
 var BEEP_PITCH_HIGH = 1120;
@@ -753,6 +755,10 @@ var BEEP_VOLUME = 0.40;
 var BEEP_WAVE = "sine";
 var BEEP_CHARS_PER_SYLLABLE = 4;
 var BEEP_MIN_SYLLABLES = 2;
+var FAIRY_VOICE_GAIN = 0.65; // 35% quieter than raw value
+
+// Module-level sfx ref — set by FairyAnimInstance on mount
+var _sfxRef = null;
 
 function estimateSyllables(text) {
     if (!text) return BEEP_MIN_SYLLABLES;
@@ -761,7 +767,17 @@ function estimateSyllables(text) {
 
 function playSpeechBeep(syllableCount) {
     try {
-        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var ctx, destination;
+        if (_sfxRef && _sfxRef.getContext && _sfxRef.getSfxGain) {
+            ctx = _sfxRef.getContext();
+            destination = _sfxRef.getSfxGain();
+        }
+        if (!ctx) {
+            // Fallback: standalone context (shouldn't happen in normal flow)
+            ctx = new (window.AudioContext || window.webkitAudioContext)();
+            destination = ctx.destination;
+        }
+        var vol = BEEP_VOLUME * FAIRY_VOICE_GAIN;
         var len = BEEP_SYLLABLE_MS / 1000;
         var g = BEEP_GAP_MS / 1000;
         var time = ctx.currentTime + 0.02;
@@ -771,11 +787,11 @@ function playSpeechBeep(syllableCount) {
             osc.type = BEEP_WAVE;
             osc.frequency.value = BEEP_PITCH_LOW + Math.random() * (BEEP_PITCH_HIGH - BEEP_PITCH_LOW);
             gain.gain.setValueAtTime(0, time);
-            gain.gain.linearRampToValueAtTime(BEEP_VOLUME * 0.15, time + 0.005);
-            gain.gain.setValueAtTime(BEEP_VOLUME * 0.15, time + len - 0.005);
+            gain.gain.linearRampToValueAtTime(vol * 0.15, time + 0.005);
+            gain.gain.setValueAtTime(vol * 0.15, time + len - 0.005);
             gain.gain.linearRampToValueAtTime(0, time + len);
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(destination);
             osc.start(time);
             osc.stop(time + len);
             time += len + g;
@@ -876,8 +892,11 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
     // --- Unmount cleanup ---
     useEffect(function() {
         mountedRef.current = true;
+        // Wire sfx into module-level ref for playSpeechBeep
+        if (props.sfx) _sfxRef = props.sfx;
         return function() {
             mountedRef.current = false;
+            _sfxRef = null;
             timeoutsRef.current.forEach(function(id) { clearTimeout(id); });
             timeoutsRef.current = [];
             exitTimeoutsRef.current = [];
