@@ -148,20 +148,25 @@ function MicPrompt(props) {
                 {requesting ? "Waiting..." : "Allow Mic"}
             </button>
 
-            {/* Skip link */}
-            <div
+            {/* Skip button */}
+            <button
                 onClick={handleSkip}
                 style={{
-                    fontSize: 12,
-                    color: "#5a4a38",
+                    background: "#1a1408",
+                    border: "2px solid #5a4a38",
+                    borderRadius: 10,
+                    color: "#c8b89a",
+                    padding: "14px 48px",
+                    fontSize: 15,
                     cursor: "pointer",
-                    letterSpacing: 2,
+                    letterSpacing: 3,
                     textTransform: "uppercase",
-                    padding: "8px 16px",
+                    fontFamily: "'Cinzel', serif",
+                    fontWeight: "bold",
                 }}
             >
-                Skip — use text chat
-            </div>
+                No Thanks
+            </button>
         </div>
     );
 }
