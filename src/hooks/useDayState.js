@@ -22,6 +22,7 @@ function useDayState() {
     // --- Bus: Day Subscriptions ---
     var busAdvanceHour = useCallback(function(payload) {
         if (payload.hour !== undefined) setHour(payload.hour);
+        else if (payload.hours !== undefined) setHour(function(h) { return h + payload.hours; });
     }, []);
 
     var busSetStamina = useCallback(function(payload) {
