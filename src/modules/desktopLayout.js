@@ -27,17 +27,18 @@ var TAG_COLORS = GameConstants.TAG_COLORS;
 var COL_W = GameConstants.COL_W;
 var STRESS_MAX = GameConstants.STRESS_MAX;
 var BALANCE = GameConstants.BALANCE;
+var STAT_META = GameConstants.STAT_META;
+var UPGRADES = GameConstants.UPGRADES;
+var UPGRADE_COLORS = GameConstants.UPGRADE_COLORS;
 
 // --- Destructure Utilities ---
 var getQualityTier = GameUtils.getQualityTier;
-var referenceValue = GameUtils.referenceValue;
 var formatTime = GameUtils.formatTime;
 
 // --- Destructure UI Components ---
 var Panel = UIComponents.Panel;
 var Row = UIComponents.Row;
 var SectionLabel = UIComponents.SectionLabel;
-var InfoRow = UIComponents.InfoRow;
 var Bar = UIComponents.Bar;
 var Pips = UIComponents.Pips;
 var ActionBtn = UIComponents.ActionBtn;
@@ -329,16 +330,34 @@ function DesktopLayout(props) {
                             {(function() { var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides }); return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} sceneFxRef={sceneFxRef} />; })()}
                             <ForgeFireFX active={forgeVM.isForging} />
 
-                            {/* FORGE STATS OVERLAY — anchored to forge area, not UI layer */}
-                            {(phase !== PHASES.IDLE && phase !== PHASES.SELECT && phase !== PHASES.SELECT_MAT && qualScore > 0) && (
-                                <div data-fairy-target="forge_info" style={{ position: "absolute", top: 0, left: 0, width: 160, zIndex: 11 }}><Panel>
-                                    <Row style={{ marginBottom: 3 }}><SectionLabel>MATERIAL</SectionLabel><span style={{ fontSize: 14, color: matData.color, fontWeight: "bold" }}>{matData.name}</span></Row>
-                                    <Row style={{ marginBottom: 3 }}><SectionLabel>WEAPON</SectionLabel><span style={{ fontSize: 14, color: "#f0e6c8", fontWeight: "bold" }}>{weapon.name}</span></Row>
+                            {/* FORGE STATS OVERLAY — persistent during entire forge flow */}
+                            {phase !== PHASES.IDLE && (
+                                <div data-fairy-target="forge_info" style={{ position: "absolute", top: 0, left: 0, width: 170, zIndex: 11, maxHeight: "100%", overflowY: "auto" }}><Panel>
+                                    <Row style={{ marginBottom: 3 }}><SectionLabel>WEAPON</SectionLabel><span style={{ fontSize: 13, color: "#f0e6c8", fontWeight: "bold" }}>{weapon.name}</span></Row>
+                                    <Row style={{ marginBottom: 3 }}><SectionLabel>MATERIAL</SectionLabel><span style={{ fontSize: 13, color: matData.color, fontWeight: "bold" }}>{matData.name}</span></Row>
+                                    <div style={{ borderTop: "1px solid #2a1f0a", margin: "4px 0" }} />
+                                    <Row style={{ marginBottom: 3 }}><SectionLabel>EFF. DIFF</SectionLabel><span style={{ fontSize: 13, color: diffColor, fontWeight: "bold" }}>{effDiff}{matDiffMod > 0 ? " (+" + matDiffMod + ")" : ""}</span></Row>
                                     <Row style={{ marginBottom: 3 }}><SectionLabel>SPEED</SectionLabel><span style={{ fontSize: 12, color: speedColor, fontWeight: "bold" }}>{speedLabel}</span></Row>
                                     <Row style={{ marginBottom: 3 }}><SectionLabel>STRIKES</SectionLabel><span style={{ fontSize: 12, color: strikeColor, fontWeight: "bold" }}>{strikeLabel}</span></Row>
-                                    <Row style={{ marginTop: 4 }}><SectionLabel>EFF. DIFF</SectionLabel><span style={{ fontSize: 14, color: diffColor, fontWeight: "bold" }}>{effDiff}{matDiffMod > 0 ? " (+" + matDiffMod + " mat)" : ""}</span></Row>
-                                    <Row style={{ marginTop: 4 }}><SectionLabel>QUALITY</SectionLabel><span style={{ fontSize: 14, color: getQualityTier(qualScore).weaponColor, fontWeight: "bold" }}>{getQualityTier(qualScore).label} ({qualScore})</span></Row>
-                                    <div style={{ display: "flex", alignItems: "center", gap: 22, marginTop: 4 }}><SectionLabel>STRESS</SectionLabel><Pips count={STRESS_MAX} filled={stress} filledColor={stressColor} size={14} /></div>
+                                    {qualScore > 0 && (<>
+                                        <div style={{ borderTop: "1px solid #2a1f0a", margin: "4px 0" }} />
+                                        <Row style={{ marginBottom: 3 }}><SectionLabel>QUALITY</SectionLabel><span style={{ fontSize: 13, color: getQualityTier(qualScore).weaponColor, fontWeight: "bold" }}>{getQualityTier(qualScore).label} ({qualScore})</span></Row>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 22, marginBottom: 3 }}><SectionLabel>STRESS</SectionLabel><Pips count={STRESS_MAX} filled={stress} filledColor={stressColor} size={12} /></div>
+                                    </>)}
+                                    <div style={{ borderTop: "1px solid #2a1f0a", margin: "4px 0" }} />
+                                    <SectionLabel style={{ marginBottom: 4 }}>STATS</SectionLabel>
+                                    {[["BRAWN", "brawn", "#f59e0b"], ["PRECISION", "precision", "#60a5fa"], ["TECHNIQUE", "technique", "#4ade80"], ["S. TONGUE", "silverTongue", "#c084fc"]].map(function(s) {
+                                        return <Row key={s[1]} style={{ marginBottom: 2 }}><span style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1 }}>{s[0]}</span><span style={{ fontSize: 11, color: s[2], fontWeight: "bold" }}>{stats[s[1]]}</span></Row>;
+                                    })}
+                                    <div style={{ borderTop: "1px solid #2a1f0a", margin: "4px 0" }} />
+                                    <SectionLabel style={{ marginBottom: 4 }}>UPGRADES</SectionLabel>
+                                    {[["anvil", "Anvil"], ["hammer", "Hammer"], ["forge", "Forge"], ["quench", "Quench"], ["furnace", "Furnace"]].map(function(pair) {
+                                        var key = pair[0], label = pair[1];
+                                        var lvl = upgrades[key] || 0;
+                                        var upgradeData = UPGRADES[key][lvl];
+                                        var upgradeColor = UPGRADE_COLORS[lvl] || "#a0a0a0";
+                                        return <Row key={key} style={{ marginBottom: 2 }}><span style={{ fontSize: 9, color: "#8a7a64", letterSpacing: 1 }}>{label.toUpperCase()}</span><span style={{ fontSize: 10, color: upgradeColor, fontWeight: "bold" }}>{upgradeData ? upgradeData.name : "\u2014"}</span></Row>;
+                                    })}
                                 </Panel></div>
                             )}
 
@@ -371,36 +390,22 @@ function DesktopLayout(props) {
                                 )}
 
                                 {/* WEAPON SELECT */}
-                                {phase === PHASES.SELECT && (<div data-fairy-target="weapon_select_panel" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", width: "80%", pointerEvents: tutorialHighlight ? "none" : "auto" }}>
-                                    <Panel style={{ width: 155, flexShrink: 0, border: "2px solid #f59e0b66", display: "flex", flexDirection: "column" }}>
-                                        <div style={{ fontSize: 12, color: "#f59e0b", fontWeight: "bold", letterSpacing: 1, marginBottom: 8 }}>{WEAPONS[wKey].name.toUpperCase()}</div>
-                                        {[["MAT COST", WEAPONS[wKey].materialCost + " units", "#c8b89a"], ["BASE SELL", "~" + referenceValue(wKey) + "g", "#f59e0b"]].map(function(r) { return <InfoRow key={r[0]} label={r[0]} value={r[1]} color={r[2]} />; })}
-                                        <div style={{ marginTop: 6, borderTop: "1px solid #2a1f0a", paddingTop: 6, textAlign: "center" }}><SectionLabel style={{ marginBottom: 3, textAlign: "center" }}>DIFFICULTY</SectionLabel><div style={{ fontSize: 26, color: WEAPONS[wKey].difficulty <= 3 ? "#4ade80" : WEAPONS[wKey].difficulty <= 6 ? "#fbbf24" : WEAPONS[wKey].difficulty <= 8 ? "#fb923c" : "#ef4444", fontWeight: "bold", lineHeight: 1, textAlign: "center" }}>{WEAPONS[wKey].difficulty}</div></div>
-                                    </Panel>
-                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: 14, letterSpacing: 3, color: "#f59e0b", fontWeight: "bold" }}>CHOOSE WEAPON</div>
-                                        <div style={{ width: "100%", maxHeight: 160, overflowY: "auto", display: "flex", flexDirection: "column", gap: 5 }}>
-                                            {Object.keys(WEAPONS).filter(function(k) { return unlockedBP.includes(k); }).map(function(k) { var w = WEAPONS[k], isQ = !!(royalQuest && !royalQuest.fulfilled && royalQuest.weaponKey === k), isSel = wKey === k; var dc = w.difficulty <= 3 ? "#4ade80" : w.difficulty <= 6 ? "#fbbf24" : w.difficulty <= 8 ? "#fb923c" : "#ef4444"; return (<div key={k} ref={isSel ? function(el) { if (el) el.scrollIntoView({ block: "nearest" }); } : null} onClick={function(e) { e.stopPropagation(); sfx.click(); setWKey(k); }} style={{ border: "2px solid " + (isSel ? "#f59e0b" : "#3d2e0f"), borderRadius: 6, padding: "8px 10px", cursor: "pointer", background: isSel ? "#2a1f0a" : "#0a0704", display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ fontSize: 13, color: isSel ? "#f59e0b" : "#f0e6c8", letterSpacing: 1 }}>{w.name.toUpperCase()}</div>{isQ && <span style={{ fontSize: 11, background: "#f59e0b", color: "#0a0704", borderRadius: 4, padding: "1px 6px", fontWeight: "bold" }}>QUEST</span>}</div><div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 9, color: "#c8b89a", background: "#1a1209", borderRadius: 3, padding: "2px 6px", fontWeight: "bold" }}>{"Value " + w.baseValue}</span><span style={{ fontSize: 9, color: "#0a0704", background: dc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + w.difficulty}</span></div></div>); })}
-                                        </div>
-                                        <div style={{ display: "flex", gap: 5 }}><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.SELECT_MAT); }} disabled={stamina <= 0} small={true}>Next</ActionBtn><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.IDLE); }} color="#8a7a64" bg="#141009" small={true}>Cancel</ActionBtn></div>
+                                {phase === PHASES.SELECT && (<div data-fairy-target="weapon_select_panel" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "80%", pointerEvents: tutorialHighlight ? "none" : "auto" }}>
+                                    <div style={{ fontSize: 14, letterSpacing: 3, color: "#f59e0b", fontWeight: "bold" }}>CHOOSE WEAPON</div>
+                                    <div style={{ width: "100%", maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 5 }}>
+                                        {Object.keys(WEAPONS).filter(function(k) { return unlockedBP.includes(k); }).map(function(k) { var w = WEAPONS[k], isQ = !!(royalQuest && !royalQuest.fulfilled && royalQuest.weaponKey === k), isSel = wKey === k; var dc = w.difficulty <= 3 ? "#4ade80" : w.difficulty <= 6 ? "#fbbf24" : w.difficulty <= 8 ? "#fb923c" : "#ef4444"; return (<div key={k} ref={isSel ? function(el) { if (el) el.scrollIntoView({ block: "nearest" }); } : null} onClick={function(e) { e.stopPropagation(); sfx.click(); setWKey(k); }} style={{ border: "2px solid " + (isSel ? "#f59e0b" : "#3d2e0f"), borderRadius: 6, padding: "8px 10px", cursor: "pointer", background: isSel ? "#2a1f0a" : "#0a0704", display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ fontSize: 13, color: isSel ? "#f59e0b" : "#f0e6c8", letterSpacing: 1 }}>{w.name.toUpperCase()}</div>{isQ && <span style={{ fontSize: 11, background: "#f59e0b", color: "#0a0704", borderRadius: 4, padding: "1px 6px", fontWeight: "bold" }}>QUEST</span>}</div><div style={{ display: "flex", alignItems: "center", gap: 4 }}><span style={{ fontSize: 9, color: "#c8b89a", background: "#1a1209", borderRadius: 3, padding: "2px 6px", fontWeight: "bold" }}>{"Value " + w.baseValue}</span><span style={{ fontSize: 9, color: "#0a0704", background: dc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + w.difficulty}</span></div></div>); })}
                                     </div>
+                                    <div style={{ display: "flex", gap: 5 }}><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.SELECT_MAT); }} disabled={stamina <= 0} small={true}>Next</ActionBtn><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.IDLE); }} color="#8a7a64" bg="#141009" small={true}>Cancel</ActionBtn></div>
                                 </div>)}
 
                                 {/* MATERIAL SELECT */}
-                                {phase === PHASES.SELECT_MAT && (<div data-fairy-target="mat_select_panel" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", width: "80%", pointerEvents: tutorialHighlight ? "none" : "auto" }}>
-                                    <Panel style={{ width: 155, flexShrink: 0, border: "2px solid " + MATS[matKey].color + "66" }}>
-                                        <div style={{ fontSize: 12, color: MATS[matKey].color, fontWeight: "bold", letterSpacing: 1, marginBottom: 8 }}>{MATS[matKey].name.toUpperCase()}</div>
-                                        {[["IN STOCK", (inv[matKey] || 0) + " units"], ["VALUE MULT", "x" + MATS[matKey].valueMultiplier]].map(function(r) { var vc = r[0] === "IN STOCK" ? ((inv[matKey] || 0) >= weapon.materialCost ? "#4ade80" : "#ef4444") : "#c8b89a"; return <InfoRow key={r[0]} label={r[0]} value={r[1]} color={vc} />; })}
-                                        <div style={{ marginTop: 6, borderTop: "1px solid #2a1f0a", paddingTop: 6, textAlign: "center" }}><SectionLabel style={{ marginBottom: 3, display: "flex", justifyContent: "center" }}>DIFF MOD</SectionLabel><div style={{ fontSize: 26, color: MATS[matKey].difficultyModifier < 0 ? "#4ade80" : MATS[matKey].difficultyModifier === 0 ? "#c8b89a" : MATS[matKey].difficultyModifier <= 3 ? "#fbbf24" : MATS[matKey].difficultyModifier <= 5 ? "#fb923c" : "#ef4444", fontWeight: "bold", lineHeight: 1, textAlign: "center" }}>{MATS[matKey].difficultyModifier > 0 ? "+" : ""}{MATS[matKey].difficultyModifier}</div></div>
-                                    </Panel>
-                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: 14, letterSpacing: 3, color: "#f59e0b", fontWeight: "bold" }}>CHOOSE MATERIAL</div>
-                                        <SectionLabel>{weapon.name} needs {weapon.materialCost} units</SectionLabel>
-                                        <div style={{ width: "100%", maxHeight: 160, overflowY: "auto", display: "flex", flexDirection: "column", gap: 5 }}>
-                                            {Object.entries(MATS).map(function(e) { var k = e[0], m = e[1], have = (inv[k] || 0), enough = have >= weapon.materialCost; var isQ = !!(royalQuest && !royalQuest.fulfilled && royalQuest.materialRequired === k); var isSel = matKey === k, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[k].price * needed, canBuy = needed > 0 && gold >= buyPrice; var canSelect = enough || canBuy; var dm = m.difficultyModifier; var dmc = dm < 0 ? "#4ade80" : dm === 0 ? "#c8b89a" : dm <= 3 ? "#fbbf24" : "#fb923c"; return (<div key={k} onClick={canSelect ? function(e) { e.stopPropagation(); sfx.click(); setMatKey(k); } : null} style={{ border: "2px solid " + (isSel ? "#f59e0b" : canSelect ? "#3d2e0f" : "#2a1f0a"), borderRadius: 6, padding: "8px 10px", cursor: canSelect ? "pointer" : "not-allowed", background: isSel ? "#2a1f0a" : "#0a0704", display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ fontSize: 13, color: isSel ? m.color : canSelect ? m.color : "#3d2e0f", letterSpacing: 1, fontWeight: "bold" }}>{m.name.toUpperCase()}</div>{isQ && <span style={{ fontSize: 11, background: "#f59e0b", color: "#0a0704", borderRadius: 4, padding: "1px 6px", fontWeight: "bold" }}>QUEST</span>}</div><div style={{ display: "flex", alignItems: "center", gap: 4 }}>{needed > 0 && <span className={!canBuy ? "blink-slow" : ""} style={{ fontSize: 10, color: canBuy ? (isSel ? "#fbbf24" : "#f59e0b") : "#ef4444", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", whiteSpace: "nowrap" }}>{canBuy ? "COSTS " + buyPrice + "g" : "CAN'T AFFORD"}</span>}<span style={{ fontSize: 9, color: "#c8b89a", background: "#1a1209", borderRadius: 3, padding: "2px 6px", fontWeight: "bold" }}>{"Value x" + m.valueMultiplier}</span><span style={{ fontSize: 9, color: "#0a0704", background: dmc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + (dm > 0 ? "+" : "") + dm}</span></div></div>); })}
-                                        </div>
-                                        <div style={{ display: "flex", gap: 5 }}><ActionBtn data-fairy-target="btn_confirm" onClick={function() { sfx.click(); confirmSelect(); }} disabled={input.confirmSelect.disabled} small={true}>Confirm</ActionBtn><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} color="#8a7a64" bg="#141009" small={true}>Back</ActionBtn></div>
+                                {phase === PHASES.SELECT_MAT && (<div data-fairy-target="mat_select_panel" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "80%", pointerEvents: tutorialHighlight ? "none" : "auto" }}>
+                                    <div style={{ fontSize: 14, letterSpacing: 3, color: "#f59e0b", fontWeight: "bold" }}>CHOOSE MATERIAL</div>
+                                    <SectionLabel>{weapon.name} needs {weapon.materialCost} units</SectionLabel>
+                                    <div style={{ width: "100%", maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 5 }}>
+                                        {Object.entries(MATS).map(function(e) { var k = e[0], m = e[1], have = (inv[k] || 0), enough = have >= weapon.materialCost; var isQ = !!(royalQuest && !royalQuest.fulfilled && royalQuest.materialRequired === k); var isSel = matKey === k, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[k].price * needed, canBuy = needed > 0 && gold >= buyPrice; var canSelect = enough || canBuy; var dm = m.difficultyModifier; var dmc = dm < 0 ? "#4ade80" : dm === 0 ? "#c8b89a" : dm <= 3 ? "#fbbf24" : "#fb923c"; return (<div key={k} onClick={canSelect ? function(e) { e.stopPropagation(); sfx.click(); setMatKey(k); } : null} style={{ border: "2px solid " + (isSel ? "#f59e0b" : canSelect ? "#3d2e0f" : "#2a1f0a"), borderRadius: 6, padding: "8px 10px", cursor: canSelect ? "pointer" : "not-allowed", background: isSel ? "#2a1f0a" : "#0a0704", display: "flex", justifyContent: "space-between", alignItems: "center" }}><div style={{ display: "flex", alignItems: "center", gap: 6 }}><div style={{ fontSize: 13, color: isSel ? m.color : canSelect ? m.color : "#3d2e0f", letterSpacing: 1, fontWeight: "bold" }}>{m.name.toUpperCase()}</div>{isQ && <span style={{ fontSize: 11, background: "#f59e0b", color: "#0a0704", borderRadius: 4, padding: "1px 6px", fontWeight: "bold" }}>QUEST</span>}</div><div style={{ display: "flex", alignItems: "center", gap: 4 }}>{needed > 0 && <span className={!canBuy ? "blink-slow" : ""} style={{ fontSize: 10, color: canBuy ? (isSel ? "#fbbf24" : "#f59e0b") : "#ef4444", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", whiteSpace: "nowrap" }}>{canBuy ? "COSTS " + buyPrice + "g" : "CAN'T AFFORD"}</span>}<span style={{ fontSize: 9, color: "#c8b89a", background: "#1a1209", borderRadius: 3, padding: "2px 6px", fontWeight: "bold" }}>{"Value x" + m.valueMultiplier}</span><span style={{ fontSize: 9, color: "#0a0704", background: dmc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + (dm > 0 ? "+" : "") + dm}</span></div></div>); })}
                                     </div>
+                                    <div style={{ display: "flex", gap: 5 }}><ActionBtn data-fairy-target="btn_confirm" onClick={function() { sfx.click(); confirmSelect(); }} disabled={input.confirmSelect.disabled} small={true}>Confirm</ActionBtn><ActionBtn onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} color="#8a7a64" bg="#141009" small={true}>Back</ActionBtn></div>
                                 </div>)}
 
                                 {/* QTE */}
