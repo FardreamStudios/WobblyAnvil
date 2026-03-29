@@ -2,12 +2,12 @@
 // useInputRouter.js — Wobbly Anvil Input Router
 // Single source of truth for every button's disabled state.
 //
-// Stamina policy: exhausted (stamina <= 0) is a hard block on
-// all stamina-consuming actions. Player must rest to recover.
+// Stamina + time are both resources. Gates check whether the
+// player can afford the action. Views read gates — zero inline
+// logic in the render tree.
 //
-// Pattern: consumes raw state from all domain hooks,
-// returns a flat object of named action gates.
-// Views read these — zero inline logic in the render tree.
+// noStamina flag: returned so views can morph buttons (e.g.
+// forge → rest) when stamina is depleted mid-forge.
 // ============================================================
 
 import GameConstants from "../modules/constants.js";
@@ -20,10 +20,9 @@ var canAffordTime = GameUtils.canAffordTime;
 
 // ------------------------------------------------------------
 // Helper: build an action gate object.
-// redirectToRest kept for backward compat — always false now.
 // ------------------------------------------------------------
-function gate(disabled, redirectToRest) {
-    return { disabled: disabled, redirectToRest: !!redirectToRest };
+function gate(disabled) {
+    return { disabled: disabled };
 }
 
 // ============================================================
@@ -59,33 +58,28 @@ function useInputRouter(deps) {
     if (isLocked) console.log("[InputRouter] LOCKED:", { isQTEActive: isQTEActive, activeCustomer: !!activeCustomer, toastQueue: toastQueue.length, mysteryPending: mysteryPending });
 
     // --- Stamina helpers ---
-    var exhausted       = stamina <= 0;
+    var noStamina       = stamina <= 0;
     var canRest         = canAffordTime(hour, 2);
     var canAffordSess   = canAffordTime(hour, sessCost);
 
     // ============================================================
     // Action Gates
-    // Exhausted = hard block on all stamina-consuming actions.
-    // Player must rest (waitHour) to regain stamina before forging.
     // ============================================================
 
     // --- Idle phase actions ---
 
     var beginForge = gate(
-        isLocked || exhausted || !canAffordSess,
-        false
+        isLocked || noStamina || !canAffordSess
     );
 
     var resumeWip = gate(
-        isLocked || exhausted || !canAffordSess,
-        false
+        isLocked || noStamina || !canAffordSess
     );
 
-    var sleep = gate(isLocked, false);
+    var sleep = gate(isLocked);
 
     var rest = gate(
-        isLocked || hour >= REST_HOUR_LIMIT || !canRest,
-        false
+        isLocked || hour >= REST_HOUR_LIMIT || !canRest
     );
 
     var promote = gate(
@@ -93,37 +87,32 @@ function useInputRouter(deps) {
         || hour >= 24
         || finished.length === 0
         || promoteUses >= BALANCE.maxPromoteUses
-        || !canAffordTime(hour, 1),
-        false
+        || !canAffordTime(hour, 1)
     );
 
     var scavenge = gate(
         isLocked
         || hour >= 24
         || !canAffordTime(hour, 1)
-        || exhausted,
-        false
+        || noStamina
     );
 
-    var shop = gate(isLocked, false);
-    var mats = gate(isLocked, false);
-    var statAlloc = gate(isLocked || isForging, false);
+    var shop = gate(isLocked);
+    var mats = gate(isLocked);
+    var statAlloc = gate(isLocked || isForging);
 
     // --- Forging phase actions ---
 
     var forge = gate(
-        isLocked || exhausted || !canAffordSess,
-        false
+        isLocked || noStamina || !canAffordSess
     );
 
     var normalize = gate(
-        stress <= 0 || !canAffordTime(hour, 2),
-        false
+        stress <= 0 || !canAffordTime(hour, 2)
     );
 
     var quench = gate(
-        exhausted || !canAffordSess,
-        false
+        noStamina || !canAffordSess
     );
 
     // --- Weapon select ---
@@ -131,9 +120,8 @@ function useInputRouter(deps) {
     var confirmSelect = gate(
         ((inv[matKey] || 0) < (weapon ? weapon.materialCost : 0)
             && gold < (buyPrice || 0))
-        || exhausted
-        || !canAffordSess,
-        false
+        || noStamina
+        || !canAffordSess
     );
 
     // ============================================================
@@ -142,6 +130,7 @@ function useInputRouter(deps) {
 
     return {
         isLocked: isLocked,
+        noStamina: noStamina,
 
         // Idle
         beginForge: beginForge,

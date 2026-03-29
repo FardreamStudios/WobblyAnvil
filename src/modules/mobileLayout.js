@@ -322,7 +322,7 @@ function MobileLayout(props) {
             {isForging && phase === "sess_result" ? (
                 <div style={{ flex: 1, display: "flex", gap: "1.5vh", flexDirection: bowlDirection }}>
                     <div style={col1Style}>
-                        <div data-fairy-target="btn_forge_again" style={{ display: "flex" }}><MobileBtn imgSrc={IC.forge} onClick={props.onForge} disabled={props.forgeDisabled} holdContent="Heat and strike again to improve quality" imgSize={79} /></div>
+                        <div data-fairy-target="btn_forge_again" style={{ display: "flex" }}><MobileBtn imgSrc={props.noStamina && !props.restDisabled ? IC.rest : IC.forge} onClick={props.noStamina && !props.restDisabled ? props.onRest : props.onForge} disabled={props.noStamina && !props.restDisabled ? false : props.forgeDisabled} holdContent={props.noStamina && !props.restDisabled ? "Wait one hour, recover some stamina" : "Heat and strike again to improve quality"} imgSize={79} /></div>
                         <div data-fairy-target="btn_quench" style={{ display: "flex" }}><MobileBtn imgSrc={IC.quench} onClick={props.onQuench} disabled={props.quenchDisabled} holdContent="Finish the weapon and lock in your work" imgSize={79} /></div>
                     </div>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5vh" }}>

@@ -724,6 +724,7 @@ export default function App() {
               sleepDisabled={input.sleep.disabled}
               onRest={waitHour}
               restDisabled={input.rest.disabled}
+              noStamina={input.noStamina}
               onPromote={promote}
               promoteDisabled={input.promote.disabled}
               onScavenge={scavenge}
