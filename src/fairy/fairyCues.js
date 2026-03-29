@@ -552,11 +552,11 @@ var TUT_FORGE_SPEAK = {
 
 var CHAT_IDLE = {
     id: "chat_idle",
-    description: "Poof in and idle for chat — no auto-exit",
-    layer: "scene",
+    description: "Poof in and idle for chat — no auto-exit (overlay, full size)",
+    layer: "overlay",
     waitForInput: true,
     steps: [
-        { at: 0,    cmd: "poof_in",      spot: null, duration: 250 },
+        { at: 0,    cmd: "poof_in",      spot: { x: 70, y: 82 }, scale: 1.0, duration: 250 },
         { at: 350,  cmd: "set_tappable",  value: true },
     ],
 };
