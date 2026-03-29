@@ -642,6 +642,49 @@ function playDecline() {
 }
 
 // ============================================================
+// Speech Beep — procedural syllable chirps via WebAudio
+// ============================================================
+var BEEP_PITCH_LOW = 530;
+var BEEP_PITCH_HIGH = 1120;
+var BEEP_SYLLABLE_MS = 65;
+var BEEP_GAP_MS = 45;
+var BEEP_VOLUME = 0.40;
+var BEEP_WAVE = "sine";
+var BEEP_CHARS_PER_SYLLABLE = 4;
+var BEEP_MIN_SYLLABLES = 2;
+
+function estimateSyllables(text) {
+    if (!text) return BEEP_MIN_SYLLABLES;
+    return Math.max(BEEP_MIN_SYLLABLES, Math.ceil(text.length / BEEP_CHARS_PER_SYLLABLE));
+}
+
+function playSpeechBeep(syllableCount) {
+    try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        var len = BEEP_SYLLABLE_MS / 1000;
+        var g = BEEP_GAP_MS / 1000;
+        var time = ctx.currentTime + 0.02;
+        for (var i = 0; i < syllableCount; i++) {
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.type = BEEP_WAVE;
+            osc.frequency.value = BEEP_PITCH_LOW + Math.random() * (BEEP_PITCH_HIGH - BEEP_PITCH_LOW);
+            gain.gain.setValueAtTime(0, time);
+            gain.gain.linearRampToValueAtTime(BEEP_VOLUME * 0.15, time + 0.005);
+            gain.gain.setValueAtTime(BEEP_VOLUME * 0.15, time + len - 0.005);
+            gain.gain.linearRampToValueAtTime(0, time + len);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(time);
+            osc.stop(time + len);
+            time += len + g;
+        }
+    } catch (e) {
+        console.warn("[FairyAnimInstance] speech beep error:", e.message);
+    }
+}
+
+// ============================================================
 // Helpers
 // ============================================================
 function pickRandom(arr) {
@@ -811,6 +854,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                     ? pickRandom(IRRITATION_LINES[3])
                     : pickRandom(IRRITATION_LINES[tier]);
                 setSpeechText(line);
+                playSpeechBeep(estimateSyllables(line));
 
                 var readMs = readTimeMs(line);
 
@@ -870,6 +914,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             setTappable(false);
             var nuclearLine = pickRandom(IRRITATION_LINES[4]);
             setSpeechText(nuclearLine);
+            playSpeechBeep(estimateSyllables(nuclearLine));
             var nuclearReadMs = readTimeMs(nuclearLine);
 
             scheduleExit(function() {
@@ -892,6 +937,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
         // --- Tier 0-1: Stay in place, show reaction ---
         var reactionLine = pickRandom(IRRITATION_LINES[tier]);
         setSpeechText(reactionLine);
+        playSpeechBeep(estimateSyllables(reactionLine));
         var reactionReadMs = readTimeMs(reactionLine);
 
         irritationRef.current = Math.min(tier + 1, 4);
@@ -932,6 +978,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                 if (!mountedRef.current) return;
                 setSpeechText(text);
                 setSpeechHasMore(!!hasMore);
+                if (text) playSpeechBeep(estimateSyllables(text));
             },
             hideSpeech: function() {
                 if (!mountedRef.current) return;
