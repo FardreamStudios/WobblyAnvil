@@ -61,8 +61,9 @@ function fadeVolume(audio, targetVol, durationMs, callback) {
 // ============================================================
 
 function useAmbientAudio(deps) {
-    var isForging = deps.isForging;
-    var muted     = deps.muted;
+    var isForging  = deps.isForging;
+    var muted      = deps.muted;
+    var suspended  = deps.suspended || false;
     var sfxVol    = deps.sfxVol !== undefined ? deps.sfxVol : 1;
 
     var ambientRef    = useRef(null);   // Audio element
@@ -74,10 +75,12 @@ function useAmbientAudio(deps) {
     var forgingRef    = useRef(false);
     var mutedRef      = useRef(false);
     var sfxVolRef     = useRef(sfxVol); // tracks slider value for use in closures
+    var suspendedRef  = useRef(false);
     var fadeTimers     = useRef([]);     // active fade intervals
 
     mutedRef.current = muted;
     sfxVolRef.current = sfxVol;
+    suspendedRef.current = suspended;
 
     // --- Cancel all active fades ---
     function clearFades() {
@@ -233,6 +236,7 @@ function useAmbientAudio(deps) {
     useEffect(function() {
         if (!startedRef.current) return;
         if (mutedRef.current) return;
+        if (suspendedRef.current) return;
 
         if (isForging && !forgingRef.current) {
             forgingRef.current = true;
@@ -271,6 +275,41 @@ function useAmbientAudio(deps) {
         }
     }, [sfxVol]);
 
+    // --- React to suspended state (battle transition) ---
+    useEffect(function() {
+        if (!startedRef.current) return;
+
+        if (suspended) {
+            clearFades();
+            stopHammerLoop();
+            // Fade everything out quickly
+            if (ambientRef.current && !ambientRef.current.paused) {
+                trackFade(fadeVolume(ambientRef.current, 0, 300, function() {
+                    ambientRef.current.pause();
+                }));
+            }
+            if (fireLoopRef.current && !fireLoopRef.current.paused) {
+                trackFade(fadeVolume(fireLoopRef.current, 0, 300, function() {
+                    fireLoopRef.current.pause();
+                }));
+            }
+        } else if (!mutedRef.current) {
+            // Restore based on current forge state
+            if (forgingRef.current) {
+                if (fireLoopRef.current) {
+                    fireLoopRef.current.play().catch(function() {});
+                    trackFade(fadeVolume(fireLoopRef.current, AMBIENT.fireLoopVol * sfxVolRef.current, AMBIENT.fadeInSec * 1000));
+                }
+                startHammerLoop();
+            } else {
+                if (ambientRef.current) {
+                    ambientRef.current.play().catch(function() {});
+                    trackFade(fadeVolume(ambientRef.current, AMBIENT.ambientVol * sfxVolRef.current, AMBIENT.fadeInSec * 1000));
+                }
+            }
+        }
+    }, [suspended]);
+
     // --- Cleanup on unmount ---
     useEffect(function() {
         return function() {
@@ -287,6 +326,29 @@ function useAmbientAudio(deps) {
     // --- Public API ---
     return {
         startAmbient: startAmbient,
+        // suspended prop handles suspend/resume reactively.
+        // These are exposed for imperative use if needed.
+        suspendAll: function() {
+            clearFades();
+            stopHammerLoop();
+            if (ambientRef.current) { ambientRef.current.pause(); ambientRef.current.volume = 0; }
+            if (fireLoopRef.current) { fireLoopRef.current.pause(); fireLoopRef.current.volume = 0; }
+        },
+        resumeAll: function() {
+            if (mutedRef.current) return;
+            if (forgingRef.current) {
+                if (fireLoopRef.current) {
+                    fireLoopRef.current.volume = AMBIENT.fireLoopVol * sfxVolRef.current;
+                    fireLoopRef.current.play().catch(function() {});
+                }
+                startHammerLoop();
+            } else {
+                if (ambientRef.current) {
+                    ambientRef.current.volume = AMBIENT.ambientVol * sfxVolRef.current;
+                    ambientRef.current.play().catch(function() {});
+                }
+            }
+        },
     };
 }
 

@@ -213,6 +213,8 @@ function useAudio() {
                 if (mode === "forge") {
                     loopMusic("forge", FORGE_LOOP, 0.12);
                 }
+                // "battle" mode: music already stopped by stopMusic() above.
+                // Battle will own its own music in V2.
             }, 500);
         }
 
@@ -288,6 +290,26 @@ function useAudio() {
                 [220, 196, 174, 130].forEach(function(f, i) {
                     setTimeout(function() { tone(f, "sawtooth", 0.45, 0.25); }, i * 220);
                 });
+            },
+
+            battleFanfare: function() {
+                // Punchy rising burst — three ascending power chords + impact noise
+                tone(220, "sawtooth", 0.15, 0.20);
+                tone(165, "sawtooth", 0.15, 0.12);
+                setTimeout(function() {
+                    tone(294, "sawtooth", 0.15, 0.22);
+                    tone(220, "sawtooth", 0.15, 0.14);
+                }, 100);
+                setTimeout(function() {
+                    tone(392, "sawtooth", 0.25, 0.25);
+                    tone(294, "sawtooth", 0.25, 0.16);
+                    noise(0.3, 0.18, 300);
+                }, 200);
+                // Final impact hit
+                setTimeout(function() {
+                    tone(147, "square", 0.4, 0.20);
+                    noise(0.15, 0.25, 150);
+                }, 350);
             },
 
             fanfare: function() {

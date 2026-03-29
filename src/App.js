@@ -55,9 +55,13 @@ import MicPrompt from "./components/MicPrompt.js";
 import FairyChatSystem from "./fairy/fairyChatSystem.js";
 import ScavengeMenuModule from "./modules/ScavengeMenu.js";
 import BattleViewModule from "./battle/BattleView.js";
+import BattleTransitionModule from "./battle/BattleTransition.js";
+import BattleConstants from "./battle/battleConstants.js";
 
 var ScavengeMenu = ScavengeMenuModule.ScavengeMenu;
 var BattleView = BattleViewModule.BattleView;
+var BattleTransition = BattleTransitionModule.BattleTransition;
+var BATTLE_TRANSITION = BattleConstants.BATTLE_TRANSITION;
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -158,7 +162,7 @@ export default function App() {
     try { return localStorage.getItem("wa_fairy_enabled") !== "false"; } catch(e) { return true; }
   });
 
-  // --- Scavenge mode (null = normal, "menu" = choice overlay, "battle" = battle view) ---
+  // --- Scavenge mode (null | "menu" | "transition" | "battle_mounting" | "battle" | "transition_out" | "exiting") ---
   var [scavengeMode, setScavengeMode] = useState(null);
 
   // --- Fairy Chat VM (bus-driven, no App.js logic) ---
@@ -471,7 +475,8 @@ export default function App() {
   forgeVMRef.current = forgeVM;
 
   // --- Ambient Audio Layer ---
-  var ambient = useAmbientAudio({ isForging: isForging, muted: false, sfxVol: sfxVol });
+  var isBattleActive = scavengeMode === "transition" || scavengeMode === "battle" || scavengeMode === "battle_mounting" || scavengeMode === "transition_out" || scavengeMode === "exiting";
+  var ambient = useAmbientAudio({ isForging: isForging, muted: false, sfxVol: sfxVol, suspended: isBattleActive });
 
   // --- Input Router ---
   var input = useInputRouter({
@@ -538,15 +543,65 @@ export default function App() {
   if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu audioReady={audioReady} onAudioWarmup={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setAudioReady(true); }} onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
 
   // ============================================================
-  // SCAVENGE BATTLE — Full-screen takeover
+  // SCAVENGE BATTLE — Full-screen takeover with pixel dissolve
   // ============================================================
+  if (scavengeMode === "transition") {
+    return (
+        <BattleTransition
+            config={BATTLE_TRANSITION}
+            sfx={sfx}
+            onMidpoint={function() { setScavengeMode("battle_mounting"); }}
+            onComplete={function() { setScavengeMode("battle"); }}
+        />
+    );
+  }
+  if (scavengeMode === "battle_mounting") {
+    return (
+        <>
+          <BattleView
+              handedness={handedness}
+              onExit={function() { setScavengeMode("transition_out"); }}
+              zoneName="Back Alley"
+              waveLabel="Wave 1/2"
+          />
+          <BattleTransition
+              config={BATTLE_TRANSITION}
+              sfx={sfx}
+              onMidpoint={function() {}}
+              onComplete={function() { setScavengeMode("battle"); }}
+          />
+        </>
+    );
+  }
   if (scavengeMode === "battle") {
     return (
         <BattleView
             handedness={handedness}
-            onExit={function() { setScavengeMode(null); }}
+            onExit={function() { setScavengeMode("transition_out"); }}
             zoneName="Back Alley"
             waveLabel="Wave 1/2"
+        />
+    );
+  }
+  if (scavengeMode === "transition_out") {
+    return (
+        <>
+          <BattleTransition
+              config={Object.assign({}, BATTLE_TRANSITION, { flashText: null, fanfareDelayMs: -1 })}
+              reverse={true}
+              onMidpoint={function() { sfx.setMode("idle"); setScavengeMode("exiting"); }}
+              onComplete={function() { setScavengeMode(null); }}
+          />
+        </>
+    );
+  }
+  if (scavengeMode === "exiting") {
+    return (
+        <BattleTransition
+            config={Object.assign({}, BATTLE_TRANSITION, { flashText: null, fanfareDelayMs: -1 })}
+            reverse={true}
+            onMidpoint={function() {}}
+            onComplete={function() { setScavengeMode(null); }}
         />
     );
   }
@@ -821,7 +876,7 @@ export default function App() {
           {scavengeMode === "menu" && (
               <ScavengeMenu
                   onQuickScavenge={function() { setScavengeMode(null); scavenge(); }}
-                  onExtendedScavenge={function() { setScavengeMode("battle"); }}
+                  onExtendedScavenge={function() { sfx.setMode("battle"); setScavengeMode("transition"); }}
                   onCancel={function() { setScavengeMode(null); }}
                   handedness={handedness}
               />
@@ -887,7 +942,7 @@ export default function App() {
         {scavengeMode === "menu" && (
             <ScavengeMenu
                 onQuickScavenge={function() { setScavengeMode(null); scavenge(); }}
-                onExtendedScavenge={function() { setScavengeMode("battle"); }}
+                onExtendedScavenge={function() { sfx.setMode("battle"); setScavengeMode("transition"); }}
                 onCancel={function() { setScavengeMode(null); }}
                 handedness={handedness}
             />
