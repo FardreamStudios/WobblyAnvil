@@ -580,7 +580,10 @@ export default function App() {
                             <span style={{ fontSize: 11, color: isSel ? "#f59e0b" : "#f0e6c8", letterSpacing: 1 }}>{w.name.toUpperCase()}</span>
                             {isQ && <span style={{ fontSize: 9, background: "#f59e0b", color: "#0a0704", borderRadius: 3, padding: "1px 5px", fontWeight: "bold" }}>QUEST</span>}
                           </div>
-                          <span style={{ fontSize: 9, color: "#0a0704", background: dc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + w.difficulty}</span>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            <span style={{ fontSize: 9, color: "#c8b89a", background: "#1a1209", borderRadius: 3, padding: "2px 6px", fontWeight: "bold" }}>{"Value " + w.baseValue}</span>
+                            <span style={{ fontSize: 9, color: "#0a0704", background: dc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + w.difficulty}</span>
+                          </div>
                         </div>
                     );
                   })}
@@ -620,7 +623,10 @@ export default function App() {
                               <span style={{ fontSize: 11, color: isSel ? m.color : canSelect ? m.color : "#3d2e0f", letterSpacing: 1, fontWeight: "bold" }}>{m.name.toUpperCase()}</span>
                               {isQ && <span style={{ fontSize: 9, background: "#f59e0b", color: "#0a0704", borderRadius: 3, padding: "1px 5px", fontWeight: "bold" }}>QUEST</span>}
                             </div>
-                            <span style={{ fontSize: 9, color: "#0a0704", background: dmc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + (dm > 0 ? "+" : "") + dm}</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                              <span style={{ fontSize: 9, color: "#c8b89a", background: "#1a1209", borderRadius: 3, padding: "2px 6px", fontWeight: "bold" }}>{"Value x" + m.valueMultiplier}</span>
+                              <span style={{ fontSize: 9, color: "#0a0704", background: dmc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + (dm > 0 ? "+" : "") + dm}</span>
+                            </div>
                           </div>
                       );
                     })}
