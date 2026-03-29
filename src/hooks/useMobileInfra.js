@@ -65,6 +65,26 @@ var permissionPending = { current: false };
 var _lastRestoreAttemptMs = 0;
 var RESTORE_COOLDOWN_MS = 2000;
 
+// --- Tap restore arm callback (set by useFullscreenPersistence) ---
+var _restoreArmCallback = null;
+
+/**
+ * Call when a permission dialog resolves (mic granted/denied/dismissed).
+ * Clears the pending flag AND kicks the fullscreen recovery chain,
+ * which was paused while the dialog was open.
+ */
+function clearPermissionPending() {
+    permissionPending.current = false;
+    if (userExitedFullscreen.current) return;
+    if (isFullscreenActive()) return;
+    // Try auto-restore (will fail without gesture — that's expected)
+    var attempted = _tryRestore();
+    if (!attempted && _restoreArmCallback) {
+        // No gesture available — arm tap-to-restore as fallback
+        _restoreArmCallback();
+    }
+}
+
 // ============================================================
 // WAKE LOCK HOOK
 // ============================================================
@@ -207,8 +227,13 @@ function useFullscreenPersistence(isFull) {
 
         restoreArmed._arm = _armRestore;
         restoreArmed._disarm = _disarmRestore;
+        // Expose arm callback so clearPermissionPending can reach it
+        _restoreArmCallback = _armRestore;
 
-        return _disarmRestore;
+        return function() {
+            _disarmRestore();
+            _restoreArmCallback = null;
+        };
     }, []);
 
     // Fullscreen state transitions — recovery
@@ -268,6 +293,53 @@ function useFullscreenPersistence(isFull) {
 }
 
 // ============================================================
+// SWIPE-UP FULLSCREEN HOOK
+// Detects an upward swipe gesture and enters fullscreen.
+// Matches common mobile UX (YouTube, TikTok, etc.).
+// Works as a manual recovery when auto-restore can't fire.
+// ============================================================
+
+var SWIPE_MIN_DISTANCE = 80;  // px — minimum swipe length
+var SWIPE_MAX_TIME = 400;     // ms — must complete within this window
+
+function useSwipeFullscreen() {
+    var touchRef = useRef(null);
+
+    useEffect(function() {
+        function onTouchStart(e) {
+            if (isFullscreenActive()) return;
+            if (e.touches.length !== 1) return;
+            touchRef.current = {
+                y: e.touches[0].clientY,
+                t: Date.now(),
+            };
+        }
+
+        function onTouchEnd(e) {
+            if (!touchRef.current) return;
+            if (isFullscreenActive()) { touchRef.current = null; return; }
+            if (userExitedFullscreen.current) { touchRef.current = null; return; }
+
+            var endY = e.changedTouches[0].clientY;
+            var deltaY = touchRef.current.y - endY; // positive = swiped UP
+            var elapsed = Date.now() - touchRef.current.t;
+            touchRef.current = null;
+
+            if (deltaY > SWIPE_MIN_DISTANCE && elapsed < SWIPE_MAX_TIME) {
+                requestFullscreen(document.documentElement);
+            }
+        }
+
+        document.addEventListener("touchstart", onTouchStart, { passive: true });
+        document.addEventListener("touchend", onTouchEnd, { passive: true });
+        return function() {
+            document.removeEventListener("touchstart", onTouchStart);
+            document.removeEventListener("touchend", onTouchEnd);
+        };
+    }, []);
+}
+
+// ============================================================
 // Plugin-style API
 // ============================================================
 var MobileInfra = {
@@ -277,10 +349,12 @@ var MobileInfra = {
     exitFullscreen: exitFullscreen,
     userExitedFullscreen: userExitedFullscreen,
     permissionPending: permissionPending,
+    clearPermissionPending: clearPermissionPending,
     useWakeLock: useWakeLock,
     useFullscreenState: useFullscreenState,
     useViewportInfo: useViewportInfo,
     useFullscreenPersistence: useFullscreenPersistence,
+    useSwipeFullscreen: useSwipeFullscreen,
 };
 
 export default MobileInfra;

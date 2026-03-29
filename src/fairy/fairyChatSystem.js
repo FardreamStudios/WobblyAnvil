@@ -80,7 +80,7 @@ function _initSpeech() {
         }
         transcript = transcript.trim();
         _listening = false;
-        MobileInfra.permissionPending.current = false;
+        MobileInfra.clearPermissionPending();
         if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
 
         // Auto-send if we got something
@@ -92,14 +92,14 @@ function _initSpeech() {
     _recognition.onerror = function(event) {
         console.warn("[FairyChatSystem] Speech error:", event.error);
         _listening = false;
-        MobileInfra.permissionPending.current = false;
+        MobileInfra.clearPermissionPending();
         if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
     };
 
     _recognition.onend = function() {
         var wasListening = _listening;
         _listening = false;
-        MobileInfra.permissionPending.current = false;
+        MobileInfra.clearPermissionPending();
         if (wasListening && _bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
     };
 }
@@ -447,7 +447,7 @@ function startListening() {
     } catch (e) {
         console.warn("[FairyChatSystem] Failed to start recognition:", e.message);
         _listening = false;
-        MobileInfra.permissionPending.current = false;
+        MobileInfra.clearPermissionPending();
         if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_LISTENING, { active: false });
         _resetIdleTimer();
     }
