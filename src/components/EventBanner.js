@@ -76,15 +76,14 @@ function EventBanner(props) {
             zIndex: T.z.eventBanner,
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 4,
             background: "rgba(0,0,0,0.60)",
             border: "1px solid " + evtColor + "55",
             borderRadius: T.radius.md,
-            padding: "6px 28px",
+            padding: "4px 16px",
             cursor: "pointer",
         }}>
-            <span style={{ fontSize: 28, lineHeight: 1 }}>{mEvent.icon || "\u2728"}</span>
-            <span style={{ fontFamily: "'Cinzel', serif", color: evtColor, fontSize: mEvent.fontSize || 21, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "normal" }}>{mEvent.title || "Daily Event"}</span>
+            <span style={{ fontFamily: "'Cinzel', serif", color: evtColor, fontSize: mEvent.fontSize || 13, letterSpacing: 1, fontWeight: "bold", textShadow: "0 1px 3px rgba(0,0,0,0.9)", whiteSpace: "normal" }}>{mEvent.title || "Daily Event"}</span>
 
             {/* Tooltip popover */}
             {showPop && mEvent.desc && (
@@ -105,6 +104,9 @@ function EventBanner(props) {
                     whiteSpace: "nowrap",
                     zIndex: T.z.options,
                     pointerEvents: "auto",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
                 }}>
                     {/* Arrow nub */}
                     <div style={{
@@ -117,7 +119,8 @@ function EventBanner(props) {
                         borderRight: "6px solid transparent",
                         borderBottom: "6px solid " + T.colors.bgMid,
                     }} />
-                    {mEvent.desc}
+                    <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0 }}>{mEvent.icon || "\u2728"}</span>
+                    <span>{mEvent.desc}</span>
                 </div>
             )}
         </div>

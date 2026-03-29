@@ -187,8 +187,8 @@ function SpriteBar({ pos, tierTable, modifierScale, frozen, hitCols }) {
 
         cols.push(
             <div key={i} style={{
-                width: 10,
-                flexShrink: 0,
+                flex: 1,
+                minWidth: 0,
                 height: height,
                 backgroundImage: "url(" + spriteUrl + ")",
                 backgroundSize: "100% " + height + "px",
@@ -207,7 +207,8 @@ function SpriteBar({ pos, tierTable, modifierScale, frozen, hitCols }) {
             gap: 3,
             alignItems: "flex-end",
             height: BAR_HEIGHT,
-            width: STRIP_W,
+            width: "100%",
+            maxWidth: STRIP_W,
             margin: "0 auto",
         }}>
             {cols}
@@ -227,13 +228,20 @@ function DiamondMarker({ pos, frozen, hitCols }) {
     } else {
         colIndex = Math.round(positionToColumn(pos) / (QTE_COLS - 1) * (BAR_COLS - 1));
     }
-    // Each column center = index * (colWidth + gap) + colWidth/2
-    var leftPx = colIndex * 13 + 5; // 13 = 10px col + 3px gap, 5 = half col width
+    // Position as percentage: each column center is at (index + 0.5) / totalCols
+    // Account for gaps: total width = cols + gaps, each col unit = 1, each gap = 3/10 ≈ 0.3
+    // Simplified: center of column i as fraction of strip
+    var colUnit = 1; // flex:1 per column
+    var gapUnit = 3 / 10; // gap:3 vs ~10px col width ratio
+    var totalUnits = BAR_COLS * colUnit + (BAR_COLS - 1) * gapUnit;
+    var centerUnit = colIndex * (colUnit + gapUnit) + colUnit / 2;
+    var leftPct = (centerUnit / totalUnits) * 100;
 
     return (
         <div style={{
             position: "relative",
-            width: STRIP_W,
+            width: "100%",
+            maxWidth: STRIP_W,
             height: 16,
             margin: "0 auto",
         }}>
@@ -242,7 +250,7 @@ function DiamondMarker({ pos, frozen, hitCols }) {
                 alt=""
                 style={{
                     position: "absolute",
-                    left: leftPx - 8,
+                    left: "calc(" + leftPct.toFixed(2) + "% - 8px)",
                     top: 0,
                     width: 16,
                     height: 16,
@@ -257,7 +265,7 @@ function DiamondMarker({ pos, frozen, hitCols }) {
 
 // --- QTE Panel (manages needle animation and renders the active QTE) ---
 
-function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heatSpeedMult, hammerSpeedMult, quenchSpeedMult, posRef, processingRef, onAutoFire, isSandbox }) {
+function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heatSpeedMult, hammerSpeedMult, quenchSpeedMult, posRef, processingRef, onAutoFire, isSandbox, qualScore, qualityLabel, qualityColor }) {
     var [heatPos, setHeatPos] = useState(0);
     var [needlePos, setNeedlePos] = useState(50);
     var [quenchPos, setQuenchPos] = useState(50);
@@ -424,7 +432,7 @@ function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heat
     if (!isQTE) return null;
 
     var frozen = !!flash;
-    var defaultLabel = phase === PHASES.HEAT ? "CLICK TO PULL FROM FORGE" : phase === PHASES.HAMMER ? "CLICK TO STRIKE" : "CLICK TO QUENCH";
+    var defaultLabel = phase === PHASES.HEAT ? "TAP TO PULL" : phase === PHASES.HAMMER ? "TAP TO STRIKE" : "TAP TO QUENCH";
     var flashColor = !flash ? "#78614a"
         : (flash.indexOf("PERFECT") >= 0 || flash === "SUCCESS!" || flash.indexOf("GREAT") >= 0 || flash.indexOf("GOOD") >= 0 || flash.indexOf("SOLID") >= 0) ? "#4ade80"
             : (flash.indexOf("MISS") >= 0 || flash.indexOf("DESTROY") >= 0 || flash.indexOf("ROUGH") >= 0) ? "#f87171"
@@ -446,26 +454,39 @@ function QTEPanel({ phase, modifierScale, flash, strikesLeft, strikesTotal, heat
         barPos = frozenPos !== null ? frozenPos : quenchPos;
     }
 
+    // Phase accent color
+    var phaseColor = phase === PHASES.QUENCH ? "#60a5fa" : "#f59e0b";
+    var phaseTag = phase === PHASES.HEAT ? "HEAT" : phase === PHASES.HAMMER ? null : "QUENCH";
+
+    // Quality bar width (clamped 0–100)
+    var qPct = Math.min(100, Math.max(0, qualScore || 0));
+
     return (
-        <div style={{ width: "100%", maxWidth: QTE_W, flexShrink: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-            <div style={{ height: 22, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {phase === PHASES.HAMMER ? (
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                        <span style={{ fontSize: 11, color: "#f59e0b", letterSpacing: 2, fontWeight: "bold", marginRight: 6 }}>STRIKES</span>
-                        {Array.from({ length: strikesTotal || 3 }).map(function(_, i) {
+        <div style={{ width: "100%", maxWidth: QTE_W, flexShrink: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* Row 1: Quality mini-bar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, height: 14, padding: "0 2px" }}>
+                <span style={{ fontSize: 8, letterSpacing: 1, fontWeight: "bold", color: qualityColor || "#8a7a64", flexShrink: 0, minWidth: 44 }}>{qualityLabel || ""}</span>
+                <div style={{ flex: 1, height: 8, background: "#0f0b06", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
+                    <div style={{ height: "100%", width: qPct + "%", background: qualityColor || "#f59e0b", borderRadius: 3, transition: "width 0.15s" }} />
+                </div>
+            </div>
+            {/* Row 2: Phase badge / strike pips (left, fixed) + flash/hint text (right) */}
+            <div style={{ height: 20, display: "flex", alignItems: "center", gap: 8, overflow: "hidden" }}>
+                <div style={{ flexShrink: 0, minWidth: 60, display: "flex", alignItems: "center", gap: 4 }}>
+                    {phaseTag && (
+                        <span style={{ fontSize: 9, letterSpacing: 2, fontWeight: "bold", color: phaseColor }}>{phaseTag}</span>
+                    )}
+                    {phase === PHASES.HAMMER && (
+                        Array.from({ length: strikesTotal || 3 }).map(function(_, i) {
                             var used = i >= strikesLeft;
-                            return <div key={i} style={{ width: 16, height: 16, borderRadius: 3, background: used ? "#2a1f0a" : "#f59e0b", border: "2px solid " + (used ? "#3d2e0f" : "#f59e0b"), transition: "background 0.15s" }} />;
-                        })}
-                    </div>
-                ) : (
-                    <span style={{ fontSize: 12, letterSpacing: 2, fontWeight: "bold", color: phase === PHASES.QUENCH ? "#60a5fa" : "#f59e0b", whiteSpace: "nowrap" }}>
-                        {phase === PHASES.HEAT ? "HEATING \u2014 HIT THE GREEN" : "QUENCHING \u2014 AIM FOR CENTER"}
-                    </span>
-                )}
+                            return <div key={i} style={{ width: 12, height: 12, borderRadius: 2, background: used ? "#2a1f0a" : "#f59e0b", border: "1px solid " + (used ? "#3d2e0f" : "#f59e0b"), transition: "background 0.15s" }} />;
+                        })
+                    )}
+                </div>
+                <span style={{ flex: 1, fontSize: 12, letterSpacing: 2, fontWeight: "bold", color: flashColor, whiteSpace: "nowrap", textAlign: "center" }}>{flash || defaultLabel}</span>
+                <div style={{ flexShrink: 0, minWidth: 60 }} />
             </div>
-            <div style={{ height: 18, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 13, letterSpacing: 2, fontWeight: "bold", color: flashColor, whiteSpace: "nowrap" }}>{flash || defaultLabel}</span>
-            </div>
+            {/* Row 3: SpriteBar + needle */}
             <div style={{ width: "100%", overflow: "hidden" }}>
                 <SpriteBar
                     pos={barPos}

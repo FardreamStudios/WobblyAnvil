@@ -329,23 +329,22 @@ function DesktopLayout(props) {
                             {(function() { var ss = resolveSceneState({ phase: phase, scene: activeScene, overrideAction: sceneActionOverride, propOverrides: propOverrides }); return <SceneStage scene={ss.scene} phase={ss.phase} characterAction={ss.characterAction} onCharacterActionComplete={function(nextAction) { setSceneActionOverride(nextAction); }} propOverrides={ss.propOverrides} fxRef={fxRef} sceneFxRef={sceneFxRef} />; })()}
                             <ForgeFireFX active={forgeVM.isForging} />
 
+                            {/* FORGE STATS OVERLAY — anchored to forge area, not UI layer */}
+                            {(phase !== PHASES.IDLE && phase !== PHASES.SELECT && phase !== PHASES.SELECT_MAT && qualScore > 0) && (
+                                <div data-fairy-target="forge_info" style={{ position: "absolute", top: 0, left: 0, width: 160, zIndex: 11 }}><Panel>
+                                    <Row style={{ marginBottom: 3 }}><SectionLabel>MATERIAL</SectionLabel><span style={{ fontSize: 14, color: matData.color, fontWeight: "bold" }}>{matData.name}</span></Row>
+                                    <Row style={{ marginBottom: 3 }}><SectionLabel>WEAPON</SectionLabel><span style={{ fontSize: 14, color: "#f0e6c8", fontWeight: "bold" }}>{weapon.name}</span></Row>
+                                    <Row style={{ marginBottom: 3 }}><SectionLabel>SPEED</SectionLabel><span style={{ fontSize: 12, color: speedColor, fontWeight: "bold" }}>{speedLabel}</span></Row>
+                                    <Row style={{ marginBottom: 3 }}><SectionLabel>STRIKES</SectionLabel><span style={{ fontSize: 12, color: strikeColor, fontWeight: "bold" }}>{strikeLabel}</span></Row>
+                                    <Row style={{ marginTop: 4 }}><SectionLabel>EFF. DIFF</SectionLabel><span style={{ fontSize: 14, color: diffColor, fontWeight: "bold" }}>{effDiff}{matDiffMod > 0 ? " (+" + matDiffMod + " mat)" : ""}</span></Row>
+                                    <Row style={{ marginTop: 4 }}><SectionLabel>QUALITY</SectionLabel><span style={{ fontSize: 14, color: getQualityTier(qualScore).weaponColor, fontWeight: "bold" }}>{getQualityTier(qualScore).label} ({qualScore})</span></Row>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 22, marginTop: 4 }}><SectionLabel>STRESS</SectionLabel><Pips count={STRESS_MAX} filled={stress} filledColor={stressColor} size={14} /></div>
+                                </Panel></div>
+                            )}
+
                             {/* UI LAYER */}
                             <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-end", gap: 4, width: "100%", flex: 1 }}>
                                 {forgeBubble && (<div onClick={function(e) { e.stopPropagation(); setForgeBubble(null); }} style={{ position: "absolute", top: "50%", right: 10, transform: "translateY(-50%)", zIndex: 60, background: "#0c0905", border: "3px solid " + forgeBubble.color, borderRadius: 14, padding: "20px 22px", width: 180, boxShadow: "0 8px 28px rgba(0,0,0,0.97)", cursor: "pointer" }}><div style={{ fontSize: 13, color: forgeBubble.color, letterSpacing: 2, fontWeight: "bold", marginBottom: 10 }}>{forgeBubble.title}</div>{forgeBubble.lines.map(function(l, i) { return <div key={i} style={{ fontSize: 14, color: l.color || "#c8b89a", lineHeight: 1.8, fontWeight: l.bold ? "bold" : "normal" }}>{l.text}</div>; })}<div style={{ fontSize: 8, color: "#4a3c2c", marginTop: 8, letterSpacing: 1 }}>CLICK TO DISMISS</div></div>)}
-
-                                {/* FORGE STATS OVERLAY */}
-                                {(phase !== PHASES.IDLE && phase !== PHASES.SELECT && phase !== PHASES.SELECT_MAT && qualScore > 0) && (
-                                    <div data-fairy-target="forge_info" style={{ position: "absolute", top: 10, left: 10, width: 160, zIndex: 1 }}><Panel>
-                                        <Row style={{ marginBottom: 3 }}><SectionLabel>MATERIAL</SectionLabel><span style={{ fontSize: 14, color: matData.color, fontWeight: "bold" }}>{matData.name}</span></Row>
-                                        <Row style={{ marginBottom: 3 }}><SectionLabel>WEAPON</SectionLabel><span style={{ fontSize: 14, color: "#f0e6c8", fontWeight: "bold" }}>{weapon.name}</span></Row>
-                                        <Row style={{ marginBottom: 3 }}><SectionLabel>SPEED</SectionLabel><span style={{ fontSize: 12, color: speedColor, fontWeight: "bold" }}>{speedLabel}</span></Row>
-                                        <Row style={{ marginBottom: 3 }}><SectionLabel>STRIKES</SectionLabel><span style={{ fontSize: 12, color: strikeColor, fontWeight: "bold" }}>{strikeLabel}</span></Row>
-                                        <Row style={{ marginTop: 4 }}><SectionLabel>EFF. DIFF</SectionLabel><span style={{ fontSize: 14, color: diffColor, fontWeight: "bold" }}>{effDiff}{matDiffMod > 0 ? " (+" + matDiffMod + " mat)" : ""}</span></Row>
-                                        <Row style={{ marginTop: 4 }}><SectionLabel>QUALITY</SectionLabel><span style={{ fontSize: 14, color: getQualityTier(qualScore).weaponColor, fontWeight: "bold" }}>{getQualityTier(qualScore).label} ({qualScore})</span></Row>
-                                        <Bar value={qualScore} max={100} color={getQualityTier(qualScore).weaponColor} h={6} />
-                                        <div style={{ display: "flex", alignItems: "center", gap: 22, marginTop: 4 }}><SectionLabel>STRESS</SectionLabel><Pips count={STRESS_MAX} filled={stress} filledColor={stressColor} size={14} /></div>
-                                    </Panel></div>
-                                )}
 
                                 {/* IDLE STATE */}
                                 {phase === PHASES.IDLE && !activeCustomer && (
@@ -406,7 +405,7 @@ function DesktopLayout(props) {
 
                                 {/* QTE */}
                                 <div data-fairy-target="qte" style={{ background: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "rgba(5, 3, 1, 0.85)" : "transparent", borderRadius: 8, padding: (phase === "heat" || phase === "hammer" || phase === "quench" || phase === "HEAT" || phase === "HAMMER" || phase === "QUENCH") ? "10px 14px" : 0, width: "100%", maxWidth: 500, boxSizing: "border-box", transition: "background 0.3s, padding 0.3s" }}>
-                                    <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} isSandbox={forge.isSandbox} />
+                                    <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} isSandbox={forge.isSandbox} qualScore={qualScore} qualityLabel={getQualityTier(qualScore).label} qualityColor={getQualityTier(qualScore).weaponColor} />
                                 </div>
 
                                 {/* SESSION RESULT */}

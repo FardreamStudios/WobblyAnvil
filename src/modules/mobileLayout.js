@@ -208,9 +208,6 @@ function MobileLayout(props) {
                     <W.Label size="xl" color={props.qualityColor || "gold"} bold>{props.qualScore || 0}</W.Label>
                 </W.Strip>
             </W.Strip>
-            <div style={{ height: 5, background: "#0f0b06", borderRadius: 3, overflow: "hidden", border: "1px solid #2a1f0a" }}>
-                <div style={{ height: "100%", width: Math.min(100, Math.max(0, (props.qualScore || 0))) + "%", background: props.qualityColor || T.colors.gold, borderRadius: 3, transition: "width 0.12s" }} />
-            </div>
             <W.Strip justify="space-between" gap="xs" style={{ minHeight: 20 }}>
                 <W.Label size="md" color="textLabel" spacing="tight" bold font="heading">STRESS</W.Label>
                 <W.Strip gap="xs" center>
@@ -467,13 +464,13 @@ function MobileLayout(props) {
                 {decreeFloat}
                 {repFloat}
                 {notifyBadge}
-                {props.mEvent && !isForging && (
+                {props.mEvent && !isInForgeFlow && (
                     <EventBanner mEvent={props.mEvent} />
                 )}
-                {isForging && props.royalQuest && !props.royalQuest.fulfilled && (
-                    <EventBanner mEvent={{ icon: "\uD83D\uDCDC", title: props.royalQuest.weaponName + " needed", desc: props.royalQuest.minQualityLabel + "+ " + props.royalQuest.materialRequired.toUpperCase(), color: "#f59e0b", fontSize: 16 }} />
+                {isInForgeFlow && props.royalQuest && !props.royalQuest.fulfilled && (
+                    <EventBanner mEvent={{ icon: "\uD83D\uDCDC", title: props.royalQuest.minQualityLabel + "+ " + props.royalQuest.materialRequired.toUpperCase() + " " + props.royalQuest.weaponName, desc: "Royal decree #" + (props.questNum || 1) + " — Reward: " + props.royalQuest.reward + "g", color: "#f59e0b" }} />
                 )}
-                {isForging && (!props.royalQuest || props.royalQuest.fulfilled) && props.mEvent && (
+                {isInForgeFlow && (!props.royalQuest || props.royalQuest.fulfilled) && props.mEvent && (
                     <EventBanner mEvent={props.mEvent} />
                 )}
                 {/* DAY label */}

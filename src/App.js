@@ -555,42 +555,32 @@ export default function App() {
           {/* QTE dark box — only during active QTE phases */}
           {isQTEActive && (
               <div style={{ width: "100%", maxWidth: 400, background: "rgba(8,5,2,0.88)", border: "1px solid #2a1f0a", borderRadius: 10, padding: "8px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
-                <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} isSandbox={forge.isSandbox} />
+                <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} isSandbox={forge.isSandbox} qualScore={qualScore} qualityLabel={getQualityTier(qualScore).label} qualityColor={getQualityTier(qualScore).weaponColor} />
               </div>
           )}
 
           {/* QTEPanel when NOT in dark box (non-QTE forge phases that still need it) */}
           {!isQTEActive && (
-              <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} isSandbox={forge.isSandbox} />
+              <QTEPanel phase={phase} modifierScale={heatModifierScale} flash={qteFlash} strikesLeft={strikesLeft} strikesTotal={BALANCE.baseStrikes + bonusStrikes} heatSpeedMult={heatSpeedMult} hammerSpeedMult={hammerSpeedMult} quenchSpeedMult={quenchSpeedMult} posRef={qtePosRef} processingRef={qteProcessing} onAutoFire={handleAutoFire} isSandbox={forge.isSandbox} qualScore={qualScore} qualityLabel={getQualityTier(qualScore).label} qualityColor={getQualityTier(qualScore).weaponColor} />
           )}
 
           {/* MOBILE WEAPON SELECT */}
           {phase === PHASES.SELECT && (
-              <div data-fairy-target="weapon_select_panel" style={{ position: "absolute", top: "20%", bottom: "20%", right: handedness === "left" ? "30%" : "25%", left: handedness === "left" ? "25%" : "30%", zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
-                <div style={{ fontSize: 12, letterSpacing: 2, color: "#f59e0b", fontWeight: "bold", marginBottom: 6 }}>CHOOSE WEAPON</div>
-                {/* Selected weapon info */}
-                <div style={{ display: "flex", gap: 10, marginBottom: 8, width: "100%", maxWidth: 400 }}>
-                  <div style={{ flex: 1, background: "#120e08", border: "1px solid #f59e0b44", borderRadius: 6, padding: "6px 8px" }}>
-                    <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: "bold", marginBottom: 4 }}>{WEAPONS[wKey].name.toUpperCase()}</div>
-                    <div style={{ fontSize: 9, color: "#8a7a64" }}>COST <span style={{ color: "#c8b89a" }}>{WEAPONS[wKey].materialCost} units</span></div>
-                    <div style={{ fontSize: 9, color: "#8a7a64" }}>SELL <span style={{ color: "#f59e0b" }}>~{referenceValue(wKey)}g</span></div>
-                  </div>
-                  <div style={{ width: 50, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#120e08", border: "1px solid #f59e0b44", borderRadius: 6 }}>
-                    <div style={{ fontSize: 7, color: "#8a7a64", letterSpacing: 1 }}>DIFF</div>
-                    <div style={{ fontSize: 20, color: WEAPONS[wKey].difficulty <= 3 ? "#4ade80" : WEAPONS[wKey].difficulty <= 6 ? "#fbbf24" : WEAPONS[wKey].difficulty <= 8 ? "#fb923c" : "#ef4444", fontWeight: "bold" }}>{WEAPONS[wKey].difficulty}</div>
-                  </div>
-                </div>
+              <div data-fairy-target="weapon_select_panel" style={{ position: "absolute", top: "15%", bottom: "15%", right: handedness === "left" ? "28%" : "22%", left: handedness === "left" ? "22%" : "28%", zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
+                <div style={{ fontSize: 12, letterSpacing: 2, color: "#f59e0b", fontWeight: "bold", marginBottom: 2 }}>CHOOSE WEAPON</div>
+                <div style={{ fontSize: 9, color: "#8a7a64", marginBottom: 6 }}>Requires {WEAPONS[wKey].materialCost} units</div>
                 {/* Weapon list */}
                 <div style={{ flex: 1, width: "100%", maxWidth: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
                   {Object.keys(WEAPONS).filter(function(k) { return unlockedBP.includes(k); }).map(function(k) {
                     var w = WEAPONS[k], isQ = !!(royalQuest && !royalQuest.fulfilled && royalQuest.weaponKey === k), isSel = wKey === k;
+                    var dc = w.difficulty <= 3 ? "#4ade80" : w.difficulty <= 6 ? "#fbbf24" : w.difficulty <= 8 ? "#fb923c" : "#ef4444";
                     return (
                         <div key={k} onClick={function() { sfx.click(); setWKey(k); }} style={{ border: "1px solid " + (isSel ? "#f59e0b" : "#2a1f0a"), borderRadius: 5, padding: "7px 10px", cursor: "pointer", background: isSel ? "#2a1f0a" : "#0a0704", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                             <span style={{ fontSize: 11, color: isSel ? "#f59e0b" : "#f0e6c8", letterSpacing: 1 }}>{w.name.toUpperCase()}</span>
                             {isQ && <span style={{ fontSize: 9, background: "#f59e0b", color: "#0a0704", borderRadius: 3, padding: "1px 5px", fontWeight: "bold" }}>QUEST</span>}
                           </div>
-                          <span style={{ fontSize: 9, color: "#8a7a64" }}>D{w.difficulty}</span>
+                          <span style={{ fontSize: 9, color: "#0a0704", background: dc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + w.difficulty}</span>
                         </div>
                     );
                   })}
@@ -604,53 +594,54 @@ export default function App() {
           )}
 
           {/* MOBILE MATERIAL SELECT */}
-          {phase === PHASES.SELECT_MAT && (
-              <div data-fairy-target="mat_select_panel" style={{ position: "absolute", top: "20%", bottom: "20%", right: handedness === "left" ? "30%" : "25%", left: handedness === "left" ? "25%" : "30%", zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
-                <div style={{ fontSize: 12, letterSpacing: 2, color: "#f59e0b", fontWeight: "bold", marginBottom: 4 }}>CHOOSE MATERIAL</div>
-                <div style={{ fontSize: 9, color: "#8a7a64", marginBottom: 6 }}>{weapon.name} needs {weapon.materialCost} units</div>
-                {/* Selected material info */}
-                <div style={{ display: "flex", gap: 10, marginBottom: 8, width: "100%", maxWidth: 400 }}>
-                  <div style={{ flex: 1, background: "#120e08", border: "1px solid " + MATS[matKey].color + "44", borderRadius: 6, padding: "6px 8px" }}>
-                    <div style={{ fontSize: 11, color: MATS[matKey].color, fontWeight: "bold", marginBottom: 4 }}>{MATS[matKey].name.toUpperCase()}</div>
-                    <div style={{ fontSize: 9, color: "#8a7a64" }}>STOCK <span style={{ color: (inv[matKey] || 0) >= weapon.materialCost ? "#4ade80" : "#ef4444" }}>{inv[matKey] || 0} units</span></div>
-                    <div style={{ fontSize: 9, color: "#8a7a64" }}>VALUE <span style={{ color: "#c8b89a" }}>x{MATS[matKey].valueMultiplier}</span></div>
-                  </div>
-                  <div style={{ width: 50, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#120e08", border: "1px solid " + MATS[matKey].color + "44", borderRadius: 6 }}>
-                    <div style={{ fontSize: 7, color: "#8a7a64", letterSpacing: 1 }}>+DIFF</div>
-                    <div style={{ fontSize: 20, color: MATS[matKey].difficultyModifier < 0 ? "#4ade80" : MATS[matKey].difficultyModifier === 0 ? "#c8b89a" : MATS[matKey].difficultyModifier <= 3 ? "#fbbf24" : "#fb923c", fontWeight: "bold" }}>{MATS[matKey].difficultyModifier > 0 ? "+" : ""}{MATS[matKey].difficultyModifier}</div>
-                  </div>
-                </div>
-                {/* Material list */}
-                <div style={{ flex: 1, width: "100%", maxWidth: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
-                  {Object.entries(MATS).map(function(e) {
-                    var k = e[0], m = e[1], have = inv[k] || 0, enough = have >= weapon.materialCost;
-                    var isQ = !!(royalQuest && !royalQuest.fulfilled && royalQuest.materialRequired === k);
-                    var isSel = matKey === k, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[k].price * needed, canBuy = needed > 0 && gold >= buyPrice;
-                    var canSelect = enough || canBuy;
-                    return (
-                        <div key={k} onClick={canSelect ? function() { sfx.click(); setMatKey(k); } : null} style={{ border: "1px solid " + (isSel ? "#f59e0b" : canSelect ? "#2a1f0a" : "#1a1209"), borderRadius: 5, padding: "7px 10px", cursor: canSelect ? "pointer" : "not-allowed", background: isSel ? "#2a1f0a" : "#0a0704", display: "flex", justifyContent: "space-between", alignItems: "center", opacity: canSelect ? 1 : 0.4 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 11, color: isSel ? m.color : canSelect ? m.color : "#3d2e0f", letterSpacing: 1, fontWeight: "bold" }}>{m.name.toUpperCase()}</span>
-                            {isQ && <span style={{ fontSize: 9, background: "#f59e0b", color: "#0a0704", borderRadius: 3, padding: "1px 5px", fontWeight: "bold" }}>QUEST</span>}
+          {phase === PHASES.SELECT_MAT && (function() {
+            var matHave = inv[matKey] || 0;
+            var matNeed = weapon.materialCost;
+            var matShort = Math.max(0, matNeed - matHave);
+            var matBuyTotal = matShort * MATS[matKey].price;
+            var canAffordBuy = gold >= matBuyTotal;
+            var stockColor = matHave >= matNeed ? "#4ade80" : "#ef4444";
+            return (
+                <div data-fairy-target="mat_select_panel" style={{ position: "absolute", top: "15%", bottom: "15%", right: handedness === "left" ? "28%" : "22%", left: handedness === "left" ? "22%" : "28%", zIndex: 30, background: "rgba(10,7,4,0.95)", display: "flex", flexDirection: "column", alignItems: "center", padding: 10, overflow: "hidden" }}>
+                  <div style={{ fontSize: 12, letterSpacing: 2, color: "#f59e0b", fontWeight: "bold", marginBottom: 2 }}>CHOOSE MATERIAL</div>
+                  <div style={{ fontSize: 9, color: "#8a7a64", marginBottom: 6 }}>{weapon.name} needs {matNeed} units — <span style={{ color: stockColor }}>{matHave} in stock</span></div>
+                  {/* Material list */}
+                  <div style={{ flex: 1, width: "100%", maxWidth: 400, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
+                    {Object.entries(MATS).map(function(e) {
+                      var k = e[0], m = e[1], have = inv[k] || 0, enough = have >= weapon.materialCost;
+                      var isQ = !!(royalQuest && !royalQuest.fulfilled && royalQuest.materialRequired === k);
+                      var isSel = matKey === k, needed = Math.max(0, weapon.materialCost - have), buyPrice = MATS[k].price * needed, canBuy = needed > 0 && gold >= buyPrice;
+                      var canSelect = enough || canBuy;
+                      var dm = m.difficultyModifier;
+                      var dmc = dm < 0 ? "#4ade80" : dm === 0 ? "#c8b89a" : dm <= 3 ? "#fbbf24" : "#fb923c";
+                      return (
+                          <div key={k} onClick={canSelect ? function() { sfx.click(); setMatKey(k); } : null} style={{ border: "1px solid " + (isSel ? "#f59e0b" : canSelect ? "#2a1f0a" : "#1a1209"), borderRadius: 5, padding: "7px 10px", cursor: canSelect ? "pointer" : "not-allowed", background: isSel ? "#2a1f0a" : "#0a0704", display: "flex", justifyContent: "space-between", alignItems: "center", opacity: canSelect ? 1 : 0.4 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontSize: 11, color: isSel ? m.color : canSelect ? m.color : "#3d2e0f", letterSpacing: 1, fontWeight: "bold" }}>{m.name.toUpperCase()}</span>
+                              {isQ && <span style={{ fontSize: 9, background: "#f59e0b", color: "#0a0704", borderRadius: 3, padding: "1px 5px", fontWeight: "bold" }}>QUEST</span>}
+                            </div>
+                            <span style={{ fontSize: 9, color: "#0a0704", background: dmc, borderRadius: 3, padding: "2px 6px", fontWeight: "bold", minWidth: 20, textAlign: "center" }}>{"Diff " + (dm > 0 ? "+" : "") + dm}</span>
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <span style={{ fontSize: 9, color: "#8a7a64" }}>{have}/{weapon.materialCost}</span>
-                            {needed > 0 && <span style={{ fontSize: 9, color: canBuy ? "#f59e0b" : "#ef4444", fontWeight: "bold" }}>{canBuy ? needed + "x" + MATS[k].price + "g" : "NO GOLD"}</span>}
-                          </div>
-                        </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                  {/* Buy materials — always reserves space, only visible when short */}
+                  <div style={{ width: "100%", maxWidth: 400, height: 32, marginTop: 4, display: "flex", justifyContent: "center" }}>
+                    {matShort > 0 && (
+                        <button onClick={canAffordBuy ? function() { sfx.click(); onBuy(matKey, matShort, MATS[matKey].price); } : null} disabled={!canAffordBuy} style={{ background: canAffordBuy ? "#1a1500" : "#0a0704", border: "1px solid " + (canAffordBuy ? "#f59e0b" : "#1a1209"), borderRadius: 6, color: canAffordBuy ? "#f59e0b" : "#4a3c2c", padding: "4px 16px", fontSize: 10, cursor: canAffordBuy ? "pointer" : "not-allowed", letterSpacing: 1, fontFamily: "'Josefin Sans', sans-serif", fontWeight: "bold" }}>{"BUY " + matShort + " " + MATS[matKey].name.toUpperCase() + " \u2014 " + matBuyTotal + "g"}</button>
+                    )}
+                  </div>
+                  {/* Buttons */}
+                  <div style={{ position: "relative", width: "100%", maxWidth: 400, marginTop: 4, height: 40 }}>
+                    <button onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", background: "#141009", border: "2px solid #3d2e0f", borderRadius: 6, color: "#8a7a64", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>BACK</button>
+                    {(function() {
+                      var canConfirm = !input.confirmSelect.disabled;
+                      return <button data-fairy-target="btn_confirm" onClick={canConfirm ? function() { sfx.click(); confirmSelect(); } : null} disabled={!canConfirm} style={{ position: "absolute", right: handedness === "left" ? "auto" : 0, left: handedness === "left" ? 0 : "auto", background: canConfirm ? "#2a1f0a" : "#0a0704", border: "2px solid " + (canConfirm ? "#f59e0b" : "#1a1209"), borderRadius: 6, color: canConfirm ? "#f59e0b" : "#2a1f0a", padding: "8px 24px", fontSize: 12, cursor: canConfirm ? "pointer" : "not-allowed", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>CONFIRM</button>;
+                    })()}
+                  </div>
                 </div>
-                {/* Buttons */}
-                <div style={{ position: "relative", width: "100%", maxWidth: 400, marginTop: 8, height: 40 }}>
-                  <button onClick={function() { sfx.click(); setPhase(PHASES.SELECT); }} style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", background: "#141009", border: "2px solid #3d2e0f", borderRadius: 6, color: "#8a7a64", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>BACK</button>
-                  {(function() {
-                    var canConfirm = !input.confirmSelect.disabled;
-                    return <button data-fairy-target="btn_confirm" onClick={canConfirm ? function() { sfx.click(); confirmSelect(); } : null} disabled={!canConfirm} style={{ position: "absolute", right: handedness === "left" ? "auto" : 0, left: handedness === "left" ? 0 : "auto", background: canConfirm ? "#2a1f0a" : "#0a0704", border: "2px solid " + (canConfirm ? "#f59e0b" : "#1a1209"), borderRadius: 6, color: canConfirm ? "#f59e0b" : "#2a1f0a", padding: "8px 24px", fontSize: 12, cursor: canConfirm ? "pointer" : "not-allowed", letterSpacing: 1, fontFamily: "monospace", fontWeight: "bold", textTransform: "uppercase" }}>CONFIRM</button>;
-                  })()}
-                </div>
-              </div>
-          )}
+            );
+          })()}
         </div>
     );
 
