@@ -202,9 +202,14 @@ function handleCommand(cmd) {
         var anim = _animRef && _animRef.current;
         if (!anim) return;
 
-        // Resolve destination
+        // Overlay mode: use spot x/y but force scale 1.0 (no depth shrink)
+        // Scene mode: full depth-curve resolution
+        var isOverlay = _activeCue && _activeCue.layer === "overlay";
         var dest = _resolveSceneSpot(cmd.spot);
         if (!dest) return;
+
+        var moveScale = isOverlay ? 1.0 : (dest.scale || 1.0);
+        var moveTOrigin = isOverlay ? "50% 50%" : "50% 100%";
 
         var oldPos = _currentPos || { x: 50, y: 50, scale: 1.0 };
 
@@ -217,7 +222,7 @@ function handleCommand(cmd) {
             anim.setPos({
                 x: oldPos.x, y: oldPos.y, scale: 0.05,
                 rot: 0, transition: 200,
-                transformOrigin: "50% 100%",
+                transformOrigin: moveTOrigin,
             });
         }, POOF_FX_LEAD_MS);
 
@@ -231,18 +236,18 @@ function handleCommand(cmd) {
             anim.setPos({
                 x: dest.x, y: dest.y, scale: 0.05,
                 rot: 0, transition: 0,
-                transformOrigin: "50% 100%",
+                transformOrigin: moveTOrigin,
             });
             _scheduleTimer(function() {
                 anim.setPos({
-                    x: dest.x, y: dest.y, scale: dest.scale || 1.0,
+                    x: dest.x, y: dest.y, scale: moveScale,
                     rot: 0, transition: POOF_SNAP_IN_MS,
-                    transformOrigin: "50% 100%",
+                    transformOrigin: moveTOrigin,
                 });
             }, 50);
         }, POOF_FX_LEAD_MS + 300 + POOF_FX_LEAD_MS);
 
-        _currentPos = { x: dest.x, y: dest.y, scale: dest.scale || 1.0 };
+        _currentPos = { x: dest.x, y: dest.y, scale: moveScale };
         return;
     }
 
