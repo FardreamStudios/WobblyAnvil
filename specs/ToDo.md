@@ -45,6 +45,8 @@
 - [x] **Fairy chat bus decoupling** — 8 files touched. New `src/fairy/fairyChatSystem.js` pure JS singleton owns chat lifecycle, speech recognition, idle timeout, message history. `useFairyChatVM.js` is thin React bridge. `fairyController.js` and `fairyPawn.js` decoupled from chat state. New bus tags for chat open/close/send/receive/listening.
 - [x] **Cloudflare Worker deployed** — `wobbly-anvil-fairy.wobblyforge.workers.dev` live. Proxy forwards to Anthropic Messages API. CORS, role merging, error handling. Debug logging stripped from `fairy-worker.js`.
 - [x] **Fairy LLM live mode** — `fairyConfig.js` set to `mode: "live"` with worker URL. Fairy chat confirmed working end-to-end: poof in → persistent → speech bubble → live API responses → dismiss.
+- [x] **Mic permission priming + fullscreen recovery** — `MicPrompt.js` gates game start, collects mic permission BEFORE fullscreen engages. Uses Permissions API every load (no localStorage flags). Handles "Allow this time" vs "Allow while visiting" vs "Deny" automatically. `FairyChatSystem.disableSpeech()` kills speech recognition if player skips/denies. Root cause fullscreen fix: `clearPermissionPending()` in `useMobileInfra.js` kicks recovery chain when mic dialog resolves (was dying because `isFull` effect already ran). Swipe-up gesture (`useSwipeFullscreen`) as manual fallback. Files: `MicPrompt.js` (new), `App.js`, `fairyChatSystem.js`, `useMobileInfra.js`, `mobileLayout.js`.
+- [x] **Fairy speech beep routed through global audio** — `playSpeechBeep` in `FairyAnimInstance.js` now routes through `sfx.getContext()` / `sfx.getSfxGain()` with `FAIRY_VOICE_GAIN = 0.65` (35% base reduction). Respects SFX volume slider and mute toggle. `audio.js` exposes `getContext()` and `getSfxGain()` on API. Button sounds (`playPop`, `playAccept`, `playDecline`) unchanged — still `new Audio()`. Files: `FairyAnimInstance.js`, `audio.js`, `App.js` (adds `sfx={sfx}` prop).
 
 ---
 
@@ -88,7 +90,7 @@ Forge tutorial shipped using sandbox auto-freeze instead. QTE Pause is only need
 - [x] **Cloudflare Worker setup** — Account created, proxy worker deployed with API key secret. Live at `wobbly-anvil-fairy.wobblyforge.workers.dev`.
 - [x] **Wire into fairyController.js** — Tier 2 dialogue calls for complex state combos. `fairyAPI.js` routes through worker. `fairyChatSystem.js` handles multi-turn chat. Bus-driven decoupling complete.
 - [ ] **Tune LLM fairy setup** — System prompt refinement (voice consistency, response constraints), max_tokens tuning, game state snapshot shape optimization, response quality/length testing, conversation safety guardrails. Files: `fairyPersonality.js` (SYSTEM_PROMPT), `fairy-worker.js` (MAX_TOKENS), `fairyChatSystem.js` (state builder).
-- [ ] **fairyMic.js** — Voice input via Web Speech API (future).
+- [x] **fairyMic.js** — Voice input lives in `fairyChatSystem.js` (Web Speech API hold-to-talk). Mic permission priming handled by `MicPrompt.js` at game start.
 - [ ] **FTUE via LLM** — Fairy as primary onboarding via voice/text conversation (future).
 
 ### Gameplay
@@ -101,7 +103,7 @@ Forge tutorial shipped using sandbox auto-freeze instead. QTE Pause is only need
 - [ ] **Audit App.js responsibilities** — App.js still owns toast plumbing, customer display wiring, and some state that should live in subsystems. Target: ~100 lines of pure wiring (instantiate systems, connect, render). Identify what can be extracted into pure JS singletons or moved into existing hooks/VMs.
 - [ ] **Verify UX multi-function buttons** — Stamina-use buttons should call wait/rest inline.
 - [ ] **Fix shelf images** — Remove visible background border on weapon shelf display sprites.
-- [ ] **FairyAnimInstance audio cleanup** — `new Audio()` direct usage in `src/fairy/FairyAnimInstance.js` should wire through main audio system for volume/mute consistency.
+- [ ] **FairyAnimInstance audio cleanup (remaining)** — Speech beep done (routes through global SFX gain). Button sounds (`playPop`, `playAccept`, `playDecline`) in `FairyAnimInstance.js` still use `new Audio()` directly — wire through main audio system for volume/mute consistency when needed.
 - [ ] **Delete old FairyAnim.js** — `src/components/FairyAnim.js` replaced by `src/fairy/FairyAnimInstance.js`. Remove if still on disk.
 - [ ] **Remove `devSkipPersist: true`** — In App.js FairyController init. Remove once forge tutorial end-to-end is verified on both mobile + desktop.
 - [ ] **Strip debug logs from forgeTutorial.js** — `console.log` calls on init, step advance, auto_delay, wait_event. Remove after forge tutorial build is complete.
