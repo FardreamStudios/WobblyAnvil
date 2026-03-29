@@ -275,6 +275,7 @@ function BattleTransition(props) {
         zIndex: 9999,
         pointerEvents: "none",
         overflow: "hidden",
+        background: "#000000",
     };
 
     var canvasStyle = {

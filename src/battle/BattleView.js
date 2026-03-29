@@ -1,137 +1,124 @@
 // ============================================================
-// BattleView.js — Battle Layout Shell (Landscape)
+// BattleView.js — Battle Layout (Four-Zone Landscape)
 //
-// Two-panel landscape split for ATB combat.
-// Scene panel (visual, no input) + Action panel (all input).
-// Handedness-aware: panels flip sides based on config.
+// Four-zone layout:
+//   TOP    (~65%) = Scene — enemy formation left, party right
+//   BOT-L  (16vw) = Open real estate (buffs, status, fairy)
+//   BOT-C  (flex) = ATB gauges (all combatants)
+//   BOT-R  (18vw) = Action menu (2x2 grid)
 //
-// This is the empty shell — no battle logic, no ATB, no QTE.
-// Content will be added as subsystems are built.
+// Action camera: combatants translate to center stage,
+//   inactive dim, ATB/actions hide, QTE zone + comic panel show.
+//
+// Exchange: attack QTE → resolve → counter → defense QTE →
+//   resolve → cam out. Sequenced via phase state machine.
+//
+// Self-contained: no host imports, no bus, no singletons.
+// Uses test data from battleConstants for dev/prototype.
 //
 // Props:
-//   handedness — "left" | "right" (flips panel sides)
-//   onExit — callback to leave battle and return to idle
-//   zoneName — display name of current zone (e.g. "Dumpster Row")
-//   waveLabel — display string (e.g. "Wave 1/3")
+//   handedness — "left" | "right" (flips action menu side)
+//   onExit     — callback to leave battle
+//   zoneName   — display name of current zone
+//   waveLabel  — display string (e.g. "Wave 1/3")
 //
-// UE ANALOGY: The UMG layout widget for the battle HUD.
-//   Content widgets mount inside it. It owns positioning only.
+// Export shape preserved: BattleViewModule.BattleView
 // ============================================================
 
-var PANEL_SCENE_PCT = 55;
-var PANEL_ACTION_PCT = 45;
+import { useState, useRef, useEffect, useCallback } from "react";
+import BattleConstants from "./battleConstants.js";
+import "./BattleView.css";
+
+var PHASES = BattleConstants.BATTLE_PHASES;
+var ACTION_CAM = BattleConstants.ACTION_CAM;
+var EXCHANGE = BattleConstants.EXCHANGE;
+var ACTIONS = BattleConstants.ACTIONS;
+var TEST_PARTY = BattleConstants.TEST_PARTY;
+var TEST_ENEMIES = BattleConstants.TEST_ENEMIES;
 
 // ============================================================
-// Scene Panel — Left (or Right if left-handed)
-// Visual only. No touch input.
+// DEV FLAG — show phase controls overlay
+// ============================================================
+var _DEV_CONTROLS = true;
+
+// ============================================================
+// COMIC PANEL LINES — fairy speech per phase
+// ============================================================
+var COMIC_LINES = {};
+COMIC_LINES[PHASES.ACTION_CAM_IN]    = "Let's get 'em!";
+COMIC_LINES[PHASES.QTE_ACTIVE]       = "Nail the timing!";
+COMIC_LINES[PHASES.RESOLVING]        = "Nice swing!";
+COMIC_LINES[PHASES.ENEMY_TELEGRAPH]  = "Watch out!";
+COMIC_LINES[PHASES.DEFENSE_QTE]      = "Block it! Block!";
+COMIC_LINES[PHASES.ACTION_CAM_OUT]   = "Not bad!";
+
+// ============================================================
+// PHASE DISPLAY LABELS
+// ============================================================
+var PHASE_LABELS = {};
+PHASE_LABELS[PHASES.ATB_RUNNING]     = "ATB RUNNING";
+PHASE_LABELS[PHASES.ACTION_SELECT]   = "ACTION SELECT";
+PHASE_LABELS[PHASES.ACTION_CAM_IN]   = "ACTION CAM IN";
+PHASE_LABELS[PHASES.QTE_ACTIVE]      = "ATTACK QTE";
+PHASE_LABELS[PHASES.RESOLVING]       = "RESOLVING";
+PHASE_LABELS[PHASES.ENEMY_TELEGRAPH] = "COUNTER";
+PHASE_LABELS[PHASES.DEFENSE_QTE]     = "DEFENSE QTE";
+PHASE_LABELS[PHASES.ACTION_CAM_OUT]  = "CAM OUT";
+
+// ============================================================
+// Combatant — single fighter card
 // ============================================================
 
-function ScenePanel(props) {
+function Combatant(props) {
+    var c = props.data;
+    var isParty = props.isParty;
+    var isActive = props.phase !== PHASES.ATB_RUNNING && props.phase !== PHASES.ACTION_SELECT && props.phase !== PHASES.ACTION_CAM_OUT;
+
+    var isDimmed = isActive && c.id !== props.attackerId && c.id !== props.targetId;
+    var isAttacker = isActive && c.id === props.attackerId;
+    var isTarget = isActive && c.id === props.targetId;
+
+    var cls = "battle-combatant";
+    if (isParty) cls += " battle-combatant--party";
+    if (isDimmed) cls += " battle-combatant--dimmed";
+    if (isAttacker) cls += " battle-combatant--attacker";
+    if (isTarget) cls += " battle-combatant--target";
+
+    // Compute slide transform for action cam
+    var style = {};
+    if ((isAttacker || isTarget) && props.sceneRect) {
+        var sr = props.sceneRect;
+        var cx = sr.width / 2;
+        var cy = sr.height / 2;
+        var el = props.elRef;
+        if (el) {
+            var r = el.getBoundingClientRect();
+            var myX = r.left - sr.left + r.width / 2;
+            var myY = r.top - sr.top + r.height / 2;
+            var gap = sr.width * 0.08;
+            var destX = isAttacker ? cx + gap : cx - gap;
+            var dx = destX - myX;
+            var dy = cy - myY;
+            style.transform = "translate(" + dx + "px, " + dy + "px) scale(" + ACTION_CAM.activeScale + ")";
+            style.zIndex = 10;
+        }
+    }
+
+    var hpPct = c.maxHP > 0 ? Math.round(c.currentHP / c.maxHP * 100) : 0;
+    var fillCls = "battle-hp-fill " + (isParty ? "battle-hp-fill--party" : "battle-hp-fill--enemy");
+
     return (
-        <div style={{
-            width: PANEL_SCENE_PCT + "%",
-            height: "100%",
-            position: "relative",
-            overflow: "hidden",
-            background: "#0d0b08",
-            borderRight: props.side === "left" ? "1px solid #2a1f0a" : "none",
-            borderLeft: props.side === "right" ? "1px solid #2a1f0a" : "none",
-        }}>
-            {/* Zone name */}
-            <div style={{
-                position: "absolute",
-                top: "3%",
-                left: "50%",
-                transform: "translateX(-50%)",
-                fontFamily: "monospace",
-                fontSize: "clamp(10px, 2vw, 14px)",
-                letterSpacing: 2,
-                color: "#8a7a64",
-                textTransform: "uppercase",
-            }}>
-                {props.zoneName || "UNKNOWN ZONE"}
-            </div>
-
-            {/* Enemy placeholder */}
-            <div style={{
-                position: "absolute",
-                top: "15%",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "30%",
-                aspectRatio: "1",
-                border: "1px dashed #3d2e0f",
-                borderRadius: 8,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: "monospace",
-                fontSize: "clamp(9px, 1.5vw, 12px)",
-                color: "#5a4a34",
-            }}>
-                ENEMY
-            </div>
-
-            {/* Enemy HP placeholder */}
-            <div style={{
-                position: "absolute",
-                top: "58%",
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "40%",
-                height: 8,
-                borderRadius: 4,
-                background: "#1a1408",
-                border: "1px solid #2a1f0a",
-                overflow: "hidden",
-            }}>
-                <div style={{
-                    width: "70%",
-                    height: "100%",
-                    background: "#E24B4A",
-                    borderRadius: 4,
-                }} />
-            </div>
-
-            {/* Player placeholder */}
-            <div style={{
-                position: "absolute",
-                bottom: "25%",
-                left: "15%",
-                width: "12%",
-                aspectRatio: "3/4",
-                border: "1px dashed #3d2e0f",
-                borderRadius: 6,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: "monospace",
-                fontSize: "clamp(8px, 1.2vw, 10px)",
-                color: "#5a4a34",
-            }}>
-                YOU
-            </div>
-
-            {/* Speech lane */}
-            <div style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: "20%",
-                display: "flex",
-                alignItems: "center",
-                padding: "0 4%",
-                gap: "3%",
-                background: "rgba(5, 3, 1, 0.4)",
-            }}>
-                <div style={{
-                    fontFamily: "monospace",
-                    fontSize: "clamp(9px, 1.5vw, 12px)",
-                    color: "#5a4a34",
-                    fontStyle: "italic",
-                }}>
-                    Speech lane — party bubbles appear here
+        <div
+            className={cls}
+            style={style}
+            ref={props.setRef}
+            onClick={props.onClick}
+        >
+            <span className="battle-combatant__sprite">{c.sprite}</span>
+            <div className="battle-combatant__info">
+                <span className="battle-combatant__name">{c.name}</span>
+                <div className="battle-hp-bg">
+                    <div className={fillCls} style={{ width: hpPct + "%" }} />
                 </div>
             </div>
         </div>
@@ -139,157 +126,145 @@ function ScenePanel(props) {
 }
 
 // ============================================================
-// Action Panel — Right (or Left if left-handed)
-// All input happens here.
+// ATB Gauge Strip
 // ============================================================
 
-function ActionPanel(props) {
-    var onExit = props.onExit;
+function ATBGaugeStrip(props) {
+    var hidden = props.hidden;
+    var cls = "battle-atb" + (hidden ? " battle-atb--hidden" : "");
 
     return (
-        <div style={{
-            width: PANEL_ACTION_PCT + "%",
-            height: "100%",
-            position: "relative",
-            overflow: "hidden",
-            background: "#0a0804",
-            display: "flex",
-            flexDirection: "column",
-        }}>
-            {/* Top: Wave indicator + status bars */}
-            <div style={{
-                padding: "3% 5% 2%",
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-            }}>
-                {/* Wave label */}
-                <div style={{
-                    fontFamily: "monospace",
-                    fontSize: "clamp(9px, 1.5vw, 12px)",
-                    letterSpacing: 2,
-                    color: "#8a7a64",
-                    textTransform: "uppercase",
-                    textAlign: "right",
-                }}>
-                    {props.waveLabel || "WAVE 1/3"}
-                </div>
-
-                {/* Player HP */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{
-                        fontFamily: "monospace",
-                        fontSize: "clamp(8px, 1.3vw, 11px)",
-                        color: "#8a7a64",
-                        minWidth: 24,
-                    }}>HP</span>
-                    <div style={{
-                        flex: 1,
-                        height: 8,
-                        borderRadius: 4,
-                        background: "#1a1408",
-                        border: "1px solid #2a1f0a",
-                        overflow: "hidden",
-                    }}>
-                        <div style={{
-                            width: "80%",
-                            height: "100%",
-                            background: "#1D9E75",
-                            borderRadius: 4,
-                            transition: "width 300ms",
-                        }} />
+        <div className={cls}>
+            {props.combatants.map(function(c) {
+                var isParty = c._isParty;
+                var fillCls = "battle-atb__bar-fill " + (isParty ? "battle-atb__bar-fill--party" : "battle-atb__bar-fill--enemy");
+                return (
+                    <div className="battle-atb__row" key={c.id}>
+                        <span className="battle-atb__label">{c.name}</span>
+                        <div className="battle-atb__bar-bg">
+                            <div className={fillCls} style={{ width: (c._atb || 0) + "%" }} />
+                        </div>
                     </div>
-                </div>
+                );
+            })}
+        </div>
+    );
+}
 
-                {/* ATB gauge */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{
-                        fontFamily: "monospace",
-                        fontSize: "clamp(8px, 1.3vw, 11px)",
-                        color: "#8a7a64",
-                        minWidth: 24,
-                    }}>ATB</span>
-                    <div style={{
-                        flex: 1,
-                        height: 8,
-                        borderRadius: 4,
-                        background: "#1a1408",
-                        border: "1px solid #2a1f0a",
-                        overflow: "hidden",
-                    }}>
-                        <div style={{
-                            width: "0%",
-                            height: "100%",
-                            background: "#378ADD",
-                            borderRadius: 4,
-                            transition: "width 100ms",
-                        }} />
-                    </div>
-                </div>
-            </div>
+// ============================================================
+// Action Menu — 2x2 grid
+// ============================================================
 
-            {/* Center: QTE zone (tap target area) */}
-            <div style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                position: "relative",
-            }}>
-                <div style={{
-                    width: "60%",
-                    aspectRatio: "1",
-                    border: "1px dashed #2a1f0a",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontFamily: "monospace",
-                    fontSize: "clamp(9px, 1.5vw, 12px)",
-                    color: "#3d2e0f",
-                }}>
-                    QTE ZONE
-                </div>
-            </div>
+function ActionMenu(props) {
+    var hidden = props.hidden;
+    var cls = "battle-actions" + (hidden ? " battle-actions--hidden" : "");
 
-            {/* Bottom: Action buttons */}
-            <div style={{
-                padding: "2% 5% 4%",
-                display: "flex",
-                gap: "2%",
-            }}>
-                {["ATTACK", "DEFEND", "ITEM", "FLEE"].map(function(label) {
-                    var colors = {
-                        ATTACK: { bg: "#1a1428", border: "#60a5fa", color: "#60a5fa" },
-                        DEFEND: { bg: "#0a1a14", border: "#4ade80", color: "#4ade80" },
-                        ITEM:   { bg: "#1a1408", border: "#f59e0b", color: "#f59e0b" },
-                        FLEE:   { bg: "#141009", border: "#8a7a64", color: "#8a7a64" },
-                    };
-                    var c = colors[label];
-                    return (
-                        <button
-                            key={label}
-                            onClick={label === "FLEE" ? onExit : undefined}
-                            style={{
-                                flex: 1,
-                                background: c.bg,
-                                border: "1px solid " + c.border,
-                                borderRadius: 6,
-                                color: c.color,
-                                fontFamily: "monospace",
-                                fontSize: "clamp(8px, 1.5vw, 12px)",
-                                fontWeight: "bold",
-                                letterSpacing: 1,
-                                padding: "8px 4px",
-                                cursor: "pointer",
-                                textTransform: "uppercase",
-                            }}
-                        >
-                            {label}
-                        </button>
-                    );
-                })}
-            </div>
+    return (
+        <div className={cls}>
+            {ACTIONS.map(function(a) {
+                return (
+                    <button
+                        key={a.id}
+                        className="battle-action-btn"
+                        style={{ color: a.color, borderColor: a.color + "44", background: a.bg }}
+                        onClick={function() { if (props.onAction) props.onAction(a.id); }}
+                    >
+                        {a.label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// ============================================================
+// QTE Zone — overlay placeholder
+// ============================================================
+
+function QTEZone(props) {
+    var visible = props.visible;
+    var isDefense = props.isDefense;
+
+    var cls = "battle-qte" + (visible ? " battle-qte--visible" : "");
+    var ringCls = "battle-qte__ring" + (isDefense ? " battle-qte__ring--defense" : "");
+
+    return (
+        <div className={cls}>
+            <div className={ringCls}>TAP</div>
+            <span className="battle-qte__label">{isDefense ? "defense qte" : "attack qte"}</span>
+        </div>
+    );
+}
+
+// ============================================================
+// Comic Panel — fairy portrait + speech bubble
+// ============================================================
+
+function ComicPanel(props) {
+    var visible = props.visible;
+    var cls = "battle-comic" + (visible ? " battle-comic--visible" : "");
+
+    return (
+        <div className={cls}>
+            <div className="battle-comic__portrait">{props.sprite || "\uD83E\uDDDA"}</div>
+            <div className="battle-comic__name">{props.name || "FAIRY"}</div>
+            <div className="battle-comic__bubble">{props.line || "..."}</div>
+        </div>
+    );
+}
+
+// ============================================================
+// Dev Controls — phase stepping overlay
+// ============================================================
+
+function DevControls(props) {
+    if (!_DEV_CONTROLS) return null;
+
+    var phaseOrder = [
+        PHASES.ATB_RUNNING,
+        PHASES.ACTION_CAM_IN,
+        PHASES.QTE_ACTIVE,
+        PHASES.RESOLVING,
+        PHASES.ENEMY_TELEGRAPH,
+        PHASES.DEFENSE_QTE,
+        PHASES.ACTION_CAM_OUT,
+    ];
+
+    var shortLabels = {};
+    shortLabels[PHASES.ATB_RUNNING]     = "Normal";
+    shortLabels[PHASES.ACTION_CAM_IN]   = "Cam In";
+    shortLabels[PHASES.QTE_ACTIVE]      = "Atk QTE";
+    shortLabels[PHASES.RESOLVING]       = "Resolve";
+    shortLabels[PHASES.ENEMY_TELEGRAPH] = "Counter";
+    shortLabels[PHASES.DEFENSE_QTE]     = "Def QTE";
+    shortLabels[PHASES.ACTION_CAM_OUT]  = "Cam Out";
+
+    return (
+        <div className="battle-dev">
+            {phaseOrder.map(function(p) {
+                var cls = "battle-dev__btn" + (props.phase === p ? " battle-dev__btn--active" : "");
+                return (
+                    <button key={p} className={cls} onClick={function() { props.onSetPhase(p); }}>
+                        {shortLabels[p]}
+                    </button>
+                );
+            })}
+            <div className="battle-dev__sep" />
+            {props.enemies.map(function(e) {
+                var active = e.id === props.targetId;
+                var cls = "battle-dev__btn" + (active ? " battle-dev__btn--active" : "");
+                return (
+                    <button key={e.id} className={cls} onClick={function() { props.onSetTarget(e.id); }}>
+                        {"vs " + e.name}
+                    </button>
+                );
+            })}
+            <div className="battle-dev__sep" />
+            <button className="battle-dev__btn" onClick={props.onToggleATB}>
+                {props.atbRunning ? "Pause ATB" : "Run ATB"}
+            </button>
+            <button className="battle-dev__btn" onClick={props.onExit}>Exit</button>
+            <span className="battle-dev__badge">{PHASE_LABELS[props.phase] || props.phase}</span>
         </div>
     );
 }
@@ -299,42 +274,220 @@ function ActionPanel(props) {
 // ============================================================
 
 function BattleView(props) {
-    var handedness = props.handedness || "right";
-    var isLeft = handedness === "left";
+    var onExit = props.onExit;
+    var zoneName = props.zoneName || "UNKNOWN ZONE";
+    var waveLabel = props.waveLabel || "WAVE 1/3";
 
-    // Scene on the non-dominant side, actions on dominant side
-    var sceneSide = isLeft ? "right" : "left";
-    var actionSide = isLeft ? "left" : "right";
+    // --- State ---
+    var [phase, setPhase] = useState(PHASES.ATB_RUNNING);
+    var [targetId, setTargetId] = useState(TEST_ENEMIES[0].id);
+    var [attackerId] = useState(TEST_PARTY[0].id);
+    var [atbRunning, setAtbRunning] = useState(false);
+    var [atbValues, setAtbValues] = useState(function() {
+        var v = {};
+        TEST_PARTY.forEach(function(c) { v[c.id] = 0; });
+        TEST_ENEMIES.forEach(function(c) { v[c.id] = 0; });
+        return v;
+    });
 
+    // --- Refs for combatant elements (for position calc) ---
+    var combatantRefs = useRef({});
+    var sceneRef = useRef(null);
+    var [sceneRect, setSceneRect] = useState(null);
+
+    // Recalculate scene rect when phase changes to action cam
+    useEffect(function() {
+        if (sceneRef.current) {
+            setSceneRect(sceneRef.current.getBoundingClientRect());
+        }
+    }, [phase]);
+
+    // --- ATB tick loop ---
+    var atbFrozen = phase !== PHASES.ATB_RUNNING;
+    var atbRunningRef = useRef(atbRunning);
+    var atbFrozenRef = useRef(atbFrozen);
+    atbRunningRef.current = atbRunning;
+    atbFrozenRef.current = atbFrozen;
+
+    useEffect(function() {
+        if (!atbRunning) return;
+        var lastTime = 0;
+        var rafId = null;
+
+        function tick(ts) {
+            if (!atbRunningRef.current) return;
+            if (!lastTime) { lastTime = ts; rafId = requestAnimationFrame(tick); return; }
+            var dt = (ts - lastTime) / 1000;
+            lastTime = ts;
+            if (dt > 0.1) dt = 0.1;
+
+            if (!atbFrozenRef.current) {
+                setAtbValues(function(prev) {
+                    var next = {};
+                    var allCombatants = TEST_PARTY.concat(TEST_ENEMIES);
+                    for (var i = 0; i < allCombatants.length; i++) {
+                        var c = allCombatants[i];
+                        var val = (prev[c.id] || 0) + c.atbSpeed * dt * 100;
+                        if (val >= 100) val = 0;
+                        next[c.id] = val;
+                    }
+                    return next;
+                });
+            }
+            rafId = requestAnimationFrame(tick);
+        }
+
+        rafId = requestAnimationFrame(tick);
+        return function() { if (rafId) cancelAnimationFrame(rafId); };
+    }, [atbRunning]);
+
+    // --- Helpers ---
+    var isActionCam = phase !== PHASES.ATB_RUNNING && phase !== PHASES.ACTION_SELECT && phase !== PHASES.ACTION_CAM_OUT;
+    var showQTE = phase === PHASES.QTE_ACTIVE || phase === PHASES.DEFENSE_QTE;
+    var isDefenseQTE = phase === PHASES.DEFENSE_QTE;
+    var showComic = isActionCam;
+    var showSpark = phase === PHASES.RESOLVING;
+
+    var comicLine = COMIC_LINES[phase] || "...";
+
+    // Make combatant ref setter
+    var makeRefSetter = useCallback(function(id) {
+        return function(el) {
+            combatantRefs.current[id] = el;
+        };
+    }, []);
+
+    // Build combatant list with ATB values for gauge strip
+    var allCombatants = [];
+    TEST_PARTY.forEach(function(c) {
+        allCombatants.push(Object.assign({}, c, { _isParty: true, _atb: Math.round(atbValues[c.id] || 0) }));
+    });
+    TEST_ENEMIES.forEach(function(c) {
+        allCombatants.push(Object.assign({}, c, { _isParty: false, _atb: Math.round(atbValues[c.id] || 0) }));
+    });
+
+    // --- Dev handlers ---
+    function handleDevSetPhase(p) { setPhase(p); }
+    function handleDevSetTarget(id) {
+        setTargetId(id);
+    }
+    function handleDevToggleATB() { setAtbRunning(function(v) { return !v; }); }
+
+    // --- Action handler ---
+    function handleAction(actionId) {
+        if (actionId === "flee" && onExit) {
+            onExit();
+        } else if (actionId === "attack") {
+            setPhase(PHASES.ACTION_CAM_IN);
+        }
+    }
+
+    // --- Render ---
     return (
-        <div style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            flexDirection: isLeft ? "row-reverse" : "row",
-            background: "#0a0704",
-            overflow: "hidden",
-        }}>
-            <ScenePanel
-                side={sceneSide}
-                zoneName={props.zoneName}
-            />
-            <ActionPanel
-                side={actionSide}
-                onExit={props.onExit}
-                waveLabel={props.waveLabel}
+        <div className="battle-root">
+            {/* === SCENE ZONE === */}
+            <div className="battle-scene" ref={sceneRef}>
+                <span className="battle-scene-zoneName">{zoneName}</span>
+                <span className="battle-scene-waveLabel">{waveLabel}</span>
+
+                {/* Enemy formation (left) */}
+                <div className="battle-formation battle-formation--enemy">
+                    {TEST_ENEMIES.map(function(e) {
+                        return (
+                            <Combatant
+                                key={e.id}
+                                data={e}
+                                isParty={false}
+                                phase={phase}
+                                attackerId={attackerId}
+                                targetId={targetId}
+                                sceneRect={isActionCam ? sceneRect : null}
+                                elRef={combatantRefs.current[e.id]}
+                                setRef={makeRefSetter(e.id)}
+                                onClick={function() { setTargetId(e.id); }}
+                            />
+                        );
+                    })}
+                </div>
+
+                {/* Party formation (right) */}
+                <div className="battle-formation battle-formation--party">
+                    {TEST_PARTY.map(function(p) {
+                        return (
+                            <Combatant
+                                key={p.id}
+                                data={p}
+                                isParty={true}
+                                phase={phase}
+                                attackerId={attackerId}
+                                targetId={targetId}
+                                sceneRect={isActionCam ? sceneRect : null}
+                                elRef={combatantRefs.current[p.id]}
+                                setRef={makeRefSetter(p.id)}
+                            />
+                        );
+                    })}
+                </div>
+
+                {/* Clash spark */}
+                <span className={"battle-spark" + (showSpark ? " battle-spark--visible" : "")}>
+                    {"\u2694\uFE0F"}
+                </span>
+            </div>
+
+            {/* === BOTTOM ZONE === */}
+            <div className="battle-bottom">
+                {/* Open real estate */}
+                <div className="battle-open">
+                    <span className="battle-open__label">open real estate</span>
+                    <span className="battle-open__label">buffs / status</span>
+                </div>
+
+                {/* ATB gauges */}
+                <ATBGaugeStrip
+                    combatants={allCombatants}
+                    hidden={isActionCam}
+                />
+
+                {/* Action menu */}
+                <ActionMenu
+                    hidden={isActionCam}
+                    onAction={handleAction}
+                />
+
+                {/* QTE zone overlay */}
+                <QTEZone visible={showQTE} isDefense={isDefenseQTE} />
+
+                {/* Comic panel (replaces action zone visually during action cam) */}
+                <ComicPanel
+                    visible={showComic}
+                    sprite={TEST_PARTY[1].sprite}
+                    name={TEST_PARTY[1].name}
+                    line={comicLine}
+                />
+            </div>
+
+            {/* === DEV CONTROLS === */}
+            <DevControls
+                phase={phase}
+                targetId={targetId}
+                attackerId={attackerId}
+                enemies={TEST_ENEMIES}
+                atbRunning={atbRunning}
+                onSetPhase={handleDevSetPhase}
+                onSetTarget={handleDevSetTarget}
+                onToggleATB={handleDevToggleATB}
+                onExit={onExit}
             />
         </div>
     );
 }
 
 // ============================================================
-// Plugin-style API
+// Plugin-style API — same export shape as original
 // ============================================================
 var BattleViewModule = {
     BattleView: BattleView,
-    ScenePanel: ScenePanel,
-    ActionPanel: ActionPanel,
 };
 
 export default BattleViewModule;

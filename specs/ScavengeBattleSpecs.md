@@ -1,7 +1,7 @@
 # Scavenge Battle System — Feature Spec
 
 **Codename:** Dumpster Diving RPG  
-**Status:** 🟡 IN PROGRESS — Shell wired, menu + battle view + QTE plugin built. Battle internals next.  
+**Status:** 🟡 IN PROGRESS — Four-zone layout + action camera prototype built. ATB tick, exchange sequencer, dev controls live. Layout tuning + real QTE wiring next.  
 **Dependencies:** DES-2 QTE System (plugin contract)  
 **Tone:** Opt-in, comedic, absurd. You are a blacksmith beating up sentient garbage for profit.
 
@@ -174,11 +174,14 @@ Observer events:
 { type: "wave_complete",   wave: 1, loot: [...] }
 { type: "turn_start",      memberId: "player" }
 { type: "action_chosen",   memberId: "player", action: "attack", targetId: "angry_raccoon" }
+{ type: "action_cam_in",   attackerId: "player", targetId: "angry_raccoon" }
 { type: "qte_result",      memberId: "player", hits: 3, total: 4 }
 { type: "damage_dealt",    memberId: "player", targetId: "angry_raccoon", amount: 15 }
-{ type: "enemy_attack",    enemyId: "angry_raccoon", targetId: "player" }
+{ type: "enemy_counter",   enemyId: "angry_raccoon", targetId: "player" }
 { type: "defense_qte",     memberId: "player", hits: 2, total: 3 }
 { type: "damage_taken",    memberId: "player", amount: 8 }
+{ type: "exchange_extend", reason: "perfect_qte", beat: 2 }
+{ type: "action_cam_out",  attackerId: "player", targetId: "angry_raccoon" }
 { type: "enemy_defeated",  enemyId: "angry_raccoon" }
 { type: "item_used",       memberId: "player", itemId: "moldy_sandwich" }
 { type: "member_ko",       memberId: "player" }
@@ -248,7 +251,7 @@ Fixed per zone. Not scaled to player. Harder zones = better loot + higher risk.
 - Delta-time: `gauge += speed × dt × 100`
 - Multiple party members can queue turns (fill order)
 - Enemy gauges are independent per enemy
-- ATB pauses during: action menu, QTE active, wave transitions, loot screen
+- ATB pauses during: action menu, **action camera sequences**, QTE active, wave transitions, loot screen
 
 ### Stat Mapping (Host Computes, Battle Consumes)
 
@@ -462,37 +465,131 @@ No QTE for items — safe, reliable option. Used items tracked in `BattleResult.
 
 ---
 
-## Layout — Landscape Split
+## Layout — Landscape Four-Zone
 
-### Reference Layout (Not Final — Starting Point)
+The battle screen is a landscape layout with four zones stacked in a top/bottom split.
 
-Two-panel landscape split. All input on one side, all visuals on the other.
+### Top Half — Scene
 
-**Handedness flip:** `config.handedness` controls which side is scene vs action. Right-handed = scene left / actions right. Left-handed = mirrored. Uses existing `isLeftHanded` pattern from mobile layout.
+Enemy formation on the left, party formation on the right. Sprites, names, HP bars. Tap-to-target on enemies. Zone background fills behind both formations. Speech lane lives here too — fairy and party speech bubbles appear near their speaker's sprite.
 
-### Scene Panel (~55% width — visual only, no touch input)
+### Bottom Center — ATB Gauges
 
-- Zone background (full panel)
-- Enemy sprites (upper area, spread horizontally for multiple enemies)
-- Enemy HP bars + names (below sprites)
-- Party member sprites (lower area, small)
-- **Speech lane** (bottom ~20% of panel) — party + fairy bubbles appear here, positioned near their speaker's sprite. Auto-dismiss on timer. Multiple bubbles can coexist. Never overlaps QTE zone.
+Fill bars for all combatants (party + enemies). This is the visual heartbeat of the battle — the player watches these to anticipate who acts next. Fades out during action camera sequences and resumes on zoom-out.
 
-### Action Panel (~45% width — all input)
+### Bottom Action Side (Handedness-Dependent) — Action Menu
 
-- Wave indicator (top corner, "Wave 2/3")
-- Party HP bars (top strip, per member, color-coded)
-- ATB gauges (below HP, per member + future fairy)
-- **QTE zone** (center, largest area — entire zone is tap target during active QTE)
-- **Action menu** (bottom strip, 4 buttons — visible when ATB full, hidden during QTE)
+Four buttons: Attack, Defend, Item, Flee. Appears when a party member's ATB fills. Disappears after selection. `config.handedness` controls which side. Right-handed = actions on the right. Left-handed = mirrored. Uses existing `isLeftHanded` pattern from mobile layout.
+
+### Bottom Opposite Side — Open Real Estate
+
+Fairy chat, status effects, buff timers, or whatever we need. This space is always available and doesn't compete with inputs.
 
 ### Responsive
 
 | Context | Adaptation |
 |---------|-----------|
-| Mobile landscape | Default layout. Touch input on action panel. |
+| Mobile landscape | Default layout. Touch input on action side. |
 | Desktop | Same layout, larger. Click replaces tap. |
 | Mobile portrait | V1: show "rotate device" prompt. Future: stacked variant. |
+
+---
+
+## Action Camera — The Zoom
+
+When a party member selects an action and target, the battle enters **Action Camera mode**. The two active combatants (attacker + target) translate from their formation positions to center stage via CSS `transform: translate()`. Nothing unmounts, nothing rebuilds. Inactive combatants dim in place.
+
+### Transition In (300-400ms ease)
+
+1. Active combatants slide to center stage via computed translate offsets (based on `getBoundingClientRect` delta from formation position to scene center)
+2. Active combatants scale up slightly (`ACTION_CAM.activeScale`)
+3. Non-active enemies and party members dim to ~12% opacity
+4. ATB gauges fade out
+5. Action menu fades out
+6. QTE zone appears in the bottom center (where ATB was)
+7. Fairy comic panel appears in bottom-right (where action menu was)
+
+### What the Player Sees During Action Cam
+
+**Center stage — The two fighters.** Translated from their formations to center of the scene zone, scaled up slightly. Attack and defense anims play here.
+
+**Center/bottom — QTE Zone.** Circle timing rings for both attack and defense QTEs. Large, easy to tap. This is where the player's hands are.
+
+**Bottom-right — Comic panel.** Fairy portrait + speech bubble. Commentary, party member callouts, or enemy dialogue. Quick, punchy, disposable. Replaces the action menu zone during action cam. Must never overlap the QTE zone touch area.
+
+**Top strip (optional) — Turn indicator.** Shows whose turn it is and the current exchange beat.
+
+### Transition Out (300-400ms ease)
+
+1. Comic panel fades out
+2. QTE zone fades
+3. Combatants translate back to formation positions, scale resets
+4. Dimmed elements restore to full opacity
+5. ATB gauges fade back in with a soft ease-in on resume (avoids the "everything moves at once" snap)
+
+### Multi-Target Actions
+
+For AoE or multi-target actions, the camera frames the primary attacker+target pair. Secondary targets remain visible in frame and receive damage splashes, but the camera doesn't try to frame everyone. No special camera logic needed — the primary pair drives the zoom math.
+
+### Why Transform-Only
+
+Active combatants move via `transform: translate() scale()` — no layout reflow, no flexbox recalculation, no unmounting. Inactive combatants change `opacity` only. All transitions are GPU-composited. The player never loses spatial continuity because the formations stay in place — only the active pair slides to center stage and back.
+
+---
+
+## Action Camera — The Exchange
+
+The action camera is not a single hit. It's a **sustained exchange** — a mini-fight between the two combatants that resolves multiple beats before returning to the ATB loop. This is the intended feel of combat: each ATB cycle is a focused burst of activity, not a single tap.
+
+### Why
+
+The ATB wait-act-wait loop can feel sluggish on mobile. Picking an action, watching one hit, then waiting for gauges to refill is a lot of dead air on a phone. The exchange keeps the player engaged in one focused burst of activity. Fewer total ATB cycles per fight, but each cycle is meatier and more engaging.
+
+### Exchange Flow
+
+1. Party member ATB fills → player picks Attack + target
+2. **Action cam zooms in**
+3. **Player attack QTE** — circle timing rings
+4. QTE resolves → attack anim plays → damage numbers pop
+5. **Enemy immediately counters** — telegraph anim (shake/glow) → defense QTE
+6. Defense QTE resolves → hit react or block anim plays → damage mitigated
+7. *(Optional: bonus exchange beats — see Exchange Length below)*
+8. **Action cam zooms out** → back to normal layout, ATB resumes
+
+### Exchange Length — Design Direction
+
+The base exchange is **1 attack QTE + 1 defense QTE** (Option A). This ships first and works on its own. The architecture models each exchange as a sequence of "beats" so extending is just pushing more beats into the array.
+
+The target model is **QTE-driven extension** (Option C → hybrid D). Perfect QTE timing earns a follow-up beat in the same sequence. This rewards skill with more action and creates a "hot streak" feel. Caps at 2+2 to keep sequences from dragging.
+
+| Option | Rule | Ships When |
+|--------|------|-----------|
+| **A — Fixed 1+1** | Every exchange = 1 attack + 1 counter | V1 baseline |
+| **C — QTE-driven** | Perfect timing earns follow-up beats | V2 layer |
+| **D — Hybrid (target)** | Base 1+1, perfects extend, cap 2+2, speed stat can modify | V2-V3 |
+
+Option B (pure stat-driven) is deferred — adds a balancing dimension without the player-skill payoff.
+
+### ATB Freeze During Exchange
+
+All ATB gauges **freeze** when the action camera is active. They resume filling on zoom-out. The resume uses a soft ease-in ramp so pacing feels natural, not jarring. Tunable via `ATB.resumeEaseMs` in `battleConstants.js`.
+
+### Fairy During Action Cam
+
+The fairy comic panel is the big win. During normal battle, fairy chat competes with ATB bars and action menus for attention. During the action cam, the comic panel replaces the action menu in the bottom-right zone — fairy portrait + speech bubble with dedicated space to:
+
+- React to the player's QTE performance in real time
+- Taunt the enemy
+- Warn about incoming attacks
+- Celebrate or cringe at the result
+
+These pop in as comic-style speech panels — quick, punchy, disposable. They wire through the existing `speechBubbles` prop pattern or the `onBattleEvent` observer callback.
+
+---
+
+## Loot Screen
+
+End-of-encounter rewards overlay. Appears after the final wave. Shows accumulated loot from all waves. Separate from the action camera system — this is a full overlay, not a zoom.
 
 ---
 
@@ -517,32 +614,33 @@ scavengeBattleMode = {
 
 ```
 src/battle/
-├── battleMode.js               # Sub-mode contract (pure JS)
-├── battleState.js              # State machine, turn queue, wave progression (pure JS)
-├── battleResolver.js           # Damage formulas, loot rolls, flee checks (pure functions)
-├── battleConfig.js             # Defaults, attack patterns, constants
-├── useBattleVM.js              # React hook — display props from battle state
-├── BattleView.js               # Root React component — landscape layout
-├── ScenePanel.js               # Scene side — enemies, party sprites, speech lane
-├── ActionPanel.js              # Action side — HP, ATB, QTE zone, menu
-├── ActionMenu.js               # Data-driven action button strip
-├── ATBGauge.js                 # Single ATB bar component (reused per member/enemy)
-└── LootScreen.js               # End-of-encounter loot display
+├── battleConstants.js          # All tuning values (transition, ATB, action cam, exchange, test data)
+├── BattleView.js               # Root React component — four-zone layout, all sub-components inline
+├── BattleView.css              # All battle styles (separate file — needs pseudo-elements, transitions)
+├── BattleTransition.js         # Pixel dissolve screen transition (entry/exit)
+├── battleMode.js               # Sub-mode contract (pure JS) — future
+├── battleState.js              # State machine, turn queue, wave progression (pure JS) — future
+├── battleResolver.js           # Damage formulas, loot rolls, flee checks (pure functions) — future
+└── LootScreen.js               # End-of-encounter loot display — future
 
 src/modules/
 ├── ScavengeMenu.js             # Quick/Extended choice overlay (host UI, not battle)
 └── circleTimingQTE.js          # QTE plugin (DES-2 contract, portable)
 ```
 
+**Note:** BattleView.js contains all sub-components inline (Combatant, ATBGaugeStrip, ActionMenu, QTEZone, ComicPanel, DevControls). These may be extracted to separate files if they grow, but for now a single file keeps the prototype easy to iterate on.
+
 ### Ownership
 
 | File | Owns | Does NOT Own |
 |------|------|-------------|
-| `battleMode.js` | Phase state machine, lifecycle | Rendering, host state |
-| `battleState.js` | Turn queue, wave progression, HP, loot pool | Display, input |
-| `battleResolver.js` | Damage math, loot rolls, flee chance | State mutation (returns deltas) |
-| `useBattleVM.js` | Display props, animation triggers | Game logic |
-| `BattleView.js` | Layout structure, handedness flip | Business logic |
+| `battleConstants.js` | All tuning values (ATB, action cam, exchange, transition, test data) | Game logic, rendering |
+| `BattleView.js` | Layout structure, phase state, ATB tick, action cam transitions, all inline sub-components | Host state, damage math |
+| `BattleView.css` | All battle styles, transition animations, pseudo-elements | Logic, state |
+| `BattleTransition.js` | Pixel dissolve screen transition | Battle internals |
+| `battleMode.js` (future) | Phase state machine, lifecycle | Rendering, host state |
+| `battleState.js` (future) | Turn queue, wave progression, HP, loot pool, exchange beat tracking | Display, input |
+| `battleResolver.js` (future) | Damage math, loot rolls, flee chance | State mutation (returns deltas) |
 
 **External dependencies (not in `src/battle/`):**
 | File | Location | Role |
@@ -553,13 +651,18 @@ src/modules/
 ### Component Tree
 
 ```
-BattleView
-  ├── ScenePanel (enemies, party, speechBubbles)
-  ├── ActionPanel
-  │   ├── StatusBars (HP, ATB per member)
-  │   ├── QTEZone (active QTE config → CircleTimingQTE)
-  │   └── ActionMenu (actions array → buttons → onActionSelect)
-  └── LootScreen (loot array → display → onDismiss)
+BattleView (root — four-zone layout, phase state, ATB tick)
+  ├── Scene zone
+  │   ├── Combatant × N (enemy formation, left)
+  │   ├── Combatant × N (party formation, right)
+  │   └── Clash spark (visible on resolve phases)
+  ├── Bottom zone
+  │   ├── Open real estate (left — buffs, status, placeholder)
+  │   ├── ATBGaugeStrip (center — all combatant gauges, hides during action cam)
+  │   ├── ActionMenu (right — 2x2 grid, hides during action cam)
+  │   ├── QTEZone (overlay on center, visible during QTE phases)
+  │   └── ComicPanel (overlay on right, visible during action cam — fairy portrait + speech)
+  └── DevControls (bottom overlay — phase stepping, target picker, ATB toggle)
 ```
 
 State down. Callbacks up. No bus, no singletons.
@@ -570,13 +673,18 @@ State down. Callbacks up. No bus, no singletons.
 
 ```
 PHASES = {
-    INTRO:            "intro",
+    // --- Implemented in prototype ---
     ATB_RUNNING:      "atb_running",
     ACTION_SELECT:    "action_select",
+    ACTION_CAM_IN:    "action_cam_in",
     QTE_ACTIVE:       "qte_active",
     RESOLVING:        "resolving",
     ENEMY_TELEGRAPH:  "enemy_telegraph",
     DEFENSE_QTE:      "defense_qte",
+    ACTION_CAM_OUT:   "action_cam_out",
+
+    // --- Future (not yet in battleConstants.js) ---
+    INTRO:            "intro",
     WAVE_TRANSITION:  "wave_transition",
     LOOT:             "loot",
     EXIT:             "exit",
@@ -588,15 +696,24 @@ PHASES = {
 ```
 INTRO           → ATB_RUNNING
 ATB_RUNNING     → ACTION_SELECT | ENEMY_TELEGRAPH
-ACTION_SELECT   → QTE_ACTIVE | RESOLVING (instant actions) | ATB_RUNNING (cancel)
+ACTION_SELECT   → ACTION_CAM_IN | RESOLVING (instant actions) | ATB_RUNNING (cancel)
+ACTION_CAM_IN   → QTE_ACTIVE
 QTE_ACTIVE      → RESOLVING
-RESOLVING       → ATB_RUNNING | WAVE_TRANSITION | LOOT (last enemy, last wave)
+RESOLVING       → ENEMY_TELEGRAPH (exchange counter) | ACTION_CAM_OUT (exchange complete) | WAVE_TRANSITION | LOOT (last enemy, last wave)
 ENEMY_TELEGRAPH → DEFENSE_QTE
 DEFENSE_QTE     → RESOLVING
+ACTION_CAM_OUT  → ATB_RUNNING
 WAVE_TRANSITION → ATB_RUNNING | LOOT (flee between waves)
 LOOT            → EXIT
 any             → EXIT (flee mid-wave, KO)
 ```
+
+### Exchange Flow Through Phases
+
+A typical attack exchange walks through:
+`ACTION_SELECT → ACTION_CAM_IN → QTE_ACTIVE → RESOLVING → ENEMY_TELEGRAPH → DEFENSE_QTE → RESOLVING → ACTION_CAM_OUT → ATB_RUNNING`
+
+With QTE-driven extension (V2+), RESOLVING can loop back to QTE_ACTIVE for bonus beats before reaching ACTION_CAM_OUT. The exchange is a sub-loop within the action camera.
 
 ---
 
@@ -618,23 +735,27 @@ Fairy joins `party` array with `aiControlled: true`. Battle calls `onActionNeede
 
 - [ ] Input config / output deltas contract
 - [ ] Solo party (1 member)
-- [ ] ATB core loop
+- [ ] ATB core loop (with freeze during action camera)
 - [ ] Circle timing QTE (multi-ring, variable timing)
 - [ ] 4-action menu (Attack, Defend, Item, Flee)
+- [ ] Action camera zoom (transform-only, transition in/out)
+- [ ] Exchange system — fixed 1+1 (attack QTE + defense QTE per action cam)
 - [ ] 1 zone, 2 waves, no boss
 - [ ] 3–4 enemy types, 2–3 item types
 - [ ] Loot screen
-- [ ] Landscape layout with handedness flip
-- [ ] Observer callback
-- [ ] Speech lane (static, no fairy wiring yet)
+- [ ] Landscape layout with four-zone split and handedness flip
+- [ ] Observer callback (includes action cam events)
+- [ ] Speech lane + fairy comic panel zone (static, no fairy wiring yet)
 
 ### V2 — Content + Polish
 
+- [ ] QTE-driven exchange extension (perfect timing → bonus beats, cap 2+2)
 - [ ] Boss waves + boss enemies
 - [ ] More zones, enemies, items
 - [ ] Enemy visual tells
 - [ ] Wave transition animations
-- [ ] Fairy commentary via observer
+- [ ] Fairy commentary via observer → comic panel popups during action cam
+- [ ] ATB resume ease-in tuning
 - [ ] SFX + battle music
 
 ### V3 — Party + AI
@@ -662,10 +783,14 @@ Fairy joins `party` array with `aiControlled: true`. Battle calls `onActionNeede
 | Stat mapping | Host computes all combat values | Battle imports nothing from host |
 | Difficulty | Fixed per zone | Dark Souls progression |
 | QTE | Multi-ring shrinking circles | More engaging than single-tap |
+| Action camera | Transform-only zoom on existing tree | GPU-composited, no reflow, spatial continuity preserved |
+| Exchange model | Sustained 1+1 base, extensible to 2+2 | Eliminates dead air, keeps player active per ATB cycle |
+| ATB during exchange | Freeze all gauges, ease-in on resume | Clean rule, tunable pacing |
+| Multi-target camera | Frame primary pair, splash on others | Pragmatic — AoE is rare, no special camera math |
 | Party | Built for N, ships with 1 | Fairy slots in later, zero architecture changes |
 | AI members | `onActionNeeded` callback | Battle agnostic to LLM vs scripted |
 | External comms | Observer (fire-and-forget) | Zero coupling to fairy, analytics, etc. |
 | Internal comms | React state + callbacks | Self-contained, no bus dependency |
-| Layout | Landscape split + handedness | Clean input/visual separation |
+| Layout | Landscape four-zone + handedness | Clean separation: scene, ATB heartbeat, actions, open real estate |
 | Wave state | HP/items persist, ATB/buffs reset | Risk/reward tension |
 | KO | Lose all loot | Stakes make flee decisions meaningful |
