@@ -20,19 +20,19 @@ var HEAT_TIERS = GameConstants.HEAT_TIERS;
 var HAMMER_TIERS = GameConstants.HAMMER_TIERS;
 var QUENCH_TIERS = GameConstants.QUENCH_TIERS;
 var PHASES = GameConstants.PHASES;
-var BALANCE = GameConstants.BALANCE;
 var QTE_COLOR_RAMP = GameConstants.QTE_COLOR_RAMP;
+var QTE_SPEED = GameConstants.QTE_SPEED;
 var positionToColumn = GameUtils.positionToColumn;
 var clamp = GameUtils.clamp;
 
-// --- QTE Speed Constants (sourced from BALANCE in constants.js) ---
-var HEAT_SPEED_BASE = BALANCE.heatSpeedBase;
-var HEAT_SPEED_RANGE = BALANCE.heatSpeedRange;
-var HEAT_ACCEL_EXP = BALANCE.heatAccelExponent;
-var HAMMER_SPEED_BASE = BALANCE.hammerSpeedBase;
-var HAMMER_SPEED_RANGE = BALANCE.hammerSpeedRange;
-var QUENCH_SPEED_BASE = BALANCE.quenchSpeedBase;
-var QUENCH_SPEED_RANGE = BALANCE.quenchSpeedRange;
+// --- QTE Speed Constants (sourced from QTE_SPEED in qteConstants.js) ---
+var HEAT_SPEED_BASE = QTE_SPEED.heatSpeedBase;
+var HEAT_SPEED_RANGE = QTE_SPEED.heatSpeedRange;
+var HEAT_ACCEL_EXP = QTE_SPEED.heatAccelExponent;
+var HAMMER_SPEED_BASE = QTE_SPEED.hammerSpeedBase;
+var HAMMER_SPEED_RANGE = QTE_SPEED.hammerSpeedRange;
+var QUENCH_SPEED_BASE = QTE_SPEED.quenchSpeedBase;
+var QUENCH_SPEED_RANGE = QTE_SPEED.quenchSpeedRange;
 
 // --- Sprite Paths ---
 var PUB = process.env.PUBLIC_URL || "";

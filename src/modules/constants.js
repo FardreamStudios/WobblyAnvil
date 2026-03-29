@@ -2,15 +2,26 @@
 // constants.js — Wobbly Anvil Game Constants Module
 // Single source of truth for all game data tables.
 // Zero logic. Zero side effects. Data only.
+//
+// QTE data (tier tables, color ramp, layout, speeds) lives in
+// qteConstants.js and is re-exported here for backward compat.
 // ============================================================
 
-// --- QTE & Layout ---
-var QTE_COLS = 42;
-var QTE_FLASH_MS = 700;
-var QTE_W = 480;
+import QTEConstants from "../config/qteConstants.js";
+
+// --- Re-export QTE constants for backward compatibility ---
+var QTE_COLS = QTEConstants.QTE_COLS;
+var QTE_FLASH_MS = QTEConstants.QTE_FLASH_MS;
+var QTE_W = QTEConstants.QTE_W;
+var QTE_COLOR_RAMP = QTEConstants.QTE_COLOR_RAMP;
+var HEAT_TIERS = QTEConstants.HEAT_TIERS;
+var HAMMER_TIERS = QTEConstants.HAMMER_TIERS;
+var QUENCH_TIERS = QTEConstants.QUENCH_TIERS;
+var QTE_SPEED = QTEConstants.QTE_SPEED;
+
+// --- Layout ---
 var COL_W = 170;
 var STRESS_MAX = 3;
-// (HAMMER_WIN / QUENCH_WIN removed — zone widths now live in tier tables)
 
 // --- Pressure System ---
 var PRESSURE_PER_DAY = 0.7;
@@ -28,85 +39,7 @@ var MAT_SCRAP_RECOVERY = 0.25;
 var REST_HOUR_LIMIT = 99;
 var MAX_HOUR = 30;
 
-// ============================================================
-// Universal QTE Tier Tables
-// All QTEs share the same 5-tier shape (PERFECT → GREAT → GOOD → POOR → BAD).
-// Each tier defines its scoring zone width. Bar colors come from QTE_COLOR_RAMP
-// by index (0=PERFECT, 1=GREAT, ...). A tier can override with its own
-// hueStart/hueEnd/sat/lit if it needs a custom color.
-//
-// TIER FIELDS:
-//   id        — String key used by scoring, SFX, and bus payloads
-//   label     — Flash text shown to player on hit
-//   color     — Accent color for UI (bubbles, flash border)
-//   left      — Zone width in absolute position % (0–100), left of peak
-//   right     — Zone width in absolute position % (0–100), right of peak
-//   (optional) hueStart, hueEnd, sat, lit — override QTE_COLOR_RAMP for this tier
-//
-// RAMP FIELDS (QTE_COLOR_RAMP):
-//   hueStart  — HSL hue degree at zone inner edge (closest to peak)
-//   hueEnd    — HSL hue degree at zone outer edge (farthest from peak)
-//   sat       — Saturation % for this zone's color ramp
-//   lit       — Lightness % for this zone's color ramp
-//
-// RULES:
-//   - 0 width = zone skipped (no columns rendered)
-//   - 1 column = median color (midpoint of hueStart↔hueEnd)
-//   - 2+ columns = gradient ramp from hueStart → hueEnd
-//   - Boundary columns belong to the ENTERING (worse) zone
-//   - peak is absolute position on the 0–100 scale
-// ============================================================
-
-// --- Shared QTE Bar Color Ramp (indexed by tier position: 0=PERFECT … 4=BAD) ---
-var QTE_COLOR_RAMP = [
-    { hueStart: 180, hueEnd: 180, sat: 70, lit: 55 },  // PERFECT — cyan
-    { hueStart: 140, hueEnd: 100, sat: 65, lit: 55 },  // GREAT   — green
-    { hueStart: 80,  hueEnd: 40,  sat: 60, lit: 55 },  // GOOD    — yellow
-    { hueStart: 45,  hueEnd: 20,  sat: 65, lit: 50 },  // POOR    — orange
-    { hueStart: 10,  hueEnd: 0,   sat: 70, lit: 50 },  // BAD     — red
-];
-
-// --- Heat QTE Tiers ---
-// Needle sweeps left→right, sweet spot near the end.
-// peak: 84 — center of the old heatWinLo(75)–heatWinHi(93) zone.
-var HEAT_TIERS = {
-    peak: 84,                                       // absolute position (0–100)
-    tiers: [
-        { id: "perfect", label: "PERFECT HEAT", color: "#fbbf24", left: 1.5,  right: 1.5  },
-        { id: "great",   label: "GREAT HEAT",   color: "#4ade80", left: 4.5,  right: 1.5  },
-        { id: "good",    label: "GOOD HEAT",    color: "#60a5fa", left: 9,    right: 0    },
-        { id: "poor",    label: "POOR HEAT",    color: "#f87171", left: 14,   right: 0    },
-        { id: "bad",     label: "BAD HEAT",     color: "#fb923c", left: 999,  right: 999  },
-    ],
-};
-
-// --- Hammer QTE Tiers ---
-// Needle bounces left↔right, sweet spot at center.
-// POOR is 0/0 (skipped) — goes straight from GOOD to BAD.
-var HAMMER_TIERS = {
-    peak: 50,                                       // center of bar
-    tiers: [
-        { id: "perfect", label: "PERFECT!", color: "#fbbf24", left: 1.5,  right: 1.5  },
-        { id: "great",   label: "GREAT",    color: "#4ade80", left: 4.5,  right: 4.5  },
-        { id: "good",    label: "GOOD",     color: "#60a5fa", left: 10,   right: 10   },
-        { id: "poor",    label: "POOR",     color: "#f87171", left: 0,    right: 0    },
-        { id: "bad",     label: "MISS",     color: "#f87171", left: 999,  right: 999  },
-    ],
-};
-
-// --- Quench QTE Tiers ---
-// Needle bounces left↔right, sweet spot at center.
-// POOR is 0/0 (skipped) — goes straight from GOOD to BAD.
-var QUENCH_TIERS = {
-    peak: 50,                                       // center of bar
-    tiers: [
-        { id: "perfect", label: "PERFECT! +5",  color: "#fbbf24", left: 1.5,  right: 1.5  },
-        { id: "great",   label: "SOLID",         color: "#4ade80", left: 4.5,  right: 4.5  },
-        { id: "good",    label: "GOOD",          color: "#60a5fa", left: 10,   right: 10   },
-        { id: "poor",    label: "ROUGH",         color: "#f87171", left: 0,    right: 0    },
-        { id: "bad",     label: "DESTROYED",     color: "#fb923c", left: 999,  right: 999  },
-    ],
-};
+// (QTE tier tables + color ramp extracted to src/config/qteConstants.js)
 
 // --- Game Phases ---
 var PHASES = {
@@ -412,15 +345,7 @@ var BALANCE = {
 
     // (heatWinLo / heatWinHi removed — peak + zone widths now in HEAT_TIERS)
     // (quenchPerfect / quenchGood / quenchPoorExtra removed — zone widths now in QUENCH_TIERS)
-
-    // QTE needle speeds (base + random range)
-    heatSpeedBase: 60,
-    heatSpeedRange: 15,
-    heatAccelExponent: 1.8,
-    hammerSpeedBase: 210,
-    hammerSpeedRange: 50,
-    quenchSpeedBase: 175,
-    quenchSpeedRange: 30,
+    // (QTE needle speeds extracted to QTE_SPEED in qteConstants.js)
 
     // Base hammer strikes per session (before heat bonus)
     baseStrikes: 3,
@@ -476,6 +401,7 @@ var GameConstants = {
     HAMMER_TIERS: HAMMER_TIERS,
     QUENCH_TIERS: QUENCH_TIERS,
     QTE_COLOR_RAMP: QTE_COLOR_RAMP,
+    QTE_SPEED: QTE_SPEED,
     PHASES: PHASES,
     SMITH_RANKS: SMITH_RANKS,
     TIERS: TIERS,
