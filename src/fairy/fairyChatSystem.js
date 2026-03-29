@@ -474,6 +474,19 @@ function isSpeechSupported() {
     return _speechSupported;
 }
 
+/**
+ * Permanently disable speech for this session.
+ * Called when player skips or denies mic permission at startup.
+ */
+function disableSpeech() {
+    _speechSupported = false;
+    if (_recognition) {
+        try { _recognition.abort(); } catch (e) {}
+        _recognition = null;
+    }
+    _listening = false;
+}
+
 // ============================================================
 // HISTORY MANAGEMENT
 // ============================================================
@@ -513,6 +526,7 @@ var FairyChatSystem = {
     stopListening:    stopListening,
     isListening:      isListening,
     isSpeechSupported: isSpeechSupported,
+    disableSpeech:    disableSpeech,
 
     // History
     getHistory:   getHistory,

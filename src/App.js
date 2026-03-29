@@ -51,6 +51,8 @@ import useLeaderboard from "./hooks/useLeaderboard.js";
 import GameplayAnalyticsSubSystem from "./systems/analytics/gameplayAnalyticsSubSystem.js";
 import ANALYTICS_CONFIG from "./config/analyticsConfig.js";
 import FairyAnimInstance from "./fairy/FairyAnimInstance";
+import MicPrompt from "./components/MicPrompt.js";
+import FairyChatSystem from "./fairy/fairyChatSystem.js";
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -112,6 +114,7 @@ export default function App() {
   // --- State Hooks ---
   var ui = useUIState();
   var [audioReady, setAudioReady] = useState(false);
+  var [micChecked, setMicChecked] = useState(false);
   var economy = useEconomyState();
   var dayState = useDayState();
   var player = usePlayerState();
@@ -516,6 +519,12 @@ export default function App() {
   if (window.location.pathname.startsWith("/dev")) {
     return <DevRouter />;
   }
+
+  // --- Mic permission prompt (before any fullscreen) ---
+  if (!micChecked) return <MicPrompt onComplete={function(granted) {
+    if (!granted) FairyChatSystem.disableSpeech();
+    setMicChecked(true);
+  }} />;
 
   if (gameOver) return <ScaleWrapper key="sw"><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} leaderboardEntries={leaderboard.entries} copied={leaderboard.copied} runStats={GameplayAnalyticsSubSystem.getStats()} onCopyScore={function(name) { leaderboard.copyScore(name, { day: day, gold: gold, totalGoldEarned: totalGoldEarned, reputation: reputation, level: level }, GameplayAnalyticsSubSystem.getStats()); }} /></ScaleWrapper>;
   if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu audioReady={audioReady} onAudioWarmup={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setAudioReady(true); }} onStart={function() { setScreen("game"); }} sfx={sfx} /></ScaleWrapper>;
