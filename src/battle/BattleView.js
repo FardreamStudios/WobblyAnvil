@@ -149,7 +149,7 @@ function BattleCharacter(props) {
 
     var cls = "normal-cam-char";
     if (isParty) cls += " normal-cam-char--party";
-    if (!isParty && !isActive) cls += " normal-cam-char--enemy-idle";
+    if (!isParty) cls += " normal-cam-char--enemy-idle";
     if (isDimmed) cls += " action-cam-char--dimmed";
     if (isAttacker) cls += " action-cam-char--attacker";
     if (isTarget) cls += " action-cam-char--target";
@@ -344,6 +344,8 @@ function DevControls(props) {
             {/* --- Sequences --- */}
             <button className="battle-dev__btn" onClick={function() { props.onAtkSeq(props.attackerId, props.targetId); }}>Atk→Tgt</button>
             <button className="battle-dev__btn" onClick={function() { props.onAtkSeq(props.targetId, props.attackerId); }}>Tgt→Atk</button>
+            <button className="battle-dev__btn" onClick={function() { props.onKO(props.targetId); }}>KO Tgt</button>
+            <button className="battle-dev__btn" onClick={function() { props.onExchange(); }}>Exchange</button>
             <div className="battle-dev__sep" />
 
             {/* --- Sprite --- */}
@@ -660,13 +662,23 @@ function BattleView(props) {
         }, CHOREOGRAPHY.returnMs);
     }
     function handleDevAtkSequence(atkId, tgtId) {
+        // If attacker is an enemy, prepend telegraph beat
+        var isEnemy = TEST_ENEMIES.some(function(e) { return e.id === atkId; });
+        var tOff = 0;
+        if (isEnemy) {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "telegraph"; return n; });
+            tOff = CHOREOGRAPHY.telegraphMs;
+        }
+
         // WindUp → Strike + Hit → Return → Clear
-        var t1 = CHOREOGRAPHY.windUpMs;
+        var t1 = tOff + CHOREOGRAPHY.windUpMs;
         var t2 = t1 + CHOREOGRAPHY.strikeMs;
         var t3 = t2 + CHOREOGRAPHY.returnMs;
 
         // Wind-up attacker
-        setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "wind_up"; return n; });
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "wind_up"; return n; });
+        }, tOff);
 
         // Strike attacker + full hit combo on target
         setTimeout(function() {
@@ -683,6 +695,176 @@ function BattleView(props) {
         setTimeout(function() {
             setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
         }, t3);
+    }
+
+    function handleDevKO(id) {
+        // KO shake + SFX + anim state
+        setShakeLevel("ko");
+        BattleSFX.ko();
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[id] = "ko"; return n; });
+    }
+
+    // ============================================================
+    // FULL EXCHANGE SEQUENCER (dev/prototype)
+    // Plays the complete exchange choreography with timed auto-advance.
+    // Simulates QTE results — real QTE callbacks replace the pauses later.
+    //
+    // Timeline:
+    //   ACTION_CAM_IN  → wind_up
+    //   (QTE pause)    → RESOLVING player attack
+    //   ENEMY_TELEGRAPH → (defense pause) → RESOLVING enemy counter
+    //   ACTION_CAM_OUT → ATB_RUNNING
+    // ============================================================
+    function handleDevFullExchange() {
+        var atkId = attackerId;
+        var tgtId = targetId;
+
+        // Simulated QTE results
+        var atkDmg = Math.floor(Math.random() * 25) + 5;
+        var defDmg = Math.floor(Math.random() * 15) + 3;
+
+        // Accumulating timeline offset
+        var t = 0;
+
+        // ---- PHASE 1: ACTION_CAM_IN (350ms) ----
+        setPhase(PHASES.ACTION_CAM_IN);
+        setAtbRunning(false);
+
+        // Wind-up attacker after slide completes
+        t += 350;
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "wind_up"; return n; });
+        }, t);
+
+        // ---- PHASE 2: QTE_ACTIVE (simulated 800ms hold) ----
+        t += 50; // brief gap after wind_up starts
+        setTimeout(function() {
+            setPhase(PHASES.QTE_ACTIVE);
+        }, t);
+
+        t += 800; // simulated QTE duration
+
+        // ---- PHASE 3: RESOLVING — Player Attack (500ms) ----
+        setTimeout(function() {
+            setPhase(PHASES.RESOLVING);
+
+            // Strike attacker
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "strike"; return n; });
+            BattleSFX.hit();
+
+            // Hit combo on target at +80ms
+            setTimeout(function() {
+                setFlashId(tgtId);
+                setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "hit"; return n; });
+                BattleSFX.impact();
+                setShakeLevel(null);
+                requestAnimationFrame(function() { setShakeLevel("heavy"); });
+
+                // Damage number at target position
+                var el = combatantRefs.current[tgtId];
+                var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                if (el && sr) {
+                    var r = el.getBoundingClientRect();
+                    var cx = r.left - sr.left + r.width / 2;
+                    var cy = r.top - sr.top;
+                    spawnDamageNumber(atkDmg, cx, cy, "#f59e0b");
+                }
+
+                // Clear flash
+                setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+            }, 80);
+
+            // Return attacker at +250ms
+            setTimeout(function() {
+                setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "return"; return n; });
+            }, 250);
+
+            // Clear target knockback at +300ms
+            setTimeout(function() {
+                setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[tgtId]; return n; });
+            }, 300);
+
+            // Clear attacker at +400ms
+            setTimeout(function() {
+                setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
+            }, 400);
+        }, t);
+
+        // ---- PHASE 4: ENEMY_TELEGRAPH (300ms) ----
+        t += 500; // after player resolve completes
+        setTimeout(function() {
+            setPhase(PHASES.ENEMY_TELEGRAPH);
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "telegraph"; return n; });
+        }, t);
+
+        // ---- PHASE 5: DEFENSE_QTE (simulated 600ms hold) ----
+        t += CHOREOGRAPHY.telegraphMs;
+        setTimeout(function() {
+            setPhase(PHASES.DEFENSE_QTE);
+            // Enemy holds end-of-telegraph pose (forwards fill keeps it)
+        }, t);
+
+        t += 600; // simulated defense QTE duration
+
+        // ---- PHASE 6: RESOLVING — Enemy Counter (500ms) ----
+        setTimeout(function() {
+            setPhase(PHASES.RESOLVING);
+
+            // Enemy strikes
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "strike"; return n; });
+            BattleSFX.hit();
+
+            // Hit combo on party member at +80ms
+            setTimeout(function() {
+                setFlashId(atkId);
+                setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "hit"; return n; });
+                BattleSFX.impact();
+                setShakeLevel(null);
+                requestAnimationFrame(function() { setShakeLevel("medium"); });
+
+                // Damage number at attacker position
+                var el = combatantRefs.current[atkId];
+                var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                if (el && sr) {
+                    var r = el.getBoundingClientRect();
+                    var cx = r.left - sr.left + r.width / 2;
+                    var cy = r.top - sr.top;
+                    spawnDamageNumber(defDmg, cx, cy, "#ef4444");
+                }
+
+                // Clear flash
+                setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+            }, 80);
+
+            // Return enemy at +250ms
+            setTimeout(function() {
+                setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "return"; return n; });
+            }, 250);
+
+            // Clear party knockback at +300ms
+            setTimeout(function() {
+                setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
+            }, 300);
+
+            // Clear enemy at +400ms
+            setTimeout(function() {
+                setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[tgtId]; return n; });
+            }, 400);
+        }, t);
+
+        // ---- PHASE 7: ACTION_CAM_OUT (350ms) ----
+        t += 500; // after enemy resolve completes
+        setTimeout(function() {
+            setPhase(PHASES.ACTION_CAM_OUT);
+        }, t);
+
+        // ---- BACK TO ATB ----
+        t += 350;
+        setTimeout(function() {
+            setPhase(PHASES.ATB_RUNNING);
+            setAnimState({});
+            setAtbRunning(true);
+        }, t);
     }
 
     // --- Action handler ---
@@ -772,15 +954,16 @@ function BattleView(props) {
                 {damageNumbers.map(function(d) {
                     return <DamageNumber key={d.key} value={d.value} x={d.x} y={d.y} color={d.color} />;
                 })}
-
-                {/* Action cam info — name/HP pinned to scene edges */}
-                <ActionCamInfoPanel
-                    visible={isActionCam}
-                    attacker={attackerData}
-                    target={targetData}
-                    isLeftHanded={isLeftHanded}
-                />
             </div>
+
+            {/* Action cam info — pinned to scene edges, lives outside
+                shake container so screen shake doesn't rattle the panels */}
+            <ActionCamInfoPanel
+                visible={isActionCam}
+                attacker={attackerData}
+                target={targetData}
+                isLeftHanded={isLeftHanded}
+            />
 
             {/* === BOTTOM ZONE === */}
             <div className="battle-bottom" style={bottomStyle}>
@@ -829,6 +1012,8 @@ function BattleView(props) {
                 onToggleATB={handleDevToggleATB}
                 onSpriteOverride={setDevSpriteOverride}
                 onAtkSeq={handleDevAtkSequence}
+                onKO={handleDevKO}
+                onExchange={handleDevFullExchange}
                 comicOn={devShowComic}
                 onToggleComic={function() { setDevShowComic(function(v) { return !v; }); }}
                 onExit={onExit}

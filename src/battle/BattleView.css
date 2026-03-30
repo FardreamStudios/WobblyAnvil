@@ -187,6 +187,62 @@
     transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* Telegraph — escalating shake + red glow buildup before enemy strike.
+   Shake lives on __choreo (transform). Glow lives on __sprite (drop-shadow
+   hugs the image shape instead of the card box). fill:forwards holds final
+   frame so enemy stays "charged" during defense QTE. */
+@keyframes telegraphShake {
+    0%   { transform: translateX(0);    }
+    15%  { transform: translateX(-1px); }
+    30%  { transform: translateX(1px);  }
+    45%  { transform: translateX(-2px); }
+    60%  { transform: translateX(2px);  }
+    75%  { transform: translateX(-3px); }
+    90%  { transform: translateX(3px);  }
+    100% { transform: translateX(0);    }
+}
+
+@keyframes telegraphGlow {
+    0%   { filter: drop-shadow(0 0 0   rgba(239, 68, 68, 0));   }
+    15%  { filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.15)); }
+    30%  { filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.3));  }
+    45%  { filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.45)); }
+    60%  { filter: drop-shadow(0 0 5px rgba(239, 68, 68, 0.6));  }
+    75%  { filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.8));  }
+    90%  { filter: drop-shadow(0 0 7px rgba(239, 68, 68, 0.9));  }
+    100% { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 1));    }
+}
+
+.normal-cam-char__choreo--telegraph {
+    animation: telegraphShake 300ms steps(7) 1 forwards;
+}
+
+/* KO — pop up + spin, then dissolve on the way down.
+   Two-phase: koLaunch handles the pop-up rotation,
+   koDissolve handles the pixel-snap fade-out.
+   Chained via animation shorthand with delay on dissolve. */
+@keyframes koLaunch {
+    0%   { transform: translateY(0) rotate(0deg) scale(1); }
+    30%  { transform: translateY(-3vh) rotate(-20deg) scale(1.1); }
+    60%  { transform: translateY(-4vh) rotate(15deg) scale(1.05); }
+    80%  { transform: translateY(-2vh) rotate(-40deg) scale(0.9); }
+    100% { transform: translateY(0) rotate(-60deg) scale(0.7); }
+}
+
+@keyframes koDissolve {
+    0%   { opacity: 1; filter: contrast(1); }
+    30%  { opacity: 0.7; filter: contrast(2.5); }
+    60%  { opacity: 0.4; filter: contrast(4); }
+    80%  { opacity: 0.15; filter: contrast(6); }
+    100% { opacity: 0; filter: contrast(8); }
+}
+
+.normal-cam-char__choreo--ko {
+    animation:
+            koLaunch 350ms steps(5) forwards,
+            koDissolve 250ms steps(4) 350ms forwards;
+}
+
 /* Enemy idle bob — subtle stepped motion on sprite only */
 @keyframes enemyBob {
     0%, 50%  { transform: translateY(0); }
@@ -198,11 +254,15 @@
     animation-delay: var(--bob-delay, 0s);
 }
 
-/* Pause bob during action cam */
+/* Pause bob during action cam — target keeps bobbing (enemy idle in scene) */
 .action-cam-char--dimmed .normal-cam-char__sprite,
-.action-cam-char--attacker .normal-cam-char__sprite,
-.action-cam-char--target .normal-cam-char__sprite {
+.action-cam-char--attacker .normal-cam-char__sprite {
     animation: none;
+}
+
+/* Telegraph glow on sprite — replaces bob. Must come after bob rules to win. */
+.normal-cam-char__choreo--telegraph .normal-cam-char__sprite {
+    animation: telegraphGlow 300ms steps(7) 1 forwards;
 }
 
 .normal-cam-char:active {
@@ -219,15 +279,14 @@
     pointer-events: none;
 }
 
-.action-cam-char--attacker {
-    border-color: #f59e0b;
-    box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
-    z-index: 10;
-}
-
+/* Strip card chrome during action cam — sprites float clean in scene */
+.action-cam-char--attacker,
 .action-cam-char--target {
-    border-color: #ef4444;
-    box-shadow: 0 0 16px rgba(239, 68, 68, 0.35);
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    min-width: 0;
     z-index: 10;
 }
 
@@ -332,9 +391,12 @@
 }
 
 /* --- Action Cam Info — name/HP pinned to scene edges --- */
+/* --- Action Cam Info Panels — pinned to scene edges ---
+   Lives in .battle-root (outside shake container).
+   top: 32% centers within the scene zone (~64% of root height). */
 .action-cam-info {
     position: absolute;
-    top: 50%;
+    top: 32%;
     transform: translateY(-50%);
     display: flex;
     flex-direction: column;

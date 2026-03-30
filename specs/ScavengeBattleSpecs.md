@@ -1,7 +1,7 @@
 # Scavenge Battle System — Feature Spec
 
 **Codename:** Dumpster Diving RPG  
-**Status:** 🟡 IN PROGRESS — Four-zone layout + action camera prototype built. ATB tick, exchange sequencer, dev controls live. Choreography steps 1-7 complete (bob, shake, flash, strike/knockback, damage numbers, wind-up/return, procedural SFX). Next: telegraph, brace, KO, timed sequencer, real QTE wiring.  
+**Status:** 🟡 IN PROGRESS — Four-zone layout + action camera prototype built. ATB tick, exchange sequencer, dev controls live. Choreography steps 1-8, 10-11 complete (bob, shake, flash, strike/knockback, damage numbers, wind-up/return, telegraph, KO, full exchange sequencer, procedural SFX). Step 9 (brace vs hit) folded into sequencer. Next: real QTE wiring (DES-2), per-ring visual sync, flee, results screen.  
 **Dependencies:** DES-2 QTE System (plugin contract)  
 **Tone:** Opt-in, comedic, absurd. You are a blacksmith beating up sentient garbage for profit.
 

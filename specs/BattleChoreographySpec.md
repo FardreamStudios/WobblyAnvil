@@ -1,7 +1,7 @@
 # Battle Choreography — Visual Spec
 
 **Parent:** `ScavengeBattleSpecs.md`  
-**Status:** 🟢 IN PROGRESS — Steps 1-7 complete (inner wrapper, bob, shake, flash, strike/knockback, damage numbers, wind-up/return). Steps 8-15 remaining.  
+**Status:** 🟢 IN PROGRESS — Steps 1-8, 10-11 complete. Step 9 (brace vs hit) folded into sequencer — needs real QTE result to trigger. Steps 12-15 remaining.  
 **Scope:** What the player *sees* during each phase of the action camera exchange. Anim states, hit reactions, screen effects, damage numbers, and timing.
 
 ---
@@ -297,12 +297,12 @@ CHOREOGRAPHY = {
 | 5 | Strike lunge + knockback anims (`__choreo--strike`, `__choreo--hit`, directional via `--choreo-dir`) | Step 1 | ✅ DONE |
 | 6 | Damage numbers (`DamageNumber` component, CSS `dmgPop` keyframe, auto-cleanup) | Nothing | ✅ DONE |
 | 7 | Wind-up + return states (`__choreo--wind_up`, `__choreo--return`) | Step 1 | ✅ DONE |
-| 8 | Telegraph (enemy shake + glow) | Step 1 | 🔲 NEXT |
-| 9 | Brace vs hit on defense | Steps 5, 4 | 🔲 |
-| 10 | KO anim | Step 1 | 🔲 |
-| 11 | Timed sequencer (auto-advance through exchange) | Steps 5-9 | 🔲 |
+| 8 | Telegraph (enemy shake + red drop-shadow glow) | Step 1 | ✅ DONE |
+| 9 | Brace vs hit on defense | Steps 5, 4 | ⏭ FOLDED INTO SEQUENCER — needs real QTE result |
+| 10 | KO anim (pop-up + spin + pixel dissolve) | Step 1 | ✅ DONE |
+| 11 | Timed sequencer (auto-advance through exchange) | Steps 5-10 | ✅ DONE (simulated QTE) |
 
-Step 11 is the key milestone — replaces manual dev-button phase stepping with an automatic timed sequence that plays the full exchange choreography.
+Step 11 is complete with simulated QTE pauses (fixed 800ms attack, 600ms defense). Real QTE wiring (Step 12) replaces the pauses with actual `onComplete` callbacks.
 
 ---
 
@@ -429,10 +429,10 @@ any             → EXIT (KO)
 | 5 | Strike lunge + knockback (`--choreo-dir` directional) | Step 1 | ✅ DONE |
 | 6 | Damage numbers (`DamageNumber`, CSS `dmgPop`, auto-cleanup) | Nothing | ✅ DONE |
 | 7 | Wind-up + return states | Step 1 | ✅ DONE |
-| 8 | Telegraph (enemy shake + glow) | Step 1 | 🔲 NEXT |
-| 9 | Brace vs hit on defense | Steps 5, 4 | 🔲 |
-| 10 | KO anim (flash + pixel dissolve + audio) | Steps 4, 3 | 🔲 |
-| 11 | Timed sequencer (auto-advance exchange) | Steps 5-9 | 🔲 KEY MILESTONE |
+| 8 | Telegraph (enemy shake + red drop-shadow glow) | Step 1 | ✅ DONE |
+| 9 | Brace vs hit on defense | Steps 5, 4 | ⏭ FOLDED INTO SEQUENCER |
+| 10 | KO anim (pop-up + spin + pixel dissolve) | Steps 4, 3 | ✅ DONE |
+| 11 | Timed sequencer (auto-advance exchange) | Steps 5-10 | ✅ DONE (simulated QTE) |
 | 12 | Per-ring QTE visual sync | Step 5, QTE plugin | 🔲 |
 | 13 | Defend action (brace + badge, no cam) | Step 1 | 🔲 |
 | 14 | Flee QTE sequence | Step 11, new QTE type | 🔲 |
@@ -446,3 +446,8 @@ any             → EXIT (KO)
 - Dev sequence buttons: "Atk→Tgt" / "Tgt→Atk" play full exchange combo
 - `animState` upgraded to keyed map for simultaneous multi-combatant animations
 - Class rename pass: `normal-cam-*` (formation) / `action-cam-*` (cinematic)
+- `ActionCamInfoPanel` moved outside `.battle-scene` shake container — panels stay stable during screen shake
+- Action cam card chrome stripped (border, bg, padding, box-shadow removed) — sprites float clean in scene
+- Enemy bob persists during action cam for target — bob pauses only for dimmed/attacker
+- Telegraph uses `drop-shadow` on sprite (hugs image shape) instead of `box-shadow` on card
+- Full exchange dev button ("Exchange") plays complete choreography hands-free (~3.4s)
