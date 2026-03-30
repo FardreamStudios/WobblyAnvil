@@ -1,4 +1,4 @@
-# Scavenge Battle Specs — Revision Addendum
+# Scavenge Battle Specs — Revision Addendum - Deferred until V2
 
 **Date:** 2026-03-30
 **Status:** 📝 DRAFT — Review before merging into main spec

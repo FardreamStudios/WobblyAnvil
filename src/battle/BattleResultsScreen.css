@@ -1,0 +1,139 @@
+/* ============================================================
+   BattleResultsScreen.css — Results overlay styles
+   Extracted from BattleView.css
+   ============================================================ */
+
+.battle-results {
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 7, 4, 0.85);
+    opacity: 0;
+    transition: opacity 400ms ease;
+    pointer-events: none;
+}
+
+.battle-results--visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.battle-results__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2.5vh;
+    padding: 3vh 5vw;
+    min-width: 40vw;
+    max-width: 70vw;
+    background: rgba(20, 16, 9, 0.95);
+    border: 2px solid rgba(224, 216, 200, 0.15);
+    border-radius: 8px;
+    transform: translateY(30px);
+    transition: transform 400ms ease;
+}
+
+.battle-results--visible .battle-results__card {
+    transform: translateY(0);
+}
+
+/* --- Outcome Badge --- */
+.battle-results__badge {
+    font-size: clamp(18px, 4vw, 28px);
+    font-weight: bold;
+    font-family: monospace;
+    letter-spacing: 0.15em;
+    padding: 0.8vh 3vw;
+    border: 2px solid;
+    border-radius: 4px;
+    text-align: center;
+}
+
+/* --- Sections (Loot, Stats) --- */
+.battle-results__section {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8vh;
+}
+
+.battle-results__section-title {
+    font-size: clamp(10px, 2vw, 14px);
+    font-family: monospace;
+    color: rgba(224, 216, 200, 0.5);
+    letter-spacing: 0.2em;
+    border-bottom: 1px solid rgba(224, 216, 200, 0.1);
+    padding-bottom: 0.5vh;
+}
+
+/* --- Loot --- */
+.battle-results__loot-lost {
+    font-size: clamp(11px, 2.2vw, 15px);
+    color: #ef4444;
+    font-family: monospace;
+    text-align: center;
+    padding: 1vh 0;
+}
+
+.battle-results__loot-empty {
+    font-size: clamp(11px, 2.2vw, 15px);
+    color: rgba(224, 216, 200, 0.4);
+    font-family: monospace;
+    text-align: center;
+    padding: 1vh 0;
+    font-style: italic;
+}
+
+.battle-results__loot-item {
+    font-size: clamp(11px, 2.2vw, 15px);
+    color: #f59e0b;
+    font-family: monospace;
+    padding: 0.3vh 0;
+}
+
+/* --- Stat Rows --- */
+.battle-results__stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3vh 0;
+}
+
+.battle-results__stat-label {
+    font-size: clamp(10px, 2vw, 13px);
+    font-family: monospace;
+    color: rgba(224, 216, 200, 0.6);
+}
+
+.battle-results__stat-value {
+    font-size: clamp(11px, 2.2vw, 14px);
+    font-family: monospace;
+    color: #e0d8c8;
+    font-weight: bold;
+}
+
+/* --- Continue Button --- */
+.battle-results__continue {
+    font-size: clamp(12px, 2.5vw, 16px);
+    font-family: monospace;
+    font-weight: bold;
+    letter-spacing: 0.15em;
+    padding: 1.2vh 4vw;
+    background: transparent;
+    border: 2px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 150ms ease;
+    margin-top: 1vh;
+}
+
+.battle-results__continue:hover {
+    background: rgba(224, 216, 200, 0.08);
+}
+
+.battle-results__continue:active {
+    background: rgba(224, 216, 200, 0.15);
+}
