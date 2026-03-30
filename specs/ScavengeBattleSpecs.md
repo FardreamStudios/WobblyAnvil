@@ -430,13 +430,13 @@ Same pattern as `forgeMode.js`: `canEnter`, `onEnter`, `onExit` (returns BattleR
 | 6 | Damage numbers (pop + float + fade) | ✅ |
 | 7 | Wind-up + return states | ✅ |
 | 8 | Telegraph (shake + red glow) | ✅ |
-| 9 | Brace vs hit on defense | ⏭ Folded into sequencer — needs real QTE result |
+| 9 | Brace vs hit on defense | ✅ (resolveHitOnReceiver checks hit + beat.blockable, ×0.25 brace) |
 | 10 | KO anim (pop + spin + dissolve) | ✅ |
-| 11 | Timed exchange sequencer | ✅ (simulated QTE) |
+| 11 | Timed exchange sequencer | ✅ (QTERunner + manual ATK buttons) |
 | 12 | Per-ring QTE visual sync | 🔲 |
 | 13 | Defend action (formation + in-cam) | ✅ |
 | 14 | Flee action (3-pip, formation only) | ✅ |
-| 15 | Results screen overlay | 🔲 |
+| 15 | Results screen overlay | ✅ (outcome badge, stats grid, continue button) |
 
 ### Additional Completed Work
 
@@ -469,14 +469,23 @@ Same pattern as `forgeMode.js`: `canEnter`, `onEnter`, `onExit` (returns BattleR
 - Flee action (3-pip all-in, 50% flat chance, formation only)
 - Synchronous pip deduction via `deductPip()` for correct post-action state reads
 - Damage rebalance: all HP → 20, base swings → 6, enemy finishers → 10, brace → ×0.25
+- Deferred KO system — KO react only on last beat of combo, `isLastBeat` threaded through all 3 damage paths
+- Battle exit flow — `triggerBattleEnd` shows results screen overlay, continue button fires `onExit(result)`
+- Flee success builds proper `"fled"` result via `triggerBattleEnd`
+- Global targeting — tap any sprite (enemy or party) to set selection, action validation gate (invalid → auto-select, no fire)
+- Turn owner indicator — white corner brackets (`battle-char--turn-owner`), selected target green (`battle-char--selected`)
+- Formation data reads from live `combatantMap` instead of static TEST arrays (HP/items/buffs update in real time)
+- Enemy AI random target — `pickRandomLivingPartyMember()` replaces sequential first-alive scan
+- `QTERunner.js` — standalone component, receives config, mounts plugin, emits result
+- `battleSkills.js` — skill & beat definitions with defaults + validation (`basic_attack`, `power_strike`, `rat_bite`, `scavenger_combo`, `trash_golem_slam`)
 
 ### Combo Beat Steps
 
 | Step | What | Status |
 |------|------|--------|
-| 1 | Skill definitions in battleConstants | 🔲 |
-| 2 | handleQTERingResult reads beats from context | 🔲 |
-| 3 | Summary damage number replaces big-hit resolve | 🔲 |
+| 1 | Skill definitions in battleSkills.js | ✅ |
+| 2 | handleQTERingResult reads beats from context | ✅ |
+| 3 | Summary damage number replaces per-beat numbers | 🔲 |
 | 4 | Swipe detection in circleTimingQTE | 🔲 |
 | 5 | onRingResult signature adds inputType | 🔲 |
 | 6 | Tap vs swipe defense logic | 🔲 |

@@ -6,11 +6,12 @@
 // battles, forges, or any host system.
 //
 // PLUGIN CONTRACT (DES-2):
-//   Props: { config, onComplete, onRingResult? }
+//   Props: { config, onComplete, onRingResult?, onRingStart? }
 //   config — ring count, speeds, delays, zone sizing
 //   onComplete({ hits, total, details, successRatio })
-//   onRingResult(index, hit) — optional per-ring callback for
-//     real-time visual sync (e.g. battle jab/flinch per tap)
+//   onRingResult(index, hit, inputType) — optional per-ring callback
+//     inputType: "tap" | "swipe" | "auto_miss"
+//     Host decides what tap vs swipe means per beat.
 //
 // PURE LOGIC (no React):
 //   createRingSequence(config) — builds ring timeline
@@ -32,12 +33,15 @@ import { useState, useEffect, useRef, useCallback } from "react";
 var BASE_HIT_WINDOW = 0.12;     // fraction of radius range that counts as pass
 var FLASH_MS = 300;              // feedback flash duration
 var RESULT_HOLD_MS = 800;        // pause before calling onComplete
+var SWIPE_MIN_PX = 30;           // min distance for swipe classification
+var TAP_MAX_PX = 15;             // max movement for tap classification
 var RING_STROKE = 3;
 var TARGET_STROKE = 2.5;
 var HIT_COLOR = "#4ade80";
 var MISS_COLOR = "#f87171";
 var RING_COLOR_ACTIVE = "#60a5fa";
 var RING_COLOR_APPROACHING = "#fbbf24";
+var RING_COLOR_UNBLOCKABLE = "#ef4444";
 var TARGET_COLOR = "rgba(255,255,255,0.35)";
 
 // ============================================================
@@ -126,6 +130,7 @@ function CircleTimingQTE(props) {
     var phaseRef = useRef("ready");
     var flashTimerRef = useRef(null);
     var ringStartedRef = useRef({});  // tracks which ring indices have fired onRingStart
+    var touchStartRef = useRef(null); // { x, y } for swipe detection
 
     resultsRef.current = results;
     currentRingRef.current = currentRing;
@@ -176,7 +181,7 @@ function CircleTimingQTE(props) {
                     resultsRef.current = newResults;
                     setResults(newResults);
                     showFlash("MISS", false);
-                    if (onRingResult) onRingResult(ci, false);
+                    if (onRingResult) onRingResult(ci, false, "auto_miss");
 
                     var next = ci + 1;
                     currentRingRef.current = next;
@@ -225,8 +230,8 @@ function CircleTimingQTE(props) {
         }, RESULT_HOLD_MS);
     }
 
-    // --- Handle tap ---
-    var handleTap = useCallback(function() {
+    // --- Resolve input (tap or swipe) ---
+    var resolveInput = useCallback(function(inputType) {
         if (phaseRef.current !== "playing") return;
         var el = performance.now() - startTimeRef.current;
         var ci = currentRingRef.current;
@@ -238,7 +243,7 @@ function CircleTimingQTE(props) {
 
         var progress = getRingProgress(ring, el);
 
-        // Can't tap before ring starts animating
+        // Can't act before ring starts animating
         if (progress < 0) return;
 
         var hit = isInHitWindow(ring, progress, config);
@@ -250,7 +255,7 @@ function CircleTimingQTE(props) {
         setResults(newResults);
 
         showFlash(hit ? "HIT!" : "MISS", hit);
-        if (onRingResult) onRingResult(ci, hit);
+        if (onRingResult) onRingResult(ci, hit, inputType);
 
         var next = ci + 1;
         currentRingRef.current = next;
@@ -261,14 +266,50 @@ function CircleTimingQTE(props) {
         }
     }, [config]);
 
+    // --- Touch handlers for swipe detection ---
+    var handleTouchStart = useCallback(function(e) {
+        e.preventDefault();
+        var touch = e.touches[0];
+        touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+    }, []);
+
+    var handleTouchEnd = useCallback(function(e) {
+        var start = touchStartRef.current;
+        touchStartRef.current = null;
+        if (!start) { resolveInput("tap"); return; }
+
+        var touch = e.changedTouches[0];
+        var dx = touch.clientX - start.x;
+        var dy = touch.clientY - start.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist >= SWIPE_MIN_PX) {
+            resolveInput("swipe");
+        } else if (dist <= TAP_MAX_PX) {
+            resolveInput("tap");
+        } else {
+            // Ambiguous zone — treat as tap
+            resolveInput("tap");
+        }
+    }, [resolveInput]);
+
+    // Desktop click = tap
+    var handleClick = useCallback(function() {
+        resolveInput("tap");
+    }, [resolveInput]);
+
     // --- Compute ring visuals ---
     var ringVisuals = [];
+    var beatVisuals = config.beatVisuals || null;
     for (var i = 0; i < ringSequence.length; i++) {
         var ring = ringSequence[i];
         var progress = phase === "playing" ? getRingProgress(ring, elapsed) : -1;
         var radius = getRingRadius(ring, progress, config);
         var ringState = "waiting";
         var opacity = 1;
+        var bv = beatVisuals ? beatVisuals[i] : null;
+        var isUnblockable = bv && bv.unblockable;
+        var isFinisher = bv && bv.finisher;
 
         if (ring.result === "hit") {
             ringState = "hit";
@@ -289,8 +330,13 @@ function CircleTimingQTE(props) {
             var sw = RING_STROKE;
             var dasharray = "none";
 
+            // Unblockable override — red ring when active/approaching
+            if (isUnblockable && (ringState === "active" || ringState === "approaching" || ringState === "waiting")) {
+                stroke = RING_COLOR_UNBLOCKABLE;
+            }
+
             if (ringState === "approaching") {
-                stroke = RING_COLOR_APPROACHING;
+                stroke = isUnblockable ? RING_COLOR_UNBLOCKABLE : RING_COLOR_APPROACHING;
                 sw = 2;
             } else if (ringState === "hit") {
                 stroke = HIT_COLOR;
@@ -300,13 +346,18 @@ function CircleTimingQTE(props) {
                 sw = 2;
                 dasharray = "8 6";
             } else if (ringState === "waiting") {
-                stroke = "rgba(255,255,255,0.15)";
+                stroke = isUnblockable ? "rgba(239,68,71,0.25)" : "rgba(255,255,255,0.15)";
                 sw = 1;
+            }
+
+            // Finisher — thicker ring
+            if (isFinisher && ringState !== "hit" && ringState !== "miss") {
+                sw = Math.max(sw, 4);
             }
 
             ringVisuals.push(
                 <circle
-                    key={i}
+                    key={"ring-" + i}
                     cx="50%"
                     cy="50%"
                     r={radius}
@@ -317,6 +368,25 @@ function CircleTimingQTE(props) {
                     opacity={opacity}
                 />
             );
+
+            // Unblockable "!" indicator — show when ring is active/approaching
+            if (isUnblockable && (ringState === "active" || ringState === "approaching") && radius > config.targetRadius + 10) {
+                var cx = (config.ringStartRadius + 20);
+                var indicatorY = cx - radius - 12;
+                ringVisuals.push(
+                    <text
+                        key={"ub-" + i}
+                        x={cx}
+                        y={indicatorY}
+                        textAnchor="middle"
+                        fill={RING_COLOR_UNBLOCKABLE}
+                        fontSize="16"
+                        fontWeight="bold"
+                        fontFamily="monospace"
+                        opacity={opacity}
+                    >!</text>
+                );
+            }
         }
     }
 
@@ -400,10 +470,11 @@ function CircleTimingQTE(props) {
                 }
             </div>
 
-            {/* QTE Zone — tap target */}
+            {/* QTE Zone — tap/swipe target */}
             <div
-                onClick={handleTap}
-                onTouchStart={function(e) { e.preventDefault(); handleTap(); }}
+                onClick={handleClick}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
                 style={{
                     position: "relative",
                     width: svgSize,
@@ -411,6 +482,7 @@ function CircleTimingQTE(props) {
                     maxWidth: "80vw",
                     maxHeight: "80vw",
                     cursor: "pointer",
+                    touchAction: "none",
                 }}
             >
                 <svg

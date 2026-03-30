@@ -194,6 +194,13 @@
     transition: transform 0.1s ease-out, filter 0.1s ease-out;
 }
 
+/* Dodge — fast lateral shift away, quicker than knockback, no flash */
+.normal-cam-char__choreo--dodge {
+    transform: translateX(calc(5vw * var(--choreo-dir, 1))) translateY(-1vw);
+    opacity: 0.6;
+    transition: transform 0.1s cubic-bezier(0.2, 0, 0, 1), opacity 0.1s ease-out;
+}
+
 /* Telegraph — escalating shake + red glow buildup before enemy strike.
    Shake lives on __choreo (transform). Glow lives on __sprite (drop-shadow
    hugs the image shape instead of the card box). fill:forwards holds final
