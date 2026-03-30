@@ -1,7 +1,7 @@
 # Scavenge Battle System — Feature Spec
 
 **Codename:** Dumpster Diving RPG  
-**Status:** 🟡 IN PROGRESS — Four-zone layout + action camera prototype built. ATB tick, exchange sequencer, dev controls live. Layout tuning + real QTE wiring next.  
+**Status:** 🟡 IN PROGRESS — Four-zone layout + action camera prototype built. ATB tick, exchange sequencer, dev controls live. Choreography steps 1-7 complete (bob, shake, flash, strike/knockback, damage numbers, wind-up/return, procedural SFX). Next: telegraph, brace, KO, timed sequencer, real QTE wiring.  
 **Dependencies:** DES-2 QTE System (plugin contract)  
 **Tone:** Opt-in, comedic, absurd. You are a blacksmith beating up sentient garbage for profit.
 
@@ -614,7 +614,8 @@ scavengeBattleMode = {
 
 ```
 src/battle/
-├── battleConstants.js          # All tuning values (transition, ATB, action cam, exchange, test data)
+├── battleConstants.js          # All tuning values (transition, ATB, action cam, exchange, choreography, test data)
+├── battleSFX.js                # Procedural combat SFX via Web Audio API (hit, block, impact, ko)
 ├── BattleView.js               # Root React component — four-zone layout, all sub-components inline
 ├── BattleView.css              # All battle styles (separate file — needs pseudo-elements, transitions)
 ├── BattleTransition.js         # Pixel dissolve screen transition (entry/exit)
@@ -628,14 +629,15 @@ src/modules/
 └── circleTimingQTE.js          # QTE plugin (DES-2 contract, portable)
 ```
 
-**Note:** BattleView.js contains all sub-components inline (Combatant, ATBGaugeStrip, ActionMenu, QTEZone, ComicPanel, DevControls). These may be extracted to separate files if they grow, but for now a single file keeps the prototype easy to iterate on.
+**Note:** BattleView.js contains all sub-components inline (BattleCharacter, BattleSprite, DamageNumber, ActionCamInfoPanel, ATBGaugeStrip, ActionMenu, QTEZone, ComicPanel, DevControls). These may be extracted to separate files if they grow, but for now a single file keeps the prototype easy to iterate on.
 
 ### Ownership
 
 | File | Owns | Does NOT Own |
 |------|------|-------------|
-| `battleConstants.js` | All tuning values (ATB, action cam, exchange, transition, test data) | Game logic, rendering |
-| `BattleView.js` | Layout structure, phase state, ATB tick, action cam transitions, all inline sub-components | Host state, damage math |
+| `battleConstants.js` | All tuning values (ATB, action cam, exchange, choreography, transition, test data) | Game logic, rendering |
+| `battleSFX.js` | Procedural combat SFX (hit, block, impact, ko) via Web Audio API | Music, ambient audio |
+| `BattleView.js` | Layout structure, phase state, ATB tick, action cam transitions, choreography anim state, all inline sub-components | Host state, damage math |
 | `BattleView.css` | All battle styles, transition animations, pseudo-elements | Logic, state |
 | `BattleTransition.js` | Pixel dissolve screen transition | Battle internals |
 | `battleMode.js` (future) | Phase state machine, lifecycle | Rendering, host state |
@@ -651,19 +653,31 @@ src/modules/
 ### Component Tree
 
 ```
-BattleView (root — four-zone layout, phase state, ATB tick)
+BattleView (root — four-zone layout, phase state, ATB tick, choreography anim state)
   ├── Scene zone
-  │   ├── Combatant × N (enemy formation, left)
-  │   ├── Combatant × N (party formation, right)
-  │   └── Clash spark (visible on resolve phases)
+  │   ├── BattleCharacter × N (enemy formation, left)
+  │   │   └── normal-cam-char__choreo (choreography transform layer)
+  │   │       ├── BattleSprite (animated spritesheet or static image)
+  │   │       └── normal-cam-char__info (name + HP bar, hidden during action cam)
+  │   ├── BattleCharacter × N (party formation, right)
+  │   ├── Clash spark (visible on resolve phases)
+  │   ├── Action cam pixel frame (vignette overlay, visible during action cam)
+  │   ├── ActionCamInfoPanel (two side-pinned name/HP panels, visible during action cam)
+  │   └── DamageNumber × N (floating pop text, CSS-animated, self-destructs)
   ├── Bottom zone
   │   ├── Open real estate (left — buffs, status, placeholder)
   │   ├── ATBGaugeStrip (center — all combatant gauges, hides during action cam)
   │   ├── ActionMenu (right — 2x2 grid, hides during action cam)
   │   ├── QTEZone (overlay on center, visible during QTE phases)
   │   └── ComicPanel (overlay on right, visible during action cam — fairy portrait + speech)
-  └── DevControls (bottom overlay — phase stepping, target picker, ATB toggle)
+  └── DevControls (bottom overlay — cam toggle, target picker, sequence buttons, sprite swap, comic toggle, ATB/exit)
 ```
+
+**CSS naming convention:**
+- `normal-cam-char*` — formation view (normal camera) classes
+- `action-cam-char*` — action camera state classes (dimmed, attacker, target)
+- `action-cam-info*` — info panels in scene zone during action cam
+- `action-cam-dmg*` — floating damage numbers
 
 State down. Callbacks up. No bus, no singletons.
 

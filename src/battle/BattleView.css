@@ -122,8 +122,8 @@
     align-items: flex-end;
 }
 
-/* --- Combatant Card --- */
-.battle-combatant {
+/* --- BattleCharacter Card --- */
+.normal-cam-char {
     display: flex;
     align-items: center;
     gap: 1.2vw;
@@ -144,17 +144,47 @@
 /* Inner wrapper — choreography transforms layer on this div.
    Outer div owns slide (inline px). Inner owns lunge/knockback (CSS class).
    Stacked: sprite on top, info centered below. */
-.battle-combatant__inner {
+.normal-cam-char__choreo {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.4vh;
     width: 100%;
+    transition: transform 0.15s ease-out;
 }
 
 /* Hit flash — bright white burst on damage */
-.battle-combatant__inner--flash {
+.normal-cam-char__choreo--flash {
     filter: brightness(3) saturate(0);
+}
+
+/* --- Choreography transforms ---
+   --choreo-dir:  1 = party (lunges left toward enemy)
+                 -1 = enemy (lunges right toward party)
+   Idle state has no transform so return is automatic via transition. */
+
+/* Strike — lunge toward opponent */
+.normal-cam-char__choreo--strike {
+    transform: translateX(calc(-3vw * var(--choreo-dir, 1))) scaleX(1.1);
+    transition: transform 0.15s cubic-bezier(0.2, 0, 0.8, 1);
+}
+
+/* Hit — knockback away from opponent */
+.normal-cam-char__choreo--hit {
+    transform: translateX(calc(4vw * var(--choreo-dir, 1)));
+    transition: transform 0.08s ease-out;
+}
+
+/* Wind-up — lean back + squeeze before striking */
+.normal-cam-char__choreo--wind_up {
+    transform: translateX(calc(1.5vw * var(--choreo-dir, 1))) scaleX(0.92);
+    transition: transform 0.2s ease-in;
+}
+
+/* Return — ease back to neutral after strike */
+.normal-cam-char__choreo--return {
+    transform: translateX(0) scaleX(1);
+    transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* Enemy idle bob — subtle stepped motion on sprite only */
@@ -163,63 +193,63 @@
     51%, 100% { transform: translateY(-2px); }
 }
 
-.battle-combatant--enemy-idle .battle-combatant__sprite {
+.normal-cam-char--enemy-idle .normal-cam-char__sprite {
     animation: enemyBob 2.4s steps(1) infinite;
     animation-delay: var(--bob-delay, 0s);
 }
 
 /* Pause bob during action cam */
-.battle-combatant--dimmed .battle-combatant__sprite,
-.battle-combatant--attacker .battle-combatant__sprite,
-.battle-combatant--target .battle-combatant__sprite {
+.action-cam-char--dimmed .normal-cam-char__sprite,
+.action-cam-char--attacker .normal-cam-char__sprite,
+.action-cam-char--target .normal-cam-char__sprite {
     animation: none;
 }
 
-.battle-combatant:active {
+.normal-cam-char:active {
     border-color: rgba(255, 255, 255, 0.15);
 }
 
-.battle-combatant--party {
+.normal-cam-char--party {
     text-align: center;
 }
 
 /* Action cam states */
-.battle-combatant--dimmed {
+.action-cam-char--dimmed {
     opacity: 0;
     pointer-events: none;
 }
 
-.battle-combatant--attacker {
+.action-cam-char--attacker {
     border-color: #f59e0b;
     box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
     z-index: 10;
 }
 
-.battle-combatant--target {
+.action-cam-char--target {
     border-color: #ef4444;
     box-shadow: 0 0 16px rgba(239, 68, 68, 0.35);
     z-index: 10;
 }
 
-.battle-combatant__sprite {
+.normal-cam-char__sprite {
     width: var(--battle-sprite-size, clamp(32px, 7vw, 52px));
     height: var(--battle-sprite-size, clamp(32px, 7vw, 52px));
     flex-shrink: 0;
 }
 
-.battle-combatant__info {
+.normal-cam-char__info {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 3px;
 }
 
-.battle-combatant__info--hidden {
+.action-cam-char__info--hidden {
     opacity: 0;
     pointer-events: none;
 }
 
-.battle-combatant__name {
+.normal-cam-char__name {
     font-size: clamp(8px, 1.5vw, 11px);
     font-weight: bold;
     letter-spacing: 1px;
@@ -301,53 +331,52 @@
             radial-gradient(ellipse 70% 65% at 50% 50%, transparent 40%, rgba(10, 7, 4, 0.85) 100%);
 }
 
-/* --- Action Cam HUD — attacker vs target in bottom zone --- */
-.battle-cam-hud {
+/* --- Action Cam Info — name/HP pinned to scene edges --- */
+.action-cam-info {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: auto;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 2vw;
-    padding: 1vh 3vw;
-    background: linear-gradient(180deg, rgba(10, 7, 4, 0.95) 0%, rgba(10, 7, 4, 0.7) 80%, transparent 100%);
-    z-index: 6;
+    gap: 3px;
+    padding: 1vh 1.5vw;
+    background: rgba(10, 7, 4, 0.75);
+    border-radius: 6px;
+    z-index: 12;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.35s ease;
 }
 
-.battle-cam-hud--visible {
+.action-cam-info--visible {
     opacity: 1;
 }
 
-.battle-cam-hud__side {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    min-width: 12vw;
+.action-cam-info--left {
+    left: 2vw;
 }
 
-.battle-cam-hud__side--atk .battle-cam-hud__name {
+.action-cam-info--right {
+    right: 2vw;
+}
+
+.action-cam-info__side--atk .action-cam-info__name {
     color: #f59e0b;
 }
 
-.battle-cam-hud__side--tgt .battle-cam-hud__name {
+.action-cam-info__side--tgt .action-cam-info__name {
     color: #ef4444;
 }
 
-.battle-cam-hud__name {
+.action-cam-info__name {
     font-size: clamp(8px, 1.4vw, 11px);
     font-weight: bold;
     letter-spacing: 1px;
     text-transform: uppercase;
 }
 
-.battle-cam-hud__hp-bg {
+.action-cam-info__hp-bg {
     width: 10vw;
     height: 4px;
     background: rgba(255, 255, 255, 0.08);
@@ -355,17 +384,41 @@
     overflow: hidden;
 }
 
-.battle-cam-hud__hp-text {
+.action-cam-info__hp-text {
     font-size: clamp(6px, 1vw, 8px);
     color: #8a7a64;
     letter-spacing: 0.5px;
 }
 
-.battle-cam-hud__vs {
-    font-size: clamp(8px, 1.3vw, 10px);
+/* --- Damage Numbers — floating pop text in scene zone --- */
+@keyframes dmgPop {
+    0%   { transform: translate(-50%, 0) scale(0.5); opacity: 1; }
+    15%  { transform: translate(-50%, -0.5vh) scale(1.3); opacity: 1; }
+    35%  { transform: translate(-50%, -1vh) scale(1.0); opacity: 1; }
+    65%  { transform: translate(-50%, -2vh); opacity: 1; }
+    100% { transform: translate(-50%, -3vh); opacity: 0; }
+}
+
+.action-cam-dmg {
+    position: absolute;
+    z-index: 15;
+    pointer-events: none;
+    font-family: monospace;
     font-weight: bold;
+    font-size: clamp(14px, 3vw, 22px);
+    letter-spacing: 1px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.5);
+    animation: dmgPop 800ms ease-out forwards;
+}
+
+.action-cam-dmg--crit {
+    font-size: clamp(18px, 4vw, 28px);
+}
+
+.action-cam-dmg--miss {
+    font-size: clamp(10px, 2vw, 14px);
+    font-style: italic;
     letter-spacing: 2px;
-    color: #5a4a34;
 }
 
 /* ============================================================

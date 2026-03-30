@@ -1,7 +1,7 @@
 # Battle Choreography — Visual Spec
 
 **Parent:** `ScavengeBattleSpecs.md`  
-**Status:** 🟡 SPEC — Not yet implemented  
+**Status:** 🟢 IN PROGRESS — Steps 1-7 complete (inner wrapper, bob, shake, flash, strike/knockback, damage numbers, wind-up/return). Steps 8-15 remaining.  
 **Scope:** What the player *sees* during each phase of the action camera exchange. Anim states, hit reactions, screen effects, damage numbers, and timing.
 
 ---
@@ -14,7 +14,19 @@ The exchange should feel like a 2D fighting game cutscene — punchy, readable, 
 
 ## Combatant Anim States
 
-Each combatant carries an `animState` string. BattleView applies it as a CSS class: `battle-combatant--{animState}`. CSS handles the rest.
+Each combatant carries an `animState` entry in a keyed map: `{ combatantId: stateString }`. BattleView applies it as a CSS class on the choreography wrapper: `normal-cam-char__choreo--{state}`. Multiple combatants can animate simultaneously (e.g. attacker strikes while target recoils).
+
+**Naming convention:**
+- `normal-cam-char*` — formation view (normal camera) classes
+- `action-cam-char*` — action camera classes (dimmed, attacker, target)
+- `action-cam-info*` — info panels pinned to scene edges during action cam
+- `action-cam-dmg*` — floating damage numbers
+- `normal-cam-char__choreo` — the inner div that receives choreography transforms (lunge, knockback, flash)
+
+**Component names:**
+- `BattleCharacter` — single fighter card (renders in both modes)
+- `ActionCamInfoPanel` — name/HP panels pinned to left/right scene edges during action cam
+- `DamageNumber` — floating pop text, CSS-animated, self-destructs after 800ms
 
 ### Party States
 
@@ -153,7 +165,7 @@ SCREEN_SHAKE = {
 }
 ```
 
-Three CSS classes (`battle-scene--shake-light`, `--shake-medium`, `--shake-heavy`) with different `animation-duration` and translate values. Applied by BattleView via state, auto-removed via `onAnimationEnd`.
+Three CSS classes (`battle-scene--shake-light`, `--shake-medium`, `--shake-heavy`, `--shake-ko`) with stepped keyframes for pixel feel. Applied by BattleView via `shakeLevel` state, auto-removed via `onAnimationEnd`.
 
 ---
 
@@ -186,9 +198,8 @@ When a combatant takes damage, they briefly flash white. Classic RPG hit indicat
 ### CSS Approach
 
 ```css
-.battle-combatant--flash {
+.normal-cam-char__choreo--flash {
     filter: brightness(3) saturate(0);
-    transition: filter 0ms;
 }
 ```
 
@@ -202,12 +213,17 @@ Static enemy images get life through a gentle CSS bob.
 
 ```css
 @keyframes enemyBob {
-    0%, 100% { transform: translateY(0); }
-    50%      { transform: translateY(-3px); }
+    0%, 50%  { transform: translateY(0); }
+    51%, 100% { transform: translateY(-2px); }
+}
+
+.normal-cam-char--enemy-idle .normal-cam-char__sprite {
+    animation: enemyBob 2.4s steps(1) infinite;
+    animation-delay: var(--bob-delay, 0s);
 }
 ```
 
-Pauses during action cam (the transform is overridden by slide-to-center).
+Stepped animation (not smooth) for pixel feel. Staggered per enemy via `--bob-delay` CSS variable. Pauses during action cam (animation: none on dimmed/attacker/target states).
 
 ---
 
@@ -219,18 +235,18 @@ All movement during the exchange is **relative to center-stage position**, not f
 
 The slide-to-center uses inline `style.transform` with absolute pixel values (from `restingRectsRef`). Choreography transforms need to compose on top without fighting.
 
-Solution: add an inner wrapper div for choreography transforms.
+Solution: inner wrapper div (`normal-cam-char__choreo`) for choreography transforms.
 
 ```
-<div class="battle-combatant" style="transform: translate(Xpx, Ypx) scale(2.0)">  ← slide (inline)
-    <div class="battle-combatant__inner battle-combatant--strike">  ← choreography (CSS class)
+<div class="normal-cam-char" style="transform: translate(Xpx, Ypx) scale(2.0)">  ← slide (inline)
+    <div class="normal-cam-char__choreo normal-cam-char__choreo--strike">  ← choreography (CSS class)
         <BattleSprite ... />
-        <div class="battle-combatant__info"> ... </div>
+        <div class="normal-cam-char__info"> ... </div>
     </div>
 </div>
 ```
 
-Slide = inline, pixel-precise. Choreography = CSS class, relative units. No conflicts.
+Slide = inline, pixel-precise. Choreography = CSS class with `--choreo-dir` variable (1 for party, -1 for enemy). No conflicts.
 
 ---
 
@@ -272,21 +288,19 @@ CHOREOGRAPHY = {
 
 ## Implementation Order
 
-Each step is independently testable with the existing dev controls.
-
-| Step | What | Depends On | Test With |
-|------|------|-----------|-----------|
-| 1 | Inner wrapper div (choreography layer) | Nothing | Verify slide still works |
-| 2 | Enemy idle bob CSS | Step 1 | ATB_RUNNING — enemies should bob |
-| 3 | Screen shake classes + trigger | Nothing | Dev button: trigger each shake level |
-| 4 | Hit flash (brightness filter toggle) | Step 1 | Dev button: flash any combatant |
-| 5 | Strike lunge + knockback anims | Step 1 | RESOLVING phase — attacker lunges, target recoils |
-| 6 | Damage numbers component | Nothing | Dev button: pop a number at any position |
-| 7 | Wind-up + return states | Step 1 | ACTION_CAM_IN → RESOLVING — full sequence visible |
-| 8 | Telegraph (enemy shake + glow) | Step 1 | ENEMY_TELEGRAPH phase |
-| 9 | Brace vs hit on defense | Steps 5, 4 | DEFENSE_QTE → RESOLVING with different results |
-| 10 | KO anim | Step 1 | Set enemy HP to 0, trigger resolve |
-| 11 | Timed sequencer (auto-advance through exchange) | Steps 5-9 | Full exchange plays automatically beat-by-beat |
+| Step | What | Depends On | Status |
+|------|------|-----------|--------|
+| 1 | Inner wrapper div (`normal-cam-char__choreo`) | Nothing | ✅ DONE |
+| 2 | Enemy idle bob CSS (stepped, staggered via `--bob-delay`) | Step 1 | ✅ DONE |
+| 3 | Screen shake classes + trigger (4 levels, stepped keyframes, `onAnimationEnd` cleanup) | Nothing | ✅ DONE |
+| 4 | Hit flash (brightness filter on `__choreo`, 80ms auto-clear) | Step 1 | ✅ DONE |
+| 5 | Strike lunge + knockback anims (`__choreo--strike`, `__choreo--hit`, directional via `--choreo-dir`) | Step 1 | ✅ DONE |
+| 6 | Damage numbers (`DamageNumber` component, CSS `dmgPop` keyframe, auto-cleanup) | Nothing | ✅ DONE |
+| 7 | Wind-up + return states (`__choreo--wind_up`, `__choreo--return`) | Step 1 | ✅ DONE |
+| 8 | Telegraph (enemy shake + glow) | Step 1 | 🔲 NEXT |
+| 9 | Brace vs hit on defense | Steps 5, 4 | 🔲 |
+| 10 | KO anim | Step 1 | 🔲 |
+| 11 | Timed sequencer (auto-advance through exchange) | Steps 5-9 | 🔲 |
 
 Step 11 is the key milestone — replaces manual dev-button phase stepping with an automatic timed sequence that plays the full exchange choreography.
 
@@ -295,7 +309,7 @@ Step 11 is the key milestone — replaces manual dev-button phase stepping with 
 ## What This Spec Does NOT Cover
 
 - QTE plugin wiring (circle timing rings) — DES-2
-- SFX / audio — separate pass
+- ~~SFX / audio — separate pass~~ **Partially implemented:** `battleSFX.js` provides procedural hit/block/impact/ko SFX via Web Audio API. Wired into hit combo (flash + knockback + shake + SFX + damage number fires together).
 - Fairy comic panel content / LLM integration — separate system
 - Damage math / HP mutation — `battleResolver.js`
 - Wave transitions / loot screen — separate features
@@ -406,20 +420,29 @@ any             → EXIT (KO)
 
 ## Updated Implementation Order
 
-| Step | What | Depends On | Test With |
-|------|------|-----------|-----------|
-| 1 | Inner wrapper div (choreography layer) | Nothing | Verify slide still works |
-| 2 | Enemy idle bob CSS | Step 1 | ATB_RUNNING — enemies should bob |
-| 3 | Screen shake classes + trigger | Nothing | Dev button: trigger each shake level |
-| 4 | Hit flash (brightness filter toggle) | Step 1 | Dev button: flash any combatant |
-| 5 | Strike lunge + knockback anims | Step 1 | RESOLVING — attacker lunges, target recoils |
-| 6 | Damage numbers component | Nothing | Dev button: pop a number at any position |
-| 7 | Wind-up + return states | Step 1 | ACTION_CAM_IN → RESOLVING — full sequence |
-| 8 | Telegraph (enemy shake + glow) | Step 1 | ENEMY_TELEGRAPH phase |
-| 9 | Brace vs hit on defense | Steps 5, 4 | DEFENSE_QTE → RESOLVING |
-| 10 | KO anim (flash + pixel dissolve + audio) | Steps 4, 3 | Set enemy HP to 0, trigger resolve |
-| 11 | Timed sequencer (auto-advance exchange) | Steps 5-9 | Full exchange plays beat-by-beat |
-| 12 | Per-ring QTE visual sync | Step 5, QTE plugin | Each ring hit triggers quick strike |
-| 13 | Defend action (brace + badge, no cam) | Step 1 | Pick Defend from action menu |
-| 14 | Flee QTE sequence | Step 11, new QTE type | Pick Flee, succeed or fail |
-| 15 | Results screen overlay | Nothing | Dev button: show results with mock data |
+| Step | What | Depends On | Status |
+|------|------|-----------|--------|
+| 1 | Inner wrapper div (`normal-cam-char__choreo`) | Nothing | ✅ DONE |
+| 2 | Enemy idle bob CSS (stepped, staggered via `--bob-delay`) | Step 1 | ✅ DONE |
+| 3 | Screen shake (4 levels, stepped keyframes, `onAnimationEnd`) | Nothing | ✅ DONE |
+| 4 | Hit flash (brightness filter, 80ms) | Step 1 | ✅ DONE |
+| 5 | Strike lunge + knockback (`--choreo-dir` directional) | Step 1 | ✅ DONE |
+| 6 | Damage numbers (`DamageNumber`, CSS `dmgPop`, auto-cleanup) | Nothing | ✅ DONE |
+| 7 | Wind-up + return states | Step 1 | ✅ DONE |
+| 8 | Telegraph (enemy shake + glow) | Step 1 | 🔲 NEXT |
+| 9 | Brace vs hit on defense | Steps 5, 4 | 🔲 |
+| 10 | KO anim (flash + pixel dissolve + audio) | Steps 4, 3 | 🔲 |
+| 11 | Timed sequencer (auto-advance exchange) | Steps 5-9 | 🔲 KEY MILESTONE |
+| 12 | Per-ring QTE visual sync | Step 5, QTE plugin | 🔲 |
+| 13 | Defend action (brace + badge, no cam) | Step 1 | 🔲 |
+| 14 | Flee QTE sequence | Step 11, new QTE type | 🔲 |
+| 15 | Results screen overlay | Nothing | 🔲 |
+
+**Additional completed work not in original steps:**
+- `battleSFX.js` — procedural hit/block/impact/ko SFX via Web Audio API
+- `fairyCombatIdle` + `fairyCombatKnockdown` sprite configs wired
+- Action cam pixel frame vignette overlay
+- `ActionCamInfoPanel` — split into two side-pinned panels in scene zone (not bottom zone)
+- Dev sequence buttons: "Atk→Tgt" / "Tgt→Atk" play full exchange combo
+- `animState` upgraded to keyed map for simultaneous multi-combatant animations
+- Class rename pass: `normal-cam-*` (formation) / `action-cam-*` (cinematic)

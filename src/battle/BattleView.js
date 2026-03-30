@@ -101,7 +101,7 @@ function BattleSprite(props) {
     // Static image (1 frame or fps=0)
     if (cfg.frames <= 1 || cfg.fps <= 0) {
         return (
-            <div className="battle-combatant__sprite" style={{
+            <div className="normal-cam-char__sprite" style={{
                 width: size, height: size,
                 backgroundImage: "url(" + src + ")",
                 backgroundSize: "contain",
@@ -123,7 +123,7 @@ function BattleSprite(props) {
     var bgY = totalRows > 1 ? (row * (100 / (totalRows - 1))) : 0;
 
     return (
-        <div className="battle-combatant__sprite" style={{
+        <div className="normal-cam-char__sprite" style={{
             width: size, height: size,
             backgroundImage: "url(" + src + ")",
             backgroundPosition: bgX + "% " + bgY + "%",
@@ -135,10 +135,10 @@ function BattleSprite(props) {
 }
 
 // ============================================================
-// Combatant — single fighter card
+// BattleCharacter — single fighter card
 // ============================================================
 
-function Combatant(props) {
+function BattleCharacter(props) {
     var c = props.data;
     var isParty = props.isParty;
     var isActive = props.phase !== PHASES.ATB_RUNNING && props.phase !== PHASES.ACTION_SELECT && props.phase !== PHASES.ACTION_CAM_OUT;
@@ -147,12 +147,12 @@ function Combatant(props) {
     var isAttacker = isActive && c.id === props.attackerId;
     var isTarget = isActive && c.id === props.targetId;
 
-    var cls = "battle-combatant";
-    if (isParty) cls += " battle-combatant--party";
-    if (!isParty && !isActive) cls += " battle-combatant--enemy-idle";
-    if (isDimmed) cls += " battle-combatant--dimmed";
-    if (isAttacker) cls += " battle-combatant--attacker";
-    if (isTarget) cls += " battle-combatant--target";
+    var cls = "normal-cam-char";
+    if (isParty) cls += " normal-cam-char--party";
+    if (!isParty && !isActive) cls += " normal-cam-char--enemy-idle";
+    if (isDimmed) cls += " action-cam-char--dimmed";
+    if (isAttacker) cls += " action-cam-char--attacker";
+    if (isTarget) cls += " action-cam-char--target";
 
     // Compute slide transform for action cam
     var style = {};
@@ -166,7 +166,11 @@ function Combatant(props) {
         var cached = props.restingRects[c.id];
         if (cached) {
             var gap = sr.width * 0.08;
-            var destX = isAttacker ? cx + gap : cx - gap;
+            // Normal: attacker (party) on right, target (enemy) on left
+            // Left-handed: flipped
+            var atkSide = props.isLeftHanded ? (cx - gap) : (cx + gap);
+            var tgtSide = props.isLeftHanded ? (cx + gap) : (cx - gap);
+            var destX = isAttacker ? atkSide : tgtSide;
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
             style.transform = "translate(" + dx + "px, " + dy + "px) scale(" + ACTION_CAM.activeScale + ")";
@@ -177,6 +181,16 @@ function Combatant(props) {
     var hpPct = c.maxHP > 0 ? Math.round(c.currentHP / c.maxHP * 100) : 0;
     var fillCls = "battle-hp-fill " + (isParty ? "battle-hp-fill--party" : "battle-hp-fill--enemy");
 
+    // Choreography: build __inner class + direction CSS var
+    var innerCls = "normal-cam-char__choreo";
+    if (props.flashId === c.id) innerCls += " normal-cam-char__choreo--flash";
+    var myAnim = props.animState && props.animState[c.id];
+    if (myAnim) {
+        innerCls += " normal-cam-char__choreo--" + myAnim;
+    }
+    // Party lunges left (toward enemy on left side), enemy lunges right
+    var innerStyle = { "--choreo-dir": isParty ? "1" : "-1" };
+
     return (
         <div
             className={cls}
@@ -184,10 +198,10 @@ function Combatant(props) {
             ref={props.setRef}
             onClick={props.onClick}
         >
-            <div className={"battle-combatant__inner" + (props.flashId === c.id ? " battle-combatant__inner--flash" : "")}>
+            <div className={innerCls} style={innerStyle}>
                 <BattleSprite spriteKey={props.spriteOverride || c.spriteKey} frame={props.spriteFrame} />
-                <div className={"battle-combatant__info" + (isActive ? " battle-combatant__info--hidden" : "")}>
-                    <span className="battle-combatant__name">{c.name}</span>
+                <div className={"normal-cam-char__info" + (isActive ? " action-cam-char__info--hidden" : "")}>
+                    <span className="normal-cam-char__name">{c.name}</span>
                     <div className="battle-hp-bg">
                         <div className={fillCls} style={{ width: hpPct + "%" }} />
                     </div>
@@ -304,36 +318,18 @@ function ComicPanel(props) {
 function DevControls(props) {
     if (!_DEV_CONTROLS) return null;
 
-    var phaseOrder = [
-        PHASES.ATB_RUNNING,
-        PHASES.ACTION_CAM_IN,
-        PHASES.QTE_ACTIVE,
-        PHASES.RESOLVING,
-        PHASES.ENEMY_TELEGRAPH,
-        PHASES.DEFENSE_QTE,
-        PHASES.ACTION_CAM_OUT,
-    ];
-
-    var shortLabels = {};
-    shortLabels[PHASES.ATB_RUNNING]     = "Normal";
-    shortLabels[PHASES.ACTION_CAM_IN]   = "Cam In";
-    shortLabels[PHASES.QTE_ACTIVE]      = "Atk QTE";
-    shortLabels[PHASES.RESOLVING]       = "Resolve";
-    shortLabels[PHASES.ENEMY_TELEGRAPH] = "Counter";
-    shortLabels[PHASES.DEFENSE_QTE]     = "Def QTE";
-    shortLabels[PHASES.ACTION_CAM_OUT]  = "Cam Out";
+    var isCamIn = props.phase !== PHASES.ATB_RUNNING && props.phase !== PHASES.ACTION_SELECT && props.phase !== PHASES.ACTION_CAM_OUT;
 
     return (
         <div className="battle-dev">
-            {phaseOrder.map(function(p) {
-                var cls = "battle-dev__btn" + (props.phase === p ? " battle-dev__btn--active" : "");
-                return (
-                    <button key={p} className={cls} onClick={function() { props.onSetPhase(p); }}>
-                        {shortLabels[p]}
-                    </button>
-                );
-            })}
+            {/* --- Camera --- */}
+            <button
+                className={"battle-dev__btn" + (isCamIn ? " battle-dev__btn--active" : "")}
+                onClick={function() { props.onSetPhase(isCamIn ? PHASES.ATB_RUNNING : PHASES.ACTION_CAM_IN); }}
+            >{isCamIn ? "Cam Out" : "Cam In"}</button>
             <div className="battle-dev__sep" />
+
+            {/* --- Target --- */}
             {props.enemies.map(function(e) {
                 var active = e.id === props.targetId;
                 var cls = "battle-dev__btn" + (active ? " battle-dev__btn--active" : "");
@@ -344,16 +340,13 @@ function DevControls(props) {
                 );
             })}
             <div className="battle-dev__sep" />
-            <button className="battle-dev__btn" onClick={props.onToggleATB}>
-                {props.atbRunning ? "Pause ATB" : "Run ATB"}
-            </button>
-            <button className="battle-dev__btn" onClick={props.onExit}>Exit</button>
+
+            {/* --- Sequences --- */}
+            <button className="battle-dev__btn" onClick={function() { props.onAtkSeq(props.attackerId, props.targetId); }}>Atk→Tgt</button>
+            <button className="battle-dev__btn" onClick={function() { props.onAtkSeq(props.targetId, props.attackerId); }}>Tgt→Atk</button>
             <div className="battle-dev__sep" />
-            <button className="battle-dev__btn" onClick={function() { props.onShake("light"); }}>Shake L</button>
-            <button className="battle-dev__btn" onClick={function() { props.onShake("medium"); }}>Shake M</button>
-            <button className="battle-dev__btn" onClick={function() { props.onShake("heavy"); }}>Shake H</button>
-            <button className="battle-dev__btn" onClick={function() { props.onShake("ko"); }}>Shake KO</button>
-            <div className="battle-dev__sep" />
+
+            {/* --- Sprite --- */}
             <button
                 className={"battle-dev__btn" + (!props.spriteOverride ? " battle-dev__btn--active" : "")}
                 onClick={function() { props.onSpriteOverride(null); }}
@@ -363,9 +356,21 @@ function DevControls(props) {
                 onClick={function() { props.onSpriteOverride("fairyCombatKnockdown"); }}
             >Knockdown</button>
             <div className="battle-dev__sep" />
-            <button className="battle-dev__btn" onClick={function() { props.onFlash(props.attackerId); }}>Flash Atk</button>
-            <button className="battle-dev__btn" onClick={function() { props.onFlash(props.targetId); }}>Flash Tgt</button>
-            <button className="battle-dev__btn" onClick={function() { props.onBlock(); }}>Block SFX</button>
+
+            {/* --- Panels --- */}
+            <button
+                className={"battle-dev__btn" + (props.comicOn ? " battle-dev__btn--active" : "")}
+                onClick={function() { props.onToggleComic(); }}
+            >Comic</button>
+            <div className="battle-dev__sep" />
+
+            {/* --- Misc --- */}
+            <button className="battle-dev__btn" onClick={props.onToggleATB}>
+                {props.atbRunning ? "Pause ATB" : "Run ATB"}
+            </button>
+            <button className="battle-dev__btn" onClick={props.onExit}>Exit</button>
+
+            {/* --- Phase badge --- */}
             <span className="battle-dev__badge">{PHASE_LABELS[props.phase] || props.phase}</span>
         </div>
     );
@@ -376,9 +381,10 @@ function DevControls(props) {
 // Shows during action cam phases, replaces in-scene info
 // ============================================================
 
-function ActionCamHUD(props) {
+function ActionCamInfoPanel(props) {
     var visible = props.visible;
-    var cls = "battle-cam-hud" + (visible ? " battle-cam-hud--visible" : "");
+    var isLeft = props.isLeftHanded;
+    var baseCls = "action-cam-info" + (visible ? " action-cam-info--visible" : "");
 
     var attacker = props.attacker;
     var target = props.target;
@@ -387,24 +393,55 @@ function ActionCamHUD(props) {
     var atkHp = attacker.maxHP > 0 ? Math.round(attacker.currentHP / attacker.maxHP * 100) : 0;
     var tgtHp = target.maxHP > 0 ? Math.round(target.currentHP / target.maxHP * 100) : 0;
 
+    // Normal: target (enemy) left, attacker (party) right. Flipped when left-handed.
+    var leftData  = isLeft ? attacker : target;
+    var rightData = isLeft ? target : attacker;
+    var leftHp    = isLeft ? atkHp : tgtHp;
+    var rightHp   = isLeft ? tgtHp : atkHp;
+    var leftSide  = isLeft ? "atk" : "tgt";
+    var rightSide = isLeft ? "tgt" : "atk";
+
     return (
-        <div className={cls}>
-            <div className="battle-cam-hud__side battle-cam-hud__side--atk">
-                <span className="battle-cam-hud__name">{attacker.name}</span>
-                <div className="battle-cam-hud__hp-bg">
-                    <div className="battle-hp-fill battle-hp-fill--party" style={{ width: atkHp + "%" }} />
+        <>
+            <div className={baseCls + " action-cam-info--left action-cam-info__side--" + leftSide}>
+                <span className="action-cam-info__name">{leftData.name}</span>
+                <div className="action-cam-info__hp-bg">
+                    <div className={"battle-hp-fill " + (leftSide === "atk" ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: leftHp + "%" }} />
                 </div>
-                <span className="battle-cam-hud__hp-text">{attacker.currentHP + "/" + attacker.maxHP}</span>
+                <span className="action-cam-info__hp-text">{leftData.currentHP + "/" + leftData.maxHP}</span>
             </div>
-            <span className="battle-cam-hud__vs">VS</span>
-            <div className="battle-cam-hud__side battle-cam-hud__side--tgt">
-                <span className="battle-cam-hud__name">{target.name}</span>
-                <div className="battle-cam-hud__hp-bg">
-                    <div className="battle-hp-fill battle-hp-fill--enemy" style={{ width: tgtHp + "%" }} />
+            <div className={baseCls + " action-cam-info--right action-cam-info__side--" + rightSide}>
+                <span className="action-cam-info__name">{rightData.name}</span>
+                <div className="action-cam-info__hp-bg">
+                    <div className={"battle-hp-fill " + (rightSide === "atk" ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: rightHp + "%" }} />
                 </div>
-                <span className="battle-cam-hud__hp-text">{target.currentHP + "/" + target.maxHP}</span>
+                <span className="action-cam-info__hp-text">{rightData.currentHP + "/" + rightData.maxHP}</span>
             </div>
-        </div>
+        </>
+    );
+}
+
+// ============================================================
+// DamageNumber — floating pop text, self-destructs via CSS anim
+// Props: value (number|string), x (px), y (px), color (hex)
+// ============================================================
+
+function DamageNumber(props) {
+    var isMiss = props.value === "MISS";
+    var isCrit = typeof props.value === "number" && props.value >= 20;
+    var cls = "action-cam-dmg" + (isCrit ? " action-cam-dmg--crit" : "") + (isMiss ? " action-cam-dmg--miss" : "");
+
+    return (
+        <span
+            className={cls}
+            style={{
+                left: props.x + "px",
+                top: props.y + "px",
+                color: props.color || "#ffffff",
+            }}
+        >
+            {props.value}
+        </span>
     );
 }
 
@@ -427,6 +464,10 @@ function BattleView(props) {
     var [shakeLevel, setShakeLevel] = useState(null);
     var [flashId, setFlashId] = useState(null);
     var [devSpriteOverride, setDevSpriteOverride] = useState(null);
+    var [animState, setAnimState] = useState({}); // { combatantId: "strike"|"hit"|"wind_up"|"return" }
+    var [devShowComic, setDevShowComic] = useState(false);
+    var [damageNumbers, setDamageNumbers] = useState([]);
+    var dmgKeyRef = useRef(0);
     var [atbValues, setAtbValues] = useState(function() {
         var v = {};
         TEST_PARTY.forEach(function(c) { v[c.id] = 0; });
@@ -531,10 +572,10 @@ function BattleView(props) {
     var isActionCam = phase !== PHASES.ATB_RUNNING && phase !== PHASES.ACTION_SELECT && phase !== PHASES.ACTION_CAM_OUT;
     var showQTE = phase === PHASES.QTE_ACTIVE || phase === PHASES.DEFENSE_QTE;
     var isDefenseQTE = phase === PHASES.DEFENSE_QTE;
-    var showComic = isActionCam;
+    var showComic = isActionCam || devShowComic;
     var showSpark = phase === PHASES.RESOLVING;
 
-    var comicLine = COMIC_LINES[phase] || "...";
+    var comicLine = devShowComic ? "[DEV] Comic panel test" : (COMIC_LINES[phase] || "...");
 
     // Lookup active combatant data for action cam HUD
     var allData = TEST_PARTY.concat(TEST_ENEMIES);
@@ -558,6 +599,14 @@ function BattleView(props) {
     });
 
     // --- Dev handlers ---
+    function spawnDamageNumber(value, x, y, color) {
+        var key = ++dmgKeyRef.current;
+        var entry = { key: key, value: value, x: x, y: y, color: color };
+        setDamageNumbers(function(prev) { return prev.concat(entry); });
+        setTimeout(function() {
+            setDamageNumbers(function(prev) { return prev.filter(function(d) { return d.key !== key; }); });
+        }, CHOREOGRAPHY.dmgPopMs);
+    }
     function handleDevSetPhase(p) { setPhase(p); }
     function handleDevSetTarget(id) {
         setTargetId(id);
@@ -567,6 +616,73 @@ function BattleView(props) {
         setFlashId(id);
         BattleSFX.hit();
         setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+    }
+    function handleDevStrike(id) {
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[id] = "strike"; return n; });
+        BattleSFX.hit();
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[id]; return n; });
+        }, CHOREOGRAPHY.strikeMs);
+    }
+    function handleDevHit(id) {
+        // Full hit combo: flash + knockback + shake + SFX + damage number
+        setFlashId(id);
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[id] = "hit"; return n; });
+        BattleSFX.impact();
+        setShakeLevel(null);
+        requestAnimationFrame(function() { setShakeLevel("medium"); });
+        setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[id]; return n; });
+        }, CHOREOGRAPHY.hitMs);
+        // Damage number at combatant position
+        var el = combatantRefs.current[id];
+        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+        if (el && sr) {
+            var r = el.getBoundingClientRect();
+            var cx = r.left - sr.left + r.width / 2;
+            var cy = r.top - sr.top;
+            var val = Math.floor(Math.random() * 25) + 3;
+            var isPartyHit = TEST_PARTY.some(function(p) { return p.id === id; });
+            spawnDamageNumber(val, cx, cy, isPartyHit ? "#ef4444" : "#f59e0b");
+        }
+    }
+    function handleDevWindUp(id) {
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[id] = "wind_up"; return n; });
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[id]; return n; });
+        }, CHOREOGRAPHY.windUpMs);
+    }
+    function handleDevReturn(id) {
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[id] = "return"; return n; });
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[id]; return n; });
+        }, CHOREOGRAPHY.returnMs);
+    }
+    function handleDevAtkSequence(atkId, tgtId) {
+        // WindUp → Strike + Hit → Return → Clear
+        var t1 = CHOREOGRAPHY.windUpMs;
+        var t2 = t1 + CHOREOGRAPHY.strikeMs;
+        var t3 = t2 + CHOREOGRAPHY.returnMs;
+
+        // Wind-up attacker
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "wind_up"; return n; });
+
+        // Strike attacker + full hit combo on target
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "strike"; return n; });
+            handleDevHit(tgtId);
+        }, t1);
+
+        // Return attacker
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "return"; return n; });
+        }, t2);
+
+        // Clear attacker
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
+        }, t3);
     }
 
     // --- Action handler ---
@@ -599,7 +715,7 @@ function BattleView(props) {
                 <div className="battle-formation battle-formation--enemy">
                     {TEST_ENEMIES.map(function(e, idx) {
                         return (
-                            <Combatant
+                            <BattleCharacter
                                 key={e.id}
                                 data={e}
                                 isParty={false}
@@ -613,6 +729,8 @@ function BattleView(props) {
                                 onClick={function() { setTargetId(e.id); }}
                                 spriteFrame={spriteFrame}
                                 flashId={flashId}
+                                animState={animState}
+                                isLeftHanded={isLeftHanded}
                             />
                         );
                     })}
@@ -622,7 +740,7 @@ function BattleView(props) {
                 <div className="battle-formation battle-formation--party">
                     {TEST_PARTY.map(function(p) {
                         return (
-                            <Combatant
+                            <BattleCharacter
                                 key={p.id}
                                 data={p}
                                 isParty={true}
@@ -635,6 +753,8 @@ function BattleView(props) {
                                 setRef={makeRefSetter(p.id)}
                                 spriteFrame={spriteFrame}
                                 flashId={flashId}
+                                animState={animState}
+                                isLeftHanded={isLeftHanded}
                             />
                         );
                     })}
@@ -647,16 +767,23 @@ function BattleView(props) {
 
                 {/* Action cam pixel frame */}
                 <div className={"battle-cam-frame" + (isActionCam ? " battle-cam-frame--visible" : "")} />
+
+                {/* Damage numbers */}
+                {damageNumbers.map(function(d) {
+                    return <DamageNumber key={d.key} value={d.value} x={d.x} y={d.y} color={d.color} />;
+                })}
+
+                {/* Action cam info — name/HP pinned to scene edges */}
+                <ActionCamInfoPanel
+                    visible={isActionCam}
+                    attacker={attackerData}
+                    target={targetData}
+                    isLeftHanded={isLeftHanded}
+                />
             </div>
 
             {/* === BOTTOM ZONE === */}
             <div className="battle-bottom" style={bottomStyle}>
-                {/* Action cam HUD — attacker vs target HP overlay */}
-                <ActionCamHUD
-                    visible={isActionCam}
-                    attacker={attackerData}
-                    target={targetData}
-                />
 
                 {/* Open real estate */}
                 <div className="battle-open">
@@ -700,14 +827,10 @@ function BattleView(props) {
                 onSetPhase={handleDevSetPhase}
                 onSetTarget={handleDevSetTarget}
                 onToggleATB={handleDevToggleATB}
-                onShake={function(level) {
-                    setShakeLevel(null);
-                    requestAnimationFrame(function() { setShakeLevel(level); });
-                    if (level === "ko") { BattleSFX.ko(); } else { BattleSFX.impact(); }
-                }}
                 onSpriteOverride={setDevSpriteOverride}
-                onFlash={handleDevFlash}
-                onBlock={function() { BattleSFX.block(); }}
+                onAtkSeq={handleDevAtkSequence}
+                comicOn={devShowComic}
+                onToggleComic={function() { setDevShowComic(function(v) { return !v; }); }}
                 onExit={onExit}
             />
         </div>
