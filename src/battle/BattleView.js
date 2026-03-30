@@ -47,6 +47,8 @@ var ATB = BattleConstants.ATB;
 var CHOREOGRAPHY = BattleConstants.CHOREOGRAPHY;
 var TEST_PARTY = BattleConstants.TEST_PARTY;
 var TEST_ENEMIES = BattleConstants.TEST_ENEMIES;
+var DEFEND_BUFF = BattleConstants.DEFEND_BUFF;
+var FLEE = BattleConstants.FLEE;
 
 // ============================================================
 // DEV FLAG — show phase controls overlay
@@ -296,6 +298,59 @@ function ActionMenu(props) {
 }
 
 // ============================================================
+// Item Submenu — scrollable list of items with qty, tap to use
+// Props: items (array), onUse(itemId), onClose(), visible, isInCam
+// ============================================================
+
+function ItemSubmenu(props) {
+    var visible = props.visible;
+    var items = props.items || [];
+    var onUse = props.onUse;
+    var onClose = props.onClose;
+    var isInCam = props.isInCam;
+
+    if (!visible) return null;
+
+    var hasItems = false;
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].qty > 0) { hasItems = true; break; }
+    }
+
+    var baseCls = "battle-item-submenu" + (isInCam ? " battle-item-submenu--in-cam" : "");
+
+    return (
+        <div className={baseCls}>
+            <div className="battle-item-submenu__header">
+                <span className="battle-item-submenu__title">ITEMS</span>
+                <button className="battle-item-submenu__close" onClick={onClose}>{"\u2715"}</button>
+            </div>
+            <div className="battle-item-submenu__list">
+                {!hasItems && (
+                    <div className="battle-item-submenu__empty">No items</div>
+                )}
+                {items.map(function(item) {
+                    var empty = item.qty <= 0;
+                    var cls = "battle-item-submenu__row" + (empty ? " battle-item-submenu__row--empty" : "");
+                    return (
+                        <button
+                            key={item.id}
+                            className={cls}
+                            disabled={empty}
+                            onClick={function() { if (!empty && onUse) onUse(item.id); }}
+                        >
+                            <span className="battle-item-submenu__icon">{item.icon || "\uD83D\uDCE6"}</span>
+                            <span className="battle-item-submenu__name">{item.name}</span>
+                            <span className="battle-item-submenu__desc">{item.description}</span>
+                            <span className="battle-item-submenu__qty">{"x" + item.qty}</span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+// ============================================================
 // QTE Zone — overlay placeholder
 // ============================================================
 
@@ -540,6 +595,11 @@ function BattleView(props) {
     var [stateVersion, setStateVersion] = useState(0);
     function bumpState() { setStateVersion(function(v) { return v + 1; }); }
 
+    // --- Item submenu state ---
+    // context: "formation" (out of cam) or "in-cam" (during exchange)
+    var [itemMenuOpen, setItemMenuOpen] = useState(false);
+    var itemMenuContextRef = useRef("formation");
+
     // --- Sprite animation frame ---
     var [spriteFrame, setSpriteFrame] = useState(0);
     useEffect(function() {
@@ -620,6 +680,10 @@ function BattleView(props) {
             if (readyIdRef.current) {
                 var whoIsReady = readyIdRef.current;
                 readyIdRef.current = null;
+
+                // Clear defend buffs — they last "until your next turn"
+                bState.clearDefendBuffs(whoIsReady);
+                bumpState();
 
                 var isPartyMember = isPartyId(whoIsReady);
                 setTurnOwnerId(whoIsReady);
@@ -879,7 +943,8 @@ function BattleView(props) {
         if (hit) {
             var blocked = beat.blockable !== false;
             if (blocked) {
-                var blockDmg = Math.round(beat.damage * (beat.blockMult || 0.3));
+                // Brace — player hit the ring, damage reduced to x0.25
+                var blockDmg = Math.round(beat.damage * 0.25);
                 setAnimState(function(prev) {
                     var n = Object.assign({}, prev); n[receiver] = "brace"; return n;
                 });
@@ -890,6 +955,11 @@ function BattleView(props) {
                     var r4 = el.getBoundingClientRect();
                     spawnDamageNumber(blockDmg, r4.left - sr4.left + r4.width / 2, r4.top - sr4.top, "#60a5fa");
                 }
+                // Apply braced damage to mutable state
+                var ctx = qteContextRef.current;
+                var fromParty = ctx && ctx.swingerId ? isPartyId(ctx.swingerId) : false;
+                bState.applyDamage(receiver, blockDmg, fromParty);
+                bumpState();
             } else {
                 applyFullHit(beat, receiver, dmgColor);
             }
@@ -914,6 +984,12 @@ function BattleView(props) {
             spawnDamageNumber(beat.damage, r5.left - sr5.left + r5.width / 2, r5.top - sr5.top, dmgColor);
         }
         setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+
+        // Apply damage to mutable state — HP bars now react
+        var ctx = qteContextRef.current;
+        var fromParty = ctx && ctx.swingerId ? isPartyId(ctx.swingerId) : false;
+        bState.applyDamage(receiver, beat.damage, fromParty);
+        bumpState();
     }
 
     // ============================================================
@@ -1105,12 +1181,237 @@ function BattleView(props) {
     }
 
     function handleAction(actionId) {
-        if (actionId === "flee" && onExit) {
-            onExit();
-        } else if (actionId === "attack") {
-            var atkId = turnOwnerId || attackerId;
-            startExchange(atkId, targetId);
+        var userId = turnOwnerId || attackerId;
+
+        if (actionId === "attack") {
+            startExchange(userId, targetId);
+        } else if (actionId === "item") {
+            itemMenuContextRef.current = "formation";
+            setItemMenuOpen(true);
+        } else if (actionId === "defend") {
+            handleDefend(userId, "formation");
+        } else if (actionId === "flee") {
+            handleFlee(userId);
         }
+    }
+
+    // ============================================================
+    // DEFEND — formation or in-cam, costs 1 pip, instant
+    // Grants +defensePower buff until this combatant's ATB fills again.
+    // ============================================================
+    function handleDefend(userId, context) {
+        deductPip(userId);
+
+        // Apply buff via battleState
+        bState.get(userId).buffs.push({
+            stat:      DEFEND_BUFF.stat,
+            value:     DEFEND_BUFF.value,
+            turnsLeft: DEFEND_BUFF.turns,
+        });
+        bumpState();
+
+        // Visual feedback
+        var el = combatantRefs.current[userId];
+        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+        if (el && sr) {
+            var r = el.getBoundingClientRect();
+            spawnDamageNumber("DEF UP", r.left - sr.left + r.width / 2, r.top - sr.top, "#4ade80");
+        }
+
+        // Post-use flow
+        if (context === "in-cam") {
+            var cam = camExchangeRef.current;
+            if (cam) {
+                var nextSwinger = cam.currentReceiverId;
+                var nextReceiver = cam.currentSwingerId;
+                cam.currentSwingerId = nextSwinger;
+                cam.currentReceiverId = nextReceiver;
+
+                var nextPips = atbValuesRef.current[nextSwinger];
+                if (!nextPips || nextPips.filledPips <= 0) {
+                    camOut();
+                } else {
+                    setPhase(PHASES.CAM_WAIT_ACTION);
+                }
+            }
+        } else {
+            var remaining = atbValuesRef.current[userId];
+            if (!remaining || remaining.filledPips <= 0) {
+                setTurnOwnerId(null);
+                setPhase(PHASES.ATB_RUNNING);
+                setAtbRunning(true);
+            }
+        }
+    }
+
+    // In-cam DEF button handler
+    function handleCamDefend() {
+        var cam = camExchangeRef.current;
+        if (!cam) return;
+        if (phase !== PHASES.CAM_WAIT_ACTION) return;
+        handleDefend(cam.currentSwingerId, "in-cam");
+    }
+
+    // ============================================================
+    // FLEE — formation only, costs ALL 3 pips (entire turn)
+    // Roll chance. Success = exit. Fail = turn over.
+    // ============================================================
+    function handleFlee(userId) {
+        // Drain all pips
+        var prev = atbValuesRef.current;
+        var next = {};
+        for (var key in prev) {
+            if (prev.hasOwnProperty(key)) {
+                next[key] = key === userId
+                    ? { filledPips: 0, currentFill: 0 }
+                    : prev[key];
+            }
+        }
+        atbValuesRef.current = next;
+        setAtbValues(next);
+
+        var roll = Math.random();
+        if (roll < FLEE.baseChance) {
+            // Success
+            var el = combatantRefs.current[userId];
+            var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+            if (el && sr) {
+                var r = el.getBoundingClientRect();
+                spawnDamageNumber("FLED!", r.left - sr.left + r.width / 2, r.top - sr.top, "#4ade80");
+            }
+            setTimeout(function() {
+                if (onExit) onExit();
+            }, 400);
+        } else {
+            // Fail — turn is over (all pips spent)
+            var el2 = combatantRefs.current[userId];
+            var sr2 = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+            if (el2 && sr2) {
+                var r2 = el2.getBoundingClientRect();
+                spawnDamageNumber("FAIL", r2.left - sr2.left + r2.width / 2, r2.top - sr2.top, "#ef4444");
+            }
+            setTurnOwnerId(null);
+            setPhase(PHASES.ATB_RUNNING);
+            setAtbRunning(true);
+        }
+    }
+
+    // ============================================================
+    // ITEM USE — shared logic for formation + in-cam
+    // ============================================================
+
+    // Helper: deduct 1 pip from a combatant's ATB
+    function deductPip(combatantId) {
+        // Build updated ATB state synchronously so callers can
+        // read atbValuesRef.current immediately after.
+        var prev = atbValuesRef.current;
+        var entry = prev[combatantId];
+        if (!entry || entry.filledPips <= 0) return;
+        var next = {};
+        for (var key in prev) {
+            if (prev.hasOwnProperty(key)) {
+                next[key] = key === combatantId
+                    ? { filledPips: entry.filledPips - 1, currentFill: 0 }
+                    : prev[key];
+            }
+        }
+        atbValuesRef.current = next;
+        setAtbValues(next);
+    }
+
+    function handleItemUse(itemId) {
+        var context = itemMenuContextRef.current;
+        var userId = context === "in-cam"
+            ? (camExchangeRef.current ? camExchangeRef.current.currentSwingerId : null)
+            : (turnOwnerId || attackerId);
+
+        if (!userId) return;
+
+        // Determine target — heals/buffs target self, debuff/damage targets enemy
+        var userItems = bState.get(userId);
+        if (!userItems) return;
+        var itemEntry = null;
+        for (var i = 0; i < userItems.items.length; i++) {
+            if (userItems.items[i].id === itemId) { itemEntry = userItems.items[i]; break; }
+        }
+        if (!itemEntry || itemEntry.qty <= 0) return;
+
+        var effectTarget = userId;
+        if (itemEntry.effect.type === "damage" || itemEntry.effect.type === "debuff_enemy") {
+            if (context === "in-cam" && camExchangeRef.current) {
+                effectTarget = camExchangeRef.current.currentReceiverId;
+            } else {
+                effectTarget = targetId;
+            }
+        }
+
+        // Apply via battleState
+        var result = bState.useItem(userId, itemId, effectTarget);
+        if (!result || !result.success) return;
+
+        // Deduct pip
+        deductPip(userId);
+
+        // Spawn feedback number
+        var feedbackText = result.effect.type === "heal" ? ("+" + result.effect.value) :
+            result.effect.type === "damage" ? result.effect.value :
+                result.effect.type === "buff" ? ("\u2B06" + result.effect.stat.replace("Power", "")) :
+                    ("\u2B07" + result.effect.stat.replace("Power", ""));
+        var feedbackColor = result.effect.type === "heal" ? "#4ade80" :
+            result.effect.type === "damage" ? "#ef4444" :
+                result.effect.type === "buff" ? "#60a5fa" : "#f59e0b";
+
+        var el = combatantRefs.current[result.targetId];
+        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+        if (el && sr) {
+            var r = el.getBoundingClientRect();
+            spawnDamageNumber(feedbackText, r.left - sr.left + r.width / 2, r.top - sr.top, feedbackColor);
+        }
+
+        // Close submenu
+        setItemMenuOpen(false);
+        bumpState();
+
+        // Post-use flow depends on context
+        if (context === "in-cam") {
+            // In-cam: swap sides or cam out if no pips
+            var cam = camExchangeRef.current;
+            if (cam) {
+                var nextSwinger = cam.currentReceiverId;
+                var nextReceiver = cam.currentSwingerId;
+                cam.currentSwingerId = nextSwinger;
+                cam.currentReceiverId = nextReceiver;
+
+                var nextPips = atbValuesRef.current[nextSwinger];
+                if (!nextPips || nextPips.filledPips <= 0) {
+                    camOut();
+                } else {
+                    setPhase(PHASES.CAM_WAIT_ACTION);
+                }
+            }
+        } else {
+            // Formation: check remaining pips — if 0, end turn
+            var remaining = atbValuesRef.current[userId];
+            if (!remaining || remaining.filledPips <= 0) {
+                setTurnOwnerId(null);
+                setPhase(PHASES.ATB_RUNNING);
+                setAtbRunning(true);
+            }
+            // else stay in ACTION_SELECT, player can chain more actions
+        }
+    }
+
+    function handleItemClose() {
+        setItemMenuOpen(false);
+    }
+
+    // In-cam ITEM button handler
+    function handleCamItem() {
+        var cam = camExchangeRef.current;
+        if (!cam) return;
+        if (phase !== PHASES.CAM_WAIT_ACTION) return;
+        itemMenuContextRef.current = "in-cam";
+        setItemMenuOpen(true);
     }
 
     // ============================================================
@@ -1280,6 +1581,22 @@ function BattleView(props) {
                                 PASS
                             </button>
                         )}
+                        {(playerAtkEnabled || playerRelentEnabled || playerPassEnabled) && (
+                            <button
+                                className="battle-cam-sec-btn battle-cam-sec-btn--defend"
+                                onClick={handleCamDefend}
+                            >
+                                DEF
+                            </button>
+                        )}
+                        {(playerAtkEnabled || playerRelentEnabled || playerPassEnabled) && (
+                            <button
+                                className="battle-cam-sec-btn battle-cam-sec-btn--item"
+                                onClick={handleCamItem}
+                            >
+                                ITEM
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -1303,6 +1620,21 @@ function BattleView(props) {
                 <ActionMenu
                     hidden={isActionCam}
                     onAction={handleAction}
+                />
+
+                {/* Item submenu — overlays action menu zone */}
+                <ItemSubmenu
+                    visible={itemMenuOpen}
+                    items={itemMenuOpen ? (function() {
+                        var uid = itemMenuContextRef.current === "in-cam"
+                            ? (camExchangeRef.current ? camExchangeRef.current.currentSwingerId : null)
+                            : (turnOwnerId || attackerId);
+                        var c = uid ? bState.get(uid) : null;
+                        return c ? c.items : [];
+                    })() : []}
+                    onUse={handleItemUse}
+                    onClose={handleItemClose}
+                    isInCam={itemMenuContextRef.current === "in-cam"}
                 />
 
                 {/* QTE zone */}

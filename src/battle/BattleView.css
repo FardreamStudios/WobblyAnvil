@@ -1058,3 +1058,192 @@
     background: #ef4444;
     border-color: #ef444488;
 }
+
+/* ============================================================
+   ITEM SUBMENU — overlays action menu zone (formation)
+   or floats in scene zone (in-cam)
+   ============================================================ */
+
+.battle-item-submenu {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: var(--battle-actions-w, 18vw);
+    height: 100%;
+    background: rgba(10, 7, 4, 0.95);
+    border-left: 1px solid rgba(245, 158, 11, 0.25);
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    pointer-events: auto;
+    animation: itemSubmenuSlideIn 0.2s ease-out;
+}
+
+.battle-item-submenu--in-cam {
+    position: fixed;
+    bottom: auto;
+    right: auto;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: clamp(200px, 40vw, 320px);
+    height: auto;
+    max-height: 50vh;
+    border: 2px solid rgba(245, 158, 11, 0.4);
+    border-radius: 8px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+@keyframes itemSubmenuSlideIn {
+    0%   { opacity: 0; transform: translateX(10px); }
+    100% { opacity: 1; transform: translateX(0); }
+}
+
+.battle-item-submenu--in-cam {
+    animation: itemSubmenuFadeIn 0.2s ease-out;
+}
+
+@keyframes itemSubmenuFadeIn {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.battle-item-submenu__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8vh 1vw;
+    border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+    flex-shrink: 0;
+}
+
+.battle-item-submenu__title {
+    font-size: clamp(8px, 1.3vw, 11px);
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #f59e0b;
+    text-transform: uppercase;
+}
+
+.battle-item-submenu__close {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    color: #8a7a64;
+    font-size: clamp(10px, 1.5vw, 14px);
+    cursor: pointer;
+    padding: 2px 6px;
+    line-height: 1;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.battle-item-submenu__close:hover {
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.battle-item-submenu__list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.5vh 0.4vw;
+}
+
+.battle-item-submenu__empty {
+    text-align: center;
+    color: #5a4a3a;
+    font-size: clamp(8px, 1.2vw, 10px);
+    letter-spacing: 1px;
+    padding: 2vh 0;
+}
+
+.battle-item-submenu__row {
+    display: flex;
+    align-items: center;
+    gap: 0.6vw;
+    padding: 0.6vh 0.6vw;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    font-family: monospace;
+    text-align: left;
+    color: #e0d8c8;
+}
+
+.battle-item-submenu__row:hover {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.2);
+}
+
+.battle-item-submenu__row:active {
+    transform: scale(0.97);
+}
+
+.battle-item-submenu__row--empty {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.battle-item-submenu__row--empty:hover {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+.battle-item-submenu__icon {
+    font-size: clamp(12px, 2vw, 18px);
+    flex-shrink: 0;
+    width: 2vw;
+    text-align: center;
+}
+
+.battle-item-submenu__name {
+    font-size: clamp(8px, 1.2vw, 11px);
+    font-weight: bold;
+    color: #f0e6c8;
+    letter-spacing: 0.5px;
+    flex-shrink: 0;
+}
+
+.battle-item-submenu__desc {
+    font-size: clamp(7px, 1vw, 9px);
+    color: #8a7a64;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.battle-item-submenu__qty {
+    font-size: clamp(8px, 1.1vw, 10px);
+    color: #f59e0b;
+    font-weight: bold;
+    flex-shrink: 0;
+    min-width: 2vw;
+    text-align: right;
+}
+
+/* In-cam ITEM button color */
+.battle-cam-sec-btn--item {
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+.battle-cam-sec-btn--item:hover {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+/* In-cam DEF button color */
+.battle-cam-sec-btn--defend {
+    color: #4ade80;
+    border-color: rgba(74, 222, 128, 0.25);
+}
+
+.battle-cam-sec-btn--defend:hover {
+    background: rgba(74, 222, 128, 0.1);
+    border-color: rgba(74, 222, 128, 0.4);
+}

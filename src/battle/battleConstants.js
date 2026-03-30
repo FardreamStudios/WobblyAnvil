@@ -47,10 +47,22 @@ var EXCHANGE = {
 // All actions cost 1 pip. Attack entering action cam = turn ends when cam resolves.
 var PIP_COSTS = {
     attack:     1,          // enters action cam, 1 attack per out-of-cam turn max
-    defend:     1,          // out-of-cam: defense buff for next exchange
-    item:       1,          // out-of-cam: instant, no action cam
+    defend:     1,          // formation or in-cam: defense buff, instant
+    item:       1,          // formation or in-cam: instant, no QTE
     pass:       1,          // yields initiative, costs a pip (not free)
-    flee:       1,          // out-of-cam: roll flee chance
+    flee:       3,          // formation only: costs ALL pips (full turn)
+};
+
+// --- Defend Buff Config ---
+var DEFEND_BUFF = {
+    stat:       "defensePower",
+    value:      3,              // +3 defense
+    turns:      99,             // sentinel — cleared on next ATB fill, not turn-counted
+};
+
+// --- Flee Config ---
+var FLEE = {
+    baseChance:     0.5,        // 50% flat chance V1 (future: wave-based)
 };
 
 // --- Formation-View Action Buttons ---
@@ -128,8 +140,8 @@ var TEST_PARTY = [
         id: "smith",
         name: "Smith",
         spriteKey: "fairyIdle",
-        maxHP: 80,
-        currentHP: 72,
+        maxHP: 20,
+        currentHP: 20,
         atbSpeed: 0.4,
         attackPower: 12,
         defensePower: 8,
@@ -144,8 +156,8 @@ var TEST_PARTY = [
         id: "fairy",
         name: "Fairy",
         spriteKey: "fairyCombatIdle",
-        maxHP: 50,
-        currentHP: 50,
+        maxHP: 20,
+        currentHP: 20,
         atbSpeed: 0.3,
         attackPower: 6,
         defensePower: 5,
@@ -162,8 +174,8 @@ var TEST_ENEMIES = [
         id: "raccoon",
         name: "Raccoon",
         spriteKey: "enemyBag",
-        maxHP: 40,
-        currentHP: 40,
+        maxHP: 20,
+        currentHP: 20,
         atbSpeed: 0.28,
         attackPower: 8,
         defensePower: 3,
@@ -173,8 +185,8 @@ var TEST_ENEMIES = [
         id: "trashbag",
         name: "Trash Bag",
         spriteKey: "enemyBag",
-        maxHP: 30,
-        currentHP: 21,
+        maxHP: 20,
+        currentHP: 20,
         atbSpeed: 0.22,
         attackPower: 6,
         defensePower: 2,
@@ -255,6 +267,8 @@ var BattleConstants = {
     IN_CAM_ACTIONS: IN_CAM_ACTIONS,
     BATTLE_PHASES: BATTLE_PHASES,
     BATTLE_ITEMS: BATTLE_ITEMS,
+    DEFEND_BUFF: DEFEND_BUFF,
+    FLEE: FLEE,
 };
 
 export default BattleConstants;

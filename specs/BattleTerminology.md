@@ -55,9 +55,10 @@ Each swing has three aspects. They are 1:1 but viewed from different angles:
 | **ATK** | Formation or in-cam | Spend 1 pip. Pick a skill. In formation view, this opens the action cam. In-cam, this starts a combo. |
 | **RELENT** | In-cam, initiator only | End the exchange. Free. Only the initiator can choose this. |
 | **PASS** | In-cam, responder only | Yield the action cam turn back to the initiator. Cost TBD (playtest-gated). |
-| **Defend** | Formation view | Spend 1 pip. Grants a defense buff for the next incoming exchange. No cam. |
-| **Item** | Formation view | Spend 1 pip. Instant use. No cam. |
-| **Flee** | Formation view | Spend 1 pip. Roll flee chance. Fail = pip spent, turn continues if pips remain. |
+| **Defend** | Formation or in-cam | Spend 1 pip. Grants +3 defensePower buff until this combatant's ATB fills again. In-cam: resolves instantly, swaps sides. |
+| **Item** | Formation or in-cam | Spend 1 pip. Instant use, applies effect (heal/buff/debuff/damage). In-cam: resolves instantly, swaps sides. |
+| **Flee** | Formation only | Costs all 3 pips (entire turn). Roll chance (50% V1). Success = exit battle. Fail = turn over. |
+| **Brace** | During defensive QTE | Tap the shrinking ring to brace. Reduces incoming damage to ×0.25. Free — costs no pip. This is a reaction, not an action choice. |
 
 ---
 
@@ -71,7 +72,21 @@ Each swing has three aspects. They are 1:1 but viewed from different angles:
 
 ---
 
+## Strategic vs Tactical
+
+| Term | Layer | When | Cost | What |
+|------|-------|------|------|------|
+| **Defend** | Strategic | Your action turn (formation or in-cam) | 1 pip | Choose to buff defense. Proactive. |
+| **Brace** | Tactical | During incoming attack QTE | Free | React to a ring. Skill-based. |
+| **Item** | Strategic | Your action turn (formation or in-cam) | 1 pip | Choose to use a consumable. Proactive. |
+| **Flee** | Strategic | Formation turn only | 3 pips (all) | All-in escape attempt. |
+
+Strategic actions are choices you make on your turn. Tactical actions are reactions during the opponent's turn. The two systems are independent — you can Defend (strategic) AND Brace (tactical) in the same combat cycle.
+
+---
+
 ## Open Questions
 
 - **PASS cost:** Free or 1 pip? Current code: free. ATBActionEconomy spec: 1 pip. Deferred to playtesting.
 - **Defender pip retention after exchange:** Do responder's unspent pips survive? Candidate rule: responder keeps unspent pips, initiator loses theirs. Deferred to playtesting.
+- **Defend buff stacking:** Currently stacks. Cap at 1? Diminishing returns? Deferred to playtesting.

@@ -269,6 +269,16 @@ function createBattleState(partyArray, enemyArray) {
         });
     }
 
+    // Clear all defend-applied buffs (stat === "defensePower" with sentinel turns).
+    // Called when a combatant's ATB fills — defend lasts "until your next turn".
+    function clearDefendBuffs(combatantId) {
+        var c = combatants[combatantId];
+        if (!c) return;
+        c.buffs = c.buffs.filter(function(b) {
+            return b.stat !== "defensePower";
+        });
+    }
+
     // ============================================================
     // RESULT — Build BattleResult deltas
     // ============================================================
@@ -314,6 +324,7 @@ function createBattleState(partyArray, enemyArray) {
         applyHeal:       applyHeal,
         useItem:         useItem,
         tickBuffs:       tickBuffs,
+        clearDefendBuffs: clearDefendBuffs,
 
         // Checks
         isPartyWiped:    isPartyWiped,

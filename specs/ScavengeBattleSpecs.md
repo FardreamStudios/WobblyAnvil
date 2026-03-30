@@ -126,10 +126,12 @@ The formation turn is the strategic layer. You decide how to spend your pip budg
 
 ### Rules
 
-- Each action costs 1 pip (attack, defend, item, flee).
+- Each action costs 1 pip (attack, defend, item) except flee which costs all 3 pips.
 - **Maximum one attack per formation turn.** Attack opens the action cam. When the exchange resolves, the turn is over regardless of remaining pips. Remaining pips are lost.
-- Non-attack actions chain freely: item → item → attack (3 pips). Or item → defend → pass (3 pips, no attack).
-- Actions: ATK (opens cam), Defend (buff, no cam), Item (instant, no cam), Flee (roll chance, fail = pip spent).
+- Non-attack actions chain freely: item → defend → attack (3 pips). Or item → item → defend (3 pips, no attack).
+- **Defend** and **Item** are available both in formation view and in-cam (1 pip each, instant, swaps sides in-cam).
+- **Flee** is formation-only. Costs all 3 pips (entire turn). Roll chance. Success = exit with loot. Fail = turn over (all pips spent).
+- Actions: ATK (opens cam), Defend (buff, no cam), Item (instant, no cam), Flee (all pips, roll chance).
 - Action list is an array on each combatant — host can inject special moves, fairy actions, weapon-specific actions with zero menu changes.
 
 ---
@@ -149,9 +151,9 @@ The action cam is the spectacle layer. Two combatants fill the screen. The back-
 ### Exchange Flow
 
 1. Initiator's ATB fills → exchange begins → cam zooms in
-2. Initiator's action cam turn: ATK (costs 1 pip) or RELENT (free, ends exchange)
+2. Initiator's action cam turn: ATK (costs 1 pip), DEF (1 pip, instant buff), ITEM (1 pip, instant), or RELENT (free, ends exchange)
 3. If ATK → combo plays (offensive QTE) → damage resolves → responder's action cam turn
-4. Responder's action cam turn: ATK (costs 1 pip) or PASS (cost TBD, yields turn back)
+4. Responder's action cam turn: ATK (costs 1 pip), DEF (1 pip), ITEM (1 pip), or PASS (cost TBD, yields turn back)
 5. If ATK → combo plays → damage resolves → back to initiator
 6. Repeat until: initiator RELENTs, or initiator has 0 pips (auto-ends)
 7. Cam zooms out → ATB resumes
@@ -160,6 +162,7 @@ The action cam is the spectacle layer. Two combatants fill the screen. The back-
 
 - Defending against an incoming combo is free (the defensive QTE costs no pip).
 - Counter-attacking costs a pip.
+- DEF and ITEM cost 1 pip in-cam, resolve instantly, then swap sides.
 - Initiator has initiative — only they can end the exchange.
 - If responder has no pips, they can't counter. Initiator gets free swings.
 - Responder can only target the initiator.
@@ -182,7 +185,7 @@ Every attack is a combo — a sequence of swings. The QTE ring sequence maps 1:1
 
 ### Skill Definition (Structure)
 
-A skill defines: id, name, QTE ring config (count, speeds, delays, shrink duration, zone sizing), and a beats array. Each beat specifies: damage, attacker anim, target reaction, shake level, SFX key, blockable flag, dodgeable flag, optional unblockable flag, optional block damage multiplier (default 0.3), optional finisher flag.
+A skill defines: id, name, QTE ring config (count, speeds, delays, shrink duration, zone sizing), and a beats array. Each beat specifies: damage, attacker anim, target reaction, shake level, SFX key, blockable flag, dodgeable flag, optional unblockable flag, optional finisher flag.
 
 ### Offensive Resolution (Player Attacking)
 
@@ -194,7 +197,7 @@ Enemies do NOT block or dodge player attacks in V1. Every landed ring = full bea
 
 Per ring: enemy ALWAYS plays their swing anim. Player input determines outcome:
 
-- **Tap in window + blockable beat:** Brace anim, reduced damage (×blockMult).
+- **Tap in window + blockable beat:** Brace anim, reduced damage (×0.25).
 - **Tap in window + unblockable beat:** Fail — full damage, hit anim.
 - **Swipe in window + dodgeable beat:** Dodge anim, zero damage.
 - **Miss:** Full damage, hit anim + knockback.
@@ -296,15 +299,27 @@ Slow shake = slow ring incoming. Fast vibrate = fast ring. Holds still = delay b
 
 ### HP
 
-Host computes maxHP from smith stats (stamina, brawn). Creates tension: spend stamina forging (fewer HP) or save it for scavenging.
+Host computes maxHP from smith stats (stamina, brawn). Creates tension: spend stamina forging (fewer HP) or save it for scavenging. V1 test data: all combatants 20 HP.
 
 ### KO
 
 0 HP = KO'd. ATB stops. Can't act. All party KO'd → battle ends with `outcome: "ko"`. V1 solo = instant game over. Future: multi-member, others keep fighting, items could revive.
 
+### Defend (Strategic Action)
+
+Costs 1 pip. Available in both formation view and in-cam. Grants +3 defensePower buff that persists until this combatant's ATB fills again (next formation turn). Stacks with itself if used multiple times. In-cam: resolves instantly, swaps sides. Cleared on ATB fill via `battleState.clearDefendBuffs()`.
+
+### Brace (Tactical Reaction)
+
+The defensive action during an incoming QTE ring. Player taps the shrinking ring to brace. Successfully bracing reduces incoming damage to ×0.25 (75% reduction). Costs no pip — bracing is free, it's a skill check. Brace is distinct from Defend: Defend is a strategic pip-spending choice, Brace is a reflexive QTE reaction.
+
 ### Items
 
-Passed in config with id, name, icon, description, effect (type + value), quantity. Effect types V1: heal, buff, debuff_enemy, damage. No QTE for items — safe, reliable option. Used items tracked in result deltas.
+Passed in config per combatant with id, name, icon, description, effect (type + value), quantity. Effect types V1: heal, buff, debuff_enemy, damage. No QTE for items — safe, reliable option. Costs 1 pip. Available in both formation view and in-cam. In-cam: resolves instantly, swaps sides. Used items tracked in result deltas via `battleState.useItem()`.
+
+### Flee
+
+Formation-only. Costs all 3 pips (entire turn). 50% flat chance V1 (tunable via `FLEE.baseChance`). Success = exit battle with loot collected so far. Fail = turn over, all pips spent, ATB resumes. Future: wave-based chance scaling, flee as QTE sequence.
 
 ---
 
@@ -363,7 +378,7 @@ Covers all exit conditions (not just victory). Shows: outcome badge (Victory/Fle
 
 ### Flee
 
-Costs 1 pip. Flee chance roll — easier on early waves. Success = exit with loot collected so far. Fail = pip spent, turn continues if pips remain. Future: flee as a QTE sequence (sprint animation, rhythm-timed dodge through obstacles).
+Costs all 3 pips (entire formation turn). 50% flat chance V1. Success = exit with loot collected so far. Fail = turn over, ATB resumes. Future: wave-based chance scaling, flee as a QTE sequence (sprint animation, rhythm-timed dodge through obstacles).
 
 ---
 
@@ -371,7 +386,7 @@ Costs 1 pip. Flee chance roll — easier on early waves. Success = exit with loo
 
 ### File Structure
 
-`src/battle/` — `battleConstants.js`, `battleSFX.js`, `BattleView.js`, `BattleView.css`, `BattleTransition.js`. Future: `battleMode.js`, `battleState.js`, `battleResolver.js`, `LootScreen.js`.
+`src/battle/` — `battleConstants.js`, `battleState.js`, `battleSkills.js`, `battleSFX.js`, `BattleView.js`, `BattleView.css`, `BattleTransition.js`. Future: `battleMode.js`, `battleResolver.js`, `LootScreen.js`.
 
 External: `circleTimingQTE.js` (QTE plugin, `src/modules/`), `ScavengeMenu.js` (host UI, `src/modules/`).
 
@@ -379,15 +394,17 @@ External: `circleTimingQTE.js` (QTE plugin, `src/modules/`), `ScavengeMenu.js` (
 
 | File | Owns |
 |------|------|
-| `battleConstants.js` | All tuning values (ATB, action cam, exchange, choreography, transition, test data, skill definitions) |
+| `battleConstants.js` | All tuning values (ATB, action cam, exchange, choreography, transition, test data, item definitions, defend/flee config) |
+| `battleState.js` | Mutable combat runtime — HP, items, KO, buffs, damage tracking, used-item tracking, result builder. Plain object factory via `createBattleState()`. |
+| `battleSkills.js` | Skill & beat definitions (player + enemy), beat defaults, validation |
 | `battleSFX.js` | Procedural combat SFX (hit, block, impact, ko) via Web Audio API |
-| `BattleView.js` | Layout, phase state, ATB tick, action cam transitions, choreography, all inline sub-components |
+| `BattleView.js` | Layout, phase state, ATB tick, action cam transitions, choreography, all inline sub-components, item submenu |
 | `BattleView.css` | All battle styles, transitions, pseudo-elements, keyframe anims |
 | `BattleTransition.js` | Pixel dissolve screen transition (entry/exit) |
 
 ### Component Tree
 
-BattleView root contains: Scene zone (BattleCharacter ×N per side with choreo wrapper + BattleSprite + info, clash spark, action cam pixel frame, ActionCamInfoPanel, DamageNumber ×N), Bottom zone (open real estate, ATBGaugeStrip, ActionMenu, QTEZone, ComicPanel), DevControls.
+BattleView root contains: Scene zone (BattleCharacter ×N per side with choreo wrapper + BattleSprite + info, clash spark, action cam pixel frame, ActionCamInfoPanel, DamageNumber ×N), Bottom zone (open real estate, ATBGaugeStrip, ActionMenu, ItemSubmenu, QTEZone, ComicPanel), In-cam buttons (ATK, RELENT/PASS, DEF, ITEM per side), DevControls.
 
 ### CSS Naming Convention
 
@@ -417,8 +434,8 @@ Same pattern as `forgeMode.js`: `canEnter`, `onEnter`, `onExit` (returns BattleR
 | 10 | KO anim (pop + spin + dissolve) | ✅ |
 | 11 | Timed exchange sequencer | ✅ (simulated QTE) |
 | 12 | Per-ring QTE visual sync | 🔲 |
-| 13 | Defend action (brace + badge, no cam) | 🔲 |
-| 14 | Flee QTE sequence | 🔲 |
+| 13 | Defend action (formation + in-cam) | ✅ |
+| 14 | Flee action (3-pip, formation only) | ✅ |
 | 15 | Results screen overlay | 🔲 |
 
 ### Additional Completed Work
@@ -442,6 +459,16 @@ Same pattern as `forgeMode.js`: `canEnter`, `onEnter`, `onExit` (returns BattleR
 - Pip spending (1 pip per ATK, deducted on press)
 - Pip display in ActionCamInfoPanel
 - `combatantMap` keyed lookup
+- `battleState.js` — mutable combat runtime (HP, items, KO, buffs, result builder)
+- `BATTLE_ITEMS` definition table + test items on party combatants
+- Item submenu component (formation + in-cam, scrollable, qty tracking)
+- Formation + in-cam item use with effect application and feedback numbers
+- `applyFullHit` wired to `bState.applyDamage()` — HP bars reactive to combat
+- Brace damage wired to `bState.applyDamage()` — braced hits also update HP
+- Defend action (formation + in-cam, +3 def buff, cleared on ATB fill)
+- Flee action (3-pip all-in, 50% flat chance, formation only)
+- Synchronous pip deduction via `deductPip()` for correct post-action state reads
+- Damage rebalance: all HP → 20, base swings → 6, enemy finishers → 10, brace → ×0.25
 
 ### Combo Beat Steps
 
@@ -485,10 +512,12 @@ Portrait layout variant, swipe QTE variant, enemy AI with conditions, equipment 
 | PASS pip cost | TBD — playtest | Free (current code) vs 1 pip (discourages stalling) |
 | Responder pip retention after exchange | TBD — playtest | Responder keeps unspent pips, initiator loses theirs |
 | Pip fill rate tuning | TBD — playtest | 2000ms base feels right on paper |
-| Flee success formula | TBD | Flat chance? Speed diff? |
+| Flee success formula | **Decided V1** | 50% flat chance. Future: wave-based scaling. |
+| Flee pip cost | **Decided** | All 3 pips (entire turn). All-in commitment. |
 | Multi-member turn ordering | TBD | Speed tiebreaker? Player choice? |
 | Enemy AI pip spending | TBD | V1: always attack. Future: personality-driven |
 | QTE-driven exchange extension rules | TBD — V2 | Perfect timing earns follow-up beats, cap 2+2 |
+| Defend buff stacking | TBD — playtest | Currently stacks. Cap at 1? Diminishing returns? |
 
 ---
 
@@ -510,3 +539,8 @@ Portrait layout variant, swipe QTE variant, enemy AI with conditions, equipment 
 | Choreography | CSS-driven, no extra spritesheets | Portable, performant |
 | Wave state | HP/items persist, ATB/buffs reset | Risk/reward tension |
 | KO | Lose all loot | Stakes make flee meaningful |
+| Flee cost | All 3 pips | All-in commitment, no cheap escape attempts |
+| Defend vs Brace | Two separate systems | Defend = strategic (pip spend), Brace = tactical (QTE reaction) |
+| Brace multiplier | ×0.25 (75% reduction) | Rewards skill without negating damage entirely |
+| Battle state | Plain object factory, not singleton | Cleaner for testing, no init/destroy ceremony, ref-held in BattleView |
+| Item use in-cam | Same as formation, swaps sides | Tactical mid-exchange healing/buffing adds depth |
