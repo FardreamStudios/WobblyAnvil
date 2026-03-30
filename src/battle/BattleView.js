@@ -51,6 +51,7 @@ var DEFEND_BUFF = BattleConstants.DEFEND_BUFF;
 var FLEE = BattleConstants.FLEE;
 var BATTLE_END = BattleConstants.BATTLE_END;
 var COMBO = BattleConstants.COMBO;
+var RESULTS_SCREEN = BattleConstants.RESULTS_SCREEN;
 
 // ============================================================
 // DEV FLAG — show phase controls overlay
@@ -550,6 +551,92 @@ function DamageNumber(props) {
 }
 
 // ============================================================
+// BattleResultsScreen — Full overlay showing outcome + stats
+// Props: result (BattleResult object), onContinue (callback)
+// ============================================================
+
+function BattleResultsScreen(props) {
+    var result = props.result;
+    var onContinue = props.onContinue;
+    var [visible, setVisible] = useState(false);
+
+    // Trigger entrance animation after mount
+    useEffect(function() {
+        var id = setTimeout(function() { setVisible(true); }, 30);
+        return function() { clearTimeout(id); };
+    }, []);
+
+    if (!result) return null;
+
+    var outcome = result.outcome;
+    var stats = result.stats || {};
+    var isKO = outcome === "ko";
+    var isFled = outcome === "fled";
+
+    var badgeLabel = isKO ? RESULTS_SCREEN.koLabel
+        : isFled ? RESULTS_SCREEN.fledLabel
+            : RESULTS_SCREEN.victoryLabel;
+
+    var badgeColor = isKO ? RESULTS_SCREEN.koColor
+        : isFled ? RESULTS_SCREEN.fledColor
+            : RESULTS_SCREEN.victoryColor;
+
+    var statRows = [
+        { label: "Damage Dealt",     value: stats.damageDealt || 0 },
+        { label: "Damage Taken",     value: stats.damageTaken || 0 },
+        { label: "Enemies Defeated", value: stats.enemiesDefeated || 0 },
+        { label: "Items Used",       value: stats.itemsUsed ? stats.itemsUsed.length : 0 },
+    ];
+
+    if (stats.overkillDealt > 0) {
+        statRows.push({ label: "Overkill Dealt", value: stats.overkillDealt });
+    }
+
+    return (
+        <div className={"battle-results " + (visible ? "battle-results--visible" : "")}>
+            <div className="battle-results__card">
+                {/* Outcome Badge */}
+                <div className="battle-results__badge" style={{ color: badgeColor, borderColor: badgeColor }}>
+                    {badgeLabel}
+                </div>
+
+                {/* Loot Section */}
+                <div className="battle-results__section">
+                    <div className="battle-results__section-title">LOOT</div>
+                    {isKO ? (
+                        <div className="battle-results__loot-lost">{RESULTS_SCREEN.lootLostLabel}</div>
+                    ) : result.loot && result.loot.length > 0 ? (
+                        result.loot.map(function(item, i) {
+                            return <div key={i} className="battle-results__loot-item">{item.name} x{item.qty}</div>;
+                        })
+                    ) : (
+                        <div className="battle-results__loot-empty">No loot this time</div>
+                    )}
+                </div>
+
+                {/* Stats Section */}
+                <div className="battle-results__section">
+                    <div className="battle-results__section-title">BATTLE STATS</div>
+                    {statRows.map(function(row, i) {
+                        return (
+                            <div key={i} className="battle-results__stat-row">
+                                <span className="battle-results__stat-label">{row.label}</span>
+                                <span className="battle-results__stat-value">{row.value}</span>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Continue Button */}
+                <button className="battle-results__continue" style={{ borderColor: badgeColor, color: badgeColor }} onClick={onContinue}>
+                    {RESULTS_SCREEN.continueLabel}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ============================================================
 // BattleView — Root Layout
 // ============================================================
 
@@ -607,6 +694,7 @@ function BattleView(props) {
     // context: "formation" (out of cam) or "in-cam" (during exchange)
     var [itemMenuOpen, setItemMenuOpen] = useState(false);
     var itemMenuContextRef = useRef("formation");
+    var [battleResult, setBattleResult] = useState(null);
 
     // --- Sprite animation frame ---
     var [spriteFrame, setSpriteFrame] = useState(0);
@@ -905,18 +993,20 @@ function BattleView(props) {
         var swingerIsEnemy = !isPartyId(swinger);
         var receiverIsParty = isPartyId(receiver);
         var dmgColor = receiverIsParty ? "#ef4444" : "#f59e0b";
+        var isLastBeat = skill && skill.beats ? (index === skill.beats.length - 1) : true;
 
         if (swingerIsEnemy) {
             // Swinger telegraph-sync is driven by onRingStart — don't touch it.
             // Just play SFX + resolve hit on receiver.
             if (beat.sfx) BattleSFX[beat.sfx] ? BattleSFX[beat.sfx]() : BattleSFX.hit();
-            resolveHitOnReceiver(hit, beat, swinger, receiver, dmgColor);
+            resolveHitOnReceiver(hit, beat, swinger, receiver, dmgColor, isLastBeat);
 
             // Clear receiver anim after hit settles (swinger stays in telegraph-sync)
-            // But preserve KO anim if receiver died
+            // Preserve KO anim only on last beat — otherwise reset to neutral
             setTimeout(function() {
                 var recState = bState.get(receiver);
-                if (recState && !recState.ko) {
+                var keepAnim = recState && recState.ko && isLastBeat;
+                if (!keepAnim) {
                     setAnimState(function(prev) {
                         var n = Object.assign({}, prev); delete n[receiver]; return n;
                     });
@@ -934,29 +1024,29 @@ function BattleView(props) {
                 var dmgResult = bState.applyDamage(receiver, beat.damage, true);
                 bumpState();
                 setTimeout(function() {
-                    // If receiver is KO'd, force hit reaction only (no brace/dodge)
                     var recState = bState.get(receiver);
                     var isReceiverKO = recState && recState.ko;
 
-                    if (beat.tgtReact && !isReceiverKO) {
-                        setFlashId(receiver);
-                        setAnimState(function(prev) {
-                            var n = Object.assign({}, prev); n[receiver] = beat.tgtReact; return n;
-                        });
-                    } else if (isReceiverKO && !dmgResult.killed) {
-                        // Already KO — just flash
-                        setFlashId(receiver);
-                    } else if (dmgResult.killed) {
-                        // This hit killed them — KO anim + SFX
+                    // Last beat + receiver dead (killed now or earlier) = KO react
+                    // Any other beat = hit react (or tgtReact if alive)
+                    if (isReceiverKO && isLastBeat) {
                         setFlashId(receiver);
                         setAnimState(function(prev) {
                             var n = Object.assign({}, prev); n[receiver] = "ko"; return n;
                         });
-                        BattleSFX.ko ? BattleSFX.ko() : null;
-                        setShakeLevel(null);
-                        requestAnimationFrame(function() { setShakeLevel("ko"); });
+                    } else if (isReceiverKO) {
+                        // Dead but not last beat — hit react
+                        setFlashId(receiver);
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev); n[receiver] = "hit"; return n;
+                        });
+                    } else if (beat.tgtReact) {
+                        setFlashId(receiver);
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev); n[receiver] = beat.tgtReact; return n;
+                        });
                     }
-                    if (beat.shake && !dmgResult.killed) {
+                    if (beat.shake && !isReceiverKO) {
                         setShakeLevel(null);
                         requestAnimationFrame(function() { setShakeLevel(beat.shake); });
                     }
@@ -977,10 +1067,11 @@ function BattleView(props) {
                     setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
                 }, 60);
                 // Clear receiver anim after hit settles (swinger stays in windup-sync)
-                // But if KO'd, keep KO anim (don't delete)
+                // Preserve KO anim only on last beat — otherwise reset to neutral
                 setTimeout(function() {
                     var recState2 = bState.get(receiver);
-                    if (recState2 && !recState2.ko) {
+                    var keepAnim2 = recState2 && recState2.ko && isLastBeat;
+                    if (!keepAnim2) {
                         setAnimState(function(prev) {
                             var n = Object.assign({}, prev); delete n[receiver]; return n;
                         });
@@ -998,12 +1089,40 @@ function BattleView(props) {
         }
     }
 
-    function resolveHitOnReceiver(hit, beat, swinger, receiver, dmgColor) {
-        // KO guard — if receiver already dead, skip brace/dodge, force hit-react only
+    function resolveHitOnReceiver(hit, beat, swinger, receiver, dmgColor, isLastBeat) {
+        // KO guard — if receiver already dead, skip brace/dodge, apply overkill damage
         var recCheck = bState.get(receiver);
         if (recCheck && recCheck.ko) {
             comboCounterRef.current.enemyUnblocked += 1;
-            applyFullHit(beat, receiver, dmgColor);
+            var ctx = qteContextRef.current;
+            var fromParty = ctx && ctx.swingerId ? isPartyId(ctx.swingerId) : false;
+            var baseDmg = beat.damage;
+            var finalDmg = baseDmg;
+            if (beat.comboMultiplier != null && beat.comboMultiplier > 0) {
+                var priorUnblocked = Math.max(0, comboCounterRef.current.enemyUnblocked - 1);
+                if (priorUnblocked > 0) {
+                    finalDmg = Math.round(baseDmg * (1 + beat.comboMultiplier * priorUnblocked));
+                }
+            }
+            var dmgResult = bState.applyDamage(receiver, finalDmg, fromParty);
+            bumpState();
+            setFlashId(receiver);
+            // Last beat = KO react, otherwise hit react
+            setAnimState(function(prev) {
+                var n = Object.assign({}, prev);
+                n[receiver] = isLastBeat ? "ko" : "hit";
+                return n;
+            });
+            var el = combatantRefs.current[receiver];
+            var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+            if (el && sr) {
+                var r = el.getBoundingClientRect();
+                spawnDamageNumber(finalDmg, r.left - sr.left + r.width / 2, r.top - sr.top, dmgColor);
+                if (dmgResult.overkill > 0) {
+                    spawnDamageNumber("+" + dmgResult.overkill + " OVERKILL", r.left - sr.left + r.width / 2, r.top - sr.top - 20, BATTLE_END.overkillColor);
+                }
+            }
+            setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
             return;
         }
 
@@ -1011,57 +1130,50 @@ function BattleView(props) {
             var blocked = beat.blockable !== false;
             if (blocked) {
                 // Brace — player hit the ring, damage reduced to x0.25
-                // Successful brace does NOT increment enemy combo counter (rewards skill)
                 var blockDmg = Math.round(beat.damage * 0.25);
                 setAnimState(function(prev) {
                     var n = Object.assign({}, prev); n[receiver] = "brace"; return n;
                 });
                 BattleSFX.block();
-                // Apply braced damage to mutable state
-                var ctx = qteContextRef.current;
-                var fromParty = ctx && ctx.swingerId ? isPartyId(ctx.swingerId) : false;
-                var dmgResult = bState.applyDamage(receiver, blockDmg, fromParty);
+                var ctx2 = qteContextRef.current;
+                var fromParty2 = ctx2 && ctx2.swingerId ? isPartyId(ctx2.swingerId) : false;
+                var dmgResult2 = bState.applyDamage(receiver, blockDmg, fromParty2);
                 bumpState();
 
-                var el = combatantRefs.current[receiver];
+                var el2 = combatantRefs.current[receiver];
                 var sr4 = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                if (el && sr4) {
-                    var r4 = el.getBoundingClientRect();
+                if (el2 && sr4) {
+                    var r4 = el2.getBoundingClientRect();
                     spawnDamageNumber(blockDmg, r4.left - sr4.left + r4.width / 2, r4.top - sr4.top, "#60a5fa");
-                    if (dmgResult.overkill > 0) {
-                        spawnDamageNumber("+" + dmgResult.overkill + " OVERKILL", r4.left - sr4.left + r4.width / 2, r4.top - sr4.top - 20, BATTLE_END.overkillColor);
+                    if (dmgResult2.overkill > 0) {
+                        spawnDamageNumber("+" + dmgResult2.overkill + " OVERKILL", r4.left - sr4.left + r4.width / 2, r4.top - sr4.top - 20, BATTLE_END.overkillColor);
                     }
                 }
-                // KO check on brace kill (unlikely but possible)
-                if (dmgResult.killed) {
+                // Brace kill — last beat shows KO, otherwise stays in brace
+                if (dmgResult2.killed && isLastBeat) {
                     setAnimState(function(prev) {
                         var n = Object.assign({}, prev); n[receiver] = "ko"; return n;
                     });
-                    if (BattleSFX.ko) BattleSFX.ko();
-                    setShakeLevel(null);
-                    requestAnimationFrame(function() { setShakeLevel("ko"); });
                 }
             } else {
                 // Unblockable beat — player tapped but can't block this. Counts as unblocked.
                 comboCounterRef.current.enemyUnblocked += 1;
-                applyFullHit(beat, receiver, dmgColor);
+                applyFullHit(beat, receiver, dmgColor, isLastBeat);
             }
         } else {
             // Player missed QTE — full hit, counts as unblocked
             comboCounterRef.current.enemyUnblocked += 1;
-            applyFullHit(beat, receiver, dmgColor);
+            applyFullHit(beat, receiver, dmgColor, isLastBeat);
         }
     }
 
-    function applyFullHit(beat, receiver, dmgColor) {
+    function applyFullHit(beat, receiver, dmgColor, isLastBeat) {
         // Compute final damage — apply comboMultiplier if present
         var baseDmg = beat.damage;
         var finalDmg = baseDmg;
         var isMultiplied = false;
         if (beat.comboMultiplier != null && beat.comboMultiplier > 0) {
             var unblockedCount = comboCounterRef.current.enemyUnblocked;
-            // Count includes this hit, but multiplier scales off PRIOR unblocked hits
-            // (the counter was incremented before applyFullHit was called)
             var priorUnblocked = Math.max(0, unblockedCount - 1);
             if (priorUnblocked > 0) {
                 finalDmg = Math.round(baseDmg * (1 + beat.comboMultiplier * priorUnblocked));
@@ -1077,14 +1189,13 @@ function BattleView(props) {
 
         setFlashId(receiver);
 
-        if (dmgResult.killed) {
-            // This hit killed — KO anim + KO shake + KO SFX
+        // Last beat + killed (now or earlier) = KO react, otherwise hit react
+        var recState = bState.get(receiver);
+        var isReceiverKO = recState && recState.ko;
+        if (isReceiverKO && isLastBeat) {
             setAnimState(function(prev) {
                 var n = Object.assign({}, prev); n[receiver] = "ko"; return n;
             });
-            if (BattleSFX.ko) BattleSFX.ko();
-            setShakeLevel(null);
-            requestAnimationFrame(function() { setShakeLevel("ko"); });
         } else {
             setAnimState(function(prev) {
                 var n = Object.assign({}, prev); n[receiver] = "hit"; return n;
@@ -1205,15 +1316,25 @@ function BattleView(props) {
 
             setPhase(PHASES.CAM_RESOLVE);
 
+            // --- Post-combo: check if anyone died during this swing ---
+            var receiverState = bState.get(receiverId);
+            var anyKO = receiverState && receiverState.ko;
+
+            // Clean up anim states — preserve KO poses
             setAnimState(function(prev) {
                 var n = Object.assign({}, prev);
-                // Preserve KO anim — don't clear if combatant is dead
-                var swingerState = bState.get(swingerId);
-                var receiverState = bState.get(receiverId);
-                if (!swingerState || !swingerState.ko) delete n[swingerId];
+                var sState = bState.get(swingerId);
+                if (!sState || !sState.ko) delete n[swingerId];
                 if (!receiverState || !receiverState.ko) delete n[receiverId];
                 return n;
             });
+
+            // Play KO SFX + shake if someone died during this combo
+            if (anyKO) {
+                if (BattleSFX.ko) BattleSFX.ko();
+                setShakeLevel(null);
+                requestAnimationFrame(function() { setShakeLevel("ko"); });
+            }
 
             setTimeout(function() {
                 advanceOrCamOut();
@@ -1354,12 +1475,19 @@ function BattleView(props) {
         setAtbRunning(false);
         camExchangeRef.current = null;
 
-        // Hold for KO anim to play, then build result and exit
+        // Hold for KO anim to play, then show results screen
         setTimeout(function() {
             var result = bState.buildResult(outcome);
             console.log("[BattleView] Battle ended:", outcome, result);
-            if (onExit) onExit(result);
+            setBattleResult(result);
         }, BATTLE_END.koHoldMs);
+    }
+
+    // ============================================================
+    // RESULTS — Continue button exits battle
+    // ============================================================
+    function handleResultsContinue() {
+        if (onExit) onExit(battleResult);
     }
 
     function handleDevFullExchange() {
@@ -1467,7 +1595,7 @@ function BattleView(props) {
                 spawnDamageNumber("FLED!", r.left - sr.left + r.width / 2, r.top - sr.top, "#4ade80");
             }
             setTimeout(function() {
-                if (onExit) onExit();
+                triggerBattleEnd("fled");
             }, 400);
         } else {
             // Fail — turn is over (all pips spent)
@@ -1851,6 +1979,14 @@ function BattleView(props) {
                     isLeftHanded={isLeftHanded}
                 />
             </div>
+
+            {/* === RESULTS SCREEN === */}
+            {battleResult && (
+                <BattleResultsScreen
+                    result={battleResult}
+                    onContinue={handleResultsContinue}
+                />
+            )}
 
             {/* === DEV CONTROLS === */}
             <DevControls

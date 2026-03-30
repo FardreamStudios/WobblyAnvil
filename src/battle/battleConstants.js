@@ -245,6 +245,21 @@ var BATTLE_END = {
     overkillColor:  "#a855f7",  // purple for overkill damage numbers
 };
 
+// --- Results Screen Config ---
+var RESULTS_SCREEN = {
+    fadeInMs:        400,        // overlay fade-in duration
+    slideUpPx:       30,         // slide-up distance on entrance
+    holdBeforeShow:  200,        // brief pause after BATTLE_ENDING before overlay appears
+    victoryColor:    "#4ade80",  // green badge
+    fledColor:       "#f59e0b",  // amber badge
+    koColor:         "#ef4444",  // red badge
+    victoryLabel:    "VICTORY",
+    fledLabel:       "FLED",
+    koLabel:         "KNOCKED OUT",
+    lootLostLabel:   "All loot lost!",
+    continueLabel:   "CONTINUE",
+};
+
 // --- Combo Counter Config ---
 var COMBO = {
     counterColor:       "#fbbf24",  // gold for combo counter display
@@ -283,6 +298,7 @@ var BattleConstants = {
     FLEE: FLEE,
     BATTLE_END: BATTLE_END,
     COMBO: COMBO,
+    RESULTS_SCREEN: RESULTS_SCREEN,
 };
 
 export default BattleConstants;
