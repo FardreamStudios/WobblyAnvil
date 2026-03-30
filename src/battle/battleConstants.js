@@ -194,6 +194,60 @@ var TEST_ENEMIES = [
     },
 ];
 
+// --- Waves (array of enemy arrays — one per wave) ---
+var TEST_WAVES = [
+    // Wave 1
+    [
+        {
+            id: "raccoon",
+            name: "Raccoon",
+            spriteKey: "enemyBag",
+            maxHP: 20,
+            currentHP: 20,
+            atbSpeed: 0.28,
+            attackPower: 8,
+            defensePower: 3,
+            skills: ["scavenger_combo"],
+        },
+        {
+            id: "trashbag",
+            name: "Trash Bag",
+            spriteKey: "enemyBag",
+            maxHP: 20,
+            currentHP: 20,
+            atbSpeed: 0.22,
+            attackPower: 6,
+            defensePower: 2,
+            skills: ["scavenger_combo"],
+        },
+    ],
+    // Wave 2
+    [
+        {
+            id: "raccoon_2",
+            name: "Raccoon Alpha",
+            spriteKey: "enemyBag",
+            maxHP: 25,
+            currentHP: 25,
+            atbSpeed: 0.32,
+            attackPower: 10,
+            defensePower: 4,
+            skills: ["scavenger_combo"],
+        },
+        {
+            id: "golem",
+            name: "Trash Golem",
+            spriteKey: "enemyBag",
+            maxHP: 35,
+            currentHP: 35,
+            atbSpeed: 0.18,
+            attackPower: 12,
+            defensePower: 6,
+            skills: ["trash_golem_slam"],
+        },
+    ],
+];
+
 // --- Battle Phases ---
 var BATTLE_PHASES = {
     ATB_RUNNING:      "atb_running",
@@ -206,6 +260,7 @@ var BATTLE_PHASES = {
     CAM_RESOLVE:      "cam_resolve",         // brief pause after swing before next turn
     ACTION_CAM_OUT:   "action_cam_out",      // sliding back to formation
     BATTLE_ENDING:    "battle_ending",       // KO wipe detected — freeze, hold, exit
+    WAVE_TRANSITION:  "wave_transition",     // between-wave banner + enemy swap
 };
 
 // --- Choreography Config (anim states, hit reactions, screen FX) ---
@@ -254,6 +309,16 @@ var BATTLE_END = {
     overkillColor:  "#a855f7",  // purple for overkill damage numbers
 };
 
+// --- Wave Transition Config ---
+var WAVE_TRANSITION = {
+    bannerMs:       1200,       // total banner display time
+    fadeInMs:       200,        // banner fade-in
+    holdMs:         800,        // banner hold at full opacity
+    fadeOutMs:      200,        // banner fade-out
+    bannerColor:    "#f59e0b",  // amber text
+    bannerBg:       "rgba(10, 7, 4, 0.85)",  // dark overlay behind banner
+};
+
 // --- Results Screen Config ---
 var RESULTS_SCREEN = {
     fadeInMs:        400,        // overlay fade-in duration
@@ -299,6 +364,8 @@ var BattleConstants = {
     CHOREOGRAPHY: CHOREOGRAPHY,
     TEST_PARTY: TEST_PARTY,
     TEST_ENEMIES: TEST_ENEMIES,
+    TEST_WAVES: TEST_WAVES,
+    WAVE_TRANSITION: WAVE_TRANSITION,
     ACTIONS: ACTIONS,
     IN_CAM_ACTIONS: IN_CAM_ACTIONS,
     BATTLE_PHASES: BATTLE_PHASES,

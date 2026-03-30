@@ -131,7 +131,7 @@ function BattleCharacter(props) {
             onClick={props.onClick}
         >
             <div className={innerCls} style={innerStyle}>
-                <BattleSprite spriteKey={props.spriteOverride || c.spriteKey} frame={props.spriteFrame} />
+                <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} />
                 <div className={"normal-cam-char__info" + (isActive ? " action-cam-char__info--hidden" : "")}>
                     <span className="normal-cam-char__name">{c.name}</span>
                     <div className="battle-hp-bg">

@@ -39,7 +39,6 @@ import DevControls from "./DevControls.js";
 import ATBGaugeStrip from "./ATBGaugeStrip.js";
 import ActionMenu from "./ActionMenu.js";
 import ItemSubmenu from "./ItemSubmenu.js";
-import QTEZone from "./QTEZone.js";
 import ComicPanel from "./ComicPanel.js";
 import ActionCamInfoPanel from "./ActionCamInfoPanel.js";
 import "./BattleView.css";
@@ -55,11 +54,12 @@ var LAYOUT = BattleConstants.LAYOUT;
 var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
 var CHOREOGRAPHY = BattleConstants.CHOREOGRAPHY;
 var TEST_PARTY = BattleConstants.TEST_PARTY;
-var TEST_ENEMIES = BattleConstants.TEST_ENEMIES;
+var TEST_WAVES = BattleConstants.TEST_WAVES;
 var DEFEND_BUFF = BattleConstants.DEFEND_BUFF;
 var FLEE = BattleConstants.FLEE;
 var BATTLE_END = BattleConstants.BATTLE_END;
 var COMBO = BattleConstants.COMBO;
+var WAVE_TRANSITION = BattleConstants.WAVE_TRANSITION;
 
 // ============================================================
 // COMIC PANEL LINES — fairy speech per phase
@@ -95,12 +95,20 @@ function BattleView(props) {
     var onExit = props.onExit;
     var handedness = props.handedness || "right";
     var zoneName = props.zoneName || "UNKNOWN ZONE";
-    var waveLabel = props.waveLabel || "WAVE 1/3";
     var isLeftHanded = handedness === "left";
+
+    // --- Wave tracking ---
+    var waveIndexRef = useRef(0);
+    var [waveIndex, setWaveIndex] = useState(0);
+    var totalWaves = TEST_WAVES.length;
+    var currentEnemies = TEST_WAVES[waveIndex] || TEST_WAVES[0];
+    var currentEnemiesRef = useRef(currentEnemies);
+    currentEnemiesRef.current = currentEnemies;
+    var waveLabel = "Wave " + (waveIndex + 1) + "/" + totalWaves;
 
     // --- State ---
     var [phase, setPhase] = useState(PHASES.ATB_RUNNING);
-    var [targetId, setTargetId] = useState(TEST_ENEMIES[0].id);
+    var [targetId, setTargetId] = useState(currentEnemies[0].id);
     var [turnOwnerId, setTurnOwnerId] = useState(null);
     var [attackerId] = useState(TEST_PARTY[0].id);
     var [atbRunning, setAtbRunning] = useState(false);
@@ -119,14 +127,14 @@ function BattleView(props) {
     // --- In-cam exchange state ---
     var camExchangeRef = useRef(null);
     var [atbValues, setAtbValues] = useState(function() {
-        return BattleATB.initState(TEST_PARTY.concat(TEST_ENEMIES));
+        return BattleATB.initState(TEST_PARTY.concat(currentEnemies));
     });
     atbValuesRef.current = atbValues;
 
     // --- Battle State (mutable combatant data: HP, items, KO, buffs) ---
     var battleStateRef = useRef(null);
     if (!battleStateRef.current) {
-        battleStateRef.current = BattleStateModule.createBattleState(TEST_PARTY, TEST_ENEMIES);
+        battleStateRef.current = BattleStateModule.createBattleState(TEST_PARTY, currentEnemies);
     }
     var bState = battleStateRef.current;
 
@@ -179,7 +187,7 @@ function BattleView(props) {
             var sr = sceneRef.current.getBoundingClientRect();
             setSceneRect(sr);
             var rects = {};
-            var allIds = TEST_PARTY.concat(TEST_ENEMIES);
+            var allIds = TEST_PARTY.concat(currentEnemiesRef.current);
             for (var i = 0; i < allIds.length; i++) {
                 var cId = allIds[i].id;
                 var el = combatantRefs.current[cId];
@@ -206,7 +214,7 @@ function BattleView(props) {
         if (!atbRunning) return;
         var lastTime = 0;
         var rafId = null;
-        var tickCombatants = TEST_PARTY.concat(TEST_ENEMIES);
+        var tickCombatants = TEST_PARTY.concat(currentEnemiesRef.current);
 
         function tick(ts) {
             if (!atbRunningRef.current) return;
@@ -294,7 +302,7 @@ function BattleView(props) {
 
     // Flat array for gauge strip (preserves render order: party then enemy)
     var allCombatants = TEST_PARTY.map(function(c) { return combatantMap[c.id]; })
-        .concat(TEST_ENEMIES.map(function(c) { return combatantMap[c.id]; }));
+        .concat(currentEnemies.map(function(c) { return combatantMap[c.id]; }));
 
     var makeRefSetter = useCallback(function(id) {
         return function(el) {
@@ -322,14 +330,18 @@ function BattleView(props) {
         setAtbValues(function(prev) { return BattleATB.fillAll(prev, attackerId); });
     }
     function handleDevReset() {
+        // Reset wave tracking
+        waveIndexRef.current = 0;
+        setWaveIndex(0);
+        var wave0 = TEST_WAVES[0];
         // Re-create battle state from scratch
-        battleStateRef.current = BattleStateModule.createBattleState(TEST_PARTY, TEST_ENEMIES);
+        battleStateRef.current = BattleStateModule.createBattleState(TEST_PARTY, wave0);
         bumpState();
         // Reset all transient UI state
         setPhase(PHASES.ATB_RUNNING);
         setAtbRunning(false);
-        setAtbValues(BattleATB.initState(TEST_PARTY.concat(TEST_ENEMIES)));
-        setTargetId(TEST_ENEMIES[0].id);
+        setAtbValues(BattleATB.initState(TEST_PARTY.concat(wave0)));
+        setTargetId(wave0[0].id);
         setTurnOwnerId(null);
         setAnimState({});
         setShakeLevel(null);
@@ -816,9 +828,21 @@ function BattleView(props) {
 
     function advanceOrCamOut() {
         // --- POST-COMBO WIPE CHECK ---
-        if (bState.isEnemyWiped() || bState.isPartyWiped()) {
-            var outcome = bState.isEnemyWiped() ? "victory" : "ko";
-            triggerBattleEnd(outcome);
+        if (bState.isPartyWiped()) {
+            triggerBattleEnd("ko");
+            return;
+        }
+        if (bState.isEnemyWiped()) {
+            // More waves remaining? Transition. Otherwise victory.
+            if (waveIndexRef.current < totalWaves - 1) {
+                camOut();
+                // Small delay so cam-out completes before banner
+                setTimeout(function() {
+                    startWaveTransition();
+                }, ACTION_CAM.transitionOutMs + 100);
+            } else {
+                triggerBattleEnd("victory");
+            }
             return;
         }
 
@@ -900,7 +924,7 @@ function BattleView(props) {
             setAtbValues(resetState);
             setTurnOwnerId(null);
 
-            var checkCombatants = TEST_PARTY.concat(TEST_ENEMIES);
+            var checkCombatants = TEST_PARTY.concat(currentEnemiesRef.current);
             var alreadyReady = BattleATB.checkReady(resetState, checkCombatants);
 
             // Skip KO'd combatants that happen to have full pips
@@ -951,6 +975,63 @@ function BattleView(props) {
     }
 
     // ============================================================
+    // WAVE TRANSITION — swap enemies, show banner, resume ATB
+    // ============================================================
+    function startWaveTransition() {
+        var nextIndex = waveIndexRef.current + 1;
+        var nextEnemies = TEST_WAVES[nextIndex];
+        if (!nextEnemies) return;
+
+        setPhase(PHASES.WAVE_TRANSITION);
+        setAtbRunning(false);
+
+        // After banner display time, swap enemies and resume
+        setTimeout(function() {
+            // Update wave tracking
+            waveIndexRef.current = nextIndex;
+            setWaveIndex(nextIndex);
+
+            // Swap enemies in battle state
+            bState.replaceEnemies(nextEnemies);
+            bumpState();
+
+            // Reinit ATB — party keeps current values, new enemies start fresh
+            var freshEnemyAtb = BattleATB.initState(nextEnemies);
+            setAtbValues(function(prev) {
+                var merged = {};
+                // Preserve party ATB
+                for (var id in prev) {
+                    if (prev.hasOwnProperty(id) && bState.isPartyId(id)) {
+                        merged[id] = prev[id];
+                    }
+                }
+                // Add fresh enemy ATB
+                for (var eid in freshEnemyAtb) {
+                    if (freshEnemyAtb.hasOwnProperty(eid)) {
+                        merged[eid] = freshEnemyAtb[eid];
+                    }
+                }
+                return merged;
+            });
+
+            // Clear visual state from previous wave
+            setAnimState({});
+            setDamageNumbers([]);
+            setShakeLevel(null);
+            setFlashId(null);
+            camExchangeRef.current = null;
+
+            // Auto-select first living enemy in new wave
+            setTargetId(nextEnemies[0].id);
+            setTurnOwnerId(null);
+
+            // Resume battle
+            setPhase(PHASES.ATB_RUNNING);
+            setAtbRunning(true);
+        }, WAVE_TRANSITION.bannerMs);
+    }
+
+    // ============================================================
     // RESULTS — Continue button exits battle
     // ============================================================
     function handleResultsContinue() {
@@ -984,9 +1065,9 @@ function BattleView(props) {
 
     // --- Target pickers ---
     function pickFirstLivingEnemy() {
-        for (var i = 0; i < TEST_ENEMIES.length; i++) {
-            var s = bState.get(TEST_ENEMIES[i].id);
-            if (s && !s.ko) return TEST_ENEMIES[i].id;
+        for (var i = 0; i < currentEnemiesRef.current.length; i++) {
+            var s = bState.get(currentEnemiesRef.current[i].id);
+            if (s && !s.ko) return currentEnemiesRef.current[i].id;
         }
         return null;
     }
@@ -1291,7 +1372,7 @@ function BattleView(props) {
 
                 {/* Enemy formation (left) */}
                 <div className="battle-formation battle-formation--enemy">
-                    {TEST_ENEMIES.map(function(e, idx) {
+                    {currentEnemies.map(function(e, idx) {
                         return (
                             <BattleCharacter
                                 key={e.id}
@@ -1503,6 +1584,15 @@ function BattleView(props) {
                     isLeftHanded={isLeftHanded}
                 />
             </div>
+
+            {/* === WAVE TRANSITION BANNER === */}
+            {phase === PHASES.WAVE_TRANSITION && (
+                <div className="battle-wave-banner">
+                    <span className="battle-wave-banner__text">
+                        {"Wave " + (waveIndexRef.current + 2) + "/" + totalWaves}
+                    </span>
+                </div>
+            )}
 
             {/* === RESULTS SCREEN === */}
             {battleResult && (

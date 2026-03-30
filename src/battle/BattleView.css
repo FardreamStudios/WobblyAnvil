@@ -1271,3 +1271,45 @@
     background: rgba(74, 222, 128, 0.1);
     border-color: rgba(74, 222, 128, 0.4);
 }
+
+/* ============================================================
+   WAVE TRANSITION BANNER
+   ============================================================ */
+
+@keyframes waveBannerIn {
+    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes waveBannerOut {
+    0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+.battle-wave-banner {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 7, 4, 0.85);
+    animation:
+            waveBannerIn 200ms ease-out forwards,
+            waveBannerOut 200ms ease-in 1000ms forwards;
+    pointer-events: none;
+}
+
+.battle-wave-banner__text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: monospace;
+    font-size: clamp(18px, 5vw, 32px);
+    font-weight: bold;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #f59e0b;
+    text-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}

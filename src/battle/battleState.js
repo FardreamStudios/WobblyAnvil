@@ -262,6 +262,23 @@ function createBattleState(partyArray, enemyArray) {
         };
     }
 
+    // Replace current enemies with a new wave's enemy array.
+    // Removes old enemy combatants, registers new ones.
+    // Party state and stats tracking are preserved.
+    function replaceEnemies(newEnemyArray) {
+        // Remove old enemies from combatants map
+        for (var i = 0; i < enemyIds.length; i++) {
+            delete combatants[enemyIds[i]];
+        }
+        enemyIds = [];
+
+        // Register new enemies
+        newEnemyArray.forEach(function(c) {
+            enemyIds.push(c.id);
+            combatants[c.id] = buildCombatant(c, false);
+        });
+    }
+
     // Check if all party or all enemies are KO'd
     function isPartyWiped() {
         for (var i = 0; i < partyIds.length; i++) {
@@ -345,6 +362,7 @@ function createBattleState(partyArray, enemyArray) {
         useItem:         useItem,
         tickBuffs:       tickBuffs,
         clearDefendBuffs: clearDefendBuffs,
+        replaceEnemies:  replaceEnemies,
 
         // Checks
         isPartyWiped:    isPartyWiped,
