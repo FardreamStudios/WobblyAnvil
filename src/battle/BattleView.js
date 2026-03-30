@@ -409,6 +409,8 @@ function ActionCamInfoPanel(props) {
     var visible = props.visible;
     var isLeft = props.isLeftHanded;
     var baseCls = "action-cam-info" + (visible ? " action-cam-info--visible" : "");
+    var atbVals = props.atbValues || {};
+    var maxPips = ATB.pipsPerCombatant;
 
     var attacker = props.attacker;
     var target = props.target;
@@ -417,7 +419,7 @@ function ActionCamInfoPanel(props) {
     var atkHp = attacker.maxHP > 0 ? Math.round(attacker.currentHP / attacker.maxHP * 100) : 0;
     var tgtHp = target.maxHP > 0 ? Math.round(target.currentHP / target.maxHP * 100) : 0;
 
-    var atkIsParty = TEST_PARTY.some(function(p) { return p.id === attacker.id; });
+    var atkIsParty = attacker._isParty;
 
     var partyData  = atkIsParty ? attacker : target;
     var enemyData  = atkIsParty ? target : attacker;
@@ -431,6 +433,18 @@ function ActionCamInfoPanel(props) {
     var leftIsParty  = isLeft ? true : false;
     var rightIsParty = isLeft ? false : true;
 
+    // Build pip dots for a combatant
+    function renderPips(cId, isParty) {
+        var entry = atbVals[cId] || { filledPips: 0 };
+        var dots = [];
+        for (var i = 0; i < maxPips; i++) {
+            var filled = i < entry.filledPips;
+            var cls = "action-cam-info__pip" + (filled ? (isParty ? " action-cam-info__pip--party" : " action-cam-info__pip--enemy") : "");
+            dots.push(<span className={cls} key={i} />);
+        }
+        return <div className="action-cam-info__pips">{dots}</div>;
+    }
+
     return (
         <>
             <div className={baseCls + " action-cam-info--left action-cam-info__side--" + (leftIsParty ? "atk" : "tgt")}>
@@ -439,6 +453,7 @@ function ActionCamInfoPanel(props) {
                     <div className={"battle-hp-fill " + (leftIsParty ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: leftHp + "%" }} />
                 </div>
                 <span className="action-cam-info__hp-text">{leftData.currentHP + "/" + leftData.maxHP}</span>
+                {renderPips(leftData.id, leftIsParty)}
             </div>
             <div className={baseCls + " action-cam-info--right action-cam-info__side--" + (rightIsParty ? "atk" : "tgt")}>
                 <span className="action-cam-info__name">{rightData.name}</span>
@@ -446,6 +461,7 @@ function ActionCamInfoPanel(props) {
                     <div className={"battle-hp-fill " + (rightIsParty ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: rightHp + "%" }} />
                 </div>
                 <span className="action-cam-info__hp-text">{rightData.currentHP + "/" + rightData.maxHP}</span>
+                {renderPips(rightData.id, rightIsParty)}
             </div>
         </>
     );
@@ -593,7 +609,7 @@ function BattleView(props) {
                 var whoIsReady = readyIdRef.current;
                 readyIdRef.current = null;
 
-                var isPartyMember = TEST_PARTY.some(function(p) { return p.id === whoIsReady; });
+                var isPartyMember = isPartyId(whoIsReady);
                 setTurnOwnerId(whoIsReady);
 
                 if (isPartyMember) {
@@ -624,26 +640,33 @@ function BattleView(props) {
     var comicLine = devShowComic ? "[DEV] Comic panel test" : (COMIC_LINES[phase] || "...");
 
     var activeAtkId = turnOwnerId || attackerId;
-    var allData = TEST_PARTY.concat(TEST_ENEMIES);
-    var attackerData = allData.find(function(c) { return c.id === activeAtkId; }) || null;
-    var targetData = allData.find(function(c) { return c.id === targetId; }) || null;
+
+    // --- Combatant map: single source of truth for all lookups ---
+    // Keyed by id. Includes faction flag + current pip state.
+    var combatantMap = {};
+    TEST_PARTY.forEach(function(c) {
+        var pips = atbValues[c.id] || { filledPips: 0, currentFill: 0 };
+        combatantMap[c.id] = Object.assign({}, c, { _isParty: true, _pips: pips });
+    });
+    TEST_ENEMIES.forEach(function(c) {
+        var pips = atbValues[c.id] || { filledPips: 0, currentFill: 0 };
+        combatantMap[c.id] = Object.assign({}, c, { _isParty: false, _pips: pips });
+    });
+
+    function isPartyId(id) { return combatantMap[id] ? combatantMap[id]._isParty : false; }
+
+    var attackerData = combatantMap[activeAtkId] || null;
+    var targetData = combatantMap[targetId] || null;
+
+    // Flat array for gauge strip (preserves render order: party then enemy)
+    var allCombatants = TEST_PARTY.map(function(c) { return combatantMap[c.id]; })
+        .concat(TEST_ENEMIES.map(function(c) { return combatantMap[c.id]; }));
 
     var makeRefSetter = useCallback(function(id) {
         return function(el) {
             combatantRefs.current[id] = el;
         };
     }, []);
-
-    // Build combatant list with pip data for gauge strip
-    var allCombatants = [];
-    TEST_PARTY.forEach(function(c) {
-        var pips = atbValues[c.id] || { filledPips: 0, currentFill: 0 };
-        allCombatants.push(Object.assign({}, c, { _isParty: true, _pips: pips }));
-    });
-    TEST_ENEMIES.forEach(function(c) {
-        var pips = atbValues[c.id] || { filledPips: 0, currentFill: 0 };
-        allCombatants.push(Object.assign({}, c, { _isParty: false, _pips: pips }));
-    });
 
     // ============================================================
     // DAMAGE NUMBER SPAWNER
@@ -683,12 +706,12 @@ function BattleView(props) {
             var hitCx = r.left - sr.left + r.width / 2;
             var hitCy = r.top - sr.top;
             var val = Math.floor(Math.random() * 25) + 3;
-            var isPartyHit = TEST_PARTY.some(function(p) { return p.id === id; });
+            var isPartyHit = isPartyId(id);
             spawnDamageNumber(val, hitCx, hitCy, isPartyHit ? "#ef4444" : "#f59e0b");
         }
     }
     function handleDevAtkSequence(atkId, tgtId) {
-        var isEnemy = TEST_ENEMIES.some(function(e) { return e.id === atkId; });
+        var isEnemy = !isPartyId(atkId);
         var tOff = 0;
         if (isEnemy) {
             setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "telegraph"; return n; });
@@ -732,7 +755,7 @@ function BattleView(props) {
         if (!ctx) return;
 
         var swinger = ctx.swingerId;
-        var swingerIsEnemy = TEST_ENEMIES.some(function(e) { return e.id === swinger; });
+        var swingerIsEnemy = !isPartyId(swinger);
 
         // Pick the right sync anim class based on faction
         var syncClass = swingerIsEnemy ? "telegraph-sync" : "windup-sync";
@@ -784,8 +807,8 @@ function BattleView(props) {
             return;
         }
 
-        var swingerIsEnemy = TEST_ENEMIES.some(function(e) { return e.id === swinger; });
-        var receiverIsParty = TEST_PARTY.some(function(p) { return p.id === receiver; });
+        var swingerIsEnemy = !isPartyId(swinger);
+        var receiverIsParty = isPartyId(receiver);
         var dmgColor = receiverIsParty ? "#ef4444" : "#f59e0b";
 
         if (swingerIsEnemy) {
@@ -931,18 +954,30 @@ function BattleView(props) {
         var swingerId = cam.currentSwingerId;
         var receiverId = cam.currentReceiverId;
 
-        var swingerData = allData.find(function(c) { return c.id === swingerId; });
+        // Deduct 1 pip from swinger
+        setAtbValues(function(prev) {
+            var entry = prev[swingerId];
+            if (!entry || entry.filledPips <= 0) return prev;
+            var next = {};
+            for (var key in prev) {
+                if (prev.hasOwnProperty(key)) {
+                    next[key] = key === swingerId
+                        ? { filledPips: entry.filledPips - 1, currentFill: 0 }
+                        : prev[key];
+                }
+            }
+            return next;
+        });
+
+        var swingerData = combatantMap[swingerId];
         var skill = BattleSkills.getSkill(swingerData && swingerData.skills ? swingerData.skills[0] : null);
 
         if (!skill) {
             console.warn("[BattleView] No skill for " + swingerId + ", skipping");
-            cam.swingCount += 1;
             advanceOrCamOut();
             return;
         }
 
-        // Both sides go straight to QTE. Enemy telegraph is now driven
-        // by onRingStart synced to ring shrink — no pre-QTE delay needed.
         doCamSwing(swingerId, receiverId, skill);
     }
 
@@ -972,13 +1007,46 @@ function BattleView(props) {
         var cam = camExchangeRef.current;
         if (!cam) { camOut(); return; }
 
-        if (cam.swingCount >= 2) {
+        // Swap to other side's turn
+        var nextSwinger = cam.currentReceiverId;
+        var nextReceiver = cam.currentSwingerId;
+        cam.currentSwingerId = nextSwinger;
+        cam.currentReceiverId = nextReceiver;
+
+        // Check if next swinger has pips — if not, cam out
+        var nextPips = atbValuesRef.current[nextSwinger];
+        if (!nextPips || nextPips.filledPips <= 0) {
             camOut();
         } else {
-            var nextSwinger = cam.currentReceiverId;
-            var nextReceiver = cam.currentSwingerId;
-            cam.currentSwingerId = nextSwinger;
-            cam.currentReceiverId = nextReceiver;
+            setPhase(PHASES.CAM_WAIT_ACTION);
+        }
+    }
+
+    // RELENT — initiator forfeits remaining turns, exits action cam (free)
+    function handleCamRelent() {
+        var cam = camExchangeRef.current;
+        if (!cam) return;
+        if (phase !== PHASES.CAM_WAIT_ACTION) return;
+        camOut();
+    }
+
+    // PASS — responder gives up their turn, control returns to initiator
+    function handleCamPass() {
+        var cam = camExchangeRef.current;
+        if (!cam) return;
+        if (phase !== PHASES.CAM_WAIT_ACTION) return;
+
+        // Swap back to initiator
+        var nextSwinger = cam.currentReceiverId;
+        var nextReceiver = cam.currentSwingerId;
+        cam.currentSwingerId = nextSwinger;
+        cam.currentReceiverId = nextReceiver;
+
+        // Check if initiator has pips
+        var initPips = atbValuesRef.current[nextSwinger];
+        if (!initPips || initPips.filledPips <= 0) {
+            camOut();
+        } else {
             setPhase(PHASES.CAM_WAIT_ACTION);
         }
     }
@@ -1003,7 +1071,7 @@ function BattleView(props) {
             var alreadyReady = BattleATB.checkReady(resetState, checkCombatants);
 
             if (alreadyReady) {
-                var isPartyMember = TEST_PARTY.some(function(p) { return p.id === alreadyReady; });
+                var isPartyMember = isPartyId(alreadyReady);
                 setTurnOwnerId(alreadyReady);
 
                 if (isPartyMember) {
@@ -1036,16 +1104,29 @@ function BattleView(props) {
     }
 
     // ============================================================
-    // IN-CAM ATK BUTTON STATE
+    // IN-CAM BUTTON STATE — Initiator vs Responder
+    // Initiator: ATK + RELENT. Responder: ATK + PASS.
     // ============================================================
     var camWaiting = phase === PHASES.CAM_WAIT_ACTION;
     var cam = camExchangeRef.current;
     var camSwingerId = cam ? cam.currentSwingerId : null;
-    var camSwingerIsParty = camSwingerId ? TEST_PARTY.some(function(p) { return p.id === camSwingerId; }) : false;
-    var camSwingerIsEnemy = camSwingerId ? TEST_ENEMIES.some(function(e) { return e.id === camSwingerId; }) : false;
+    var camInitiatorId = cam ? cam.initiatorId : null;
+    var camIsInitiatorTurn = camSwingerId && camSwingerId === camInitiatorId;
+    var camSwingerIsParty = camSwingerId ? isPartyId(camSwingerId) : false;
+    var camSwingerIsEnemy = camSwingerId ? !isPartyId(camSwingerId) : false;
 
-    var playerAtkEnabled = camWaiting && camSwingerIsParty;
-    var enemyAtkEnabled  = camWaiting && camSwingerIsEnemy;
+    // ATK enabled if waiting and it's this side's turn and they have pips
+    var swingerPips = camSwingerId ? (atbValues[camSwingerId] || { filledPips: 0 }).filledPips : 0;
+    var playerAtkEnabled = camWaiting && camSwingerIsParty && swingerPips > 0;
+    var enemyAtkEnabled  = camWaiting && camSwingerIsEnemy && swingerPips > 0;
+
+    // RELENT: only for initiator's turn
+    var playerRelentEnabled = camWaiting && camSwingerIsParty && camIsInitiatorTurn;
+    var enemyRelentEnabled  = camWaiting && camSwingerIsEnemy && camIsInitiatorTurn;
+
+    // PASS: only for responder's turn
+    var playerPassEnabled = camWaiting && camSwingerIsParty && !camIsInitiatorTurn;
+    var enemyPassEnabled  = camWaiting && camSwingerIsEnemy && !camIsInitiatorTurn;
 
     // --- Render ---
     var bottomStyle = isLeftHanded ? { flexDirection: "row-reverse" } : {};
@@ -1131,25 +1212,65 @@ function BattleView(props) {
                 attacker={attackerData}
                 target={targetData}
                 isLeftHanded={isLeftHanded}
+                atbValues={atbValues}
             />
 
-            {/* === IN-CAM ATK BUTTONS — floating overlay === */}
+            {/* === IN-CAM ACTION BUTTONS — grouped by side === */}
             {isActionCam && (
                 <div className="battle-cam-atk-buttons">
-                    <button
-                        className={"battle-cam-atk-btn battle-cam-atk-btn--enemy" + (enemyAtkEnabled ? " battle-cam-atk-btn--active" : "")}
-                        disabled={!enemyAtkEnabled}
-                        onClick={handleCamATK}
-                    >
-                        ENEMY ATK
-                    </button>
-                    <button
-                        className={"battle-cam-atk-btn battle-cam-atk-btn--player" + (playerAtkEnabled ? " battle-cam-atk-btn--active" : "")}
-                        disabled={!playerAtkEnabled}
-                        onClick={handleCamATK}
-                    >
-                        PLAYER ATK
-                    </button>
+                    {/* Enemy side (left) */}
+                    <div className="battle-cam-atk-group">
+                        <button
+                            className={"battle-cam-atk-btn battle-cam-atk-btn--enemy" + (enemyAtkEnabled ? " battle-cam-atk-btn--active" : "")}
+                            disabled={!enemyAtkEnabled}
+                            onClick={handleCamATK}
+                        >
+                            ENEMY ATK
+                        </button>
+                        {enemyRelentEnabled && (
+                            <button
+                                className="battle-cam-sec-btn battle-cam-sec-btn--relent"
+                                onClick={handleCamRelent}
+                            >
+                                RELENT
+                            </button>
+                        )}
+                        {enemyPassEnabled && (
+                            <button
+                                className="battle-cam-sec-btn battle-cam-sec-btn--pass"
+                                onClick={handleCamPass}
+                            >
+                                PASS
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Player side (right) */}
+                    <div className="battle-cam-atk-group">
+                        <button
+                            className={"battle-cam-atk-btn battle-cam-atk-btn--player" + (playerAtkEnabled ? " battle-cam-atk-btn--active" : "")}
+                            disabled={!playerAtkEnabled}
+                            onClick={handleCamATK}
+                        >
+                            PLAYER ATK
+                        </button>
+                        {playerRelentEnabled && (
+                            <button
+                                className="battle-cam-sec-btn battle-cam-sec-btn--relent"
+                                onClick={handleCamRelent}
+                            >
+                                RELENT
+                            </button>
+                        )}
+                        {playerPassEnabled && (
+                            <button
+                                className="battle-cam-sec-btn battle-cam-sec-btn--pass"
+                                onClick={handleCamPass}
+                            >
+                                PASS
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
 
