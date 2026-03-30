@@ -76,6 +76,22 @@ var BATTLE_SPRITES = {
         fps:      0,
         cols:     1,
     },
+    fairyCombatIdle: {
+        sheet:    "/images/anim/battle/npc/waFairyCombatIdleSS.png",
+        frames:   5,
+        frameW:   380,
+        frameH:   380,
+        fps:      1.0,
+        cols:     5,
+    },
+    fairyCombatKnockdown: {
+        sheet:    "/images/anim/battle/npc/waFairyKnockdownSS.png",
+        frames:   5,
+        frameW:   380,
+        frameH:   380,
+        fps:      1.0,
+        cols:     5,
+    },
 };
 
 // --- Combat Test Data (dev/prototype only) ---
@@ -93,7 +109,7 @@ var TEST_PARTY = [
     {
         id: "fairy",
         name: "Fairy",
-        spriteKey: "fairyIdle",
+        spriteKey: "fairyCombatIdle",
         maxHP: 50,
         currentHP: 50,
         atbSpeed: 0.3,
@@ -145,6 +161,37 @@ var BATTLE_PHASES = {
     ACTION_CAM_OUT:   "action_cam_out",
 };
 
+// --- Choreography Config (anim states, hit reactions, screen FX) ---
+var CHOREOGRAPHY = {
+    // Anim state durations (ms)
+    windUpMs:           200,
+    strikeMs:           150,
+    returnMs:           250,
+    hitMs:              300,
+    flinchMs:           200,
+    braceMs:            200,
+    telegraphMs:        300,    // should match EXCHANGE.counterDelayMs
+    koMs:               600,
+
+    // Lunge distances (vw)
+    lungeVw:            3,
+    knockbackVw:        4,
+
+    // Damage numbers
+    dmgPopMs:           800,    // total lifetime
+    dmgFloatVh:         3,      // drift distance
+    dmgScaleOvershoot:  1.3,    // pop scale peak
+
+    // Hit flash
+    flashMs:            80,
+
+    // Screen shake presets
+    shakeLight:         { px: 2,  ms: 100 },
+    shakeMedium:        { px: 4,  ms: 200 },
+    shakeHeavy:         { px: 6,  ms: 300 },
+    shakeKO:            { px: 10, ms: 400 },
+};
+
 // ============================================================
 // Export
 // ============================================================
@@ -155,6 +202,7 @@ var BattleConstants = {
     EXCHANGE: EXCHANGE,
     LAYOUT: LAYOUT,
     BATTLE_SPRITES: BATTLE_SPRITES,
+    CHOREOGRAPHY: CHOREOGRAPHY,
     TEST_PARTY: TEST_PARTY,
     TEST_ENEMIES: TEST_ENEMIES,
     ACTIONS: ACTIONS,

@@ -39,6 +39,52 @@
     padding: 2vh 4vw;
 }
 
+/* --- Screen Shake — stepped jitter for pixel feel --- */
+@keyframes shakeLight {
+    0%   { transform: translate(0, 0); }
+    25%  { transform: translate(-2px, 1px); }
+    50%  { transform: translate(2px, -1px); }
+    75%  { transform: translate(-1px, 2px); }
+    100% { transform: translate(0, 0); }
+}
+
+@keyframes shakeMedium {
+    0%   { transform: translate(0, 0); }
+    20%  { transform: translate(-4px, 2px); }
+    40%  { transform: translate(3px, -3px); }
+    60%  { transform: translate(-2px, 4px); }
+    80%  { transform: translate(4px, -1px); }
+    100% { transform: translate(0, 0); }
+}
+
+@keyframes shakeHeavy {
+    0%   { transform: translate(0, 0); }
+    15%  { transform: translate(-6px, 3px); }
+    30%  { transform: translate(5px, -5px); }
+    45%  { transform: translate(-3px, 6px); }
+    60%  { transform: translate(6px, -2px); }
+    75%  { transform: translate(-4px, 4px); }
+    100% { transform: translate(0, 0); }
+}
+
+@keyframes shakeKO {
+    0%   { transform: translate(0, 0); }
+    10%  { transform: translate(-10px, 5px); }
+    20%  { transform: translate(8px, -8px); }
+    30%  { transform: translate(-6px, 10px); }
+    40%  { transform: translate(10px, -4px); }
+    50%  { transform: translate(-8px, 6px); }
+    60%  { transform: translate(6px, -10px); }
+    70%  { transform: translate(-10px, 3px); }
+    80%  { transform: translate(4px, -6px); }
+    100% { transform: translate(0, 0); }
+}
+
+.battle-scene--shake-light  { animation: shakeLight  100ms steps(4) 1; }
+.battle-scene--shake-medium { animation: shakeMedium 200ms steps(5) 1; }
+.battle-scene--shake-heavy  { animation: shakeHeavy  300ms steps(6) 1; }
+.battle-scene--shake-ko     { animation: shakeKO     400ms steps(9) 1; }
+
 .battle-scene-zoneName {
     position: absolute;
     top: 2%;
@@ -95,18 +141,51 @@
     position: relative;
 }
 
+/* Inner wrapper — choreography transforms layer on this div.
+   Outer div owns slide (inline px). Inner owns lunge/knockback (CSS class).
+   Stacked: sprite on top, info centered below. */
+.battle-combatant__inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4vh;
+    width: 100%;
+}
+
+/* Hit flash — bright white burst on damage */
+.battle-combatant__inner--flash {
+    filter: brightness(3) saturate(0);
+}
+
+/* Enemy idle bob — subtle stepped motion on sprite only */
+@keyframes enemyBob {
+    0%, 50%  { transform: translateY(0); }
+    51%, 100% { transform: translateY(-2px); }
+}
+
+.battle-combatant--enemy-idle .battle-combatant__sprite {
+    animation: enemyBob 2.4s steps(1) infinite;
+    animation-delay: var(--bob-delay, 0s);
+}
+
+/* Pause bob during action cam */
+.battle-combatant--dimmed .battle-combatant__sprite,
+.battle-combatant--attacker .battle-combatant__sprite,
+.battle-combatant--target .battle-combatant__sprite {
+    animation: none;
+}
+
 .battle-combatant:active {
     border-color: rgba(255, 255, 255, 0.15);
 }
 
 .battle-combatant--party {
-    flex-direction: row-reverse;
-    text-align: right;
+    text-align: center;
 }
 
 /* Action cam states */
 .battle-combatant--dimmed {
-    opacity: 0.12;
+    opacity: 0;
     pointer-events: none;
 }
 
@@ -131,7 +210,13 @@
 .battle-combatant__info {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 3px;
+}
+
+.battle-combatant__info--hidden {
+    opacity: 0;
+    pointer-events: none;
 }
 
 .battle-combatant__name {
@@ -179,6 +264,108 @@
 
 .battle-spark--visible {
     opacity: 1;
+}
+
+/* --- Action Cam Frame — pixel border vignette overlay --- */
+.battle-cam-frame {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+
+.battle-cam-frame--visible {
+    opacity: 1;
+}
+
+/* Thick chunky pixel border — inset box-shadow layers */
+.battle-cam-frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    box-shadow:
+            inset 0 0 0 4px #0a0704,
+            inset 0 0 0 6px #1a1408,
+            inset 0 0 0 8px #2a2010,
+            inset 0 0 0 10px #0a0704;
+}
+
+/* Dark vignette corners to focus attention on center stage */
+.battle-cam-frame::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+            radial-gradient(ellipse 70% 65% at 50% 50%, transparent 40%, rgba(10, 7, 4, 0.85) 100%);
+}
+
+/* --- Action Cam HUD — attacker vs target in bottom zone --- */
+.battle-cam-hud {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2vw;
+    padding: 1vh 3vw;
+    background: linear-gradient(180deg, rgba(10, 7, 4, 0.95) 0%, rgba(10, 7, 4, 0.7) 80%, transparent 100%);
+    z-index: 6;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+
+.battle-cam-hud--visible {
+    opacity: 1;
+}
+
+.battle-cam-hud__side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 12vw;
+}
+
+.battle-cam-hud__side--atk .battle-cam-hud__name {
+    color: #f59e0b;
+}
+
+.battle-cam-hud__side--tgt .battle-cam-hud__name {
+    color: #ef4444;
+}
+
+.battle-cam-hud__name {
+    font-size: clamp(8px, 1.4vw, 11px);
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.battle-cam-hud__hp-bg {
+    width: 10vw;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.battle-cam-hud__hp-text {
+    font-size: clamp(6px, 1vw, 8px);
+    color: #8a7a64;
+    letter-spacing: 0.5px;
+}
+
+.battle-cam-hud__vs {
+    font-size: clamp(8px, 1.3vw, 10px);
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #5a4a34;
 }
 
 /* ============================================================

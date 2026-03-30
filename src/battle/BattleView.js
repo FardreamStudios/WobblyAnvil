@@ -27,6 +27,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import BattleConstants from "./battleConstants.js";
+import BattleSFX from "./battleSFX.js";
 import "./BattleView.css";
 
 var PHASES = BattleConstants.BATTLE_PHASES;
@@ -35,6 +36,7 @@ var EXCHANGE = BattleConstants.EXCHANGE;
 var ACTIONS = BattleConstants.ACTIONS;
 var LAYOUT = BattleConstants.LAYOUT;
 var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
+var CHOREOGRAPHY = BattleConstants.CHOREOGRAPHY;
 var TEST_PARTY = BattleConstants.TEST_PARTY;
 var TEST_ENEMIES = BattleConstants.TEST_ENEMIES;
 
@@ -110,25 +112,23 @@ function BattleSprite(props) {
         );
     }
 
-    // Animated spritesheet
+    // Animated spritesheet — percentage-based positioning
     var frames = cfg.frames;
     var cols = cfg.cols || frames;
-    var frameW = cfg.frameW;
-    var frameH = cfg.frameH;
     var frame = props.frame || 0;
     var col = frame % cols;
     var row = Math.floor(frame / cols);
-    var bgX = -(col * frameW);
-    var bgY = -(row * frameH);
     var totalRows = Math.ceil(frames / cols);
+    var bgX = cols > 1 ? (col * (100 / (cols - 1))) : 0;
+    var bgY = totalRows > 1 ? (row * (100 / (totalRows - 1))) : 0;
 
     return (
         <div className="battle-combatant__sprite" style={{
             width: size, height: size,
             backgroundImage: "url(" + src + ")",
-            backgroundPosition: bgX + "px " + bgY + "px",
+            backgroundPosition: bgX + "% " + bgY + "%",
             backgroundRepeat: "no-repeat",
-            backgroundSize: (frameW * cols) + "px " + (frameH * totalRows) + "px",
+            backgroundSize: (cols * 100) + "% " + (totalRows * 100) + "%",
             imageRendering: "auto",
         }} />
     );
@@ -149,12 +149,16 @@ function Combatant(props) {
 
     var cls = "battle-combatant";
     if (isParty) cls += " battle-combatant--party";
+    if (!isParty && !isActive) cls += " battle-combatant--enemy-idle";
     if (isDimmed) cls += " battle-combatant--dimmed";
     if (isAttacker) cls += " battle-combatant--attacker";
     if (isTarget) cls += " battle-combatant--target";
 
     // Compute slide transform for action cam
     var style = {};
+    if (!isParty && props.index != null) {
+        style["--bob-delay"] = (props.index * -0.8) + "s";
+    }
     if ((isAttacker || isTarget) && props.sceneRect && props.restingRects) {
         var sr = props.sceneRect;
         var cx = sr.width / 2;
@@ -180,11 +184,13 @@ function Combatant(props) {
             ref={props.setRef}
             onClick={props.onClick}
         >
-            <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} />
-            <div className="battle-combatant__info">
-                <span className="battle-combatant__name">{c.name}</span>
-                <div className="battle-hp-bg">
-                    <div className={fillCls} style={{ width: hpPct + "%" }} />
+            <div className={"battle-combatant__inner" + (props.flashId === c.id ? " battle-combatant__inner--flash" : "")}>
+                <BattleSprite spriteKey={props.spriteOverride || c.spriteKey} frame={props.spriteFrame} />
+                <div className={"battle-combatant__info" + (isActive ? " battle-combatant__info--hidden" : "")}>
+                    <span className="battle-combatant__name">{c.name}</span>
+                    <div className="battle-hp-bg">
+                        <div className={fillCls} style={{ width: hpPct + "%" }} />
+                    </div>
                 </div>
             </div>
         </div>
@@ -342,7 +348,62 @@ function DevControls(props) {
                 {props.atbRunning ? "Pause ATB" : "Run ATB"}
             </button>
             <button className="battle-dev__btn" onClick={props.onExit}>Exit</button>
+            <div className="battle-dev__sep" />
+            <button className="battle-dev__btn" onClick={function() { props.onShake("light"); }}>Shake L</button>
+            <button className="battle-dev__btn" onClick={function() { props.onShake("medium"); }}>Shake M</button>
+            <button className="battle-dev__btn" onClick={function() { props.onShake("heavy"); }}>Shake H</button>
+            <button className="battle-dev__btn" onClick={function() { props.onShake("ko"); }}>Shake KO</button>
+            <div className="battle-dev__sep" />
+            <button
+                className={"battle-dev__btn" + (!props.spriteOverride ? " battle-dev__btn--active" : "")}
+                onClick={function() { props.onSpriteOverride(null); }}
+            >Idle</button>
+            <button
+                className={"battle-dev__btn" + (props.spriteOverride === "fairyCombatKnockdown" ? " battle-dev__btn--active" : "")}
+                onClick={function() { props.onSpriteOverride("fairyCombatKnockdown"); }}
+            >Knockdown</button>
+            <div className="battle-dev__sep" />
+            <button className="battle-dev__btn" onClick={function() { props.onFlash(props.attackerId); }}>Flash Atk</button>
+            <button className="battle-dev__btn" onClick={function() { props.onFlash(props.targetId); }}>Flash Tgt</button>
+            <button className="battle-dev__btn" onClick={function() { props.onBlock(); }}>Block SFX</button>
             <span className="battle-dev__badge">{PHASE_LABELS[props.phase] || props.phase}</span>
+        </div>
+    );
+}
+
+// ============================================================
+// Action Cam HUD — attacker vs target info in bottom zone
+// Shows during action cam phases, replaces in-scene info
+// ============================================================
+
+function ActionCamHUD(props) {
+    var visible = props.visible;
+    var cls = "battle-cam-hud" + (visible ? " battle-cam-hud--visible" : "");
+
+    var attacker = props.attacker;
+    var target = props.target;
+    if (!attacker || !target) return null;
+
+    var atkHp = attacker.maxHP > 0 ? Math.round(attacker.currentHP / attacker.maxHP * 100) : 0;
+    var tgtHp = target.maxHP > 0 ? Math.round(target.currentHP / target.maxHP * 100) : 0;
+
+    return (
+        <div className={cls}>
+            <div className="battle-cam-hud__side battle-cam-hud__side--atk">
+                <span className="battle-cam-hud__name">{attacker.name}</span>
+                <div className="battle-cam-hud__hp-bg">
+                    <div className="battle-hp-fill battle-hp-fill--party" style={{ width: atkHp + "%" }} />
+                </div>
+                <span className="battle-cam-hud__hp-text">{attacker.currentHP + "/" + attacker.maxHP}</span>
+            </div>
+            <span className="battle-cam-hud__vs">VS</span>
+            <div className="battle-cam-hud__side battle-cam-hud__side--tgt">
+                <span className="battle-cam-hud__name">{target.name}</span>
+                <div className="battle-cam-hud__hp-bg">
+                    <div className="battle-hp-fill battle-hp-fill--enemy" style={{ width: tgtHp + "%" }} />
+                </div>
+                <span className="battle-cam-hud__hp-text">{target.currentHP + "/" + target.maxHP}</span>
+            </div>
         </div>
     );
 }
@@ -363,6 +424,9 @@ function BattleView(props) {
     var [targetId, setTargetId] = useState(TEST_ENEMIES[0].id);
     var [attackerId] = useState(TEST_PARTY[0].id);
     var [atbRunning, setAtbRunning] = useState(false);
+    var [shakeLevel, setShakeLevel] = useState(null);
+    var [flashId, setFlashId] = useState(null);
+    var [devSpriteOverride, setDevSpriteOverride] = useState(null);
     var [atbValues, setAtbValues] = useState(function() {
         var v = {};
         TEST_PARTY.forEach(function(c) { v[c.id] = 0; });
@@ -472,6 +536,11 @@ function BattleView(props) {
 
     var comicLine = COMIC_LINES[phase] || "...";
 
+    // Lookup active combatant data for action cam HUD
+    var allData = TEST_PARTY.concat(TEST_ENEMIES);
+    var attackerData = allData.find(function(c) { return c.id === attackerId; }) || null;
+    var targetData = allData.find(function(c) { return c.id === targetId; }) || null;
+
     // Make combatant ref setter
     var makeRefSetter = useCallback(function(id) {
         return function(el) {
@@ -494,6 +563,11 @@ function BattleView(props) {
         setTargetId(id);
     }
     function handleDevToggleATB() { setAtbRunning(function(v) { return !v; }); }
+    function handleDevFlash(id) {
+        setFlashId(id);
+        BattleSFX.hit();
+        setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+    }
 
     // --- Action handler ---
     function handleAction(actionId) {
@@ -508,21 +582,28 @@ function BattleView(props) {
     // Bottom zone order: right-handed = open|ATB|actions, left-handed = actions|ATB|open
     var bottomStyle = isLeftHanded ? { flexDirection: "row-reverse" } : {};
 
+    var sceneCls = "battle-scene" + (shakeLevel ? " battle-scene--shake-" + shakeLevel : "");
+
     return (
         <div className="battle-root" style={LAYOUT_VARS}>
             {/* === SCENE ZONE === */}
-            <div className="battle-scene" ref={sceneRef}>
+            <div
+                className={sceneCls}
+                ref={sceneRef}
+                onAnimationEnd={function() { setShakeLevel(null); }}
+            >
                 <span className="battle-scene-zoneName">{zoneName}</span>
                 <span className="battle-scene-waveLabel">{waveLabel}</span>
 
                 {/* Enemy formation (left) */}
                 <div className="battle-formation battle-formation--enemy">
-                    {TEST_ENEMIES.map(function(e) {
+                    {TEST_ENEMIES.map(function(e, idx) {
                         return (
                             <Combatant
                                 key={e.id}
                                 data={e}
                                 isParty={false}
+                                index={idx}
                                 phase={phase}
                                 attackerId={attackerId}
                                 targetId={targetId}
@@ -531,6 +612,7 @@ function BattleView(props) {
                                 setRef={makeRefSetter(e.id)}
                                 onClick={function() { setTargetId(e.id); }}
                                 spriteFrame={spriteFrame}
+                                flashId={flashId}
                             />
                         );
                     })}
@@ -544,6 +626,7 @@ function BattleView(props) {
                                 key={p.id}
                                 data={p}
                                 isParty={true}
+                                spriteOverride={devSpriteOverride}
                                 phase={phase}
                                 attackerId={attackerId}
                                 targetId={targetId}
@@ -551,6 +634,7 @@ function BattleView(props) {
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(p.id)}
                                 spriteFrame={spriteFrame}
+                                flashId={flashId}
                             />
                         );
                     })}
@@ -560,10 +644,20 @@ function BattleView(props) {
                 <span className={"battle-spark" + (showSpark ? " battle-spark--visible" : "")}>
                     {"\u2694\uFE0F"}
                 </span>
+
+                {/* Action cam pixel frame */}
+                <div className={"battle-cam-frame" + (isActionCam ? " battle-cam-frame--visible" : "")} />
             </div>
 
             {/* === BOTTOM ZONE === */}
             <div className="battle-bottom" style={bottomStyle}>
+                {/* Action cam HUD — attacker vs target HP overlay */}
+                <ActionCamHUD
+                    visible={isActionCam}
+                    attacker={attackerData}
+                    target={targetData}
+                />
+
                 {/* Open real estate */}
                 <div className="battle-open">
                     <span className="battle-open__label">open real estate</span>
@@ -602,9 +696,18 @@ function BattleView(props) {
                 attackerId={attackerId}
                 enemies={TEST_ENEMIES}
                 atbRunning={atbRunning}
+                spriteOverride={devSpriteOverride}
                 onSetPhase={handleDevSetPhase}
                 onSetTarget={handleDevSetTarget}
                 onToggleATB={handleDevToggleATB}
+                onShake={function(level) {
+                    setShakeLevel(null);
+                    requestAnimationFrame(function() { setShakeLevel(level); });
+                    if (level === "ko") { BattleSFX.ko(); } else { BattleSFX.impact(); }
+                }}
+                onSpriteOverride={setDevSpriteOverride}
+                onFlash={handleDevFlash}
+                onBlock={function() { BattleSFX.block(); }}
                 onExit={onExit}
             />
         </div>
