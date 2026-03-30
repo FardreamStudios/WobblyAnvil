@@ -134,6 +134,11 @@ var TEST_PARTY = [
         attackPower: 12,
         defensePower: 8,
         skills: ["basic_attack", "power_strike"],
+        items: [
+            { id: "health_potion",  name: "Health Potion",  icon: "\u2764\uFE0F",       description: "Restores 25 HP",        effect: { type: "heal", value: 25 }, qty: 2 },
+            { id: "atk_brew",       name: "Atk Brew",       icon: "\u2694\uFE0F",       description: "+4 attack for 2 turns",  effect: { type: "buff", stat: "attackPower", value: 4, turns: 2 }, qty: 1 },
+            { id: "throwing_knife", name: "Throwing Knife", icon: "\uD83D\uDDE1\uFE0F", description: "Deals 15 damage",        effect: { type: "damage", value: 15 }, qty: 1 },
+        ],
     },
     {
         id: "fairy",
@@ -145,6 +150,10 @@ var TEST_PARTY = [
         attackPower: 6,
         defensePower: 5,
         skills: ["basic_attack"],
+        items: [
+            { id: "health_potion", name: "Health Potion", icon: "\u2764\uFE0F", description: "Restores 25 HP",              effect: { type: "heal", value: 25 }, qty: 1 },
+            { id: "smoke_bomb",    name: "Smoke Bomb",    icon: "\uD83D\uDCA8", description: "-3 attack on enemy, 2 turns", effect: { type: "debuff_enemy", stat: "attackPower", value: 3, turns: 2 }, qty: 1 },
+        ],
     },
 ];
 
@@ -217,6 +226,17 @@ var CHOREOGRAPHY = {
     shakeKO:            { px: 10, ms: 400 },
 };
 
+// --- Battle Items — definition table ---
+// Effect types V1: heal, buff, debuff_enemy, damage.
+// Host maps inventory into this shape for BattleConfig.
+var BATTLE_ITEMS = [
+    { id: "health_potion",  name: "Health Potion",  icon: "\u2764\uFE0F",       description: "Restores 25 HP",              effect: { type: "heal", value: 25 } },
+    { id: "atk_brew",       name: "Atk Brew",       icon: "\u2694\uFE0F",       description: "+4 attack for 2 turns",       effect: { type: "buff", stat: "attackPower", value: 4, turns: 2 } },
+    { id: "def_salve",      name: "Def Salve",      icon: "\uD83D\uDEE1\uFE0F", description: "+3 defense for 2 turns",      effect: { type: "buff", stat: "defensePower", value: 3, turns: 2 } },
+    { id: "smoke_bomb",     name: "Smoke Bomb",     icon: "\uD83D\uDCA8",       description: "-3 attack on enemy, 2 turns", effect: { type: "debuff_enemy", stat: "attackPower", value: 3, turns: 2 } },
+    { id: "throwing_knife", name: "Throwing Knife", icon: "\uD83D\uDDE1\uFE0F", description: "Deals 15 damage",             effect: { type: "damage", value: 15 } },
+];
+
 // ============================================================
 // Export
 // ============================================================
@@ -234,6 +254,7 @@ var BattleConstants = {
     ACTIONS: ACTIONS,
     IN_CAM_ACTIONS: IN_CAM_ACTIONS,
     BATTLE_PHASES: BATTLE_PHASES,
+    BATTLE_ITEMS: BATTLE_ITEMS,
 };
 
 export default BattleConstants;

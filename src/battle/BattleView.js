@@ -31,6 +31,7 @@ import BattleConstants from "./battleConstants.js";
 import BattleSkills from "./battleSkills.js";
 import BattleATB from "./battleATB.js";
 import BattleSFX from "./battleSFX.js";
+import BattleStateModule from "./battleState.js";
 import QTERunnerModule from "./QTERunner.js";
 import "./BattleView.css";
 
@@ -528,6 +529,17 @@ function BattleView(props) {
     });
     atbValuesRef.current = atbValues;
 
+    // --- Battle State (mutable combatant data: HP, items, KO, buffs) ---
+    var battleStateRef = useRef(null);
+    if (!battleStateRef.current) {
+        battleStateRef.current = BattleStateModule.createBattleState(TEST_PARTY, TEST_ENEMIES);
+    }
+    var bState = battleStateRef.current;
+
+    // --- Reactive snapshot — bump to trigger re-render after mutations ---
+    var [stateVersion, setStateVersion] = useState(0);
+    function bumpState() { setStateVersion(function(v) { return v + 1; }); }
+
     // --- Sprite animation frame ---
     var [spriteFrame, setSpriteFrame] = useState(0);
     useEffect(function() {
@@ -641,19 +653,17 @@ function BattleView(props) {
 
     var activeAtkId = turnOwnerId || attackerId;
 
-    // --- Combatant map: single source of truth for all lookups ---
-    // Keyed by id. Includes faction flag + current pip state.
+    // --- Combatant map: built from battleState (mutable HP/items) + ATB pips ---
+    var bSnap = bState.snapshot();
     var combatantMap = {};
-    TEST_PARTY.forEach(function(c) {
-        var pips = atbValues[c.id] || { filledPips: 0, currentFill: 0 };
-        combatantMap[c.id] = Object.assign({}, c, { _isParty: true, _pips: pips });
-    });
-    TEST_ENEMIES.forEach(function(c) {
-        var pips = atbValues[c.id] || { filledPips: 0, currentFill: 0 };
-        combatantMap[c.id] = Object.assign({}, c, { _isParty: false, _pips: pips });
+    var allIds = bState.getPartyIds().concat(bState.getEnemyIds());
+    allIds.forEach(function(id) {
+        var c = bSnap[id];
+        var pips = atbValues[id] || { filledPips: 0, currentFill: 0 };
+        combatantMap[id] = Object.assign({}, c, { _isParty: c.isParty, _pips: pips });
     });
 
-    function isPartyId(id) { return combatantMap[id] ? combatantMap[id]._isParty : false; }
+    function isPartyId(id) { return bState.isPartyId(id); }
 
     var attackerData = combatantMap[activeAtkId] || null;
     var targetData = combatantMap[targetId] || null;
