@@ -33,6 +33,8 @@ var PHASES = BattleConstants.BATTLE_PHASES;
 var ACTION_CAM = BattleConstants.ACTION_CAM;
 var EXCHANGE = BattleConstants.EXCHANGE;
 var ACTIONS = BattleConstants.ACTIONS;
+var LAYOUT = BattleConstants.LAYOUT;
+var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
 var TEST_PARTY = BattleConstants.TEST_PARTY;
 var TEST_ENEMIES = BattleConstants.TEST_ENEMIES;
 
@@ -66,6 +68,73 @@ PHASE_LABELS[PHASES.DEFENSE_QTE]     = "DEFENSE QTE";
 PHASE_LABELS[PHASES.ACTION_CAM_OUT]  = "CAM OUT";
 
 // ============================================================
+// CSS Custom Properties — driven from LAYOUT constants
+// Applied as inline style on .battle-root
+// ============================================================
+var LAYOUT_VARS = {
+    "--battle-open-w":      LAYOUT.openW,
+    "--battle-actions-w":   LAYOUT.actionsW,
+    "--battle-scene-flex":  LAYOUT.sceneFlex,
+    "--battle-bottom-flex": LAYOUT.bottomFlex,
+    "--battle-card-min-w":  LAYOUT.cardMinW,
+    "--battle-hp-w":        LAYOUT.hpBarW,
+    "--battle-atb-bar-h":   LAYOUT.atbBarH,
+    "--battle-atb-label-w": LAYOUT.atbLabelW,
+    "--battle-sprite-size": LAYOUT.spriteSize,
+};
+
+// ============================================================
+// BattleSprite — animated spritesheet or static image
+// Props: spriteKey (string key into BATTLE_SPRITES)
+// ============================================================
+
+function BattleSprite(props) {
+    var cfg = BATTLE_SPRITES[props.spriteKey];
+    if (!cfg) return null;
+
+    var PUB = process.env.PUBLIC_URL || "";
+    var src = PUB + cfg.sheet;
+    var size = LAYOUT.spriteSize;
+
+    // Static image (1 frame or fps=0)
+    if (cfg.frames <= 1 || cfg.fps <= 0) {
+        return (
+            <div className="battle-combatant__sprite" style={{
+                width: size, height: size,
+                backgroundImage: "url(" + src + ")",
+                backgroundSize: "contain",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                imageRendering: "auto",
+            }} />
+        );
+    }
+
+    // Animated spritesheet
+    var frames = cfg.frames;
+    var cols = cfg.cols || frames;
+    var frameW = cfg.frameW;
+    var frameH = cfg.frameH;
+    var frame = props.frame || 0;
+    var col = frame % cols;
+    var row = Math.floor(frame / cols);
+    var bgX = -(col * frameW);
+    var bgY = -(row * frameH);
+    var totalRows = Math.ceil(frames / cols);
+
+    return (
+        <div className="battle-combatant__sprite" style={{
+            width: size, height: size,
+            backgroundImage: "url(" + src + ")",
+            backgroundPosition: bgX + "px " + bgY + "px",
+            backgroundRepeat: "no-repeat",
+            backgroundSize: (frameW * cols) + "px " + (frameH * totalRows) + "px",
+            imageRendering: "auto",
+        }} />
+    );
+}
+
+// ============================================================
 // Combatant — single fighter card
 // ============================================================
 
@@ -86,19 +155,16 @@ function Combatant(props) {
 
     // Compute slide transform for action cam
     var style = {};
-    if ((isAttacker || isTarget) && props.sceneRect) {
+    if ((isAttacker || isTarget) && props.sceneRect && props.restingRects) {
         var sr = props.sceneRect;
         var cx = sr.width / 2;
         var cy = sr.height / 2;
-        var el = props.elRef;
-        if (el) {
-            var r = el.getBoundingClientRect();
-            var myX = r.left - sr.left + r.width / 2;
-            var myY = r.top - sr.top + r.height / 2;
+        var cached = props.restingRects[c.id];
+        if (cached) {
             var gap = sr.width * 0.08;
             var destX = isAttacker ? cx + gap : cx - gap;
-            var dx = destX - myX;
-            var dy = cy - myY;
+            var dx = destX - cached.cx;
+            var dy = cy - cached.cy;
             style.transform = "translate(" + dx + "px, " + dy + "px) scale(" + ACTION_CAM.activeScale + ")";
             style.zIndex = 10;
         }
@@ -114,7 +180,7 @@ function Combatant(props) {
             ref={props.setRef}
             onClick={props.onClick}
         >
-            <span className="battle-combatant__sprite">{c.sprite}</span>
+            <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} />
             <div className="battle-combatant__info">
                 <span className="battle-combatant__name">{c.name}</span>
                 <div className="battle-hp-bg">
@@ -184,12 +250,18 @@ function ActionMenu(props) {
 function QTEZone(props) {
     var visible = props.visible;
     var isDefense = props.isDefense;
+    var isLeft = props.isLeftHanded;
 
     var cls = "battle-qte" + (visible ? " battle-qte--visible" : "");
     var ringCls = "battle-qte__ring" + (isDefense ? " battle-qte__ring--defense" : "");
 
+    // Position between the two side zones — flips with handedness
+    var posStyle = isLeft
+        ? { left: "var(--battle-actions-w)", right: "var(--battle-open-w)" }
+        : { left: "var(--battle-open-w)", right: "var(--battle-actions-w)" };
+
     return (
-        <div className={cls}>
+        <div className={cls} style={posStyle}>
             <div className={ringCls}>TAP</div>
             <span className="battle-qte__label">{isDefense ? "defense qte" : "attack qte"}</span>
         </div>
@@ -202,10 +274,16 @@ function QTEZone(props) {
 
 function ComicPanel(props) {
     var visible = props.visible;
+    var isLeft = props.isLeftHanded;
     var cls = "battle-comic" + (visible ? " battle-comic--visible" : "");
 
+    // Sits on the action-menu side — flips with handedness
+    var posStyle = isLeft
+        ? { left: 0, right: "auto" }
+        : { right: 0, left: "auto" };
+
     return (
-        <div className={cls}>
+        <div className={cls} style={posStyle}>
             <div className="battle-comic__portrait">{props.sprite || "\uD83E\uDDDA"}</div>
             <div className="battle-comic__name">{props.name || "FAIRY"}</div>
             <div className="battle-comic__bubble">{props.line || "..."}</div>
@@ -275,8 +353,10 @@ function DevControls(props) {
 
 function BattleView(props) {
     var onExit = props.onExit;
+    var handedness = props.handedness || "right";
     var zoneName = props.zoneName || "UNKNOWN ZONE";
     var waveLabel = props.waveLabel || "WAVE 1/3";
+    var isLeftHanded = handedness === "left";
 
     // --- State ---
     var [phase, setPhase] = useState(PHASES.ATB_RUNNING);
@@ -290,16 +370,58 @@ function BattleView(props) {
         return v;
     });
 
+    // --- Sprite animation frame (shared tick for all animated combatants) ---
+    var [spriteFrame, setSpriteFrame] = useState(0);
+    useEffect(function() {
+        // Use the fairy idle fps as the global battle sprite tick
+        var fps = BATTLE_SPRITES.fairyIdle.fps || 1;
+        var ms = Math.round(1000 / fps);
+        var frames = BATTLE_SPRITES.fairyIdle.frames || 1;
+        var id = setInterval(function() {
+            setSpriteFrame(function(f) { return (f + 1) % frames; });
+        }, ms);
+        return function() { clearInterval(id); };
+    }, []);
+
     // --- Refs for combatant elements (for position calc) ---
     var combatantRefs = useRef({});
     var sceneRef = useRef(null);
     var [sceneRect, setSceneRect] = useState(null);
+    var restingRectsRef = useRef({});   // cached pre-transform positions
 
-    // Recalculate scene rect when phase changes to action cam
+    // Snapshot resting positions ONCE when entering action cam.
+    // Reads getBoundingClientRect before any transform is applied,
+    // then holds those values for the entire action cam sequence.
     useEffect(function() {
-        if (sceneRef.current) {
-            setSceneRect(sceneRef.current.getBoundingClientRect());
+        var entering = phase === PHASES.ACTION_CAM_IN;
+        if (!entering) {
+            // Leaving action cam — clear cached rects
+            if (phase === PHASES.ATB_RUNNING || phase === PHASES.ACTION_CAM_OUT) {
+                restingRectsRef.current = {};
+                setSceneRect(null);
+            }
+            return;
         }
+        // Use rAF to ensure DOM is laid out before reading
+        requestAnimationFrame(function() {
+            if (!sceneRef.current) return;
+            var sr = sceneRef.current.getBoundingClientRect();
+            setSceneRect(sr);
+            var rects = {};
+            var allIds = TEST_PARTY.concat(TEST_ENEMIES);
+            for (var i = 0; i < allIds.length; i++) {
+                var id = allIds[i].id;
+                var el = combatantRefs.current[id];
+                if (el) {
+                    var r = el.getBoundingClientRect();
+                    rects[id] = {
+                        cx: r.left - sr.left + r.width / 2,
+                        cy: r.top - sr.top + r.height / 2,
+                    };
+                }
+            }
+            restingRectsRef.current = rects;
+        });
     }, [phase]);
 
     // --- ATB tick loop ---
@@ -383,8 +505,11 @@ function BattleView(props) {
     }
 
     // --- Render ---
+    // Bottom zone order: right-handed = open|ATB|actions, left-handed = actions|ATB|open
+    var bottomStyle = isLeftHanded ? { flexDirection: "row-reverse" } : {};
+
     return (
-        <div className="battle-root">
+        <div className="battle-root" style={LAYOUT_VARS}>
             {/* === SCENE ZONE === */}
             <div className="battle-scene" ref={sceneRef}>
                 <span className="battle-scene-zoneName">{zoneName}</span>
@@ -402,9 +527,10 @@ function BattleView(props) {
                                 attackerId={attackerId}
                                 targetId={targetId}
                                 sceneRect={isActionCam ? sceneRect : null}
-                                elRef={combatantRefs.current[e.id]}
+                                restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(e.id)}
                                 onClick={function() { setTargetId(e.id); }}
+                                spriteFrame={spriteFrame}
                             />
                         );
                     })}
@@ -422,8 +548,9 @@ function BattleView(props) {
                                 attackerId={attackerId}
                                 targetId={targetId}
                                 sceneRect={isActionCam ? sceneRect : null}
-                                elRef={combatantRefs.current[p.id]}
+                                restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(p.id)}
+                                spriteFrame={spriteFrame}
                             />
                         );
                     })}
@@ -436,7 +563,7 @@ function BattleView(props) {
             </div>
 
             {/* === BOTTOM ZONE === */}
-            <div className="battle-bottom">
+            <div className="battle-bottom" style={bottomStyle}>
                 {/* Open real estate */}
                 <div className="battle-open">
                     <span className="battle-open__label">open real estate</span>
@@ -456,14 +583,15 @@ function BattleView(props) {
                 />
 
                 {/* QTE zone overlay */}
-                <QTEZone visible={showQTE} isDefense={isDefenseQTE} />
+                <QTEZone visible={showQTE} isDefense={isDefenseQTE} isLeftHanded={isLeftHanded} />
 
                 {/* Comic panel (replaces action zone visually during action cam) */}
                 <ComicPanel
                     visible={showComic}
-                    sprite={TEST_PARTY[1].sprite}
+                    sprite={null}
                     name={TEST_PARTY[1].name}
                     line={comicLine}
+                    isLeftHanded={isLeftHanded}
                 />
             </div>
 

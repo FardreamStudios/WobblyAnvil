@@ -32,7 +32,7 @@ var ACTION_CAM = {
     transitionInMs:     350,        // zoom-in duration
     transitionOutMs:    350,        // zoom-out duration
     dimOpacity:         0.12,       // opacity of inactive combatants
-    activeScale:        1.2,        // scale of active combatants in center stage
+    activeScale:        2.0,        // scale of active combatants in center stage
     sparkHoldMs:        300,        // how long clash spark shows on resolve
 };
 
@@ -43,12 +43,47 @@ var EXCHANGE = {
     maxBeats:           2,          // max attack+defense pairs per exchange (V1 = 1)
 };
 
+// --- Layout Config (bottom zone widths, scene/bottom flex) ---
+// All vw values — change here, CSS picks them up via custom properties.
+var LAYOUT = {
+    openW:          "16vw",         // open real estate zone width
+    actionsW:       "18vw",         // action menu zone width
+    sceneFlex:      1.8,            // scene zone flex weight
+    bottomFlex:     1,              // bottom zone flex weight
+    cardMinW:       "14vw",         // combatant card min-width
+    hpBarW:         "8vw",          // HP bar width inside card
+    atbBarH:        "0.9vh",        // ATB gauge bar height
+    atbLabelW:      "7vw",          // ATB label min-width
+    spriteSize:     "clamp(32px, 7vw, 52px)",  // combatant sprite display size
+};
+
+// --- Sprite Configs for Battle ---
+var PUB = "";  // process.env.PUBLIC_URL resolved at runtime by React
+var BATTLE_SPRITES = {
+    fairyIdle: {
+        sheet:    "/images/anim/waFairyIdleSS.png",
+        frames:   5,
+        frameW:   380,
+        frameH:   380,
+        fps:      1.0,
+        cols:     5,
+    },
+    enemyBag: {
+        sheet:    "/images/enemy/EnemyBag.png",
+        frames:   1,
+        frameW:   0,    // 0 = use natural image size (static)
+        frameH:   0,
+        fps:      0,
+        cols:     1,
+    },
+};
+
 // --- Combat Test Data (dev/prototype only) ---
 var TEST_PARTY = [
     {
         id: "smith",
         name: "Smith",
-        sprite: "\u2692\uFE0F",
+        spriteKey: "fairyIdle",
         maxHP: 80,
         currentHP: 72,
         atbSpeed: 0.4,
@@ -58,7 +93,7 @@ var TEST_PARTY = [
     {
         id: "fairy",
         name: "Fairy",
-        sprite: "\uD83E\uDDDA",
+        spriteKey: "fairyIdle",
         maxHP: 50,
         currentHP: 50,
         atbSpeed: 0.3,
@@ -71,7 +106,7 @@ var TEST_ENEMIES = [
     {
         id: "raccoon",
         name: "Raccoon",
-        sprite: "\uD83E\uDD9D",
+        spriteKey: "enemyBag",
         maxHP: 40,
         currentHP: 40,
         atbSpeed: 0.28,
@@ -81,7 +116,7 @@ var TEST_ENEMIES = [
     {
         id: "trashbag",
         name: "Trash Bag",
-        sprite: "\uD83D\uDDD1\uFE0F",
+        spriteKey: "enemyBag",
         maxHP: 30,
         currentHP: 21,
         atbSpeed: 0.22,
@@ -118,6 +153,8 @@ var BattleConstants = {
     ATB: ATB,
     ACTION_CAM: ACTION_CAM,
     EXCHANGE: EXCHANGE,
+    LAYOUT: LAYOUT,
+    BATTLE_SPRITES: BATTLE_SPRITES,
     TEST_PARTY: TEST_PARTY,
     TEST_ENEMIES: TEST_ENEMIES,
     ACTIONS: ACTIONS,
