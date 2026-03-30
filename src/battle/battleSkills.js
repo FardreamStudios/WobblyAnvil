@@ -72,6 +72,28 @@ var ENEMY_SKILLS = {
         ],
     },
 
+    scavenger_combo: {
+        id:               "scavenger_combo",
+        name:             "Scavenger Combo",
+        type:             "circle_timing",
+        rings:            3,
+        speeds:           [1.0, 1.2, 0.6],
+        delays:           [0, 300, 800],
+        shrinkDurationMs: 800,
+        zoneBonus:        0.15,
+        targetRadius:     36,
+        ringStartRadius:  130,
+        label:            "DEFEND!",
+        beats: [
+            { damage: 5, atkAnim: "strike", tgtReact: "hit",    shake: "light",  sfx: "hit",
+                blockable: true,  dodgeable: true },
+            { damage: 5, atkAnim: "strike", tgtReact: "hit",    shake: "light",  sfx: "hit",
+                blockable: true,  dodgeable: true },
+            { damage: 14, atkAnim: "strike", tgtReact: "hit",   shake: "heavy",  sfx: "impact",
+                blockable: true,  dodgeable: true, finisher: true },
+        ],
+    },
+
     trash_golem_slam: {
         id:               "trash_golem_slam",
         name:             "Trash Slam",

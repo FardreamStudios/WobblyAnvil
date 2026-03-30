@@ -158,7 +158,7 @@ var TEST_ENEMIES = [
         atbSpeed: 0.28,
         attackPower: 8,
         defensePower: 3,
-        skills: ["rat_bite"],
+        skills: ["scavenger_combo"],
     },
     {
         id: "trashbag",
@@ -169,7 +169,7 @@ var TEST_ENEMIES = [
         atbSpeed: 0.22,
         attackPower: 6,
         defensePower: 2,
-        skills: ["rat_bite"],
+        skills: ["scavenger_combo"],
     },
 ];
 

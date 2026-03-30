@@ -60,6 +60,7 @@ function QTERunner(props) {
     var qteConfig = props.qteConfig;
     var onComplete = props.onComplete;
     var onRingResult = props.onRingResult;
+    var onRingStart = props.onRingStart;
 
     // Idle — render nothing
     if (!qteConfig) return null;
@@ -84,6 +85,7 @@ function QTERunner(props) {
             config={qteConfig}
             onComplete={onComplete || function() {}}
             onRingResult={onRingResult || null}
+            onRingStart={onRingStart || null}
         />
     );
 }

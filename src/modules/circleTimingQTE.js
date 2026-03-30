@@ -106,6 +106,7 @@ function CircleTimingQTE(props) {
     var config = props.config;
     var onComplete = props.onComplete;
     var onRingResult = props.onRingResult;
+    var onRingStart = props.onRingStart;
 
     // --- State ---
     var [phase, setPhase] = useState("ready");
@@ -124,6 +125,7 @@ function CircleTimingQTE(props) {
     var sequenceRef = useRef(ringSequence);
     var phaseRef = useRef("ready");
     var flashTimerRef = useRef(null);
+    var ringStartedRef = useRef({});  // tracks which ring indices have fired onRingStart
 
     resultsRef.current = results;
     currentRingRef.current = currentRing;
@@ -154,12 +156,19 @@ function CircleTimingQTE(props) {
             var el = now - startTimeRef.current;
             setElapsed(el);
 
-            // Check if current ring expired (auto-miss)
+            // Check if current ring just started shrinking (fire onRingStart once)
             var ci = currentRingRef.current;
             var seq = sequenceRef.current;
             if (ci < seq.length) {
                 var ring = seq[ci];
                 var progress = getRingProgress(ring, el);
+
+                // Fire onRingStart when ring transitions from waiting to active
+                if (progress >= 0 && !ringStartedRef.current[ci]) {
+                    ringStartedRef.current[ci] = true;
+                    if (onRingStart) onRingStart(ci, ring.durationMs);
+                }
+
                 if (progress >= 1 && ring.result === null) {
                     ring.result = "miss";
                     var newResults = resultsRef.current.slice();
