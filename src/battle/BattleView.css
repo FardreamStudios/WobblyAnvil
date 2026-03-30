@@ -331,6 +331,80 @@
     border-color: rgba(255, 255, 255, 0.15);
 }
 
+/* --- Selection indicator — four corner brackets ---
+   Single pseudo-element with border. Mask-image clips to corners only.
+   Hidden during action cam (isActive blocks the class in JS). */
+
+.battle-char--selected {
+    border-color: transparent;
+}
+
+.battle-char--selected::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border: 2px solid #4ade80;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 3;
+    -webkit-mask-image:
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000);
+    -webkit-mask-position:
+            top left, top right,
+            bottom left, bottom right;
+    -webkit-mask-size: 10px 10px;
+    -webkit-mask-repeat: no-repeat;
+    mask-image:
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000);
+    mask-position:
+            top left, top right,
+            bottom left, bottom right;
+    mask-size: 10px 10px;
+    mask-repeat: no-repeat;
+}
+
+/* --- Turn owner indicator — white corner brackets --- */
+
+.battle-char--turn-owner {
+    border-color: transparent;
+}
+
+.battle-char--turn-owner::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    border: 2px solid #f0e6c8;
+    border-radius: 4px;
+    pointer-events: none;
+    z-index: 3;
+    -webkit-mask-image:
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000);
+    -webkit-mask-position:
+            top left, top right,
+            bottom left, bottom right;
+    -webkit-mask-size: 10px 10px;
+    -webkit-mask-repeat: no-repeat;
+    mask-image:
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000),
+            linear-gradient(#000, #000);
+    mask-position:
+            top left, top right,
+            bottom left, bottom right;
+    mask-size: 10px 10px;
+    mask-repeat: no-repeat;
+}
+
 .normal-cam-char--party {
     text-align: center;
 }

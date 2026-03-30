@@ -160,6 +160,8 @@ function BattleCharacter(props) {
     var isDimmed = isActive && c.id !== props.attackerId && c.id !== props.targetId;
     var isAttacker = isActive && c.id === props.attackerId;
     var isTarget = isActive && c.id === props.targetId;
+    var isSelected = !isActive && c.id === props.selectedId;
+    var isTurnOwner = !isActive && c.id === props.turnOwnerId;
 
     var cls = "normal-cam-char";
     if (isParty) cls += " normal-cam-char--party";
@@ -167,6 +169,8 @@ function BattleCharacter(props) {
     if (isDimmed) cls += " action-cam-char--dimmed";
     if (isAttacker) cls += " action-cam-char--attacker";
     if (isTarget) cls += " action-cam-char--target";
+    if (isTurnOwner) cls += " battle-char--turn-owner";
+    if (isSelected && !isTurnOwner) cls += " battle-char--selected";
 
     // Compute slide transform for action cam
     var style = {};
@@ -796,12 +800,8 @@ function BattleView(props) {
                     setAtbRunning(false);
                 } else {
                     setAtbRunning(false);
-                    // Target first living party member
-                    var enemyTgt = null;
-                    for (var pi = 0; pi < TEST_PARTY.length; pi++) {
-                        var ps = bState.get(TEST_PARTY[pi].id);
-                        if (ps && !ps.ko) { enemyTgt = TEST_PARTY[pi].id; break; }
-                    }
+                    // Target random living party member
+                    var enemyTgt = pickRandomLivingPartyMember();
                     if (!enemyTgt) { rafId = requestAnimationFrame(tick); return; } // all dead, ATB keeps ticking until wipe caught
                     setTargetId(enemyTgt);
                     startExchange(whoIsReady, enemyTgt);
@@ -1427,7 +1427,6 @@ function BattleView(props) {
                 : atbValuesRef.current;
             setAtbValues(resetState);
             setTurnOwnerId(null);
-            setTargetId(TEST_ENEMIES[0].id);
 
             var checkCombatants = TEST_PARTY.concat(TEST_ENEMIES);
             var alreadyReady = BattleATB.checkReady(resetState, checkCombatants);
@@ -1445,12 +1444,8 @@ function BattleView(props) {
                 if (isPartyMember) {
                     setPhase(PHASES.ACTION_SELECT);
                 } else {
-                    // Target first living party member
-                    var enemyTgt2 = null;
-                    for (var pi2 = 0; pi2 < TEST_PARTY.length; pi2++) {
-                        var ps2 = bState.get(TEST_PARTY[pi2].id);
-                        if (ps2 && !ps2.ko) { enemyTgt2 = TEST_PARTY[pi2].id; break; }
-                    }
+                    // Target random living party member
+                    var enemyTgt2 = pickRandomLivingPartyMember();
                     if (enemyTgt2) {
                         setTargetId(enemyTgt2);
                         setPhase(PHASES.ATB_RUNNING);
@@ -1499,7 +1494,17 @@ function BattleView(props) {
         var userId = turnOwnerId || attackerId;
 
         if (actionId === "attack") {
-            startExchange(userId, targetId);
+            // Validate: need a living enemy selected
+            var atkTarget = targetId;
+            var atkState = atkTarget ? bState.get(atkTarget) : null;
+            var atkValid = atkState && !atkState.ko && !bState.isPartyId(atkTarget);
+            if (!atkValid) {
+                // Auto-select first living enemy
+                var picked = pickFirstLivingEnemy();
+                if (picked) setTargetId(picked);
+                return; // don't fire — player must press ATK again
+            }
+            startExchange(userId, atkTarget);
         } else if (actionId === "item") {
             itemMenuContextRef.current = "formation";
             setItemMenuOpen(true);
@@ -1508,6 +1513,33 @@ function BattleView(props) {
         } else if (actionId === "flee") {
             handleFlee(userId);
         }
+    }
+
+    // --- Target pickers ---
+    function pickFirstLivingEnemy() {
+        for (var i = 0; i < TEST_ENEMIES.length; i++) {
+            var s = bState.get(TEST_ENEMIES[i].id);
+            if (s && !s.ko) return TEST_ENEMIES[i].id;
+        }
+        return null;
+    }
+
+    function pickFirstLivingAlly() {
+        for (var i = 0; i < TEST_PARTY.length; i++) {
+            var s = bState.get(TEST_PARTY[i].id);
+            if (s && !s.ko) return TEST_PARTY[i].id;
+        }
+        return null;
+    }
+
+    function pickRandomLivingPartyMember() {
+        var living = [];
+        for (var i = 0; i < TEST_PARTY.length; i++) {
+            var s = bState.get(TEST_PARTY[i].id);
+            if (s && !s.ko) living.push(TEST_PARTY[i].id);
+        }
+        if (living.length === 0) return null;
+        return living[Math.floor(Math.random() * living.length)];
     }
 
     // ============================================================
@@ -1656,7 +1688,28 @@ function BattleView(props) {
             if (context === "in-cam" && camExchangeRef.current) {
                 effectTarget = camExchangeRef.current.currentReceiverId;
             } else {
+                // Validate: need a living enemy selected
+                var tgtState = targetId ? bState.get(targetId) : null;
+                var tgtValid = tgtState && !tgtState.ko && !bState.isPartyId(targetId);
+                if (!tgtValid) {
+                    var picked = pickFirstLivingEnemy();
+                    if (picked) setTargetId(picked);
+                    setItemMenuOpen(false);
+                    return; // don't fire — selection updated, player retries
+                }
                 effectTarget = targetId;
+            }
+        } else if (itemEntry.effect.type === "heal" || itemEntry.effect.type === "buff") {
+            if (context !== "in-cam") {
+                // Validate: need a living ally selected
+                var allyState = targetId ? bState.get(targetId) : null;
+                var allyValid = allyState && !allyState.ko && bState.isPartyId(targetId);
+                if (allyValid) {
+                    effectTarget = targetId;
+                } else {
+                    // Default to self (the user)
+                    effectTarget = userId;
+                }
             }
         }
 
@@ -1775,12 +1828,14 @@ function BattleView(props) {
                         return (
                             <BattleCharacter
                                 key={e.id}
-                                data={e}
+                                data={combatantMap[e.id] || e}
                                 isParty={false}
                                 index={idx}
                                 phase={phase}
                                 attackerId={activeAtkId}
                                 targetId={targetId}
+                                selectedId={targetId}
+                                turnOwnerId={turnOwnerId}
                                 sceneRect={isActionCam ? sceneRect : null}
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(e.id)}
@@ -1800,15 +1855,18 @@ function BattleView(props) {
                         return (
                             <BattleCharacter
                                 key={p.id}
-                                data={p}
+                                data={combatantMap[p.id] || p}
                                 isParty={true}
                                 spriteOverride={devSpriteOverride}
                                 phase={phase}
                                 attackerId={activeAtkId}
                                 targetId={targetId}
+                                selectedId={targetId}
+                                turnOwnerId={turnOwnerId}
                                 sceneRect={isActionCam ? sceneRect : null}
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(p.id)}
+                                onClick={function() { setTargetId(p.id); }}
                                 spriteFrame={spriteFrame}
                                 flashId={flashId}
                                 animState={animState}

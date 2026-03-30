@@ -239,6 +239,15 @@ var CHOREOGRAPHY = {
     shakeKO:            { px: 10, ms: 400 },
 };
 
+// --- Selection Indicator Config (corner brackets on selected/turn-owner) ---
+var SELECTION = {
+    cornerSize:     "10px",         // length of each corner line
+    thickness:      "2px",          // line thickness
+    selectedColor:  "#4ade80",      // green — selected target
+    turnOwnerColor: "#f0e6c8",      // warm parchment — whose turn it is
+    offset:         "-4px",         // inset from card edge (negative = outside)
+};
+
 // --- Battle End Config (KO wipe → result exit) ---
 var BATTLE_END = {
     koHoldMs:       800,        // hold after last KO anim before result/exit
@@ -299,6 +308,7 @@ var BattleConstants = {
     BATTLE_END: BATTLE_END,
     COMBO: COMBO,
     RESULTS_SCREEN: RESULTS_SCREEN,
+    SELECTION: SELECTION,
 };
 
 export default BattleConstants;
