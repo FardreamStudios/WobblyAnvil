@@ -205,6 +205,7 @@ var BATTLE_PHASES = {
     CAM_SWING:        "cam_swing",           // QTE active — active swinger hits other side
     CAM_RESOLVE:      "cam_resolve",         // brief pause after swing before next turn
     ACTION_CAM_OUT:   "action_cam_out",      // sliding back to formation
+    BATTLE_ENDING:    "battle_ending",       // KO wipe detected — freeze, hold, exit
 };
 
 // --- Choreography Config (anim states, hit reactions, screen FX) ---
@@ -238,7 +239,18 @@ var CHOREOGRAPHY = {
     shakeKO:            { px: 10, ms: 400 },
 };
 
-// --- Battle Items — definition table ---
+// --- Battle End Config (KO wipe → result exit) ---
+var BATTLE_END = {
+    koHoldMs:       800,        // hold after last KO anim before result/exit
+    overkillColor:  "#a855f7",  // purple for overkill damage numbers
+};
+
+// --- Combo Counter Config ---
+var COMBO = {
+    counterColor:       "#fbbf24",  // gold for combo counter display
+    counterOffsetY:     -35,        // px above normal damage number position
+    multipliedColor:    "#ff6b2b",  // orange for multiplier-boosted damage
+};
 // Effect types V1: heal, buff, debuff_enemy, damage.
 // Host maps inventory into this shape for BattleConfig.
 var BATTLE_ITEMS = [
@@ -269,6 +281,8 @@ var BattleConstants = {
     BATTLE_ITEMS: BATTLE_ITEMS,
     DEFEND_BUFF: DEFEND_BUFF,
     FLEE: FLEE,
+    BATTLE_END: BATTLE_END,
+    COMBO: COMBO,
 };
 
 export default BattleConstants;

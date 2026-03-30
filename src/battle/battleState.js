@@ -75,6 +75,8 @@ function createBattleState(partyArray, enemyArray) {
     var damageDealt = 0;
     var damageTaken = 0;
     var enemiesDefeated = 0;
+    var overkillDealt = 0;
+    var overkillTaken = 0;
 
     // ============================================================
     // Build a runtime combatant from config data
@@ -170,21 +172,37 @@ function createBattleState(partyArray, enemyArray) {
 
     function applyDamage(targetId, amount, fromParty) {
         var c = combatants[targetId];
-        if (!c || c.ko) return 0;
-        var actual = Math.min(c.currentHP, Math.max(0, amount));
-        c.currentHP -= actual;
+        if (!c) return { actual: 0, overkill: 0, killed: false };
+
+        // Already KO'd — all damage is overkill
+        if (c.ko) {
+            var ok = Math.max(0, amount);
+            if (fromParty) { overkillDealt += ok; } else { overkillTaken += ok; }
+            return { actual: 0, overkill: ok, killed: false };
+        }
+
+        var hpBefore = c.currentHP;
+        var actual = Math.min(hpBefore, Math.max(0, amount));
+        var overkill = Math.max(0, amount - hpBefore);
+        c.currentHP = hpBefore - actual;
+
+        var killed = false;
         if (c.currentHP <= 0) {
             c.currentHP = 0;
             c.ko = true;
+            killed = true;
             if (!c.isParty) enemiesDefeated++;
         }
+
         // Track totals
         if (fromParty) {
             damageDealt += actual;
+            overkillDealt += overkill;
         } else {
             damageTaken += actual;
+            overkillTaken += overkill;
         }
-        return actual;
+        return { actual: actual, overkill: overkill, killed: killed };
     }
 
     function applyHeal(targetId, amount) {
@@ -301,6 +319,8 @@ function createBattleState(partyArray, enemyArray) {
             stats: {
                 damageDealt:     damageDealt,
                 damageTaken:     damageTaken,
+                overkillDealt:   overkillDealt,
+                overkillTaken:   overkillTaken,
                 enemiesDefeated: enemiesDefeated,
                 itemsUsed:       itemsUsed.slice(),
             },

@@ -90,7 +90,7 @@ var ENEMY_SKILLS = {
             { damage: 6,  atkAnim: "strike", tgtReact: "hit",    shake: "light",  sfx: "hit",
                 blockable: true,  dodgeable: true },
             { damage: 10, atkAnim: "strike", tgtReact: "hit",    shake: "heavy",  sfx: "impact",
-                blockable: true,  dodgeable: true, finisher: true },
+                blockable: true,  dodgeable: true, finisher: true, comboMultiplier: 0.5 },
         ],
     },
 
@@ -116,7 +116,7 @@ var ENEMY_SKILLS = {
             { damage: 6,  atkAnim: "wind_up", tgtReact: "flinch", shake: null,     sfx: "hit",
                 blockable: true,  dodgeable: true },
             { damage: 10, atkAnim: "strike",  tgtReact: "hit",    shake: "ko",     sfx: "impact",
-                blockable: false, dodgeable: true, unblockable: true, finisher: true },
+                blockable: false, dodgeable: true, unblockable: true, finisher: true, comboMultiplier: 0.75 },
         ],
     },
 };
@@ -124,11 +124,12 @@ var ENEMY_SKILLS = {
 // --- Beat Field Defaults ---
 // Applied at runtime when a beat omits optional fields.
 var BEAT_DEFAULTS = {
-    blockable:  true,
-    dodgeable:  true,
-    unblockable: false,
-    blockMult:  0.25,
-    finisher:   false,
+    blockable:      true,
+    dodgeable:      true,
+    unblockable:    false,
+    blockMult:      0.25,
+    finisher:       false,
+    comboMultiplier: null,   // null = no scaling. Number = damage * (1 + mult * comboCount)
 };
 
 // --- Validation ---
