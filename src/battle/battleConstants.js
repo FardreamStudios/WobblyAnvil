@@ -20,11 +20,12 @@ var BATTLE_TRANSITION = {
     fanfareDelayMs: 100,                        // delay before battle fanfare plays
 };
 
-// --- ATB Config ---
+// --- ATB / Pip Config ---
 var ATB = {
-    gaugeMax:           100,        // full gauge value
+    pipsPerCombatant:   3,          // everyone gets 3 pips
+    pipFillMs:          2000,       // base ms to fill one pip at speed 1.0 (actual = pipFillMs / atbSpeed)
     resumeEaseMs:       400,        // soft ease-in on ATB resume after action cam
-    pauseDuringMenu:    true,       // FF4 "wait" mode — freeze while action menu open
+    freezeGlobal:       true,       // all ATB freezes when anyone is acting (cam or out-of-cam)
 };
 
 // --- Action Camera Config ---
@@ -40,8 +41,35 @@ var ACTION_CAM = {
 var EXCHANGE = {
     resolveHoldMs:      500,        // pause on resolve before next beat
     counterDelayMs:     300,        // delay before enemy counter starts
-    maxBeats:           2,          // max attack+defense pairs per exchange (V1 = 1)
 };
+
+// --- Pip Costs ---
+// All actions cost 1 pip. Attack entering action cam = turn ends when cam resolves.
+var PIP_COSTS = {
+    attack:     1,          // enters action cam, 1 attack per out-of-cam turn max
+    defend:     1,          // out-of-cam: defense buff for next exchange
+    item:       1,          // out-of-cam: instant, no action cam
+    pass:       1,          // yields initiative, costs a pip (not free)
+    flee:       1,          // out-of-cam: roll flee chance
+};
+
+// --- Formation-View Action Buttons ---
+var ACTIONS = [
+    { id: "attack",  label: "ATK",  color: "#60a5fa", bg: "#1a1428" },
+    { id: "defend",  label: "DEF",  color: "#4ade80", bg: "#0a1a14" },
+    { id: "item",    label: "ITEM", color: "#f59e0b", bg: "#1a1408" },
+    { id: "flee",    label: "FLEE", color: "#8a7a64", bg: "#141009" },
+];
+
+// --- In-Cam Action Buttons (defender response) ---
+// Separate from formation-view to preserve muscle memory.
+// No flee option in-cam. Defend = buff for remaining beats this exchange.
+var IN_CAM_ACTIONS = [
+    { id: "attack",  label: "ATK",  color: "#60a5fa", bg: "#1a1428" },
+    { id: "defend",  label: "DEF",  color: "#4ade80", bg: "#0a1a14" },
+    { id: "item",    label: "ITEM", color: "#f59e0b", bg: "#1a1408" },
+    { id: "pass",    label: "PASS", color: "#8a7a64", bg: "#141009" },
+];
 
 // --- Layout Config (bottom zone widths, scene/bottom flex) ---
 // All vw values — change here, CSS picks them up via custom properties.
@@ -105,6 +133,7 @@ var TEST_PARTY = [
         atbSpeed: 0.4,
         attackPower: 12,
         defensePower: 8,
+        skills: ["basic_attack", "power_strike"],
     },
     {
         id: "fairy",
@@ -115,6 +144,7 @@ var TEST_PARTY = [
         atbSpeed: 0.3,
         attackPower: 6,
         defensePower: 5,
+        skills: ["basic_attack"],
     },
 ];
 
@@ -128,6 +158,7 @@ var TEST_ENEMIES = [
         atbSpeed: 0.28,
         attackPower: 8,
         defensePower: 3,
+        skills: ["rat_bite"],
     },
     {
         id: "trashbag",
@@ -138,15 +169,8 @@ var TEST_ENEMIES = [
         atbSpeed: 0.22,
         attackPower: 6,
         defensePower: 2,
+        skills: ["rat_bite"],
     },
-];
-
-// --- Action Button Definitions ---
-var ACTIONS = [
-    { id: "attack",  label: "ATK",  color: "#60a5fa", bg: "#1a1428" },
-    { id: "defend",  label: "DEF",  color: "#4ade80", bg: "#0a1a14" },
-    { id: "item",    label: "ITEM", color: "#f59e0b", bg: "#1a1408" },
-    { id: "flee",    label: "FLEE", color: "#8a7a64", bg: "#141009" },
 ];
 
 // --- Battle Phases ---
@@ -200,12 +224,14 @@ var BattleConstants = {
     ATB: ATB,
     ACTION_CAM: ACTION_CAM,
     EXCHANGE: EXCHANGE,
+    PIP_COSTS: PIP_COSTS,
     LAYOUT: LAYOUT,
     BATTLE_SPRITES: BATTLE_SPRITES,
     CHOREOGRAPHY: CHOREOGRAPHY,
     TEST_PARTY: TEST_PARTY,
     TEST_ENEMIES: TEST_ENEMIES,
     ACTIONS: ACTIONS,
+    IN_CAM_ACTIONS: IN_CAM_ACTIONS,
     BATTLE_PHASES: BATTLE_PHASES,
 };
 

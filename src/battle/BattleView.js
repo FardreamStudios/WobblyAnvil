@@ -27,6 +27,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import BattleConstants from "./battleConstants.js";
+import BattleSkills from "./battleSkills.js";
 import BattleSFX from "./battleSFX.js";
 import QTERunnerModule from "./QTERunner.js";
 import "./BattleView.css";
@@ -71,34 +72,6 @@ PHASE_LABELS[PHASES.RESOLVING]       = "RESOLVING";
 PHASE_LABELS[PHASES.ENEMY_TELEGRAPH] = "COUNTER";
 PHASE_LABELS[PHASES.DEFENSE_QTE]     = "DEFENSE QTE";
 PHASE_LABELS[PHASES.ACTION_CAM_OUT]  = "CAM OUT";
-
-// ============================================================
-// DEFAULT QTE CONFIGS — battle-specific, bespoke for now
-// type must match a key in QTERunner's PLUGIN_REGISTRY
-// ============================================================
-var QTE_ATTACK_CONFIG = {
-    type:               "circle_timing",
-    rings:              3,
-    speeds:             [1.0, 1.0, 1.0],
-    delays:             [0, 400, 400],
-    zoneBonus:          0.15,
-    targetRadius:       36,
-    ringStartRadius:    130,
-    shrinkDurationMs:   800,
-    label:              "ATTACK!",
-};
-
-var QTE_DEFENSE_CONFIG = {
-    type:               "circle_timing",
-    rings:              2,
-    speeds:             [0.8, 1.2],
-    delays:             [0, 300],
-    zoneBonus:          0.15,
-    targetRadius:       36,
-    ringStartRadius:    130,
-    shrinkDurationMs:   800,
-    label:              "DEFEND!",
-};
 
 // ============================================================
 // CSS Custom Properties — driven from LAYOUT constants
@@ -754,48 +727,83 @@ function BattleView(props) {
         var ctx = qteContextRef.current;
         if (!ctx) return;
 
+        // Look up beat definition from skill
+        var skill = ctx.skill;
+        var beat = skill && skill.beats && skill.beats[index]
+            ? BattleSkills.resolveBeat(skill.beats[index])
+            : null;
+
+        if (!beat) {
+            console.warn("[BattleView] No beat data for ring " + index + " on skill " + (skill ? skill.id : "???"));
+            return;
+        }
+
         if (ctx.mode === "attack") {
-            // ATTACK QTE: each ring = attacker jabs at target
+            // ATTACK QTE: each ring = one beat of the player's combo
             if (hit) {
-                // Quick jab: strike → target flinch + light shake + small damage pip
+                // Land the beat: attacker anim + target reaction + shake + SFX + damage
                 setAnimState(function(prev) {
                     var n = Object.assign({}, prev);
-                    n[ctx.atkId] = "strike";
+                    n[ctx.atkId] = beat.atkAnim || "strike";
                     return n;
                 });
-                BattleSFX.hit();
+                if (beat.sfx) BattleSFX[beat.sfx] ? BattleSFX[beat.sfx]() : BattleSFX.hit();
 
                 setTimeout(function() {
-                    setFlashId(ctx.tgtId);
-                    setAnimState(function(prev) {
-                        var n = Object.assign({}, prev);
-                        n[ctx.tgtId] = "hit";
-                        return n;
-                    });
-                    BattleSFX.impact();
-                    setShakeLevel(null);
-                    requestAnimationFrame(function() { setShakeLevel("light"); });
+                    // Target reaction
+                    if (beat.tgtReact) {
+                        setFlashId(ctx.tgtId);
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev);
+                            n[ctx.tgtId] = beat.tgtReact;
+                            return n;
+                        });
+                    }
+                    // Shake
+                    if (beat.shake) {
+                        setShakeLevel(null);
+                        requestAnimationFrame(function() { setShakeLevel(beat.shake); });
+                    }
+                    // Damage number
+                    var el = combatantRefs.current[ctx.tgtId];
+                    var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                    if (el && sr) {
+                        var r = el.getBoundingClientRect();
+                        var cx = r.left - sr.left + r.width / 2;
+                        var cy = r.top - sr.top;
+                        spawnDamageNumber(beat.damage, cx, cy, "#f59e0b");
+                    }
                     setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
                 }, 60);
 
-                // Return attacker + clear target after jab
+                // Return attacker to wind-up + clear target reaction
                 setTimeout(function() {
                     setAnimState(function(prev) {
                         var n = Object.assign({}, prev);
                         n[ctx.atkId] = "wind_up";
-                        delete n[ctx.tgtId];
+                        if (beat.tgtReact) delete n[ctx.tgtId];
                         return n;
                     });
                 }, 200);
             } else {
-                // Whiff: attacker lunges but no impact on target
+                // Whiff: attacker lunges weakly, no target reaction, no damage
                 setAnimState(function(prev) {
                     var n = Object.assign({}, prev);
                     n[ctx.atkId] = "strike";
                     return n;
                 });
 
-                // Return to wind-up without any target reaction
+                // Spawn "MISS" text
+                var el = combatantRefs.current[ctx.tgtId];
+                var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                if (el && sr) {
+                    var r = el.getBoundingClientRect();
+                    var cx = r.left - sr.left + r.width / 2;
+                    var cy = r.top - sr.top;
+                    spawnDamageNumber("MISS", cx, cy, "#888888");
+                }
+
+                // Return to wind-up
                 setTimeout(function() {
                     setAnimState(function(prev) {
                         var n = Object.assign({}, prev);
@@ -805,43 +813,117 @@ function BattleView(props) {
                 }, 150);
             }
         } else if (ctx.mode === "defense") {
-            // DEFENSE QTE: each ring = blocking an incoming hit
+            // DEFENSE QTE: each ring = one incoming enemy beat
+            // Enemy ALWAYS plays their attack anim (they don't miss)
+            setAnimState(function(prev) {
+                var n = Object.assign({}, prev);
+                n[ctx.tgtId] = beat.atkAnim || "strike";
+                return n;
+            });
+            if (beat.sfx) BattleSFX[beat.sfx] ? BattleSFX[beat.sfx]() : BattleSFX.hit();
+
             if (hit) {
-                // Good block: party braces, brief blue flash
-                setAnimState(function(prev) {
-                    var n = Object.assign({}, prev);
-                    n[ctx.atkId] = "brace";
-                    return n;
-                });
-                BattleSFX.block();
+                // Player tapped in window — brace/block
+                // (V1: tap only, no swipe yet. All taps = block attempt)
+                var blocked = beat.blockable !== false;
+                if (blocked) {
+                    // Successful block: brace anim, reduced damage
+                    var blockDmg = Math.round(beat.damage * (beat.blockMult || 0.3));
+                    setTimeout(function() {
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev);
+                            n[ctx.atkId] = "brace";
+                            return n;
+                        });
+                        BattleSFX.block();
 
-                setTimeout(function() {
-                    setAnimState(function(prev) {
-                        var n = Object.assign({}, prev);
-                        delete n[ctx.atkId];
-                        return n;
-                    });
-                }, 200);
+                        // Damage number (reduced)
+                        var el = combatantRefs.current[ctx.atkId];
+                        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                        if (el && sr) {
+                            var r = el.getBoundingClientRect();
+                            var cx = r.left - sr.left + r.width / 2;
+                            var cy = r.top - sr.top;
+                            spawnDamageNumber(blockDmg, cx, cy, "#60a5fa");
+                        }
+                    }, 60);
+
+                    // Clear brace
+                    setTimeout(function() {
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev);
+                            delete n[ctx.atkId];
+                            delete n[ctx.tgtId];
+                            return n;
+                        });
+                    }, 260);
+                } else {
+                    // Unblockable — tap doesn't help, full damage (V1: no swipe yet)
+                    setTimeout(function() {
+                        setFlashId(ctx.atkId);
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev);
+                            n[ctx.atkId] = "hit";
+                            return n;
+                        });
+                        if (beat.shake) {
+                            setShakeLevel(null);
+                            requestAnimationFrame(function() { setShakeLevel(beat.shake); });
+                        }
+
+                        var el = combatantRefs.current[ctx.atkId];
+                        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                        if (el && sr) {
+                            var r = el.getBoundingClientRect();
+                            var cx = r.left - sr.left + r.width / 2;
+                            var cy = r.top - sr.top;
+                            spawnDamageNumber(beat.damage, cx, cy, "#ef4444");
+                        }
+                        setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+                    }, 60);
+
+                    setTimeout(function() {
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev);
+                            delete n[ctx.atkId];
+                            delete n[ctx.tgtId];
+                            return n;
+                        });
+                    }, 260);
+                }
             } else {
-                // Failed block: party takes a quick hit
-                setFlashId(ctx.atkId);
-                setAnimState(function(prev) {
-                    var n = Object.assign({}, prev);
-                    n[ctx.atkId] = "hit";
-                    return n;
-                });
-                BattleSFX.impact();
-                setShakeLevel(null);
-                requestAnimationFrame(function() { setShakeLevel("light"); });
+                // Miss — player failed to tap. Full damage, hit anim
+                setTimeout(function() {
+                    setFlashId(ctx.atkId);
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        n[ctx.atkId] = "hit";
+                        return n;
+                    });
+                    if (beat.shake) {
+                        setShakeLevel(null);
+                        requestAnimationFrame(function() { setShakeLevel(beat.shake); });
+                    }
+
+                    var el = combatantRefs.current[ctx.atkId];
+                    var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                    if (el && sr) {
+                        var r = el.getBoundingClientRect();
+                        var cx = r.left - sr.left + r.width / 2;
+                        var cy = r.top - sr.top;
+                        spawnDamageNumber(beat.damage, cx, cy, "#ef4444");
+                    }
+                    setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+                }, 60);
 
                 setTimeout(function() {
-                    setFlashId(null);
                     setAnimState(function(prev) {
                         var n = Object.assign({}, prev);
                         delete n[ctx.atkId];
+                        delete n[ctx.tgtId];
                         return n;
                     });
-                }, 200);
+                }, 260);
             }
         }
     }
@@ -859,13 +941,25 @@ function BattleView(props) {
     // Plays the complete exchange choreography with real QTE integration.
     //
     // Three chained stages:
-    //   startExchange()     — cam in → wind-up → activate attack QTE
-    //   resolveAttack(res)  — onComplete → strike/hit/damage → telegraph → activate defense QTE
-    //   resolveDefense(res) — onComplete → enemy strike/hit/damage → cam out → ATB
+    //   startExchange()     — cam in → wind-up → activate attack QTE (skill-driven)
+    //   resolveAttack(res)  — per-beat damage already done → telegraph → defense QTE
+    //   resolveDefense(res) — per-beat damage already done → cam out → ATB
     // ============================================================
     function handleDevFullExchange() {
         var atkId = attackerId;
         var tgtId = targetId;
+
+        // Look up combatant data for skill references
+        var allData = TEST_PARTY.concat(TEST_ENEMIES);
+        var atkData = allData.find(function(c) { return c.id === atkId; });
+        var tgtData = allData.find(function(c) { return c.id === tgtId; });
+
+        // Pick first skill for now (action select will choose later)
+        var atkSkill = BattleSkills.getSkill(atkData && atkData.skills ? atkData.skills[0] : null);
+        if (!atkSkill) {
+            console.warn("[BattleView] No attack skill found for " + atkId);
+            return;
+        }
 
         // ---- STAGE 1: CAM IN → WIND-UP → ATTACK QTE ----
         setPhase(PHASES.ACTION_CAM_IN);
@@ -876,139 +970,81 @@ function BattleView(props) {
             setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "wind_up"; return n; });
         }, 350);
 
-        // Enter QTE_ACTIVE phase and mount attack QTE
+        // Enter QTE_ACTIVE phase and mount attack QTE with skill config
         setTimeout(function() {
             setPhase(PHASES.QTE_ACTIVE);
-            activateQTE(QTE_ATTACK_CONFIG, function(result) {
-                resolveAttack(result, atkId, tgtId);
-            }, { mode: "attack", atkId: atkId, tgtId: tgtId });
+            activateQTE(atkSkill, function(result) {
+                resolveAttack(result, atkId, tgtId, tgtData);
+            }, { mode: "attack", atkId: atkId, tgtId: tgtId, skill: atkSkill });
         }, 400);
     }
 
     // ---- STAGE 2: RESOLVE ATTACK → TELEGRAPH → DEFENSE QTE ----
-    function resolveAttack(result, atkId, tgtId) {
-        // Damage from QTE success ratio: 30% floor + 70% scaled
-        var baseDmg = 30;
-        var atkDmg = Math.round(baseDmg * (0.3 + 0.7 * result.successRatio));
-
+    // Per-beat damage already happened in handleQTERingResult.
+    // This just transitions to the defense phase.
+    function resolveAttack(result, atkId, tgtId, tgtData) {
         setPhase(PHASES.RESOLVING);
 
-        // Strike attacker
-        setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "strike"; return n; });
-        BattleSFX.hit();
+        // Clear any lingering anim states from last beat
+        setAnimState(function(prev) {
+            var n = Object.assign({}, prev);
+            delete n[atkId];
+            delete n[tgtId];
+            return n;
+        });
 
-        // Hit combo on target at +80ms
-        setTimeout(function() {
-            setFlashId(tgtId);
-            setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "hit"; return n; });
-            BattleSFX.impact();
-            setShakeLevel(null);
-            requestAnimationFrame(function() { setShakeLevel(result.successRatio >= 0.8 ? "heavy" : "medium"); });
-
-            // Damage number at target position
-            var el = combatantRefs.current[tgtId];
-            var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-            if (el && sr) {
-                var r = el.getBoundingClientRect();
-                var cx = r.left - sr.left + r.width / 2;
-                var cy = r.top - sr.top;
-                spawnDamageNumber(atkDmg, cx, cy, "#f59e0b");
-            }
-
-            // Clear flash
-            setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
-        }, 80);
-
-        // Return attacker at +250ms
-        setTimeout(function() {
-            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "return"; return n; });
-        }, 250);
-
-        // Clear target knockback at +300ms
-        setTimeout(function() {
-            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[tgtId]; return n; });
-        }, 300);
-
-        // Clear attacker at +400ms
-        setTimeout(function() {
-            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
-        }, 400);
-
-        // TELEGRAPH → DEFENSE QTE at +500ms
+        // TELEGRAPH → DEFENSE QTE at +300ms
         setTimeout(function() {
             setPhase(PHASES.ENEMY_TELEGRAPH);
             setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "telegraph"; return n; });
 
-            // After telegraph, activate defense QTE
+            // Pick enemy's defense skill (first skill for now)
+            var defSkill = BattleSkills.getSkill(tgtData && tgtData.skills ? tgtData.skills[0] : null);
+            if (!defSkill) {
+                console.warn("[BattleView] No defense skill found for " + tgtId + ", skipping defense QTE");
+                // Jump straight to cam out
+                setTimeout(function() { camOut(atkId, tgtId); }, 300);
+                return;
+            }
+
+            // After telegraph, activate defense QTE with skill config
             setTimeout(function() {
                 setPhase(PHASES.DEFENSE_QTE);
-                activateQTE(QTE_DEFENSE_CONFIG, function(defResult) {
+                activateQTE(defSkill, function(defResult) {
                     resolveDefense(defResult, atkId, tgtId);
-                }, { mode: "defense", atkId: atkId, tgtId: tgtId });
+                }, { mode: "defense", atkId: atkId, tgtId: tgtId, skill: defSkill });
             }, CHOREOGRAPHY.telegraphMs);
-        }, 500);
+        }, 300);
     }
 
     // ---- STAGE 3: RESOLVE DEFENSE → CAM OUT → ATB ----
+    // Per-beat damage already happened in handleQTERingResult.
+    // This just plays cam-out and resumes ATB.
     function resolveDefense(result, atkId, tgtId) {
-        // Damage reduced by defense success: good block = low damage
-        var baseDmg = 20;
-        var defDmg = Math.round(baseDmg * (1.0 - 0.7 * result.successRatio));
-
         setPhase(PHASES.RESOLVING);
 
-        // Enemy strikes
-        setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "strike"; return n; });
-        BattleSFX.hit();
+        // Clear any lingering anim states
+        setAnimState(function(prev) {
+            var n = Object.assign({}, prev);
+            delete n[atkId];
+            delete n[tgtId];
+            return n;
+        });
 
-        // Hit combo on party member at +80ms
-        setTimeout(function() {
-            setFlashId(atkId);
-            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "hit"; return n; });
-            BattleSFX.impact();
-            setShakeLevel(null);
-            requestAnimationFrame(function() { setShakeLevel(result.successRatio >= 0.8 ? "light" : "medium"); });
+        // Short pause then cam out
+        setTimeout(function() { camOut(atkId, tgtId); }, 200);
+    }
 
-            // Damage number at attacker position
-            var el = combatantRefs.current[atkId];
-            var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-            if (el && sr) {
-                var r = el.getBoundingClientRect();
-                var cx = r.left - sr.left + r.width / 2;
-                var cy = r.top - sr.top;
-                spawnDamageNumber(defDmg, cx, cy, "#ef4444");
-            }
+    // ---- CAM OUT → ATB RESUME (shared) ----
+    function camOut(atkId, tgtId) {
+        setPhase(PHASES.ACTION_CAM_OUT);
 
-            // Clear flash
-            setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
-        }, 80);
-
-        // Return enemy at +250ms
-        setTimeout(function() {
-            setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "return"; return n; });
-        }, 250);
-
-        // Clear party knockback at +300ms
-        setTimeout(function() {
-            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
-        }, 300);
-
-        // Clear enemy at +400ms
-        setTimeout(function() {
-            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[tgtId]; return n; });
-        }, 400);
-
-        // CAM OUT at +500ms
-        setTimeout(function() {
-            setPhase(PHASES.ACTION_CAM_OUT);
-        }, 500);
-
-        // Back to ATB at +850ms
+        // Back to ATB after transition
         setTimeout(function() {
             setPhase(PHASES.ATB_RUNNING);
             setAnimState({});
             setAtbRunning(true);
-        }, 850);
+        }, ACTION_CAM.transitionOutMs);
     }
 
     // --- Action handler ---
