@@ -187,6 +187,13 @@
     transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* Brace — defensive squat + blue flash on successful block */
+.normal-cam-char__choreo--brace {
+    transform: scaleY(0.88) scaleX(1.05);
+    filter: brightness(1.6) saturate(0.5) hue-rotate(180deg);
+    transition: transform 0.1s ease-out, filter 0.1s ease-out;
+}
+
 /* Telegraph — escalating shake + red glow buildup before enemy strike.
    Shake lives on __choreo (transform). Glow lives on __sprite (drop-shadow
    hugs the image shape instead of the card box). fill:forwards holds final

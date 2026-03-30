@@ -6,9 +6,11 @@
 // battles, forges, or any host system.
 //
 // PLUGIN CONTRACT (DES-2):
-//   Props: { config, onComplete }
+//   Props: { config, onComplete, onRingResult? }
 //   config — ring count, speeds, delays, zone sizing
 //   onComplete({ hits, total, details, successRatio })
+//   onRingResult(index, hit) — optional per-ring callback for
+//     real-time visual sync (e.g. battle jab/flinch per tap)
 //
 // PURE LOGIC (no React):
 //   createRingSequence(config) — builds ring timeline
@@ -103,6 +105,7 @@ function isInHitWindow(ring, progress, config) {
 function CircleTimingQTE(props) {
     var config = props.config;
     var onComplete = props.onComplete;
+    var onRingResult = props.onRingResult;
 
     // --- State ---
     var [phase, setPhase] = useState("ready");
@@ -164,6 +167,7 @@ function CircleTimingQTE(props) {
                     resultsRef.current = newResults;
                     setResults(newResults);
                     showFlash("MISS", false);
+                    if (onRingResult) onRingResult(ci, false);
 
                     var next = ci + 1;
                     currentRingRef.current = next;
@@ -237,6 +241,7 @@ function CircleTimingQTE(props) {
         setResults(newResults);
 
         showFlash(hit ? "HIT!" : "MISS", hit);
+        if (onRingResult) onRingResult(ci, hit);
 
         var next = ci + 1;
         currentRingRef.current = next;

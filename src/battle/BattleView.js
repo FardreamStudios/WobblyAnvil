@@ -28,7 +28,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import BattleConstants from "./battleConstants.js";
 import BattleSFX from "./battleSFX.js";
+import QTERunnerModule from "./QTERunner.js";
 import "./BattleView.css";
+
+var QTERunner = QTERunnerModule.QTERunner;
 
 var PHASES = BattleConstants.BATTLE_PHASES;
 var ACTION_CAM = BattleConstants.ACTION_CAM;
@@ -68,6 +71,34 @@ PHASE_LABELS[PHASES.RESOLVING]       = "RESOLVING";
 PHASE_LABELS[PHASES.ENEMY_TELEGRAPH] = "COUNTER";
 PHASE_LABELS[PHASES.DEFENSE_QTE]     = "DEFENSE QTE";
 PHASE_LABELS[PHASES.ACTION_CAM_OUT]  = "CAM OUT";
+
+// ============================================================
+// DEFAULT QTE CONFIGS — battle-specific, bespoke for now
+// type must match a key in QTERunner's PLUGIN_REGISTRY
+// ============================================================
+var QTE_ATTACK_CONFIG = {
+    type:               "circle_timing",
+    rings:              3,
+    speeds:             [1.0, 1.0, 1.0],
+    delays:             [0, 400, 400],
+    zoneBonus:          0.15,
+    targetRadius:       36,
+    ringStartRadius:    130,
+    shrinkDurationMs:   800,
+    label:              "ATTACK!",
+};
+
+var QTE_DEFENSE_CONFIG = {
+    type:               "circle_timing",
+    rings:              2,
+    speeds:             [0.8, 1.2],
+    delays:             [0, 300],
+    zoneBonus:          0.15,
+    targetRadius:       36,
+    ringStartRadius:    130,
+    shrinkDurationMs:   800,
+    label:              "DEFEND!",
+};
 
 // ============================================================
 // CSS Custom Properties — driven from LAYOUT constants
@@ -470,6 +501,10 @@ function BattleView(props) {
     var [devShowComic, setDevShowComic] = useState(false);
     var [damageNumbers, setDamageNumbers] = useState([]);
     var dmgKeyRef = useRef(0);
+    var [qteConfig, setQteConfig] = useState(null);
+    var qteKeyRef = useRef(0);
+    var qteResolveRef = useRef(null);  // stashed callback: onComplete → resolve choreography
+    var qteContextRef = useRef(null);  // { mode: "attack"|"defense", atkId, tgtId }
     var [atbValues, setAtbValues] = useState(function() {
         var v = {};
         TEST_PARTY.forEach(function(c) { v[c.id] = 0; });
@@ -705,166 +740,275 @@ function BattleView(props) {
     }
 
     // ============================================================
+    // QTE CALLBACKS — relayed from QTERunner
+    // ============================================================
+    function handleQTEComplete(result) {
+        setQteConfig(null);
+        if (qteResolveRef.current) {
+            qteResolveRef.current(result);
+            qteResolveRef.current = null;
+        }
+    }
+
+    function handleQTERingResult(index, hit) {
+        var ctx = qteContextRef.current;
+        if (!ctx) return;
+
+        if (ctx.mode === "attack") {
+            // ATTACK QTE: each ring = attacker jabs at target
+            if (hit) {
+                // Quick jab: strike → target flinch + light shake + small damage pip
+                setAnimState(function(prev) {
+                    var n = Object.assign({}, prev);
+                    n[ctx.atkId] = "strike";
+                    return n;
+                });
+                BattleSFX.hit();
+
+                setTimeout(function() {
+                    setFlashId(ctx.tgtId);
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        n[ctx.tgtId] = "hit";
+                        return n;
+                    });
+                    BattleSFX.impact();
+                    setShakeLevel(null);
+                    requestAnimationFrame(function() { setShakeLevel("light"); });
+                    setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+                }, 60);
+
+                // Return attacker + clear target after jab
+                setTimeout(function() {
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        n[ctx.atkId] = "wind_up";
+                        delete n[ctx.tgtId];
+                        return n;
+                    });
+                }, 200);
+            } else {
+                // Whiff: attacker lunges but no impact on target
+                setAnimState(function(prev) {
+                    var n = Object.assign({}, prev);
+                    n[ctx.atkId] = "strike";
+                    return n;
+                });
+
+                // Return to wind-up without any target reaction
+                setTimeout(function() {
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        n[ctx.atkId] = "wind_up";
+                        return n;
+                    });
+                }, 150);
+            }
+        } else if (ctx.mode === "defense") {
+            // DEFENSE QTE: each ring = blocking an incoming hit
+            if (hit) {
+                // Good block: party braces, brief blue flash
+                setAnimState(function(prev) {
+                    var n = Object.assign({}, prev);
+                    n[ctx.atkId] = "brace";
+                    return n;
+                });
+                BattleSFX.block();
+
+                setTimeout(function() {
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        delete n[ctx.atkId];
+                        return n;
+                    });
+                }, 200);
+            } else {
+                // Failed block: party takes a quick hit
+                setFlashId(ctx.atkId);
+                setAnimState(function(prev) {
+                    var n = Object.assign({}, prev);
+                    n[ctx.atkId] = "hit";
+                    return n;
+                });
+                BattleSFX.impact();
+                setShakeLevel(null);
+                requestAnimationFrame(function() { setShakeLevel("light"); });
+
+                setTimeout(function() {
+                    setFlashId(null);
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        delete n[ctx.atkId];
+                        return n;
+                    });
+                }, 200);
+            }
+        }
+    }
+
+    // Helper: activate a QTE — sets config with unique key for clean remount
+    function activateQTE(config, onResolve, context) {
+        qteKeyRef.current += 1;
+        qteResolveRef.current = onResolve;
+        qteContextRef.current = context || null;
+        setQteConfig(Object.assign({}, config, { _key: qteKeyRef.current }));
+    }
+
+    // ============================================================
     // FULL EXCHANGE SEQUENCER (dev/prototype)
-    // Plays the complete exchange choreography with timed auto-advance.
-    // Simulates QTE results — real QTE callbacks replace the pauses later.
+    // Plays the complete exchange choreography with real QTE integration.
     //
-    // Timeline:
-    //   ACTION_CAM_IN  → wind_up
-    //   (QTE pause)    → RESOLVING player attack
-    //   ENEMY_TELEGRAPH → (defense pause) → RESOLVING enemy counter
-    //   ACTION_CAM_OUT → ATB_RUNNING
+    // Three chained stages:
+    //   startExchange()     — cam in → wind-up → activate attack QTE
+    //   resolveAttack(res)  — onComplete → strike/hit/damage → telegraph → activate defense QTE
+    //   resolveDefense(res) — onComplete → enemy strike/hit/damage → cam out → ATB
     // ============================================================
     function handleDevFullExchange() {
         var atkId = attackerId;
         var tgtId = targetId;
 
-        // Simulated QTE results
-        var atkDmg = Math.floor(Math.random() * 25) + 5;
-        var defDmg = Math.floor(Math.random() * 15) + 3;
-
-        // Accumulating timeline offset
-        var t = 0;
-
-        // ---- PHASE 1: ACTION_CAM_IN (350ms) ----
+        // ---- STAGE 1: CAM IN → WIND-UP → ATTACK QTE ----
         setPhase(PHASES.ACTION_CAM_IN);
         setAtbRunning(false);
 
-        // Wind-up attacker after slide completes
-        t += 350;
+        // Wind-up attacker after slide completes (350ms)
         setTimeout(function() {
             setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "wind_up"; return n; });
-        }, t);
+        }, 350);
 
-        // ---- PHASE 2: QTE_ACTIVE (simulated 800ms hold) ----
-        t += 50; // brief gap after wind_up starts
+        // Enter QTE_ACTIVE phase and mount attack QTE
         setTimeout(function() {
             setPhase(PHASES.QTE_ACTIVE);
-        }, t);
+            activateQTE(QTE_ATTACK_CONFIG, function(result) {
+                resolveAttack(result, atkId, tgtId);
+            }, { mode: "attack", atkId: atkId, tgtId: tgtId });
+        }, 400);
+    }
 
-        t += 800; // simulated QTE duration
+    // ---- STAGE 2: RESOLVE ATTACK → TELEGRAPH → DEFENSE QTE ----
+    function resolveAttack(result, atkId, tgtId) {
+        // Damage from QTE success ratio: 30% floor + 70% scaled
+        var baseDmg = 30;
+        var atkDmg = Math.round(baseDmg * (0.3 + 0.7 * result.successRatio));
 
-        // ---- PHASE 3: RESOLVING — Player Attack (500ms) ----
+        setPhase(PHASES.RESOLVING);
+
+        // Strike attacker
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "strike"; return n; });
+        BattleSFX.hit();
+
+        // Hit combo on target at +80ms
         setTimeout(function() {
-            setPhase(PHASES.RESOLVING);
+            setFlashId(tgtId);
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "hit"; return n; });
+            BattleSFX.impact();
+            setShakeLevel(null);
+            requestAnimationFrame(function() { setShakeLevel(result.successRatio >= 0.8 ? "heavy" : "medium"); });
 
-            // Strike attacker
-            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "strike"; return n; });
-            BattleSFX.hit();
+            // Damage number at target position
+            var el = combatantRefs.current[tgtId];
+            var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+            if (el && sr) {
+                var r = el.getBoundingClientRect();
+                var cx = r.left - sr.left + r.width / 2;
+                var cy = r.top - sr.top;
+                spawnDamageNumber(atkDmg, cx, cy, "#f59e0b");
+            }
 
-            // Hit combo on target at +80ms
-            setTimeout(function() {
-                setFlashId(tgtId);
-                setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "hit"; return n; });
-                BattleSFX.impact();
-                setShakeLevel(null);
-                requestAnimationFrame(function() { setShakeLevel("heavy"); });
+            // Clear flash
+            setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+        }, 80);
 
-                // Damage number at target position
-                var el = combatantRefs.current[tgtId];
-                var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                if (el && sr) {
-                    var r = el.getBoundingClientRect();
-                    var cx = r.left - sr.left + r.width / 2;
-                    var cy = r.top - sr.top;
-                    spawnDamageNumber(atkDmg, cx, cy, "#f59e0b");
-                }
+        // Return attacker at +250ms
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "return"; return n; });
+        }, 250);
 
-                // Clear flash
-                setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
-            }, 80);
+        // Clear target knockback at +300ms
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[tgtId]; return n; });
+        }, 300);
 
-            // Return attacker at +250ms
-            setTimeout(function() {
-                setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "return"; return n; });
-            }, 250);
+        // Clear attacker at +400ms
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
+        }, 400);
 
-            // Clear target knockback at +300ms
-            setTimeout(function() {
-                setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[tgtId]; return n; });
-            }, 300);
-
-            // Clear attacker at +400ms
-            setTimeout(function() {
-                setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
-            }, 400);
-        }, t);
-
-        // ---- PHASE 4: ENEMY_TELEGRAPH (300ms) ----
-        t += 500; // after player resolve completes
+        // TELEGRAPH → DEFENSE QTE at +500ms
         setTimeout(function() {
             setPhase(PHASES.ENEMY_TELEGRAPH);
             setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "telegraph"; return n; });
-        }, t);
 
-        // ---- PHASE 5: DEFENSE_QTE (simulated 600ms hold) ----
-        t += CHOREOGRAPHY.telegraphMs;
+            // After telegraph, activate defense QTE
+            setTimeout(function() {
+                setPhase(PHASES.DEFENSE_QTE);
+                activateQTE(QTE_DEFENSE_CONFIG, function(defResult) {
+                    resolveDefense(defResult, atkId, tgtId);
+                }, { mode: "defense", atkId: atkId, tgtId: tgtId });
+            }, CHOREOGRAPHY.telegraphMs);
+        }, 500);
+    }
+
+    // ---- STAGE 3: RESOLVE DEFENSE → CAM OUT → ATB ----
+    function resolveDefense(result, atkId, tgtId) {
+        // Damage reduced by defense success: good block = low damage
+        var baseDmg = 20;
+        var defDmg = Math.round(baseDmg * (1.0 - 0.7 * result.successRatio));
+
+        setPhase(PHASES.RESOLVING);
+
+        // Enemy strikes
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "strike"; return n; });
+        BattleSFX.hit();
+
+        // Hit combo on party member at +80ms
         setTimeout(function() {
-            setPhase(PHASES.DEFENSE_QTE);
-            // Enemy holds end-of-telegraph pose (forwards fill keeps it)
-        }, t);
+            setFlashId(atkId);
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "hit"; return n; });
+            BattleSFX.impact();
+            setShakeLevel(null);
+            requestAnimationFrame(function() { setShakeLevel(result.successRatio >= 0.8 ? "light" : "medium"); });
 
-        t += 600; // simulated defense QTE duration
+            // Damage number at attacker position
+            var el = combatantRefs.current[atkId];
+            var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+            if (el && sr) {
+                var r = el.getBoundingClientRect();
+                var cx = r.left - sr.left + r.width / 2;
+                var cy = r.top - sr.top;
+                spawnDamageNumber(defDmg, cx, cy, "#ef4444");
+            }
 
-        // ---- PHASE 6: RESOLVING — Enemy Counter (500ms) ----
+            // Clear flash
+            setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+        }, 80);
+
+        // Return enemy at +250ms
         setTimeout(function() {
-            setPhase(PHASES.RESOLVING);
+            setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "return"; return n; });
+        }, 250);
 
-            // Enemy strikes
-            setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "strike"; return n; });
-            BattleSFX.hit();
+        // Clear party knockback at +300ms
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
+        }, 300);
 
-            // Hit combo on party member at +80ms
-            setTimeout(function() {
-                setFlashId(atkId);
-                setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "hit"; return n; });
-                BattleSFX.impact();
-                setShakeLevel(null);
-                requestAnimationFrame(function() { setShakeLevel("medium"); });
+        // Clear enemy at +400ms
+        setTimeout(function() {
+            setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[tgtId]; return n; });
+        }, 400);
 
-                // Damage number at attacker position
-                var el = combatantRefs.current[atkId];
-                var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                if (el && sr) {
-                    var r = el.getBoundingClientRect();
-                    var cx = r.left - sr.left + r.width / 2;
-                    var cy = r.top - sr.top;
-                    spawnDamageNumber(defDmg, cx, cy, "#ef4444");
-                }
-
-                // Clear flash
-                setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
-            }, 80);
-
-            // Return enemy at +250ms
-            setTimeout(function() {
-                setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "return"; return n; });
-            }, 250);
-
-            // Clear party knockback at +300ms
-            setTimeout(function() {
-                setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[atkId]; return n; });
-            }, 300);
-
-            // Clear enemy at +400ms
-            setTimeout(function() {
-                setAnimState(function(prev) { var n = Object.assign({}, prev); delete n[tgtId]; return n; });
-            }, 400);
-        }, t);
-
-        // ---- PHASE 7: ACTION_CAM_OUT (350ms) ----
-        t += 500; // after enemy resolve completes
+        // CAM OUT at +500ms
         setTimeout(function() {
             setPhase(PHASES.ACTION_CAM_OUT);
-        }, t);
+        }, 500);
 
-        // ---- BACK TO ATB ----
-        t += 350;
+        // Back to ATB at +850ms
         setTimeout(function() {
             setPhase(PHASES.ATB_RUNNING);
             setAnimState({});
             setAtbRunning(true);
-        }, t);
+        }, 850);
     }
 
     // --- Action handler ---
@@ -986,8 +1130,22 @@ function BattleView(props) {
                     onAction={handleAction}
                 />
 
-                {/* QTE zone overlay */}
-                <QTEZone visible={showQTE} isDefense={isDefenseQTE} isLeftHanded={isLeftHanded} />
+                {/* QTE zone — real QTE plugin via QTERunner */}
+                {showQTE && (
+                    <div
+                        className={"battle-qte battle-qte--visible"}
+                        style={isLeftHanded
+                            ? { left: "var(--battle-actions-w)", right: "var(--battle-open-w)" }
+                            : { left: "var(--battle-open-w)", right: "var(--battle-actions-w)" }
+                        }
+                    >
+                        <QTERunner
+                            qteConfig={qteConfig}
+                            onComplete={handleQTEComplete}
+                            onRingResult={handleQTERingResult}
+                        />
+                    </div>
+                )}
 
                 {/* Comic panel (replaces action zone visually during action cam) */}
                 <ComicPanel
