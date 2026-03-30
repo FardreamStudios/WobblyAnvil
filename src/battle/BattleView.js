@@ -28,6 +28,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import BattleConstants from "./battleConstants.js";
 import BattleSkills from "./battleSkills.js";
+import BattleATB from "./battleATB.js";
 import BattleSFX from "./battleSFX.js";
 import QTERunnerModule from "./QTERunner.js";
 import "./BattleView.css";
@@ -40,6 +41,7 @@ var EXCHANGE = BattleConstants.EXCHANGE;
 var ACTIONS = BattleConstants.ACTIONS;
 var LAYOUT = BattleConstants.LAYOUT;
 var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
+var ATB = BattleConstants.ATB;
 var CHOREOGRAPHY = BattleConstants.CHOREOGRAPHY;
 var TEST_PARTY = BattleConstants.TEST_PARTY;
 var TEST_ENEMIES = BattleConstants.TEST_ENEMIES;
@@ -54,10 +56,9 @@ var _DEV_CONTROLS = true;
 // ============================================================
 var COMIC_LINES = {};
 COMIC_LINES[PHASES.ACTION_CAM_IN]    = "Let's get 'em!";
-COMIC_LINES[PHASES.QTE_ACTIVE]       = "Nail the timing!";
-COMIC_LINES[PHASES.RESOLVING]        = "Nice swing!";
-COMIC_LINES[PHASES.ENEMY_TELEGRAPH]  = "Watch out!";
-COMIC_LINES[PHASES.DEFENSE_QTE]      = "Block it! Block!";
+COMIC_LINES[PHASES.CAM_TELEGRAPH]    = "Watch out!";
+COMIC_LINES[PHASES.CAM_SWING]        = "Nail the timing!";
+COMIC_LINES[PHASES.CAM_RESOLVE]      = "Nice swing!";
 COMIC_LINES[PHASES.ACTION_CAM_OUT]   = "Not bad!";
 
 // ============================================================
@@ -67,10 +68,11 @@ var PHASE_LABELS = {};
 PHASE_LABELS[PHASES.ATB_RUNNING]     = "ATB RUNNING";
 PHASE_LABELS[PHASES.ACTION_SELECT]   = "ACTION SELECT";
 PHASE_LABELS[PHASES.ACTION_CAM_IN]   = "ACTION CAM IN";
-PHASE_LABELS[PHASES.QTE_ACTIVE]      = "ATTACK QTE";
-PHASE_LABELS[PHASES.RESOLVING]       = "RESOLVING";
-PHASE_LABELS[PHASES.ENEMY_TELEGRAPH] = "COUNTER";
-PHASE_LABELS[PHASES.DEFENSE_QTE]     = "DEFENSE QTE";
+PHASE_LABELS[PHASES.CAM_TURN_START]  = "CAM TURN";
+PHASE_LABELS[PHASES.CAM_WAIT_ACTION] = "CAM WAIT";
+PHASE_LABELS[PHASES.CAM_TELEGRAPH]   = "TELEGRAPH";
+PHASE_LABELS[PHASES.CAM_SWING]       = "SWING";
+PHASE_LABELS[PHASES.CAM_RESOLVE]     = "RESOLVE";
 PHASE_LABELS[PHASES.ACTION_CAM_OUT]  = "CAM OUT";
 
 // ============================================================
@@ -170,11 +172,12 @@ function BattleCharacter(props) {
         var cached = props.restingRects[c.id];
         if (cached) {
             var gap = sr.width * 0.08;
-            // Normal: attacker (party) on right, target (enemy) on left
+            // Position by faction: party always slides to party side, enemy to enemy side
+            // Normal (right-handed): party on right, enemy on left
             // Left-handed: flipped
-            var atkSide = props.isLeftHanded ? (cx - gap) : (cx + gap);
-            var tgtSide = props.isLeftHanded ? (cx + gap) : (cx - gap);
-            var destX = isAttacker ? atkSide : tgtSide;
+            var partySide = props.isLeftHanded ? (cx - gap) : (cx + gap);
+            var enemySide = props.isLeftHanded ? (cx + gap) : (cx - gap);
+            var destX = isParty ? partySide : enemySide;
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
             style.transform = "translate(" + dx + "px, " + dy + "px) scale(" + ACTION_CAM.activeScale + ")";
@@ -222,17 +225,47 @@ function BattleCharacter(props) {
 function ATBGaugeStrip(props) {
     var hidden = props.hidden;
     var cls = "battle-atb" + (hidden ? " battle-atb--hidden" : "");
+    var maxPips = ATB.pipsPerCombatant;
 
     return (
         <div className={cls}>
             {props.combatants.map(function(c) {
                 var isParty = c._isParty;
-                var fillCls = "battle-atb__bar-fill " + (isParty ? "battle-atb__bar-fill--party" : "battle-atb__bar-fill--enemy");
+                var pips = c._pips || { filledPips: 0, currentFill: 0 };
+                var isReady = pips.filledPips >= maxPips;
+                var barCls = "battle-atb__bar-bg" + (isReady ? " battle-atb__bar-bg--ready" : "");
+                var fillColorCls = isParty ? "battle-atb__pip--party" : "battle-atb__pip--enemy";
+
+                var segments = [];
+                for (var i = 0; i < maxPips; i++) {
+                    var segCls = "battle-atb__pip";
+                    var fillPct = 0;
+
+                    if (i < pips.filledPips) {
+                        // Fully filled pip
+                        segCls += " battle-atb__pip--full";
+                        fillPct = 100;
+                    } else if (i === pips.filledPips) {
+                        // Currently filling pip
+                        fillPct = Math.round(pips.currentFill * 100);
+                    }
+                    // else: empty pip, fillPct stays 0
+
+                    segments.push(
+                        <div className={segCls + " " + fillColorCls} key={i}>
+                            <div
+                                className="battle-atb__pip-fill"
+                                style={{ width: fillPct + "%" }}
+                            />
+                        </div>
+                    );
+                }
+
                 return (
                     <div className="battle-atb__row" key={c.id}>
                         <span className="battle-atb__label">{c.name}</span>
-                        <div className="battle-atb__bar-bg">
-                            <div className={fillCls} style={{ width: (c._atb || 0) + "%" }} />
+                        <div className={barCls}>
+                            {segments}
                         </div>
                     </div>
                 );
@@ -374,6 +407,7 @@ function DevControls(props) {
             <button className="battle-dev__btn" onClick={props.onToggleATB}>
                 {props.atbRunning ? "Pause ATB" : "Run ATB"}
             </button>
+            <button className="battle-dev__btn" onClick={props.onFillPips}>Fill Pips</button>
             <button className="battle-dev__btn" onClick={props.onExit}>Exit</button>
 
             {/* --- Phase badge --- */}
@@ -399,27 +433,36 @@ function ActionCamInfoPanel(props) {
     var atkHp = attacker.maxHP > 0 ? Math.round(attacker.currentHP / attacker.maxHP * 100) : 0;
     var tgtHp = target.maxHP > 0 ? Math.round(target.currentHP / target.maxHP * 100) : 0;
 
-    // Normal: target (enemy) left, attacker (party) right. Flipped when left-handed.
-    var leftData  = isLeft ? attacker : target;
-    var rightData = isLeft ? target : attacker;
-    var leftHp    = isLeft ? atkHp : tgtHp;
-    var rightHp   = isLeft ? tgtHp : atkHp;
-    var leftSide  = isLeft ? "atk" : "tgt";
-    var rightSide = isLeft ? "tgt" : "atk";
+    // Figure out which combatant is party and which is enemy
+    var atkIsParty = TEST_PARTY.some(function(p) { return p.id === attacker.id; });
+
+    // Party always on right (normal) or left (left-handed). Enemy opposite.
+    var partyData  = atkIsParty ? attacker : target;
+    var enemyData  = atkIsParty ? target : attacker;
+    var partyHp    = atkIsParty ? atkHp : tgtHp;
+    var enemyHp    = atkIsParty ? tgtHp : atkHp;
+
+    // Normal: enemy left, party right. Left-handed: flipped.
+    var leftData  = isLeft ? partyData : enemyData;
+    var rightData = isLeft ? enemyData : partyData;
+    var leftHp    = isLeft ? partyHp : enemyHp;
+    var rightHp   = isLeft ? enemyHp : partyHp;
+    var leftIsParty  = isLeft ? true : false;
+    var rightIsParty = isLeft ? false : true;
 
     return (
         <>
-            <div className={baseCls + " action-cam-info--left action-cam-info__side--" + leftSide}>
+            <div className={baseCls + " action-cam-info--left action-cam-info__side--" + (leftIsParty ? "atk" : "tgt")}>
                 <span className="action-cam-info__name">{leftData.name}</span>
                 <div className="action-cam-info__hp-bg">
-                    <div className={"battle-hp-fill " + (leftSide === "atk" ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: leftHp + "%" }} />
+                    <div className={"battle-hp-fill " + (leftIsParty ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: leftHp + "%" }} />
                 </div>
                 <span className="action-cam-info__hp-text">{leftData.currentHP + "/" + leftData.maxHP}</span>
             </div>
-            <div className={baseCls + " action-cam-info--right action-cam-info__side--" + rightSide}>
+            <div className={baseCls + " action-cam-info--right action-cam-info__side--" + (rightIsParty ? "atk" : "tgt")}>
                 <span className="action-cam-info__name">{rightData.name}</span>
                 <div className="action-cam-info__hp-bg">
-                    <div className={"battle-hp-fill " + (rightSide === "atk" ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: rightHp + "%" }} />
+                    <div className={"battle-hp-fill " + (rightIsParty ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: rightHp + "%" }} />
                 </div>
                 <span className="action-cam-info__hp-text">{rightData.currentHP + "/" + rightData.maxHP}</span>
             </div>
@@ -465,7 +508,8 @@ function BattleView(props) {
     // --- State ---
     var [phase, setPhase] = useState(PHASES.ATB_RUNNING);
     var [targetId, setTargetId] = useState(TEST_ENEMIES[0].id);
-    var [attackerId] = useState(TEST_PARTY[0].id);
+    var [turnOwnerId, setTurnOwnerId] = useState(null);   // who currently owns the turn (filled pips)
+    var [attackerId] = useState(TEST_PARTY[0].id);         // legacy fallback for dev sequences
     var [atbRunning, setAtbRunning] = useState(false);
     var [shakeLevel, setShakeLevel] = useState(null);
     var [flashId, setFlashId] = useState(null);
@@ -477,13 +521,18 @@ function BattleView(props) {
     var [qteConfig, setQteConfig] = useState(null);
     var qteKeyRef = useRef(0);
     var qteResolveRef = useRef(null);  // stashed callback: onComplete → resolve choreography
-    var qteContextRef = useRef(null);  // { mode: "attack"|"defense", atkId, tgtId }
+    var qteContextRef = useRef(null);  // { swingerId, receiverId, skill }
+    var readyIdRef = useRef(null);     // bubbles readyId out of state updater for turn trigger
+    var atbValuesRef = useRef(null);   // sync access to current pip state for camOut checks
+
+    // --- In-cam exchange state ---
+    // camExchange tracks the back-and-forth inside action cam.
+    // initiatorId goes first, responderId responds, then alternate.
+    var camExchangeRef = useRef(null); // { initiatorId, responderId, currentSwingerId }
     var [atbValues, setAtbValues] = useState(function() {
-        var v = {};
-        TEST_PARTY.forEach(function(c) { v[c.id] = 0; });
-        TEST_ENEMIES.forEach(function(c) { v[c.id] = 0; });
-        return v;
+        return BattleATB.initState(TEST_PARTY.concat(TEST_ENEMIES));
     });
+    atbValuesRef.current = atbValues;
 
     // --- Sprite animation frame (shared tick for all animated combatants) ---
     var [spriteFrame, setSpriteFrame] = useState(0);
@@ -550,6 +599,7 @@ function BattleView(props) {
         if (!atbRunning) return;
         var lastTime = 0;
         var rafId = null;
+        var allCombatants = TEST_PARTY.concat(TEST_ENEMIES);
 
         function tick(ts) {
             if (!atbRunningRef.current) return;
@@ -558,19 +608,36 @@ function BattleView(props) {
             lastTime = ts;
             if (dt > 0.1) dt = 0.1;
 
-            if (!atbFrozenRef.current) {
-                setAtbValues(function(prev) {
-                    var next = {};
-                    var allCombatants = TEST_PARTY.concat(TEST_ENEMIES);
-                    for (var i = 0; i < allCombatants.length; i++) {
-                        var c = allCombatants[i];
-                        var val = (prev[c.id] || 0) + c.atbSpeed * dt * 100;
-                        if (val >= 100) val = 0;
-                        next[c.id] = val;
-                    }
-                    return next;
-                });
+            setAtbValues(function(prev) {
+                var result = BattleATB.tick(dt, prev, allCombatants, atbFrozenRef.current);
+                if (result.readyId) {
+                    readyIdRef.current = result.readyId;
+                }
+                return result.nextState;
+            });
+
+            // Check if someone became ready (ref written inside updater)
+            if (readyIdRef.current) {
+                var whoIsReady = readyIdRef.current;
+                readyIdRef.current = null;
+
+                var isPartyMember = TEST_PARTY.some(function(p) { return p.id === whoIsReady; });
+                setTurnOwnerId(whoIsReady);
+
+                if (isPartyMember) {
+                    // Party member ready → freeze ATB, show action select
+                    setPhase(PHASES.ACTION_SELECT);
+                    setAtbRunning(false);
+                } else {
+                    // Enemy ready → V1: auto-attack the first party member
+                    setAtbRunning(false);
+                    var enemyTgt = TEST_PARTY[0].id;
+                    setTargetId(enemyTgt);
+                    startExchange(whoIsReady, enemyTgt);
+                }
+                return; // stop ticking this frame
             }
+
             rafId = requestAnimationFrame(tick);
         }
 
@@ -580,16 +647,16 @@ function BattleView(props) {
 
     // --- Helpers ---
     var isActionCam = phase !== PHASES.ATB_RUNNING && phase !== PHASES.ACTION_SELECT && phase !== PHASES.ACTION_CAM_OUT;
-    var showQTE = phase === PHASES.QTE_ACTIVE || phase === PHASES.DEFENSE_QTE;
-    var isDefenseQTE = phase === PHASES.DEFENSE_QTE;
+    var showQTE = phase === PHASES.CAM_SWING;
     var showComic = isActionCam || devShowComic;
-    var showSpark = phase === PHASES.RESOLVING;
+    var showSpark = phase === PHASES.CAM_RESOLVE;
 
     var comicLine = devShowComic ? "[DEV] Comic panel test" : (COMIC_LINES[phase] || "...");
 
     // Lookup active combatant data for action cam HUD
+    var activeAtkId = turnOwnerId || attackerId;
     var allData = TEST_PARTY.concat(TEST_ENEMIES);
-    var attackerData = allData.find(function(c) { return c.id === attackerId; }) || null;
+    var attackerData = allData.find(function(c) { return c.id === activeAtkId; }) || null;
     var targetData = allData.find(function(c) { return c.id === targetId; }) || null;
 
     // Make combatant ref setter
@@ -599,13 +666,15 @@ function BattleView(props) {
         };
     }, []);
 
-    // Build combatant list with ATB values for gauge strip
+    // Build combatant list with pip data for gauge strip
     var allCombatants = [];
     TEST_PARTY.forEach(function(c) {
-        allCombatants.push(Object.assign({}, c, { _isParty: true, _atb: Math.round(atbValues[c.id] || 0) }));
+        var pips = atbValues[c.id] || { filledPips: 0, currentFill: 0 };
+        allCombatants.push(Object.assign({}, c, { _isParty: true, _pips: pips }));
     });
     TEST_ENEMIES.forEach(function(c) {
-        allCombatants.push(Object.assign({}, c, { _isParty: false, _atb: Math.round(atbValues[c.id] || 0) }));
+        var pips = atbValues[c.id] || { filledPips: 0, currentFill: 0 };
+        allCombatants.push(Object.assign({}, c, { _isParty: false, _pips: pips }));
     });
 
     // --- Dev handlers ---
@@ -622,6 +691,9 @@ function BattleView(props) {
         setTargetId(id);
     }
     function handleDevToggleATB() { setAtbRunning(function(v) { return !v; }); }
+    function handleDevFillPips() {
+        setAtbValues(function(prev) { return BattleATB.fillAll(prev, attackerId); });
+    }
     function handleDevFlash(id) {
         setFlashId(id);
         BattleSFX.hit();
@@ -727,6 +799,9 @@ function BattleView(props) {
         var ctx = qteContextRef.current;
         if (!ctx) return;
 
+        var swinger = ctx.swingerId;
+        var receiver = ctx.receiverId;
+
         // Look up beat definition from skill
         var skill = ctx.skill;
         var beat = skill && skill.beats && skill.beats[index]
@@ -738,63 +813,97 @@ function BattleView(props) {
             return;
         }
 
-        if (ctx.mode === "attack") {
-            // ATTACK QTE: each ring = one beat of the player's combo
-            if (hit) {
-                // Land the beat: attacker anim + target reaction + shake + SFX + damage
+        // Is the swinger an enemy? If so, telegraph glow before strike.
+        var swingerIsEnemy = TEST_ENEMIES.some(function(e) { return e.id === swinger; });
+
+        // Determine damage color based on who's getting hit
+        var receiverIsParty = TEST_PARTY.some(function(p) { return p.id === receiver; });
+        var dmgColor = receiverIsParty ? "#ef4444" : "#f59e0b";
+
+        if (swingerIsEnemy) {
+            // Enemy swings: telegraph → strike → receiver reacts
+            setAnimState(function(prev) {
+                var n = Object.assign({}, prev);
+                n[swinger] = "telegraph";
+                return n;
+            });
+
+            setTimeout(function() {
+                // Strike
                 setAnimState(function(prev) {
                     var n = Object.assign({}, prev);
-                    n[ctx.atkId] = beat.atkAnim || "strike";
+                    n[swinger] = beat.atkAnim || "strike";
                     return n;
                 });
                 if (beat.sfx) BattleSFX[beat.sfx] ? BattleSFX[beat.sfx]() : BattleSFX.hit();
 
+                // Receiver reaction
                 setTimeout(function() {
-                    // Target reaction
+                    resolveHitOnReceiver(hit, beat, swinger, receiver, dmgColor);
+                }, 60);
+
+                // Clear anims
+                setTimeout(function() {
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        delete n[swinger];
+                        delete n[receiver];
+                        return n;
+                    });
+                }, 260);
+            }, CHOREOGRAPHY.telegraphMs);
+        } else {
+            // Player swings: wind-up already active, go straight to strike
+            if (hit) {
+                setAnimState(function(prev) {
+                    var n = Object.assign({}, prev);
+                    n[swinger] = beat.atkAnim || "strike";
+                    return n;
+                });
+                if (beat.sfx) BattleSFX[beat.sfx] ? BattleSFX[beat.sfx]() : BattleSFX.hit();
+
+                // Receiver reaction
+                setTimeout(function() {
                     if (beat.tgtReact) {
-                        setFlashId(ctx.tgtId);
+                        setFlashId(receiver);
                         setAnimState(function(prev) {
                             var n = Object.assign({}, prev);
-                            n[ctx.tgtId] = beat.tgtReact;
+                            n[receiver] = beat.tgtReact;
                             return n;
                         });
                     }
-                    // Shake
                     if (beat.shake) {
                         setShakeLevel(null);
                         requestAnimationFrame(function() { setShakeLevel(beat.shake); });
                     }
-                    // Damage number
-                    var el = combatantRefs.current[ctx.tgtId];
+                    var el = combatantRefs.current[receiver];
                     var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
                     if (el && sr) {
                         var r = el.getBoundingClientRect();
                         var cx = r.left - sr.left + r.width / 2;
                         var cy = r.top - sr.top;
-                        spawnDamageNumber(beat.damage, cx, cy, "#f59e0b");
+                        spawnDamageNumber(beat.damage, cx, cy, dmgColor);
                     }
                     setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
                 }, 60);
 
-                // Return attacker to wind-up + clear target reaction
+                // Return swinger to wind-up + clear receiver
                 setTimeout(function() {
                     setAnimState(function(prev) {
                         var n = Object.assign({}, prev);
-                        n[ctx.atkId] = "wind_up";
-                        if (beat.tgtReact) delete n[ctx.tgtId];
+                        n[swinger] = "wind_up";
+                        if (beat.tgtReact) delete n[receiver];
                         return n;
                     });
                 }, 200);
             } else {
-                // Whiff: attacker lunges weakly, no target reaction, no damage
+                // Whiff
                 setAnimState(function(prev) {
                     var n = Object.assign({}, prev);
-                    n[ctx.atkId] = "strike";
+                    n[swinger] = "strike";
                     return n;
                 });
-
-                // Spawn "MISS" text
-                var el = combatantRefs.current[ctx.tgtId];
+                var el = combatantRefs.current[receiver];
                 var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
                 if (el && sr) {
                     var r = el.getBoundingClientRect();
@@ -802,418 +911,413 @@ function BattleView(props) {
                     var cy = r.top - sr.top;
                     spawnDamageNumber("MISS", cx, cy, "#888888");
                 }
-
-                // Return to wind-up
                 setTimeout(function() {
                     setAnimState(function(prev) {
                         var n = Object.assign({}, prev);
-                        n[ctx.atkId] = "wind_up";
+                        n[swinger] = "wind_up";
                         return n;
                     });
                 }, 150);
             }
-        } else if (ctx.mode === "defense") {
-            // DEFENSE QTE: each ring = one incoming enemy beat
-            // Enemy ALWAYS plays their attack anim (they don't miss)
-            setAnimState(function(prev) {
-                var n = Object.assign({}, prev);
-                n[ctx.tgtId] = beat.atkAnim || "strike";
-                return n;
-            });
-            if (beat.sfx) BattleSFX[beat.sfx] ? BattleSFX[beat.sfx]() : BattleSFX.hit();
+        }
+    }
 
-            if (hit) {
-                // Player tapped in window — brace/block
-                // (V1: tap only, no swipe yet. All taps = block attempt)
-                var blocked = beat.blockable !== false;
-                if (blocked) {
-                    // Successful block: brace anim, reduced damage
-                    var blockDmg = Math.round(beat.damage * (beat.blockMult || 0.3));
-                    setTimeout(function() {
-                        setAnimState(function(prev) {
-                            var n = Object.assign({}, prev);
-                            n[ctx.atkId] = "brace";
-                            return n;
-                        });
-                        BattleSFX.block();
-
-                        // Damage number (reduced)
-                        var el = combatantRefs.current[ctx.atkId];
-                        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                        if (el && sr) {
-                            var r = el.getBoundingClientRect();
-                            var cx = r.left - sr.left + r.width / 2;
-                            var cy = r.top - sr.top;
-                            spawnDamageNumber(blockDmg, cx, cy, "#60a5fa");
-                        }
-                    }, 60);
-
-                    // Clear brace
-                    setTimeout(function() {
-                        setAnimState(function(prev) {
-                            var n = Object.assign({}, prev);
-                            delete n[ctx.atkId];
-                            delete n[ctx.tgtId];
-                            return n;
-                        });
-                    }, 260);
-                } else {
-                    // Unblockable — tap doesn't help, full damage (V1: no swipe yet)
-                    setTimeout(function() {
-                        setFlashId(ctx.atkId);
-                        setAnimState(function(prev) {
-                            var n = Object.assign({}, prev);
-                            n[ctx.atkId] = "hit";
-                            return n;
-                        });
-                        if (beat.shake) {
-                            setShakeLevel(null);
-                            requestAnimationFrame(function() { setShakeLevel(beat.shake); });
-                        }
-
-                        var el = combatantRefs.current[ctx.atkId];
-                        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                        if (el && sr) {
-                            var r = el.getBoundingClientRect();
-                            var cx = r.left - sr.left + r.width / 2;
-                            var cy = r.top - sr.top;
-                            spawnDamageNumber(beat.damage, cx, cy, "#ef4444");
-                        }
-                        setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
-                    }, 60);
-
-                    setTimeout(function() {
-                        setAnimState(function(prev) {
-                            var n = Object.assign({}, prev);
-                            delete n[ctx.atkId];
-                            delete n[ctx.tgtId];
-                            return n;
-                        });
-                    }, 260);
+    // Helper: resolve a hit/block/miss on the receiver
+    function resolveHitOnReceiver(hit, beat, swinger, receiver, dmgColor) {
+        if (hit) {
+            // Tapped in time — check if blockable
+            var blocked = beat.blockable !== false;
+            if (blocked) {
+                var blockDmg = Math.round(beat.damage * (beat.blockMult || 0.3));
+                setAnimState(function(prev) {
+                    var n = Object.assign({}, prev);
+                    n[receiver] = "brace";
+                    return n;
+                });
+                BattleSFX.block();
+                var el = combatantRefs.current[receiver];
+                var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                if (el && sr) {
+                    var r = el.getBoundingClientRect();
+                    var cx = r.left - sr.left + r.width / 2;
+                    var cy = r.top - sr.top;
+                    spawnDamageNumber(blockDmg, cx, cy, "#60a5fa");
                 }
             } else {
-                // Miss — player failed to tap. Full damage, hit anim
-                setTimeout(function() {
-                    setFlashId(ctx.atkId);
-                    setAnimState(function(prev) {
-                        var n = Object.assign({}, prev);
-                        n[ctx.atkId] = "hit";
-                        return n;
-                    });
-                    if (beat.shake) {
-                        setShakeLevel(null);
-                        requestAnimationFrame(function() { setShakeLevel(beat.shake); });
-                    }
-
-                    var el = combatantRefs.current[ctx.atkId];
-                    var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                    if (el && sr) {
-                        var r = el.getBoundingClientRect();
-                        var cx = r.left - sr.left + r.width / 2;
-                        var cy = r.top - sr.top;
-                        spawnDamageNumber(beat.damage, cx, cy, "#ef4444");
-                    }
-                    setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
-                }, 60);
-
-                setTimeout(function() {
-                    setAnimState(function(prev) {
-                        var n = Object.assign({}, prev);
-                        delete n[ctx.atkId];
-                        delete n[ctx.tgtId];
-                        return n;
-                    });
-                }, 260);
+                // Unblockable — full damage even though they tapped
+                applyFullHit(beat, receiver, dmgColor);
             }
+        } else {
+            // Missed tap — full damage
+            applyFullHit(beat, receiver, dmgColor);
         }
     }
 
-    // Helper: activate a QTE — sets config with unique key for clean remount
-    function activateQTE(config, onResolve, context) {
-        qteKeyRef.current += 1;
-        qteResolveRef.current = onResolve;
-        qteContextRef.current = context || null;
-        setQteConfig(Object.assign({}, config, { _key: qteKeyRef.current }));
-    }
-
-    // ============================================================
-    // FULL EXCHANGE SEQUENCER (dev/prototype)
-    // Plays the complete exchange choreography with real QTE integration.
-    //
-    // Three chained stages:
-    //   startExchange()     — cam in → wind-up → activate attack QTE (skill-driven)
-    //   resolveAttack(res)  — per-beat damage already done → telegraph → defense QTE
-    //   resolveDefense(res) — per-beat damage already done → cam out → ATB
-    // ============================================================
-    function handleDevFullExchange() {
-        var atkId = attackerId;
-        var tgtId = targetId;
-
-        // Look up combatant data for skill references
-        var allData = TEST_PARTY.concat(TEST_ENEMIES);
-        var atkData = allData.find(function(c) { return c.id === atkId; });
-        var tgtData = allData.find(function(c) { return c.id === tgtId; });
-
-        // Pick first skill for now (action select will choose later)
-        var atkSkill = BattleSkills.getSkill(atkData && atkData.skills ? atkData.skills[0] : null);
-        if (!atkSkill) {
-            console.warn("[BattleView] No attack skill found for " + atkId);
-            return;
+    // Helper: full damage hit on receiver
+    function applyFullHit(beat, receiver, dmgColor) {
+        setFlashId(receiver);
+        setAnimState(function(prev) {
+            var n = Object.assign({}, prev);
+            n[receiver] = "hit";
+            return n;
+        });
+        if (beat.shake) {
+            setShakeLevel(null);
+            requestAnimationFrame(function() { setShakeLevel(beat.shake); });
         }
+        var el = combatantRefs.current[receiver];
+        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+        if (el && sr) {
+            var r = el.getBoundingClientRect();
+            var cx = r.left - sr.left + r.width / 2;
+            var cy = r.top - sr.top;
+            spawnDamageNumber(beat.damage, cx, cy, dmgColor);
+        }
+        setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+    }
+}
 
-        // ---- STAGE 1: CAM IN → WIND-UP → ATTACK QTE ----
-        setPhase(PHASES.ACTION_CAM_IN);
-        setAtbRunning(false);
+// Helper: activate a QTE — sets config with unique key for clean remount
+function activateQTE(config, onResolve, context) {
+    qteKeyRef.current += 1;
+    qteResolveRef.current = onResolve;
+    qteContextRef.current = context || null;
+    setQteConfig(Object.assign({}, config, { _key: qteKeyRef.current }));
+}
 
-        // Wind-up attacker after slide completes (350ms)
-        setTimeout(function() {
-            setAnimState(function(prev) { var n = Object.assign({}, prev); n[atkId] = "wind_up"; return n; });
-        }, 350);
+// ============================================================
+// IN-CAM EXCHANGE — Initiator/Responder Turn Loop
+//
+// startExchange(initiatorId, responderId)
+//   → cam in → camTurnStart (initiator first)
+//
+// camTurnStart(swingerId, receiverId)
+//   → check pips. No pips = pass to other side or cam out.
+//   → if enemy: auto-attack → camSwing
+//   → if player: V1 auto-attack → camSwing (TODO: show in-cam menu)
+//
+// camSwing(swingerId, receiverId, skill)
+//   → wind-up → QTE → hits land → camSwingDone
+//
+// camSwingDone()
+//   → swap sides → camTurnStart (other side)
+//   → if both sides have swung once (V1): cam out
+// ============================================================
 
-        // Enter QTE_ACTIVE phase and mount attack QTE with skill config
-        setTimeout(function() {
-            setPhase(PHASES.QTE_ACTIVE);
-            activateQTE(atkSkill, function(result) {
-                resolveAttack(result, atkId, tgtId, tgtData);
-            }, { mode: "attack", atkId: atkId, tgtId: tgtId, skill: atkSkill });
-        }, 400);
+function startExchange(initiatorId, responderId) {
+    camExchangeRef.current = {
+        initiatorId: initiatorId,
+        responderId: responderId,
+        swingCount: 0,          // how many swings have happened
+    };
+
+    setPhase(PHASES.ACTION_CAM_IN);
+    setAtbRunning(false);
+
+    // After cam slide, start first turn
+    setTimeout(function() {
+        camTurnStart(initiatorId, responderId);
+    }, ACTION_CAM.transitionInMs);
+}
+
+function camTurnStart(swingerId, receiverId) {
+    setPhase(PHASES.CAM_TURN_START);
+
+    // Clear lingering anims
+    setAnimState(function(prev) {
+        var n = Object.assign({}, prev);
+        delete n[swingerId];
+        delete n[receiverId];
+        return n;
+    });
+
+    // V1: both sides always attack once. Initiator first, responder second, then cam out.
+    // Future: check pips, show in-cam action menu, allow pass/defend/item.
+    var cam = camExchangeRef.current;
+    if (cam.swingCount >= 2) {
+        // Both sides have swung — cam out
+        camOut();
+        return;
     }
 
-    // ---- STAGE 2: RESOLVE ATTACK → TELEGRAPH → DEFENSE QTE ----
-    // Per-beat damage already happened in handleQTERingResult.
-    // This just transitions to the defense phase.
-    function resolveAttack(result, atkId, tgtId, tgtData) {
-        setPhase(PHASES.RESOLVING);
+    // Look up swinger's skill
+    var allData = TEST_PARTY.concat(TEST_ENEMIES);
+    var swingerData = allData.find(function(c) { return c.id === swingerId; });
+    var skill = BattleSkills.getSkill(swingerData && swingerData.skills ? swingerData.skills[0] : null);
 
-        // Clear any lingering anim states from last beat
-        setAnimState(function(prev) {
-            var n = Object.assign({}, prev);
-            delete n[atkId];
-            delete n[tgtId];
-            return n;
-        });
+    if (!skill) {
+        console.warn("[BattleView] No skill found for " + swingerId + ", skipping swing");
+        // Pass to other side or cam out
+        cam.swingCount += 1;
+        camTurnStart(receiverId, swingerId);
+        return;
+    }
 
-        // TELEGRAPH → DEFENSE QTE at +300ms
+    // Is this an enemy swinging? Telegraph first.
+    var swingerIsEnemy = TEST_ENEMIES.some(function(e) { return e.id === swingerId; });
+
+    if (swingerIsEnemy) {
+        // Telegraph → then swing
+        setPhase(PHASES.CAM_TELEGRAPH);
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[swingerId] = "telegraph"; return n; });
+
         setTimeout(function() {
-            setPhase(PHASES.ENEMY_TELEGRAPH);
-            setAnimState(function(prev) { var n = Object.assign({}, prev); n[tgtId] = "telegraph"; return n; });
+            camSwing(swingerId, receiverId, skill);
+        }, CHOREOGRAPHY.telegraphMs);
+    } else {
+        // Player: wind-up → swing
+        setAnimState(function(prev) { var n = Object.assign({}, prev); n[swingerId] = "wind_up"; return n; });
 
-            // Pick enemy's defense skill (first skill for now)
-            var defSkill = BattleSkills.getSkill(tgtData && tgtData.skills ? tgtData.skills[0] : null);
-            if (!defSkill) {
-                console.warn("[BattleView] No defense skill found for " + tgtId + ", skipping defense QTE");
-                // Jump straight to cam out
-                setTimeout(function() { camOut(atkId, tgtId); }, 300);
-                return;
+        setTimeout(function() {
+            camSwing(swingerId, receiverId, skill);
+        }, CHOREOGRAPHY.windUpMs);
+    }
+}
+
+function camSwing(swingerId, receiverId, skill) {
+    setPhase(PHASES.CAM_SWING);
+
+    activateQTE(skill, function(result) {
+        camSwingDone(swingerId, receiverId);
+    }, { swingerId: swingerId, receiverId: receiverId, skill: skill });
+}
+
+function camSwingDone(swingerId, receiverId) {
+    var cam = camExchangeRef.current;
+    cam.swingCount += 1;
+
+    setPhase(PHASES.CAM_RESOLVE);
+
+    // Clear anims
+    setAnimState(function(prev) {
+        var n = Object.assign({}, prev);
+        delete n[swingerId];
+        delete n[receiverId];
+        return n;
+    });
+
+    // Brief pause, then swap sides
+    setTimeout(function() {
+        camTurnStart(receiverId, swingerId);
+    }, EXCHANGE.resolveHoldMs);
+}
+
+function camOut() {
+    setPhase(PHASES.ACTION_CAM_OUT);
+    var cam = camExchangeRef.current;
+    var initiatorId = cam ? cam.initiatorId : null;
+
+    setTimeout(function() {
+        setAnimState({});
+        camExchangeRef.current = null;
+
+        // Reset initiator's pips (turn over — pips lost per spec)
+        var resetState = initiatorId
+            ? BattleATB.reset(atbValuesRef.current, initiatorId)
+            : atbValuesRef.current;
+        setAtbValues(resetState);
+        setTurnOwnerId(null);
+        setTargetId(TEST_ENEMIES[0].id);
+
+        // Check if anyone is already at max pips
+        var allCombatants = TEST_PARTY.concat(TEST_ENEMIES);
+        var alreadyReady = BattleATB.checkReady(resetState, allCombatants);
+
+        if (alreadyReady) {
+            var isPartyMember = TEST_PARTY.some(function(p) { return p.id === alreadyReady; });
+            setTurnOwnerId(alreadyReady);
+
+            if (isPartyMember) {
+                setPhase(PHASES.ACTION_SELECT);
+            } else {
+                var enemyTgt = TEST_PARTY[0].id;
+                setTargetId(enemyTgt);
+                setPhase(PHASES.ATB_RUNNING);
+                startExchange(alreadyReady, enemyTgt);
             }
-
-            // After telegraph, activate defense QTE with skill config
-            setTimeout(function() {
-                setPhase(PHASES.DEFENSE_QTE);
-                activateQTE(defSkill, function(defResult) {
-                    resolveDefense(defResult, atkId, tgtId);
-                }, { mode: "defense", atkId: atkId, tgtId: tgtId, skill: defSkill });
-            }, CHOREOGRAPHY.telegraphMs);
-        }, 300);
-    }
-
-    // ---- STAGE 3: RESOLVE DEFENSE → CAM OUT → ATB ----
-    // Per-beat damage already happened in handleQTERingResult.
-    // This just plays cam-out and resumes ATB.
-    function resolveDefense(result, atkId, tgtId) {
-        setPhase(PHASES.RESOLVING);
-
-        // Clear any lingering anim states
-        setAnimState(function(prev) {
-            var n = Object.assign({}, prev);
-            delete n[atkId];
-            delete n[tgtId];
-            return n;
-        });
-
-        // Short pause then cam out
-        setTimeout(function() { camOut(atkId, tgtId); }, 200);
-    }
-
-    // ---- CAM OUT → ATB RESUME (shared) ----
-    function camOut(atkId, tgtId) {
-        setPhase(PHASES.ACTION_CAM_OUT);
-
-        // Back to ATB after transition
-        setTimeout(function() {
+        } else {
             setPhase(PHASES.ATB_RUNNING);
-            setAnimState({});
             setAtbRunning(true);
-        }, ACTION_CAM.transitionOutMs);
-    }
-
-    // --- Action handler ---
-    function handleAction(actionId) {
-        if (actionId === "flee" && onExit) {
-            onExit();
-        } else if (actionId === "attack") {
-            setPhase(PHASES.ACTION_CAM_IN);
         }
+    }, ACTION_CAM.transitionOutMs);
+}
+
+// Dev shortcut — starts exchange with current attacker/target selection
+function handleDevFullExchange() {
+    var atkId = turnOwnerId || attackerId;
+    startExchange(atkId, targetId);
+}
+
+// --- Action handler (formation-view menu) ---
+function handleAction(actionId) {
+    if (actionId === "flee" && onExit) {
+        onExit();
+    } else if (actionId === "attack") {
+        var atkId = turnOwnerId || attackerId;
+        startExchange(atkId, targetId);
     }
+    // TODO: defend, item, pass — spend pip, stay in formation view
+}
 
-    // --- Render ---
-    // Bottom zone order: right-handed = open|ATB|actions, left-handed = actions|ATB|open
-    var bottomStyle = isLeftHanded ? { flexDirection: "row-reverse" } : {};
+// --- Render ---
+// Bottom zone order: right-handed = open|ATB|actions, left-handed = actions|ATB|open
+var bottomStyle = isLeftHanded ? { flexDirection: "row-reverse" } : {};
 
-    var sceneCls = "battle-scene" + (shakeLevel ? " battle-scene--shake-" + shakeLevel : "");
+var sceneCls = "battle-scene" + (shakeLevel ? " battle-scene--shake-" + shakeLevel : "");
 
-    return (
-        <div className="battle-root" style={LAYOUT_VARS}>
-            {/* === SCENE ZONE === */}
-            <div
-                className={sceneCls}
-                ref={sceneRef}
-                onAnimationEnd={function() { setShakeLevel(null); }}
-            >
-                <span className="battle-scene-zoneName">{zoneName}</span>
-                <span className="battle-scene-waveLabel">{waveLabel}</span>
+return (
+    <div className="battle-root" style={LAYOUT_VARS}>
+        {/* === SCENE ZONE === */}
+        <div
+            className={sceneCls}
+            ref={sceneRef}
+            onAnimationEnd={function() { setShakeLevel(null); }}
+        >
+            <span className="battle-scene-zoneName">{zoneName}</span>
+            <span className="battle-scene-waveLabel">{waveLabel}</span>
 
-                {/* Enemy formation (left) */}
-                <div className="battle-formation battle-formation--enemy">
-                    {TEST_ENEMIES.map(function(e, idx) {
-                        return (
-                            <BattleCharacter
-                                key={e.id}
-                                data={e}
-                                isParty={false}
-                                index={idx}
-                                phase={phase}
-                                attackerId={attackerId}
-                                targetId={targetId}
-                                sceneRect={isActionCam ? sceneRect : null}
-                                restingRects={restingRectsRef.current}
-                                setRef={makeRefSetter(e.id)}
-                                onClick={function() { setTargetId(e.id); }}
-                                spriteFrame={spriteFrame}
-                                flashId={flashId}
-                                animState={animState}
-                                isLeftHanded={isLeftHanded}
-                            />
-                        );
-                    })}
-                </div>
-
-                {/* Party formation (right) */}
-                <div className="battle-formation battle-formation--party">
-                    {TEST_PARTY.map(function(p) {
-                        return (
-                            <BattleCharacter
-                                key={p.id}
-                                data={p}
-                                isParty={true}
-                                spriteOverride={devSpriteOverride}
-                                phase={phase}
-                                attackerId={attackerId}
-                                targetId={targetId}
-                                sceneRect={isActionCam ? sceneRect : null}
-                                restingRects={restingRectsRef.current}
-                                setRef={makeRefSetter(p.id)}
-                                spriteFrame={spriteFrame}
-                                flashId={flashId}
-                                animState={animState}
-                                isLeftHanded={isLeftHanded}
-                            />
-                        );
-                    })}
-                </div>
-
-                {/* Clash spark */}
-                <span className={"battle-spark" + (showSpark ? " battle-spark--visible" : "")}>
-                    {"\u2694\uFE0F"}
-                </span>
-
-                {/* Action cam pixel frame */}
-                <div className={"battle-cam-frame" + (isActionCam ? " battle-cam-frame--visible" : "")} />
-
-                {/* Damage numbers */}
-                {damageNumbers.map(function(d) {
-                    return <DamageNumber key={d.key} value={d.value} x={d.x} y={d.y} color={d.color} />;
+            {/* Enemy formation (left) */}
+            <div className="battle-formation battle-formation--enemy">
+                {TEST_ENEMIES.map(function(e, idx) {
+                    return (
+                        <BattleCharacter
+                            key={e.id}
+                            data={e}
+                            isParty={false}
+                            index={idx}
+                            phase={phase}
+                            attackerId={activeAtkId}
+                            targetId={targetId}
+                            sceneRect={isActionCam ? sceneRect : null}
+                            restingRects={restingRectsRef.current}
+                            setRef={makeRefSetter(e.id)}
+                            onClick={function() { setTargetId(e.id); }}
+                            spriteFrame={spriteFrame}
+                            flashId={flashId}
+                            animState={animState}
+                            isLeftHanded={isLeftHanded}
+                        />
+                    );
                 })}
             </div>
 
-            {/* Action cam info — pinned to scene edges, lives outside
-                shake container so screen shake doesn't rattle the panels */}
-            <ActionCamInfoPanel
-                visible={isActionCam}
-                attacker={attackerData}
-                target={targetData}
-                isLeftHanded={isLeftHanded}
-            />
-
-            {/* === BOTTOM ZONE === */}
-            <div className="battle-bottom" style={bottomStyle}>
-
-                {/* Open real estate */}
-                <div className="battle-open">
-                    <span className="battle-open__label">open real estate</span>
-                    <span className="battle-open__label">buffs / status</span>
-                </div>
-
-                {/* ATB gauges */}
-                <ATBGaugeStrip
-                    combatants={allCombatants}
-                    hidden={isActionCam}
-                />
-
-                {/* Action menu */}
-                <ActionMenu
-                    hidden={isActionCam}
-                    onAction={handleAction}
-                />
-
-                {/* QTE zone — real QTE plugin via QTERunner */}
-                {showQTE && (
-                    <div
-                        className={"battle-qte battle-qte--visible"}
-                        style={isLeftHanded
-                            ? { left: "var(--battle-actions-w)", right: "var(--battle-open-w)" }
-                            : { left: "var(--battle-open-w)", right: "var(--battle-actions-w)" }
-                        }
-                    >
-                        <QTERunner
-                            qteConfig={qteConfig}
-                            onComplete={handleQTEComplete}
-                            onRingResult={handleQTERingResult}
+            {/* Party formation (right) */}
+            <div className="battle-formation battle-formation--party">
+                {TEST_PARTY.map(function(p) {
+                    return (
+                        <BattleCharacter
+                            key={p.id}
+                            data={p}
+                            isParty={true}
+                            spriteOverride={devSpriteOverride}
+                            phase={phase}
+                            attackerId={activeAtkId}
+                            targetId={targetId}
+                            sceneRect={isActionCam ? sceneRect : null}
+                            restingRects={restingRectsRef.current}
+                            setRef={makeRefSetter(p.id)}
+                            spriteFrame={spriteFrame}
+                            flashId={flashId}
+                            animState={animState}
+                            isLeftHanded={isLeftHanded}
                         />
-                    </div>
-                )}
-
-                {/* Comic panel (replaces action zone visually during action cam) */}
-                <ComicPanel
-                    visible={showComic}
-                    sprite={null}
-                    name={TEST_PARTY[1].name}
-                    line={comicLine}
-                    isLeftHanded={isLeftHanded}
-                />
+                    );
+                })}
             </div>
 
-            {/* === DEV CONTROLS === */}
-            <DevControls
-                phase={phase}
-                targetId={targetId}
-                attackerId={attackerId}
-                enemies={TEST_ENEMIES}
-                atbRunning={atbRunning}
-                spriteOverride={devSpriteOverride}
-                onSetPhase={handleDevSetPhase}
-                onSetTarget={handleDevSetTarget}
-                onToggleATB={handleDevToggleATB}
-                onSpriteOverride={setDevSpriteOverride}
-                onAtkSeq={handleDevAtkSequence}
-                onKO={handleDevKO}
-                onExchange={handleDevFullExchange}
-                comicOn={devShowComic}
-                onToggleComic={function() { setDevShowComic(function(v) { return !v; }); }}
-                onExit={onExit}
+            {/* Clash spark */}
+            <span className={"battle-spark" + (showSpark ? " battle-spark--visible" : "")}>
+                    {"\u2694\uFE0F"}
+                </span>
+
+            {/* Action cam pixel frame */}
+            <div className={"battle-cam-frame" + (isActionCam ? " battle-cam-frame--visible" : "")} />
+
+            {/* Damage numbers */}
+            {damageNumbers.map(function(d) {
+                return <DamageNumber key={d.key} value={d.value} x={d.x} y={d.y} color={d.color} />;
+            })}
+        </div>
+
+        {/* Action cam info — pinned to scene edges, lives outside
+                shake container so screen shake doesn't rattle the panels */}
+        <ActionCamInfoPanel
+            visible={isActionCam}
+            attacker={attackerData}
+            target={targetData}
+            isLeftHanded={isLeftHanded}
+        />
+
+        {/* === BOTTOM ZONE === */}
+        <div className="battle-bottom" style={bottomStyle}>
+
+            {/* Open real estate */}
+            <div className="battle-open">
+                <span className="battle-open__label">open real estate</span>
+                <span className="battle-open__label">buffs / status</span>
+            </div>
+
+            {/* ATB gauges */}
+            <ATBGaugeStrip
+                combatants={allCombatants}
+                hidden={isActionCam}
+            />
+
+            {/* Action menu */}
+            <ActionMenu
+                hidden={isActionCam}
+                onAction={handleAction}
+            />
+
+            {/* QTE zone — real QTE plugin via QTERunner */}
+            {showQTE && (
+                <div
+                    className={"battle-qte battle-qte--visible"}
+                    style={isLeftHanded
+                        ? { left: "var(--battle-actions-w)", right: "var(--battle-open-w)" }
+                        : { left: "var(--battle-open-w)", right: "var(--battle-actions-w)" }
+                    }
+                >
+                    <QTERunner
+                        qteConfig={qteConfig}
+                        onComplete={handleQTEComplete}
+                        onRingResult={handleQTERingResult}
+                    />
+                </div>
+            )}
+
+            {/* Comic panel (replaces action zone visually during action cam) */}
+            <ComicPanel
+                visible={showComic}
+                sprite={null}
+                name={TEST_PARTY[1].name}
+                line={comicLine}
+                isLeftHanded={isLeftHanded}
             />
         </div>
-    );
+
+        {/* === DEV CONTROLS === */}
+        <DevControls
+            phase={phase}
+            targetId={targetId}
+            attackerId={activeAtkId}
+            enemies={TEST_ENEMIES}
+            atbRunning={atbRunning}
+            spriteOverride={devSpriteOverride}
+            onSetPhase={handleDevSetPhase}
+            onSetTarget={handleDevSetTarget}
+            onToggleATB={handleDevToggleATB}
+            onFillPips={handleDevFillPips}
+            onSpriteOverride={setDevSpriteOverride}
+            onAtkSeq={handleDevAtkSequence}
+            onKO={handleDevKO}
+            onExchange={handleDevFullExchange}
+            comicOn={devShowComic}
+            onToggleComic={function() { setDevShowComic(function(v) { return !v; }); }}
+            onExit={onExit}
+        />
+    </div>
+);
 }
 
 // ============================================================

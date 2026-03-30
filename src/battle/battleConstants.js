@@ -23,7 +23,7 @@ var BATTLE_TRANSITION = {
 // --- ATB / Pip Config ---
 var ATB = {
     pipsPerCombatant:   3,          // everyone gets 3 pips
-    pipFillMs:          2000,       // base ms to fill one pip at speed 1.0 (actual = pipFillMs / atbSpeed)
+    pipFillMs:          350,       // base ms to fill one pip at speed 1.0 (actual = pipFillMs / atbSpeed)
     resumeEaseMs:       400,        // soft ease-in on ATB resume after action cam
     freezeGlobal:       true,       // all ATB freezes when anyone is acting (cam or out-of-cam)
 };
@@ -176,13 +176,14 @@ var TEST_ENEMIES = [
 // --- Battle Phases ---
 var BATTLE_PHASES = {
     ATB_RUNNING:      "atb_running",
-    ACTION_SELECT:    "action_select",
-    ACTION_CAM_IN:    "action_cam_in",
-    QTE_ACTIVE:       "qte_active",
-    RESOLVING:        "resolving",
-    ENEMY_TELEGRAPH:  "enemy_telegraph",
-    DEFENSE_QTE:      "defense_qte",
-    ACTION_CAM_OUT:   "action_cam_out",
+    ACTION_SELECT:    "action_select",       // formation-view: party member picks action
+    ACTION_CAM_IN:    "action_cam_in",       // sliding combatants to center stage
+    CAM_TURN_START:   "cam_turn_start",      // determine whose swing, check pips
+    CAM_WAIT_ACTION:  "cam_wait_action",     // player: show in-cam menu. enemy: auto-pick
+    CAM_TELEGRAPH:    "cam_telegraph",       // enemy wind-up glow before their swing
+    CAM_SWING:        "cam_swing",           // QTE active — active swinger hits other side
+    CAM_RESOLVE:      "cam_resolve",         // brief pause after swing before next turn
+    ACTION_CAM_OUT:   "action_cam_out",      // sliding back to formation
 };
 
 // --- Choreography Config (anim states, hit reactions, screen FX) ---

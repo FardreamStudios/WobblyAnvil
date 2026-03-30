@@ -552,26 +552,64 @@
     opacity: 0.5;
 }
 
+/* Pip bar container — holds 3 segments side by side */
 .battle-atb__bar-bg {
     flex: 1;
     height: var(--battle-atb-bar-h, 0.9vh);
-    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    gap: 2px;
     border-radius: 4px;
-    overflow: hidden;
 }
 
-.battle-atb__bar-fill {
+/* Ready glow when all pips filled */
+.battle-atb__bar-bg--ready {
+    filter: brightness(1.4);
+    animation: atbReadyPulse 600ms ease-in-out infinite alternate;
+}
+
+@keyframes atbReadyPulse {
+    0%   { filter: brightness(1.2); }
+    100% { filter: brightness(1.6); }
+}
+
+/* Individual pip segment */
+.battle-atb__pip {
+    flex: 1;
     height: 100%;
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Pip fill bar inside each segment */
+.battle-atb__pip-fill {
+    height: 100%;
+    border-radius: 2px;
     transition: width 80ms linear;
 }
 
-.battle-atb__bar-fill--party {
+/* Full pip — bright solid */
+.battle-atb__pip--full .battle-atb__pip-fill {
+    width: 100% !important;
+}
+
+/* Party pip color */
+.battle-atb__pip--party .battle-atb__pip-fill {
     background: #60a5fa;
 }
 
-.battle-atb__bar-fill--enemy {
+.battle-atb__pip--party.battle-atb__pip--full {
+    background: rgba(96, 165, 250, 0.2);
+}
+
+/* Enemy pip color */
+.battle-atb__pip--enemy .battle-atb__pip-fill {
     background: #fb923c;
+}
+
+.battle-atb__pip--enemy.battle-atb__pip--full {
+    background: rgba(251, 146, 60, 0.2);
 }
 
 /* --- Action Menu (right, 2x2 grid) --- */
