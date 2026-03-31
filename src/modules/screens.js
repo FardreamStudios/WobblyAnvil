@@ -9,6 +9,7 @@ import GameConstants from "./constants.js";
 import UIComponents from "./uiComponents.js";
 import HowToPlay from "../components/HowToPlay.js";
 import FairyAnimInstance from "../fairy/FairyAnimInstance";
+import AdventureButton from "../components/AdventureButton.js";
 
 var SectionLabel = UIComponents.SectionLabel;
 
@@ -20,7 +21,7 @@ var MENU_BG = PUB + "/images/menu/menuBg.png";
 // Falls back to solid dark if image is missing. Vignette overlay ensures
 // text readability regardless of art.
 
-function MainMenu({ onStart, sfx, audioReady, onAudioWarmup }) {
+function MainMenu({ onStart, onEnterAdventure, sfx, audioReady, onAudioWarmup }) {
     var [flicker, setFlicker] = useState(false);
     var [showHtp, setShowHtp] = useState(false);
     var [flashing, setFlashing] = useState(false);
@@ -107,6 +108,7 @@ function MainMenu({ onStart, sfx, audioReady, onAudioWarmup }) {
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
                             <button onClick={function() { sfx.click(); onStart(); }} style={{ background: "#2a1f0a", border: "3px solid #f59e0b", borderRadius: 10, color: "#f59e0b", padding: "16px 80px", fontSize: 18, cursor: "pointer", letterSpacing: 4, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", opacity: flicker ? 1 : 0.82, transition: "opacity 0.4s", textShadow: "0 1px 6px rgba(245,158,11,0.2)" }}>BEGIN JOURNEY</button>
                             <button onClick={function() { sfx.click(); openHtp(); }} style={{ background: "rgba(20,16,9,0.8)", border: "2px solid " + (flashing ? "#f59e0b" : "#3d2e0f"), borderRadius: 8, color: flashing ? "#f59e0b" : "#5a4a38", padding: "8px 24px", fontSize: 12, cursor: "pointer", letterSpacing: 3, textTransform: "uppercase", fontFamily: "monospace", fontWeight: "bold", transition: "border-color 0.4s, color 0.4s", display: "flex", alignItems: "center", gap: 6 }}><img src={PUB + "/images/icons/waIconExclamation.png"} alt="" style={{ width: 14, height: "auto", imageRendering: "pixelated", opacity: flashing ? 1 : 0.5 }} /> HOW TO PLAY</button>
+                            <AdventureButton onEnterAdventure={onEnterAdventure} sfx={sfx} />
                         </div>
                     ) : (
                         <div style={{ fontSize: 13, letterSpacing: 4, color: pulse ? "#f59e0b" : "#5a4a38", transition: "color 0.4s", fontWeight: "bold", cursor: "pointer" }}>{"\u2014 CLICK ANYWHERE TO ENTER \u2014"}</div>
