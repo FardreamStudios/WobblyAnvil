@@ -256,7 +256,9 @@ var BATTLE_PHASES = {
     CAM_TURN_START:   "cam_turn_start",      // determine whose swing, check pips
     CAM_WAIT_ACTION:  "cam_wait_action",     // player: show in-cam menu. enemy: auto-pick
     CAM_TELEGRAPH:    "cam_telegraph",       // enemy wind-up glow before their swing
-    CAM_SWING:        "cam_swing",           // QTE active — active swinger hits other side
+    CAM_SWING:        "cam_swing",           // QTE active — active swinger hits other side (legacy, kept for compat)
+    CAM_SWING_QTE:    "cam_swing_qte",       // front-loaded Chalkboard: all offense checks before choreography
+    CAM_SWING_PLAYBACK: "cam_swing_playback", // cinematic playback driven by results array (offense + defense windows)
     CAM_RESOLVE:      "cam_resolve",         // brief pause after swing before next turn
     ACTION_CAM_OUT:   "action_cam_out",      // sliding back to formation
     BATTLE_ENDING:    "battle_ending",       // KO wipe detected — freeze, hold, exit
@@ -340,6 +342,31 @@ var COMBO = {
     counterOffsetY:     -35,        // px above normal damage number position
     multipliedColor:    "#ff6b2b",  // orange for multiplier-boosted damage
 };
+// --- QTE Difficulty Presets (Offense) ---
+// Single source of truth for offense QTE zone sizing and scoring.
+// hitZone:     fraction of indicator travel that counts as "good" or better (all 3 check types)
+// perfectZone: fraction of hitZone that counts as "perfect" (subset of hitZone)
+// damageMap:   multipliers applied to beat.damage based on result tier
+var QTE_DIFFICULTY = {
+    easy:   { hitZone: 0.20, perfectZone: 0.06, damageMap: { perfect: 1.3, good: 1.0, miss: 0.5 } },
+    normal: { hitZone: 0.15, perfectZone: 0.04, damageMap: { perfect: 1.5, good: 1.0, miss: 0.3 } },
+    hard:   { hitZone: 0.10, perfectZone: 0.03, damageMap: { perfect: 1.8, good: 1.0, miss: 0.2 } },
+    boss:   { hitZone: 0.08, perfectZone: 0.02, damageMap: { perfect: 2.0, good: 1.0, miss: 0.1 } },
+};
+
+// --- Defense Timing Constants ---
+// Strike anchor = frame-zero of enemy strike lunge. All windows are ±ms from anchor.
+var DEFENSE_TIMING = {
+    bracePerfectMs:   60,       // ±ms from strike anchor for perfect brace
+    braceGoodMs:      175,      // ±ms from strike anchor for good brace
+    dodgePassMs:      250,      // ±ms from strike anchor for dodge
+    inputCooldownMs:  150,      // lockout after input registers before next beat
+    bracePerfectMult: 0.0,      // damage multiplier — perfect negates all
+    braceGoodMult:    0.25,     // damage multiplier — good brace reduces
+    dodgePassMult:    0.0,      // damage multiplier — dodge negates all
+    failMult:         1.0,      // full damage on miss
+};
+
 // Effect types V1: heal, buff, debuff_enemy, damage.
 // Host maps inventory into this shape for BattleConfig.
 var BATTLE_ITEMS = [
@@ -376,6 +403,8 @@ var BattleConstants = {
     COMBO: COMBO,
     RESULTS_SCREEN: RESULTS_SCREEN,
     SELECTION: SELECTION,
+    QTE_DIFFICULTY: QTE_DIFFICULTY,
+    DEFENSE_TIMING: DEFENSE_TIMING,
 };
 
 export default BattleConstants;
