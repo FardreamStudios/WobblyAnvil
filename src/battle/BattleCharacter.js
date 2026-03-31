@@ -97,7 +97,7 @@ function BattleCharacter(props) {
     if ((isAttacker || isTarget) && props.sceneRect && props.restingRects) {
         var sr = props.sceneRect;
         var cx = sr.width / 2;
-        var cy = sr.height / 2;
+        var cy = sr.height / 2 + sr.height * 0.18;
         var cached = props.restingRects[c.id];
         if (cached) {
             var gap = sr.width * 0.08;

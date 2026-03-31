@@ -83,6 +83,7 @@ COMIC_LINES[PHASES.ACTION_CAM_OUT]   = "Not bad!";
 // CSS Custom Properties — driven from LAYOUT constants
 // Applied as inline style on .battle-root
 // ============================================================
+var PUB = process.env.PUBLIC_URL || "";
 var LAYOUT_VARS = {
     "--battle-open-w":      LAYOUT.openW,
     "--battle-actions-w":   LAYOUT.actionsW,
@@ -93,6 +94,7 @@ var LAYOUT_VARS = {
     "--battle-atb-bar-h":   LAYOUT.atbBarH,
     "--battle-atb-label-w": LAYOUT.atbLabelW,
     "--battle-sprite-size": LAYOUT.spriteSize,
+    "--battle-scene-bg":    "url(" + PUB + "/images/scenes/waSceneSewer.png)",
 };
 
 // ============================================================

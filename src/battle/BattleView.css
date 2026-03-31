@@ -15,7 +15,11 @@
     inset: 0;
     display: flex;
     flex-direction: column;
-    background: #0a0704;
+    background-color: #0a0704;
+    background-image: var(--battle-scene-bg);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     overflow: hidden;
     font-family: monospace;
     color: #e0d8c8;
@@ -46,12 +50,41 @@
 /* Lift scene + bottom above the blackout overlay during cam */
 .battle-root--cam .battle-scene {
     z-index: 7;
-    background: #000;
 }
 .battle-root--cam .battle-bottom {
     z-index: 7;
     background: #000;
     border-top-color: transparent;
+}
+.battle-root--cam .battle-bottom > * {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+.battle-root--cam .battle-bottom > .battle-qte--visible {
+    opacity: 1;
+    pointer-events: auto;
+    /* Full-screen touch target during action cam */
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    /* Kill the tint — vignette handles atmosphere */
+    background: transparent;
+    /* Anchor ring visuals to bottom-right for thumb reach */
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 0 8vw 12vh 0;
+}
+/* Cap QTE visual size in action cam — don't fill the screen */
+.battle-root--cam .battle-qte--visible > div {
+    max-width: 15vw;
+    max-height: 15vw;
+}
+.battle-root--cam .battle-item-submenu,
+.battle-root--cam .battle-skill-submenu {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 50;
 }
 
 /* ============================================================
@@ -61,12 +94,11 @@
     flex: var(--battle-scene-flex, 1.8);
     position: relative;
     overflow: hidden;
-    background:
-            radial-gradient(ellipse 80% 60% at 50% 80%, rgba(30, 20, 50, 0.4) 0%, transparent 70%),
-            linear-gradient(180deg, #0d0b08 0%, #1a1a2e 40%, #12101a 70%, #0d0b08 100%);
+    background: transparent;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    gap: 12vw;
     padding: 2vh 4vw;
 }
 
@@ -518,6 +550,7 @@
     font-weight: bold;
     letter-spacing: 1px;
     text-transform: uppercase;
+    display: none;
 }
 
 /* --- HP Bar --- */
@@ -580,10 +613,10 @@
     position: absolute;
     inset: 0;
     box-shadow:
-            inset 0 0 0 4px #0a0704,
-            inset 0 0 0 6px #1a1408,
-            inset 0 0 0 8px #2a2010,
-            inset 0 0 0 10px #0a0704;
+            inset 0 0 0 4px #000,
+            inset 0 0 0 6px #000,
+            inset 0 0 0 8px #000,
+            inset 0 0 0 10px #000;
 }
 
 /* Dark vignette corners to focus attention on center stage */
@@ -592,7 +625,7 @@
     position: absolute;
     inset: 0;
     background:
-            radial-gradient(ellipse 70% 65% at 50% 50%, transparent 40%, rgba(10, 7, 4, 0.85) 100%);
+            radial-gradient(ellipse 70% 65% at 50% 50%, transparent 40%, #000 100%);
 }
 
 /* --- Action Cam Info — name/HP pinned to scene edges --- */
@@ -720,7 +753,10 @@
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     position: relative;
     min-height: 0;
-    background: #0a0704;
+    background: rgba(10, 7, 4, 0.85);
+}
+.battle-bottom > * {
+    transition: opacity 0.35s ease;
 }
 
 /* --- Open Real Estate (left) --- */
@@ -888,7 +924,7 @@
     pointer-events: none;
     transition: opacity 0.4s ease;
     background: rgba(0, 0, 0, 0.55);
-    z-index: 5;
+    z-index: 15;
 }
 
 .battle-qte--visible {
