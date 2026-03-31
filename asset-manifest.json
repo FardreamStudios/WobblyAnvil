@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/WobblyAnvil/static/css/main.f0f8486f.css",
-    "main.js": "/WobblyAnvil/static/js/main.c7524924.js",
+    "main.css": "/WobblyAnvil/static/css/main.e5f6d166.css",
+    "main.js": "/WobblyAnvil/static/js/main.33f82841.js",
     "index.html": "/WobblyAnvil/index.html",
-    "main.f0f8486f.css.map": "/WobblyAnvil/static/css/main.f0f8486f.css.map",
-    "main.c7524924.js.map": "/WobblyAnvil/static/js/main.c7524924.js.map"
+    "main.e5f6d166.css.map": "/WobblyAnvil/static/css/main.e5f6d166.css.map",
+    "main.33f82841.js.map": "/WobblyAnvil/static/js/main.33f82841.js.map"
   },
   "entrypoints": [
-    "static/css/main.f0f8486f.css",
-    "static/js/main.c7524924.js"
+    "static/css/main.e5f6d166.css",
+    "static/js/main.33f82841.js"
   ]
 }
