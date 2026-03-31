@@ -1,52 +1,75 @@
 # Wobbly Anvil — ToDo
 
 **Last updated:** 2026-03-30
-**Last session:** Combo Beat Steps 3–8 + Dev Cleanup + ATB Bug Fix
+**Last session:** Wave Transitions + Enemy AI + Flurry Combo + Cleanup
 
 ---
 
 ## ✅ Recently Completed
 
-### Combo Beat Steps (all 8 done)
-- **Step 1:** Skill definitions in `battleSkills.js` — `basic_attack`, `power_strike`, `rat_bite`, `scavenger_combo`, `trash_golem_slam`
-- **Step 2:** `handleQTERingResult` reads beats from context
-- **Step 3:** Summary damage number — one number per combo, not per-beat. `summaryDmgRef` accumulates, spawns on `isLastBeat`. OVERKILL still per-beat.
-- **Step 4:** Swipe detection in `circleTimingQTE.js` — touchstart/touchend, ≥30px = swipe, ≤15px = tap, `touch-action: none` on QTE zone
-- **Step 5:** `onRingResult(index, hit, inputType)` — `"tap"`, `"swipe"`, or `"auto_miss"`
-- **Step 6:** Tap vs swipe defense logic — swipe+dodgeable → dodge (0 dmg), tap+blockable → brace (×0.25), tap+unblockable → full hit
-- **Step 7:** Dodge CSS class — `.normal-cam-char__choreo--dodge`, 5vw lateral shift, slight hop, 60% opacity
-- **Step 8:** Unblockable visual tells — `beatVisuals` array, red rings (`#ef4444`), red "!" indicator, finisher = thicker stroke
+### Dead Code Cleanup
+- Deleted `QTEZone.js` — dead placeholder component, QTE renders via `QTERunner` directly
+- Removed `spriteOverride` prop from `BattleCharacter.js` — nothing passed it
+- Removed dead `QTEZone` import from `BattleView.js`
 
-### Dev Controls Cleanup
-- 12 buttons → 4: Fight/Pause, Fill Pips, Reset, Exit + phase badge
-- New `handleDevReset()` — full battle state reinit
-- Removed: `devSpriteOverride`, `devShowComic`, 6 dead handler functions
-- BattleView.js -55 lines
+### Choreography Step 12 — Confirmed Complete
+- `combatSyncMove` keyframe already handles full pull-back → snap → return per ring
+- `--telegraph-duration` CSS var matches ring shrink time
+- `onRingStart` restarts anim via reflow trick for multi-ring combos
 
-### BattleView.js Extraction (prior session)
-- 2080 → ~1530 lines. 11 files extracted to `src/battle/`
-- `BattleCharacter.js`, `BattleResultsScreen.js`, `DevControls.js`, `ATBGaugeStrip.js`, `ActionMenu.js`, `ItemSubmenu.js`, `QTEZone.js`, `ComicPanel.js`, `ActionCamInfoPanel.js` + CSS files
+### Wave Transitions
+- `WAVE_TRANSITION` phase added to `BATTLE_PHASES`
+- `TEST_WAVES` — 2-wave test data in `battleConstants.js`
+- `replaceEnemies(newEnemyArray)` method on `battleState.js`
+- `advanceOrCamOut` wave-aware: enemy wipe + more waves → `startWaveTransition()`, last wave → victory
+- Wave banner overlay with fade-in/hold/fade-out animation
+- Party HP/buffs/items carry across waves, enemy ATB fresh per wave
+- `waveLabel` derived from `waveIndex` state (no longer a static prop)
+- Dev Reset resets wave tracking back to wave 1
 
-### Bug Fixes
-- **ATB KO fix** — dead combatants filtered out of `BattleATB.tick` input, gauges stop filling on death
+### Enemy AI System
+- New file: `battleAI.js` — `pickAction(combatantData, bState)` returns `{ targetId, skillId }`
+- Random living party target + random skill from combatant's skill list
+- Wired into both ATB tick enemy turn and `camOut` alreadyReady path
+- `startExchange` accepts optional `skillId`, stored on cam exchange ref
+- `handleCamATK` uses AI-selected skill for enemies, picks fresh skill for next swing
 
-### Choreography (steps 1–11, 13–15 complete)
-- Full list in `ScavengeBattleSpecs.md` §16
+### Enemy Auto-Swing
+- `useEffect` on `CAM_WAIT_ACTION` — auto-fires `handleCamATK` after 300ms when swinger is enemy
+- No more manual enemy ATK button pressing needed
 
-### Addendum Deferred to V2
-- Pip persistence, exchange restructure, Block replacing Defend, Poise & Stagger
-- `ScavengeBattleSpecsRevisionAddendum.md` stays as sidecar doc
+### New Skill: Flurry Combo
+- 7 rings: 3 fast jabs (speed 1.6, 150ms delays, 4 dmg) → heavy (speed 0.6, 500ms delay, 10 dmg) → 2 fast jabs → heavy
+- Shorter shrink duration (700ms), no combo multipliers
+- Wave 2 Raccoon Alpha has both `scavenger_combo` + `flurry_combo`
+
+### Battle Auto-Start
+- `atbRunning` initializes to `true` — battle begins immediately
+
+### Selection Brackets Hidden in Action Cam
+- CSS `display: none` on `::before` pseudo for attacker/target/dimmed states
+
+### Prior Session (Combo Beat Steps 1–8)
+- Full combo beat system, swipe detection, defense matrix, dodge class, unblockable visual tells
+- Dev controls slimmed (12 → 4 buttons), ATB KO bug fixed
 
 ---
 
 ## 🔲 Battle System — Remaining V1
 
-- Choreography step 12: per-ring QTE visual sync (polish)
-- Wave transitions (WAVE_TRANSITION phase)
 - Loot drops from enemies (loot tables exist in spec, not wired)
 - INTRO phase
-- Enemy variety (3–4 types specced, currently 2 wired)
+- Enemy variety (3–4 types specced, currently 2 wired + wave 2 test data)
 - Battle music integration
+
+---
+
+## 🎯 Next Priority — "Find the Fun" Polish
+
+- **Ring QTE intuitiveness** — shrinking circle mechanic may need UX rework for mobile (clearer hit zone, better timing feedback, "tap here" indicator, or rethink interaction model)
+- **Player choice** — skill selection during player's turn (currently always `skills[0]`), meaningful pre-exchange decisions
+- **Pacing/feel** — tune ATB speeds, exchange tempo, delay between waves
+- **Juice** — hit feel, screen shake tuning, SFX variety, damage number polish
 
 ---
 
@@ -59,8 +82,6 @@
 
 ## 🧹 Cleanup / Tech Debt
 
-- **`QTEZone.js` is dead code** — placeholder component, actual QTE renders via `QTERunner` directly in BattleView. Confirm and delete.
-- **`BattleCharacter.js` still accepts `spriteOverride` prop** — nothing passes it anymore. Safe to remove.
 - `devSkipPersist` removal — blocked on tutorial verification
 - Debug `console.log`s in `forgeTutorial.js` — keep until forge tutorial build complete
 - ESLint backlog: `no-mixed-operators` (18), `react-hooks/exhaustive-deps` (40), misc (5)

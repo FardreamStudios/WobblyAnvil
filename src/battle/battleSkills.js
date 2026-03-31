@@ -119,6 +119,36 @@ var ENEMY_SKILLS = {
                 blockable: false, dodgeable: true, unblockable: true, finisher: true, comboMultiplier: 0.75 },
         ],
     },
+
+    flurry_combo: {
+        id:               "flurry_combo",
+        name:             "Flurry Combo",
+        type:             "circle_timing",
+        rings:            7,
+        speeds:           [1.6, 1.6, 1.6, 0.6, 1.6, 1.6, 0.6],
+        delays:           [0, 150, 150, 500, 150, 150, 500],
+        shrinkDurationMs: 700,
+        zoneBonus:        0.12,
+        targetRadius:     36,
+        ringStartRadius:  130,
+        label:            "FLURRY!",
+        beats: [
+            { damage: 4,  atkAnim: "strike", tgtReact: "flinch", shake: "light",  sfx: "hit",
+                blockable: true,  dodgeable: true },
+            { damage: 4,  atkAnim: "strike", tgtReact: "flinch", shake: "light",  sfx: "hit",
+                blockable: true,  dodgeable: true },
+            { damage: 4,  atkAnim: "strike", tgtReact: "flinch", shake: "light",  sfx: "hit",
+                blockable: true,  dodgeable: true },
+            { damage: 10, atkAnim: "strike", tgtReact: "hit",    shake: "heavy",  sfx: "impact",
+                blockable: true,  dodgeable: true, finisher: true },
+            { damage: 4,  atkAnim: "strike", tgtReact: "flinch", shake: "light",  sfx: "hit",
+                blockable: true,  dodgeable: true },
+            { damage: 4,  atkAnim: "strike", tgtReact: "flinch", shake: "light",  sfx: "hit",
+                blockable: true,  dodgeable: true },
+            { damage: 10, atkAnim: "strike", tgtReact: "hit",    shake: "heavy",  sfx: "impact",
+                blockable: true,  dodgeable: true, finisher: true },
+        ],
+    },
 };
 
 // --- Beat Field Defaults ---

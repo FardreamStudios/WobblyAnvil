@@ -232,7 +232,7 @@ var TEST_WAVES = [
             atbSpeed: 0.32,
             attackPower: 10,
             defensePower: 4,
-            skills: ["scavenger_combo"],
+            skills: ["scavenger_combo", "flurry_combo"],
         },
         {
             id: "golem",

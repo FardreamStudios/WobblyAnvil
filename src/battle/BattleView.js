@@ -41,6 +41,7 @@ import ActionMenu from "./ActionMenu.js";
 import ItemSubmenu from "./ItemSubmenu.js";
 import ComicPanel from "./ComicPanel.js";
 import ActionCamInfoPanel from "./ActionCamInfoPanel.js";
+import BattleAI from "./battleAI.js";
 import "./BattleView.css";
 
 var QTERunner = QTERunnerModule.QTERunner;
@@ -111,7 +112,7 @@ function BattleView(props) {
     var [targetId, setTargetId] = useState(currentEnemies[0].id);
     var [turnOwnerId, setTurnOwnerId] = useState(null);
     var [attackerId] = useState(TEST_PARTY[0].id);
-    var [atbRunning, setAtbRunning] = useState(false);
+    var [atbRunning, setAtbRunning] = useState(true);
     var [shakeLevel, setShakeLevel] = useState(null);
     var [flashId, setFlashId] = useState(null);
     var [animState, setAnimState] = useState({});
@@ -259,11 +260,11 @@ function BattleView(props) {
                     setAtbRunning(false);
                 } else {
                     setAtbRunning(false);
-                    // Target random living party member
-                    var enemyTgt = pickRandomLivingPartyMember();
-                    if (!enemyTgt) { rafId = requestAnimationFrame(tick); return; } // all dead, ATB keeps ticking until wipe caught
-                    setTargetId(enemyTgt);
-                    startExchange(whoIsReady, enemyTgt);
+                    // AI picks target + skill
+                    var aiDecision = BattleAI.pickAction(bState.get(whoIsReady), bState);
+                    if (!aiDecision) { rafId = requestAnimationFrame(tick); return; }
+                    setTargetId(aiDecision.targetId);
+                    startExchange(whoIsReady, aiDecision.targetId, aiDecision.skillId);
                 }
                 return;
             }
@@ -716,13 +717,14 @@ function BattleView(props) {
     //     → after 2 swings: cam out
     // ============================================================
 
-    function startExchange(initiatorId, responderId) {
+    function startExchange(initiatorId, responderId, skillId) {
         camExchangeRef.current = {
             initiatorId: initiatorId,
             responderId: responderId,
             swingCount: 0,
             currentSwingerId: initiatorId,
             currentReceiverId: responderId,
+            aiSkillId: skillId || null,
         };
 
         setPhase(PHASES.ACTION_CAM_IN);
@@ -732,6 +734,21 @@ function BattleView(props) {
             setPhase(PHASES.CAM_WAIT_ACTION);
         }, ACTION_CAM.transitionInMs);
     }
+
+    // --- Enemy auto-swing: when it's an enemy's turn in-cam, fire automatically ---
+    useEffect(function() {
+        if (phase !== PHASES.CAM_WAIT_ACTION) return;
+        var cam = camExchangeRef.current;
+        if (!cam) return;
+        var swingerId = cam.currentSwingerId;
+        if (isPartyId(swingerId)) return; // player turn — wait for button press
+
+        var timerId = setTimeout(function() {
+            handleCamATK();
+        }, EXCHANGE.counterDelayMs);
+
+        return function() { clearTimeout(timerId); };
+    }, [phase]);
 
     function handleCamATK() {
         var cam = camExchangeRef.current;
@@ -757,7 +774,17 @@ function BattleView(props) {
         });
 
         var swingerData = combatantMap[swingerId];
-        var skill = BattleSkills.getSkill(swingerData && swingerData.skills ? swingerData.skills[0] : null);
+        var skillId = null;
+        if (cam.aiSkillId && !isPartyId(swingerId)) {
+            // Enemy: use AI-selected skill, then pick fresh for next swing
+            skillId = cam.aiSkillId;
+            var nextAI = BattleAI.pickAction(swingerData, bState);
+            cam.aiSkillId = nextAI ? nextAI.skillId : null;
+        } else {
+            // Party: first skill (player skill selection is future work)
+            skillId = swingerData && swingerData.skills ? swingerData.skills[0] : null;
+        }
+        var skill = BattleSkills.getSkill(skillId);
 
         if (!skill) {
             console.warn("[BattleView] No skill for " + swingerId + ", skipping");
@@ -940,12 +967,12 @@ function BattleView(props) {
                 if (isPartyMember) {
                     setPhase(PHASES.ACTION_SELECT);
                 } else {
-                    // Target random living party member
-                    var enemyTgt2 = pickRandomLivingPartyMember();
-                    if (enemyTgt2) {
-                        setTargetId(enemyTgt2);
+                    // AI picks target + skill
+                    var aiDecision2 = BattleAI.pickAction(bState.get(alreadyReady), bState);
+                    if (aiDecision2) {
+                        setTargetId(aiDecision2.targetId);
                         setPhase(PHASES.ATB_RUNNING);
-                        startExchange(alreadyReady, enemyTgt2);
+                        startExchange(alreadyReady, aiDecision2.targetId, aiDecision2.skillId);
                     } else {
                         setPhase(PHASES.ATB_RUNNING);
                         setAtbRunning(true);

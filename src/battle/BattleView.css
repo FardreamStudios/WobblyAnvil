@@ -433,6 +433,13 @@
     z-index: 10;
 }
 
+/* Hide selection/turn-owner brackets during action cam */
+.action-cam-char--attacker::before,
+.action-cam-char--target::before,
+.action-cam-char--dimmed::before {
+    display: none;
+}
+
 .normal-cam-char__sprite {
     width: var(--battle-sprite-size, clamp(32px, 7vw, 52px));
     height: var(--battle-sprite-size, clamp(32px, 7vw, 52px));
@@ -1274,42 +1281,47 @@
 
 /* ============================================================
    WAVE TRANSITION BANNER
+   Same overlay pattern as results screen, just a single badge.
    ============================================================ */
-
-@keyframes waveBannerIn {
-    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-}
-
-@keyframes waveBannerOut {
-    0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.1); }
-}
 
 .battle-wave-banner {
     position: absolute;
     inset: 0;
-    z-index: 30;
+    z-index: 50;
     display: flex;
     align-items: center;
     justify-content: center;
     background: rgba(10, 7, 4, 0.85);
-    animation:
-            waveBannerIn 200ms ease-out forwards,
-            waveBannerOut 200ms ease-in 1000ms forwards;
+    opacity: 0;
+    animation: waveBannerFade 1200ms ease forwards;
     pointer-events: none;
 }
 
+@keyframes waveBannerFade {
+    0%    { opacity: 0; }
+    15%   { opacity: 1; }
+    80%   { opacity: 1; }
+    100%  { opacity: 0; }
+}
+
 .battle-wave-banner__text {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     font-family: monospace;
-    font-size: clamp(18px, 5vw, 32px);
+    font-size: clamp(16px, 4vw, 26px);
     font-weight: bold;
-    letter-spacing: 4px;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
     color: #f59e0b;
-    text-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+    padding: 1vh 4vw;
+    border: 2px solid #f59e0b;
+    border-radius: 4px;
+    background: rgba(20, 16, 9, 0.95);
+    transform: translateY(30px);
+    animation: waveBannerSlide 1200ms ease forwards;
+}
+
+@keyframes waveBannerSlide {
+    0%    { transform: translateY(30px); opacity: 0; }
+    15%   { transform: translateY(0);    opacity: 1; }
+    80%   { transform: translateY(0);    opacity: 1; }
+    100%  { transform: translateY(-10px); opacity: 0; }
 }
