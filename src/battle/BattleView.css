@@ -1550,15 +1550,3 @@
     80%   { transform: translateY(0);    opacity: 1; }
     100%  { transform: translateY(-10px); opacity: 0; }
 }
-/* ============================================================
-   DEV CONTROLS OVERRIDE — top-left overlay
-   ============================================================ */
-.battle-dev {
-    position: absolute;
-    top: 1vh;
-    left: 1vw;
-    z-index: 100;
-    display: flex;
-    gap: 4px;
-    align-items: center;
-}

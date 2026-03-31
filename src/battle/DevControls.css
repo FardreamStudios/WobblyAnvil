@@ -5,14 +5,13 @@
 
 .battle-dev {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(0, 0, 0, 0.85);
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 8px 12px;
+    top: 1vh;
+    left: 1vw;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 4px 6px;
     display: flex;
-    flex-wrap: wrap;
     gap: 4px;
     z-index: 100;
 }
