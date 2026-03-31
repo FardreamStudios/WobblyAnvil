@@ -127,6 +127,7 @@ function BattleView(props) {
     var dmgKeyRef = useRef(0);
     var [skillNameLabel, setSkillNameLabel] = useState(null);
     var skillNameTimerRef = useRef(null);
+    var skillNameKeyRef = useRef(0);
     var [qteConfig, setQteConfig] = useState(null);
     var qteKeyRef = useRef(0);
     var qteResolveRef = useRef(null);
@@ -342,7 +343,9 @@ function BattleView(props) {
         if (!el || !sr) return;
         var r = el.getBoundingClientRect();
         clearTimeout(skillNameTimerRef.current);
+        var key = ++skillNameKeyRef.current;
         setSkillNameLabel({
+            key: key,
             text: skillName,
             x: r.left - sr.left + r.width / 2,
             y: r.top - sr.top - 10,
@@ -350,7 +353,7 @@ function BattleView(props) {
         });
         skillNameTimerRef.current = setTimeout(function() {
             setSkillNameLabel(null);
-        }, 1000);
+        }, 2000);
     }
 
     // ============================================================
@@ -596,6 +599,7 @@ function BattleView(props) {
     //   onDone:   callback after outcome applied (optional, e.g. advanceBeat)
     // ============================================================
     function applyDefenseOutcome(tier, mult, inputType, beat, swingerId, receiverId, dmgColor, isLastBeat, onDone) {
+        console.log("[CAM-ID] applyDefenseOutcome tier=" + tier + " swinger=" + swingerId + " receiver=" + receiverId + " lastBeat=" + isLastBeat);
         // --- KO guard — receiver already dead → overkill ---
         var recCheck = bState.get(receiverId);
         if (recCheck && recCheck.ko) {
@@ -827,6 +831,7 @@ function BattleView(props) {
     // ============================================================
 
     function startExchange(initiatorId, responderId, skillId) {
+        console.log("[CAM-ID] startExchange initiator=" + initiatorId + " responder=" + responderId);
         camExchangeRef.current = {
             initiatorId: initiatorId,
             responderId: responderId,
@@ -866,8 +871,7 @@ function BattleView(props) {
 
         var swingerId = cam.currentSwingerId;
         var receiverId = cam.currentReceiverId;
-
-        // Deduct 1 pip from swinger
+        console.log("[CAM-ID] handleCamATK swinger=" + swingerId + " receiver=" + receiverId + " swing#=" + cam.swingCount);
         setAtbValues(function(prev) {
             var entry = prev[swingerId];
             if (!entry || entry.filledPips <= 0) return prev;
@@ -905,6 +909,7 @@ function BattleView(props) {
     }
 
     function doCamSwing(swingerId, receiverId, skill) {
+        console.log("[CAM-ID] doCamSwing swinger=" + swingerId + " receiver=" + receiverId + " skill=" + skill.name);
         // Reset combo counters for this swing sequence
         var swingerIsPlayer = isPartyId(swingerId);
         if (swingerIsPlayer) {
@@ -959,9 +964,13 @@ function BattleView(props) {
             BattleSFX.telegraph();
             qteContextRef.current = { swingerId: swingerId, receiverId: receiverId, skill: skill };
 
-            DefenseTiming.init(DEFENSE_TIMING);
-            defenseActiveRef.current = true;
-            runDefensePlayback(skill, swingerId, receiverId);
+            // Hold for skill name display before first beat
+            setTimeout(function() {
+                console.log("[CAM-ID] defensePlayback starting (post-delay) swinger=" + swingerId + " receiver=" + receiverId);
+                DefenseTiming.init(DEFENSE_TIMING);
+                defenseActiveRef.current = true;
+                runDefensePlayback(skill, swingerId, receiverId);
+            }, 2000);
         }
     }
 
@@ -1261,6 +1270,7 @@ function BattleView(props) {
     // FINISH SWING — shared post-combo cleanup for both paths
     // ============================================================
     function finishSwing(swingerId, receiverId) {
+        console.log("[CAM-ID] finishSwing swinger=" + swingerId + " receiver=" + receiverId);
         var cam = camExchangeRef.current;
         if (cam) cam.swingCount += 1;
 
@@ -1320,6 +1330,7 @@ function BattleView(props) {
         // Swap to other side's turn
         var nextSwinger = cam.currentReceiverId;
         var nextReceiver = cam.currentSwingerId;
+        console.log("[CAM-ID] advanceOrCamOut swap: " + cam.currentSwingerId + "→" + nextSwinger + " (swinger), " + cam.currentReceiverId + "→" + nextReceiver + " (receiver)");
         cam.currentSwingerId = nextSwinger;
         cam.currentReceiverId = nextReceiver;
 
@@ -1861,7 +1872,7 @@ function BattleView(props) {
                                 sceneRect={isActionCam ? sceneRect : null}
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(e.id)}
-                                onClick={function() { setTargetId(e.id); }}
+                                onClick={function() { if (!isActionCam) setTargetId(e.id); }}
                                 spriteFrame={spriteFrame}
                                 flashId={flashId}
                                 animState={animState}
@@ -1887,7 +1898,7 @@ function BattleView(props) {
                                 sceneRect={isActionCam ? sceneRect : null}
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(p.id)}
-                                onClick={function() { setTargetId(p.id); }}
+                                onClick={function() { if (!isActionCam) setTargetId(p.id); }}
                                 spriteFrame={spriteFrame}
                                 flashId={flashId}
                                 animState={animState}
@@ -1913,7 +1924,7 @@ function BattleView(props) {
                 {/* Skill name label */}
                 {skillNameLabel && (
                     <div
-                        key={"skn-" + skillNameLabel.text + "-" + Date.now()}
+                        key={"skn-" + skillNameLabel.key}
                         className="action-cam-skill-name"
                         style={{
                             left: skillNameLabel.x,

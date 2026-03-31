@@ -660,10 +660,10 @@
 /* --- Skill Name Label — floats above attacker sprite on attack start --- */
 @keyframes skillNamePop {
     0%   { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
-    15%  { transform: translate(-50%, -0.5vh) scale(1.1); opacity: 1; }
-    40%  { transform: translate(-50%, -1vh) scale(1.0); opacity: 1; }
-    75%  { transform: translate(-50%, -1.5vh); opacity: 0.8; }
-    100% { transform: translate(-50%, -2vh); opacity: 0; }
+    10%  { transform: translate(-50%, -0.5vh) scale(1.1); opacity: 1; }
+    25%  { transform: translate(-50%, -1vh) scale(1.0); opacity: 1; }
+    70%  { transform: translate(-50%, -1vh); opacity: 1; }
+    100% { transform: translate(-50%, -1.5vh); opacity: 0; }
 }
 
 .action-cam-skill-name {
@@ -676,7 +676,7 @@
     letter-spacing: 2px;
     text-transform: uppercase;
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.6);
-    animation: skillNamePop 1000ms ease-out forwards;
+    animation: skillNamePop 2000ms ease-out forwards;
 }
 
 /* ============================================================
