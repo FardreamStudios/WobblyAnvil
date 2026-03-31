@@ -134,7 +134,6 @@ function BattleView(props) {
     var [qteConfig, setQteConfig] = useState(null);
     var qteKeyRef = useRef(0);
     var qteResolveRef = useRef(null);
-    var qteContextRef = useRef(null);
     var readyIdRef = useRef(null);
     var atbValuesRef = useRef(null);
 
@@ -406,10 +405,10 @@ function BattleView(props) {
     // apply telegraph-sync anim with duration matching the ring.
     // ============================================================
     function handleQTERingStart(index, durationMs) {
-        var ctx = qteContextRef.current;
-        if (!ctx) return;
+        var cam = camExchangeRef.current;
+        if (!cam) return;
 
-        var swinger = ctx.swingerId;
+        var swinger = cam.getSwingerId();
         var swingerIsEnemy = !isPartyId(swinger);
 
         // Pick the right sync anim class based on faction
@@ -452,13 +451,13 @@ function BattleView(props) {
     }
 
     function handleQTERingResult(index, hit, inputType) {
-        var ctx = qteContextRef.current;
-        if (!ctx) return;
+        var cam = camExchangeRef.current;
+        if (!cam) return;
 
-        var swinger = ctx.swingerId;
-        var receiver = ctx.receiverId;
+        var swinger = cam.getSwingerId();
+        var receiver = cam.getReceiverId();
 
-        var skill = ctx.skill;
+        var skill = cam.skill;
         var beat = skill && skill.beats && skill.beats[index]
             ? BattleSkills.resolveBeat(skill.beats[index])
             : null;
@@ -804,10 +803,9 @@ function BattleView(props) {
     // ============================================================
     // QTE ACTIVATOR
     // ============================================================
-    function activateQTE(config, onResolve, context) {
+    function activateQTE(config, onResolve) {
         qteKeyRef.current += 1;
         qteResolveRef.current = onResolve;
-        qteContextRef.current = context || null;
         setQteConfig(Object.assign({}, config, { _key: qteKeyRef.current }));
     }
 
@@ -826,14 +824,17 @@ function BattleView(props) {
 
     function startExchange(initiatorId, responderId, skillId) {
         console.log("[CAM-ID] startExchange initiator=" + initiatorId + " responder=" + responderId);
-        camExchangeRef.current = {
+        var ex = {
             initiatorId: initiatorId,
             responderId: responderId,
+            swinger: "initiator",   // "initiator" | "responder"
             swingCount: 0,
-            currentSwingerId: initiatorId,
-            currentReceiverId: responderId,
             aiSkillId: skillId || null,
+            skill: null,            // set by doCamSwing when a swing starts
+            getSwingerId: function() { return ex.swinger === "initiator" ? ex.initiatorId : ex.responderId; },
+            getReceiverId: function() { return ex.swinger === "initiator" ? ex.responderId : ex.initiatorId; },
         };
+        camExchangeRef.current = ex;
 
         setPhase(PHASES.ACTION_CAM_IN);
         setAtbRunning(false);
@@ -848,7 +849,7 @@ function BattleView(props) {
         if (phase !== PHASES.CAM_WAIT_ACTION) return;
         var cam = camExchangeRef.current;
         if (!cam) return;
-        var swingerId = cam.currentSwingerId;
+        var swingerId = cam.getSwingerId();
         if (isPartyId(swingerId)) return; // player turn — wait for button press
 
         var timerId = setTimeout(function() {
@@ -863,8 +864,8 @@ function BattleView(props) {
         if (!cam) return;
         if (phase !== PHASES.CAM_WAIT_ACTION) return;
 
-        var swingerId = cam.currentSwingerId;
-        var receiverId = cam.currentReceiverId;
+        var swingerId = cam.getSwingerId();
+        var receiverId = cam.getReceiverId();
         console.log("[CAM-ID] handleCamATK swinger=" + swingerId + " receiver=" + receiverId + " swing#=" + cam.swingCount);
 
         // --- Resolve skill first so we know pip cost ---
@@ -894,19 +895,9 @@ function BattleView(props) {
 
         // --- Deduct pip cost (default 1 if not specified) ---
         var cost = skill.pipCost || 1;
-        setAtbValues(function(prev) {
-            var entry = prev[swingerId];
-            if (!entry || entry.filledPips <= 0) return prev;
-            var next = {};
-            for (var key in prev) {
-                if (prev.hasOwnProperty(key)) {
-                    next[key] = key === swingerId
-                        ? { filledPips: Math.max(0, entry.filledPips - cost), currentFill: 0 }
-                        : prev[key];
-                }
-            }
-            return next;
-        });
+        for (var p = 0; p < cost; p++) {
+            deductPip(swingerId);
+        }
 
         doCamSwing(swingerId, receiverId, skill);
     }
@@ -921,6 +912,10 @@ function BattleView(props) {
             comboCounterRef.current.enemyUnblocked = 0;
         }
         summaryDmgRef.current = { total: 0, color: "#f59e0b", receiverId: receiverId };
+
+        // Stash current skill on exchange object for QTE callbacks
+        var cam = camExchangeRef.current;
+        if (cam) cam.skill = skill;
 
         // Build per-ring visual hints for the QTE plugin (unblockable tells, finisher sizing)
         var beatVisuals = null;
@@ -959,7 +954,7 @@ function BattleView(props) {
                     setQteConfig(null);
                     setPhase(PHASES.CAM_SWING_PLAYBACK);
                     runPlayback(resultsArray, skill, diff, swingerId, receiverId);
-                }, { swingerId: swingerId, receiverId: receiverId, skill: skill });
+                });
             }, 2000);
 
         } else {
@@ -967,7 +962,6 @@ function BattleView(props) {
             // No QTE rings. Choreography plays beat-by-beat with defense windows.
             setPhase(PHASES.CAM_SWING_PLAYBACK);
             spawnSkillName(skill.name || skill.id, swingerId, "#ef4444");
-            qteContextRef.current = { swingerId: swingerId, receiverId: receiverId, skill: skill };
 
             // Hold for skill name display before first beat
             setTimeout(function() {
@@ -1324,27 +1318,8 @@ function BattleView(props) {
         var cam = camExchangeRef.current;
         if (!cam) { camOut(); return; }
 
-        // Swap to other side's turn
-        var nextSwinger = cam.currentReceiverId;
-        var nextReceiver = cam.currentSwingerId;
-        console.log("[CAM-ID] advanceOrCamOut swap: " + cam.currentSwingerId + "→" + nextSwinger + " (swinger), " + cam.currentReceiverId + "→" + nextReceiver + " (receiver)");
-        cam.currentSwingerId = nextSwinger;
-        cam.currentReceiverId = nextReceiver;
-
-        // If next swinger is KO'd, they can't act — cam out
-        var nextSwingerState = bState.get(nextSwinger);
-        if (nextSwingerState && nextSwingerState.ko) {
-            camOut();
-            return;
-        }
-
-        // Check if next swinger has pips — if not, cam out
-        var nextPips = atbValuesRef.current[nextSwinger];
-        if (!nextPips || nextPips.filledPips <= 0) {
-            camOut();
-        } else {
-            setPhase(PHASES.CAM_WAIT_ACTION);
-        }
+        // Swap to other side's turn — gate handles KO + pip checks
+        swapSides();
     }
 
     // RELENT — initiator forfeits remaining turns, exits action cam (free)
@@ -1355,26 +1330,14 @@ function BattleView(props) {
         camOut();
     }
 
-    // PASS — responder gives up their turn, control returns to initiator
+    // PASS — responder gives up their turn, control returns to other side
     function handleCamPass() {
         var cam = camExchangeRef.current;
         if (!cam) return;
         if (phase !== PHASES.CAM_WAIT_ACTION) return;
 
-        // Swap back to initiator
-        var nextSwinger = cam.currentReceiverId;
-        var nextReceiver = cam.currentSwingerId;
-        cam.currentSwingerId = nextSwinger;
-        cam.currentReceiverId = nextReceiver;
-
-        // Check if initiator has pips
-        var initPips = atbValuesRef.current[nextSwinger];
-        if (!initPips || initPips.filledPips <= 0) {
-            camOut();
-        } else {
-            setSwapTrigger(function(v) { return v + 1; });
-            setPhase(PHASES.CAM_WAIT_ACTION);
-        }
+        // Gate handles swap + KO/pip checks
+        swapSides();
     }
 
     function camOut() {
@@ -1590,31 +1553,8 @@ function BattleView(props) {
             spawnDamageNumber("DEF UP", r.left - sr.left + r.width / 2, r.top - sr.top, "#4ade80");
         }
 
-        // Post-use flow
-        if (context === "in-cam") {
-            var cam = camExchangeRef.current;
-            if (cam) {
-                var nextSwinger = cam.currentReceiverId;
-                var nextReceiver = cam.currentSwingerId;
-                cam.currentSwingerId = nextSwinger;
-                cam.currentReceiverId = nextReceiver;
-
-                var nextPips = atbValuesRef.current[nextSwinger];
-                if (!nextPips || nextPips.filledPips <= 0) {
-                    camOut();
-                } else {
-                    setSwapTrigger(function(v) { return v + 1; });
-                    setPhase(PHASES.CAM_WAIT_ACTION);
-                }
-            }
-        } else {
-            var remaining = atbValuesRef.current[userId];
-            if (!remaining || remaining.filledPips <= 0) {
-                setTurnOwnerId(null);
-                setPhase(PHASES.ATB_RUNNING);
-                setAtbRunning(true);
-            }
-        }
+        // Post-use flow — gate handles both contexts
+        endAction(userId, context);
     }
 
     // In-cam DEF button handler
@@ -1622,7 +1562,7 @@ function BattleView(props) {
         var cam = camExchangeRef.current;
         if (!cam) return;
         if (phase !== PHASES.CAM_WAIT_ACTION) return;
-        handleDefend(cam.currentSwingerId, "in-cam");
+        handleDefend(cam.getSwingerId(), "in-cam");
     }
 
     // ============================================================
@@ -1631,17 +1571,11 @@ function BattleView(props) {
     // ============================================================
     function handleFlee(userId) {
         // Drain all pips
-        var prev = atbValuesRef.current;
-        var next = {};
-        for (var key in prev) {
-            if (prev.hasOwnProperty(key)) {
-                next[key] = key === userId
-                    ? { filledPips: 0, currentFill: 0 }
-                    : prev[key];
-            }
+        var entry = atbValuesRef.current[userId];
+        var pipCount = entry ? entry.filledPips : 0;
+        for (var p = 0; p < pipCount; p++) {
+            deductPip(userId);
         }
-        atbValuesRef.current = next;
-        setAtbValues(next);
 
         var roll = Math.random();
         if (roll < FLEE.baseChance) {
@@ -1663,9 +1597,7 @@ function BattleView(props) {
                 var r2 = el2.getBoundingClientRect();
                 spawnDamageNumber("FAIL", r2.left - sr2.left + r2.width / 2, r2.top - sr2.top, "#ef4444");
             }
-            setTurnOwnerId(null);
-            setPhase(PHASES.ATB_RUNNING);
-            setAtbRunning(true);
+            endFormationTurn();
         }
     }
 
@@ -1692,10 +1624,66 @@ function BattleView(props) {
         setAtbValues(next);
     }
 
+    // ============================================================
+    // GATE: endFormationTurn — clears turn, resumes ATB
+    // Single source of truth for "formation turn is over."
+    // ============================================================
+    function endFormationTurn() {
+        setTurnOwnerId(null);
+        setPhase(PHASES.ATB_RUNNING);
+        setAtbRunning(true);
+    }
+
+    // ============================================================
+    // GATE: swapSides — flip exchange turn to the other combatant.
+    // KO check + pip check → camOut() if can't continue.
+    // Single source of truth for "pass turn inside action cam."
+    // ============================================================
+    function swapSides() {
+        var cam = camExchangeRef.current;
+        if (!cam) { camOut(); return; }
+
+        // Flip turn
+        cam.swinger = cam.swinger === "initiator" ? "responder" : "initiator";
+        var nextSwingerId = cam.getSwingerId();
+
+        // KO'd combatants can't act
+        var nextSwingerState = bState.get(nextSwingerId);
+        if (nextSwingerState && nextSwingerState.ko) {
+            camOut();
+            return;
+        }
+
+        // No pips = can't act
+        var nextPips = atbValuesRef.current[nextSwingerId];
+        if (!nextPips || nextPips.filledPips <= 0) {
+            camOut();
+        } else {
+            setSwapTrigger(function(v) { return v + 1; });
+            setPhase(PHASES.CAM_WAIT_ACTION);
+        }
+    }
+
+    // ============================================================
+    // GATE: endAction — called after any action resolves.
+    // Routes to swapSides (in-cam) or pip-check (formation).
+    // ============================================================
+    function endAction(combatantId, context) {
+        if (context === "in-cam") {
+            swapSides();
+        } else {
+            var remaining = atbValuesRef.current[combatantId];
+            if (!remaining || remaining.filledPips <= 0) {
+                endFormationTurn();
+            }
+            // else stay in ACTION_SELECT — player can chain more actions
+        }
+    }
+
     function handleItemUse(itemId) {
         var context = itemMenuContextRef.current;
         var userId = context === "in-cam"
-            ? (camExchangeRef.current ? camExchangeRef.current.currentSwingerId : null)
+            ? (camExchangeRef.current ? camExchangeRef.current.getSwingerId() : null)
             : (turnOwnerId || attackerId);
 
         if (!userId) return;
@@ -1712,7 +1700,7 @@ function BattleView(props) {
         var effectTarget = userId;
         if (itemEntry.effect.type === "damage" || itemEntry.effect.type === "debuff_enemy") {
             if (context === "in-cam" && camExchangeRef.current) {
-                effectTarget = camExchangeRef.current.currentReceiverId;
+                effectTarget = camExchangeRef.current.getReceiverId();
             } else {
                 // Validate: need a living enemy selected
                 var tgtState = targetId ? bState.get(targetId) : null;
@@ -1766,34 +1754,8 @@ function BattleView(props) {
         setItemMenuOpen(false);
         bumpState();
 
-        // Post-use flow depends on context
-        if (context === "in-cam") {
-            // In-cam: swap sides or cam out if no pips
-            var cam = camExchangeRef.current;
-            if (cam) {
-                var nextSwinger = cam.currentReceiverId;
-                var nextReceiver = cam.currentSwingerId;
-                cam.currentSwingerId = nextSwinger;
-                cam.currentReceiverId = nextReceiver;
-
-                var nextPips = atbValuesRef.current[nextSwinger];
-                if (!nextPips || nextPips.filledPips <= 0) {
-                    camOut();
-                } else {
-                    setSwapTrigger(function(v) { return v + 1; });
-                    setPhase(PHASES.CAM_WAIT_ACTION);
-                }
-            }
-        } else {
-            // Formation: check remaining pips — if 0, end turn
-            var remaining = atbValuesRef.current[userId];
-            if (!remaining || remaining.filledPips <= 0) {
-                setTurnOwnerId(null);
-                setPhase(PHASES.ATB_RUNNING);
-                setAtbRunning(true);
-            }
-            // else stay in ACTION_SELECT, player can chain more actions
-        }
+        // Post-use flow — gate handles both contexts
+        endAction(userId, context);
     }
 
     function handleItemClose() {
@@ -1805,7 +1767,7 @@ function BattleView(props) {
         var cam = camExchangeRef.current;
         if (!cam) return;
         if (phase !== PHASES.CAM_WAIT_ACTION) return;
-        var swingerId = cam.currentSwingerId;
+        var swingerId = cam.getSwingerId();
         // Only show skill picker for the player character (smith)
         if (isPartyId(swingerId) && swingerId === "smith") {
             setItemMenuOpen(false);
@@ -1843,7 +1805,7 @@ function BattleView(props) {
     // ============================================================
     var camWaiting = phase === PHASES.CAM_WAIT_ACTION;
     var cam = camExchangeRef.current;
-    var camSwingerId = cam ? cam.currentSwingerId : null;
+    var camSwingerId = cam ? cam.getSwingerId() : null;
     var camInitiatorId = cam ? cam.initiatorId : null;
     var camIsInitiatorTurn = camSwingerId && camSwingerId === camInitiatorId;
     var camSwingerIsParty = camSwingerId ? isPartyId(camSwingerId) : false;
@@ -2075,7 +2037,7 @@ function BattleView(props) {
                     visible={itemMenuOpen}
                     items={itemMenuOpen ? (function() {
                         var uid = itemMenuContextRef.current === "in-cam"
-                            ? (camExchangeRef.current ? camExchangeRef.current.currentSwingerId : null)
+                            ? (camExchangeRef.current ? camExchangeRef.current.getSwingerId() : null)
                             : (turnOwnerId || attackerId);
                         var c = uid ? bState.get(uid) : null;
                         return c ? c.items : [];
@@ -2090,7 +2052,7 @@ function BattleView(props) {
                     visible={skillMenuOpen}
                     skills={skillMenuOpen ? (function() {
                         var cam = camExchangeRef.current;
-                        var uid = cam ? cam.currentSwingerId : null;
+                        var uid = cam ? cam.getSwingerId() : null;
                         var cData = uid ? combatantMap[uid] : null;
                         if (!cData || !cData.skills) return [];
                         return cData.skills.map(function(sId) {
@@ -2099,7 +2061,7 @@ function BattleView(props) {
                     })() : []}
                     availablePips={skillMenuOpen ? (function() {
                         var cam = camExchangeRef.current;
-                        var uid = cam ? cam.currentSwingerId : null;
+                        var uid = cam ? cam.getSwingerId() : null;
                         var entry = uid ? atbValues[uid] : null;
                         return entry ? entry.filledPips : 0;
                     })() : 0}
