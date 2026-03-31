@@ -89,11 +89,19 @@ function BattleCharacter(props) {
     if (isTurnOwner) cls += " battle-char--turn-owner";
     if (isSelected && !isTurnOwner) cls += " battle-char--selected";
 
-    // Compute slide transform for action cam
-    var style = {};
+    // Absolute positioning from slot config (stage-space pixels)
+    var spriteW = parseInt(LAYOUT.spriteSize) || 52;
+    var style = {
+        position: "absolute",
+        left: (props.slotX - spriteW / 2) + "px",
+        top: (props.slotY - spriteW / 2) + "px",
+    };
+
     if (!isParty && props.index != null) {
         style["--bob-delay"] = (props.index * -0.8) + "s";
     }
+
+    // Action cam slide — translate from slot to center stage
     if ((isAttacker || isTarget) && props.sceneRect && props.restingRects) {
         var sr = props.sceneRect;
         var cx = sr.width / 2;

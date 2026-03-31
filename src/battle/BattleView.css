@@ -1,20 +1,18 @@
 /* ============================================================
    BattleView.css — Battle System Styles
    
-   Four-zone landscape layout:
-     Top ~65%  = Scene (formations, speech lane)
-     Bot ~35%  = Open Real Estate | ATB Gauges | Action Menu
+   Full-screen BG layout with centered fixed-ratio stage:
+     BG image covers entire viewport (bleeds on wide/tall screens)
+     Stage (960×540) centered, uniformly scaled, holds characters
+     UI overlays anchored to viewport edges
    
    Action camera overlays via CSS transforms + opacity.
-   All sizing in vw/vh for mobile-first.
    ============================================================ */
 
 /* --- Root Shell --- */
 .battle-root {
     position: absolute;
     inset: 0;
-    display: flex;
-    flex-direction: column;
     background-color: #0a0704;
     background-image: var(--battle-scene-bg);
     background-size: cover;
@@ -38,44 +36,37 @@
     transition: opacity 0.35s ease;
 }
 .battle-blackout--active {
-    opacity: 1;
+    opacity: 0.6;
 }
 
-/* Hide scene chrome during action cam */
+/* Hide zone/wave labels during action cam */
 .battle-root--cam .battle-scene-zoneName,
 .battle-root--cam .battle-scene-waveLabel {
     opacity: 0;
 }
 
-/* Lift scene + bottom above the blackout overlay during cam */
-.battle-root--cam .battle-scene {
+/* Lift stage above blackout during cam */
+.battle-root--cam .battle-stage {
     z-index: 7;
 }
-.battle-root--cam .battle-bottom {
-    z-index: 7;
-    background: #000;
-    border-top-color: transparent;
-}
-.battle-root--cam .battle-bottom > * {
+
+/* Hide overlay bottom during cam, except QTE */
+.battle-root--cam .battle-overlay-bottom > * {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.35s ease;
 }
-.battle-root--cam .battle-bottom > .battle-qte--visible {
+.battle-root--cam .battle-overlay-bottom > .battle-qte--visible {
     opacity: 1;
     pointer-events: auto;
-    /* Full-screen touch target during action cam */
     position: fixed;
     inset: 0;
     z-index: 15;
-    /* Kill the tint — vignette handles atmosphere */
     background: transparent;
-    /* Anchor ring visuals to bottom-right for thumb reach */
     align-items: flex-end;
     justify-content: flex-end;
     padding: 0 8vw 12vh 0;
 }
-/* Cap QTE visual size in action cam — don't fill the screen */
 .battle-root--cam .battle-qte--visible > div {
     max-width: 15vw;
     max-height: 15vw;
@@ -88,18 +79,44 @@
 }
 
 /* ============================================================
-   SCENE ZONE — top half
+   STAGE — fixed-ratio character arena, centered in viewport
    ============================================================ */
-.battle-scene {
-    flex: var(--battle-scene-flex, 1.8);
-    position: relative;
-    overflow: hidden;
-    background: transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12vw;
-    padding: 2vh 4vw;
+.battle-stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform-origin: center center;
+    /* width/height/transform set inline from JS */
+    overflow: visible;
+    z-index: 2;
+}
+
+/* Zone + wave labels — viewport-anchored */
+.battle-scene-zoneName {
+    position: absolute;
+    top: 1.5vh;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(8px, 1.4vw, 11px);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    opacity: 0.35;
+    z-index: 3;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.battle-scene-waveLabel {
+    position: absolute;
+    top: 1.5vh;
+    right: 2vw;
+    font-size: clamp(7px, 1.2vw, 10px);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    opacity: 0.25;
+    z-index: 3;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
 }
 
 /* --- Screen Shake — stepped jitter for pixel feel --- */
@@ -143,65 +160,20 @@
     100% { transform: translate(0, 0); }
 }
 
-.battle-scene--shake-light  { animation: shakeLight  100ms steps(4) 1; }
-.battle-scene--shake-medium { animation: shakeMedium 200ms steps(5) 1; }
-.battle-scene--shake-heavy  { animation: shakeHeavy  300ms steps(6) 1; }
-.battle-scene--shake-ko     { animation: shakeKO     400ms steps(9) 1; }
+.battle-stage--shake-light  { animation: shakeLight  100ms steps(4) 1; }
+.battle-stage--shake-medium { animation: shakeMedium 200ms steps(5) 1; }
+.battle-stage--shake-heavy  { animation: shakeHeavy  300ms steps(6) 1; }
+.battle-stage--shake-ko     { animation: shakeKO     400ms steps(9) 1; }
 
-.battle-scene-zoneName {
-    position: absolute;
-    top: 2%;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: clamp(9px, 1.8vw, 13px);
-    letter-spacing: 2px;
-    color: #8a7a64;
-    text-transform: uppercase;
-}
-
-.battle-scene-waveLabel {
-    position: absolute;
-    top: 2%;
-    right: 4%;
-    font-size: clamp(8px, 1.5vw, 11px);
-    letter-spacing: 1px;
-    color: #5a4a34;
-    text-transform: uppercase;
-}
-
-/* --- Formations --- */
-.battle-formation {
-    display: flex;
-    flex-direction: column;
-    gap: 1.2vh;
-    z-index: 2;
-}
-
-.battle-formation--enemy {
-    align-items: flex-start;
-}
-
-.battle-formation--party {
-    align-items: flex-end;
-}
-
-/* --- BattleCharacter Card --- */
+/* --- BattleCharacter — absolute positioned, no card chrome --- */
 .normal-cam-char {
     display: flex;
     align-items: center;
-    gap: 1.2vw;
-    padding: 1.2vh 1.8vw;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    /* position: absolute + left/top set inline from slot config */
     transition:
             opacity 0.45s ease,
-            transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-            border-color 0.3s ease,
-            box-shadow 0.3s ease;
+            transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     cursor: pointer;
-    min-width: var(--battle-card-min-w, 14vw);
-    position: relative;
 }
 
 /* Inner wrapper — choreography transforms layer on this div.
@@ -555,7 +527,7 @@
 
 /* --- HP Bar --- */
 .battle-hp-bg {
-    width: var(--battle-hp-w, 8vw);
+    width: 64px;
     height: 5px;
     background: rgba(255, 255, 255, 0.08);
     border-radius: 3px;
@@ -744,49 +716,32 @@
 }
 
 /* ============================================================
-   BOTTOM ZONE — lower third
+   OVERLAY BOTTOM — anchored to viewport bottom edge
    ============================================================ */
-.battle-bottom {
-    flex: var(--battle-bottom-flex, 1);
+.battle-overlay-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     display: flex;
     flex-direction: row;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-    position: relative;
-    min-height: 0;
-    background: rgba(10, 7, 4, 0.85);
+    align-items: flex-end;
+    padding: 1vh 2vw;
+    z-index: 5;
+    pointer-events: none;
 }
-.battle-bottom > * {
+.battle-overlay-bottom > * {
+    pointer-events: auto;
     transition: opacity 0.35s ease;
 }
 
-/* --- Open Real Estate (left) --- */
-.battle-open {
-    width: var(--battle-open-w, 16vw);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 1vh 1vw;
-    border-right: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.battle-open__label {
-    font-size: clamp(7px, 1.2vw, 9px);
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    opacity: 0.2;
-    text-align: center;
-    line-height: 1.5;
-}
-
-/* --- ATB Gauge Strip (center) --- */
+/* --- ATB Gauge Strip (left side) --- */
 .battle-atb {
-    flex: 1;
+    width: clamp(120px, 20vw, 200px);
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 0.8vh;
-    padding: 1vh 2vw;
     transition: opacity 0.4s ease;
 }
 
@@ -868,9 +823,9 @@
     background: rgba(251, 146, 60, 0.2);
 }
 
-/* --- Action Menu (right, 2x2 grid) --- */
+/* --- Action Menu (bottom-right overlay, 2x2 grid) --- */
 .battle-actions {
-    width: var(--battle-actions-w, 18vw);
+    width: clamp(100px, 18vw, 160px);
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-template-rows: 1fr 1fr;
@@ -878,6 +833,10 @@
     padding: 1vh 1.2vw;
     transition: opacity 0.4s ease;
     align-content: center;
+    margin-left: auto;
+    background: rgba(10, 7, 4, 0.7);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .battle-actions--hidden {
@@ -1590,4 +1549,16 @@
     15%   { transform: translateY(0);    opacity: 1; }
     80%   { transform: translateY(0);    opacity: 1; }
     100%  { transform: translateY(-10px); opacity: 0; }
+}
+/* ============================================================
+   DEV CONTROLS OVERRIDE — top-left overlay
+   ============================================================ */
+.battle-dev {
+    position: absolute;
+    top: 1vh;
+    left: 1vw;
+    z-index: 100;
+    display: flex;
+    gap: 4px;
+    align-items: center;
 }

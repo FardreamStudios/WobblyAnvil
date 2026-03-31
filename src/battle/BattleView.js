@@ -56,6 +56,8 @@ var PHASES = BattleConstants.BATTLE_PHASES;
 var ACTION_CAM = BattleConstants.ACTION_CAM;
 var EXCHANGE = BattleConstants.EXCHANGE;
 var LAYOUT = BattleConstants.LAYOUT;
+var STAGE = BattleConstants.STAGE;
+var BATTLE_SLOTS = BattleConstants.BATTLE_SLOTS;
 var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
 var CHOREOGRAPHY = BattleConstants.CHOREOGRAPHY;
 var TEST_PARTY = BattleConstants.TEST_PARTY;
@@ -80,22 +82,42 @@ COMIC_LINES[PHASES.CAM_RESOLVE]      = "Nice swing!";
 COMIC_LINES[PHASES.ACTION_CAM_OUT]   = "Not bad!";
 
 // ============================================================
-// CSS Custom Properties — driven from LAYOUT constants
+// CSS Custom Properties — driven from STAGE + LAYOUT constants
 // Applied as inline style on .battle-root
 // ============================================================
 var PUB = process.env.PUBLIC_URL || "";
-var LAYOUT_VARS = {
-    "--battle-open-w":      LAYOUT.openW,
+var ROOT_VARS = {
     "--battle-actions-w":   LAYOUT.actionsW,
-    "--battle-scene-flex":  LAYOUT.sceneFlex,
-    "--battle-bottom-flex": LAYOUT.bottomFlex,
-    "--battle-card-min-w":  LAYOUT.cardMinW,
-    "--battle-hp-w":        LAYOUT.hpBarW,
     "--battle-atb-bar-h":   LAYOUT.atbBarH,
     "--battle-atb-label-w": LAYOUT.atbLabelW,
     "--battle-sprite-size": LAYOUT.spriteSize,
     "--battle-scene-bg":    "url(" + PUB + "/images/scenes/waSceneSewer.png)",
 };
+
+// ============================================================
+// Stage scaling helper — computes uniform scale to fit viewport
+// ============================================================
+function useStageScale(stageRef) {
+    var [scale, setScale] = useState(1);
+
+    useEffect(function() {
+        function measure() {
+            if (!stageRef.current) return;
+            var parent = stageRef.current.parentElement;
+            if (!parent) return;
+            var pw = parent.clientWidth;
+            var ph = parent.clientHeight;
+            var sx = pw / STAGE.designW;
+            var sy = ph / STAGE.designH;
+            setScale(Math.min(sx, sy));
+        }
+        measure();
+        window.addEventListener("resize", measure);
+        return function() { window.removeEventListener("resize", measure); };
+    }, [stageRef]);
+
+    return scale;
+}
 
 // ============================================================
 // BattleView — Root Layout
@@ -188,10 +210,31 @@ function BattleView(props) {
     // --- Refs for combatant elements ---
     var combatantRefs = useRef({});
     var sceneRef = useRef(null);
+    var stageRef = useRef(null);
+    var stageScale = useStageScale(stageRef);
     var [sceneRect, setSceneRect] = useState(null);
     var restingRectsRef = useRef({});
 
+    // Build slot map: combatant id → { x, y } stage-space position
+    var slotMapRef = useRef({});
+    useEffect(function() {
+        var map = {};
+        var spriteW = STAGE.spriteSize;
+        currentEnemies.forEach(function(e, idx) {
+            var slots = BATTLE_SLOTS.enemy.front;
+            var slot = slots[idx] || slots[slots.length - 1];
+            map[e.id] = { cx: slot.x, cy: slot.y };
+        });
+        TEST_PARTY.forEach(function(p, idx) {
+            var slots = BATTLE_SLOTS.party.front;
+            var slot = slots[idx] || slots[slots.length - 1];
+            map[p.id] = { cx: slot.x, cy: slot.y };
+        });
+        slotMapRef.current = map;
+    }, [waveIndex]);
+
     // Snapshot resting positions when entering action cam
+    // Now uses stage-space slot positions instead of DOM measurement
     useEffect(function() {
         var entering = phase === PHASES.ACTION_CAM_IN;
         if (!entering) {
@@ -201,25 +244,9 @@ function BattleView(props) {
             }
             return;
         }
-        requestAnimationFrame(function() {
-            if (!sceneRef.current) return;
-            var sr = sceneRef.current.getBoundingClientRect();
-            setSceneRect(sr);
-            var rects = {};
-            var allIds = TEST_PARTY.concat(currentEnemiesRef.current);
-            for (var i = 0; i < allIds.length; i++) {
-                var cId = allIds[i].id;
-                var el = combatantRefs.current[cId];
-                if (el) {
-                    var r = el.getBoundingClientRect();
-                    rects[cId] = {
-                        cx: r.left - sr.left + r.width / 2,
-                        cy: r.top - sr.top + r.height / 2,
-                    };
-                }
-            }
-            restingRectsRef.current = rects;
-        });
+        // Stage-space "sceneRect" — fixed dimensions, no DOM measurement needed
+        setSceneRect({ width: STAGE.designW, height: STAGE.designH, left: 0, top: 0 });
+        restingRectsRef.current = Object.assign({}, slotMapRef.current);
     }, [phase]);
 
     // --- ATB tick loop ---
@@ -341,19 +368,29 @@ function BattleView(props) {
         }, CHOREOGRAPHY.dmgPopMs);
     }
 
+    // Stage-space position helper — returns { x, y } center of a combatant
+    function stagePos(combatantId) {
+        var slot = slotMapRef.current[combatantId];
+        if (slot) return { x: slot.cx, y: slot.cy };
+        return { x: STAGE.designW / 2, y: STAGE.designH / 2 };
+    }
+
+    // Convenience: spawn damage number at a combatant's stage position
+    function spawnDmgAt(combatantId, value, color, yOffset) {
+        var pos = stagePos(combatantId);
+        spawnDamageNumber(value, pos.x, pos.y + (yOffset || 0), color);
+    }
+
     // Spawn a skill name label above a combatant sprite
     function spawnSkillName(skillName, combatantId, color) {
-        var el = combatantRefs.current[combatantId];
-        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-        if (!el || !sr) return;
-        var r = el.getBoundingClientRect();
+        var pos = stagePos(combatantId);
         clearTimeout(skillNameTimerRef.current);
         var key = ++skillNameKeyRef.current;
         setSkillNameLabel({
             key: key,
             text: skillName,
-            x: r.left - sr.left + r.width / 2,
-            y: r.top - sr.top - 10,
+            x: pos.x,
+            y: pos.y - STAGE.spriteSize / 2 - 10,
             color: color || "#e0d8c8",
         });
         skillNameTimerRef.current = setTimeout(function() {
@@ -539,12 +576,7 @@ function BattleView(props) {
                     }
                     // Overkill number (still per-beat — overkill is a moment, not a summary)
                     if (dmgResult.overkill > 0) {
-                        var elO = combatantRefs.current[receiver];
-                        var srO = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                        if (elO && srO) {
-                            var rO = elO.getBoundingClientRect();
-                            spawnDamageNumber("+" + dmgResult.overkill + " OVERKILL", rO.left - srO.left + rO.width / 2, rO.top - srO.top - 20, BATTLE_END.overkillColor);
-                        }
+                        spawnDmgAt(receiver, "+" + dmgResult.overkill + " OVERKILL", BATTLE_END.overkillColor, -20);
                     }
                     setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
                 }, 60);
@@ -566,12 +598,7 @@ function BattleView(props) {
                     spawnSummaryDamage();
                     // Show MISS if entire combo whiffed
                     if (summaryDmgRef.current.total === 0) {
-                        var el2 = combatantRefs.current[receiver];
-                        var sr3 = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                        if (el2 && sr3) {
-                            var r3 = el2.getBoundingClientRect();
-                            spawnDamageNumber("MISS", r3.left - sr3.left + r3.width / 2, r3.top - sr3.top, "#888888");
-                        }
+                        spawnDmgAt(receiver, "MISS", "#888888");
                     }
                 }
             }
@@ -722,12 +749,7 @@ function BattleView(props) {
 
     // Helper — spawn a positioned damage/label number on a combatant
     function _spawnTierLabel(combatantId, text, color, yOffset) {
-        var el = combatantRefs.current[combatantId];
-        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-        if (el && sr) {
-            var r = el.getBoundingClientRect();
-            spawnDamageNumber(text, r.left - sr.left + r.width / 2, r.top - sr.top + (yOffset || 0), color);
-        }
+        spawnDmgAt(combatantId, text, color, yOffset);
     }
 
     // --- Legacy wrapper — converts old hit/inputType to tier/mult, delegates to shared ---
@@ -1015,12 +1037,7 @@ function BattleView(props) {
                     });
                     if (BattleSFX.whiff) BattleSFX.whiff();
                     // Spawn per-beat MISS indicator
-                    var elM = combatantRefs.current[receiverId];
-                    var srM = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                    if (elM && srM) {
-                        var rM = elM.getBoundingClientRect();
-                        spawnDamageNumber("MISS", rM.left - srM.left + rM.width / 2, rM.top - srM.top, "#888888");
-                    }
+                    spawnDmgAt(receiverId, "MISS", "#888888");
 
                     setTimeout(function() {
                         // Return to idle
@@ -1099,21 +1116,11 @@ function BattleView(props) {
 
                             // Per-beat damage number — color by tier
                             var tierColor = tier === "perfect" ? "#ffd700" : "#ffffff";
-                            var elD = combatantRefs.current[receiverId];
-                            var srD = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                            if (elD && srD) {
-                                var rD = elD.getBoundingClientRect();
-                                spawnDamageNumber(finalDmg, rD.left - srD.left + rD.width / 2, rD.top - srD.top, tierColor);
-                            }
+                            spawnDmgAt(receiverId, finalDmg, tierColor);
 
                             // Overkill
                             if (dmgResult.overkill > 0) {
-                                var elO = combatantRefs.current[receiverId];
-                                var srO = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                                if (elO && srO) {
-                                    var rO = elO.getBoundingClientRect();
-                                    spawnDamageNumber("+" + dmgResult.overkill + " OVERKILL", rO.left - srO.left + rO.width / 2, rO.top - srO.top - 20, BATTLE_END.overkillColor);
-                                }
+                                spawnDmgAt(receiverId, "+" + dmgResult.overkill + " OVERKILL", BATTLE_END.overkillColor, -20);
                             }
 
                             setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
@@ -1479,7 +1486,7 @@ function BattleView(props) {
     }
 
     function handleAction(actionId) {
-        var userId = turnOwnerId || attackerId;
+        var userId = activeAtkId;
 
         if (actionId === "attack") {
             // Validate: need a living enemy selected
@@ -1546,12 +1553,7 @@ function BattleView(props) {
         bumpState();
 
         // Visual feedback
-        var el = combatantRefs.current[userId];
-        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-        if (el && sr) {
-            var r = el.getBoundingClientRect();
-            spawnDamageNumber("DEF UP", r.left - sr.left + r.width / 2, r.top - sr.top, "#4ade80");
-        }
+        spawnDmgAt(userId, "DEF UP", "#4ade80");
 
         // Post-use flow — gate handles both contexts
         endAction(userId, context);
@@ -1580,23 +1582,13 @@ function BattleView(props) {
         var roll = Math.random();
         if (roll < FLEE.baseChance) {
             // Success
-            var el = combatantRefs.current[userId];
-            var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-            if (el && sr) {
-                var r = el.getBoundingClientRect();
-                spawnDamageNumber("FLED!", r.left - sr.left + r.width / 2, r.top - sr.top, "#4ade80");
-            }
+            spawnDmgAt(userId, "FLED!", "#4ade80");
             setTimeout(function() {
                 triggerBattleEnd("fled");
             }, 400);
         } else {
             // Fail — turn is over (all pips spent)
-            var el2 = combatantRefs.current[userId];
-            var sr2 = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-            if (el2 && sr2) {
-                var r2 = el2.getBoundingClientRect();
-                spawnDamageNumber("FAIL", r2.left - sr2.left + r2.width / 2, r2.top - sr2.top, "#ef4444");
-            }
+            spawnDmgAt(userId, "FAIL", "#ef4444");
             endFormationTurn();
         }
     }
@@ -1684,7 +1676,7 @@ function BattleView(props) {
         var context = itemMenuContextRef.current;
         var userId = context === "in-cam"
             ? (camExchangeRef.current ? camExchangeRef.current.getSwingerId() : null)
-            : (turnOwnerId || attackerId);
+            : activeAtkId;
 
         if (!userId) return;
 
@@ -1743,12 +1735,7 @@ function BattleView(props) {
             result.effect.type === "damage" ? "#ef4444" :
                 result.effect.type === "buff" ? "#60a5fa" : "#f59e0b";
 
-        var el = combatantRefs.current[result.targetId];
-        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-        if (el && sr) {
-            var r = el.getBoundingClientRect();
-            spawnDamageNumber(feedbackText, r.left - sr.left + r.width / 2, r.top - sr.top, feedbackColor);
-        }
+        spawnDmgAt(result.targetId, feedbackText, feedbackColor);
 
         // Close submenu
         setItemMenuOpen(false);
@@ -1825,78 +1812,87 @@ function BattleView(props) {
     var enemyPassEnabled  = camWaiting && camSwingerIsEnemy && !camIsInitiatorTurn;
 
     // --- Render ---
-    var bottomStyle = isLeftHanded ? { flexDirection: "row-reverse" } : {};
-    var sceneCls = "battle-scene" + (shakeLevel ? " battle-scene--shake-" + shakeLevel : "");
+    var stageCls = "battle-stage" + (shakeLevel ? " battle-stage--shake-" + shakeLevel : "");
+    var stageStyle = {
+        width: STAGE.designW + "px",
+        height: STAGE.designH + "px",
+        transform: "translate(-50%, -50%) scale(" + stageScale + ")",
+    };
+
+    // Slot assignment helper — maps combatant index to a slot position
+    function getSlot(side, row, idx) {
+        var slots = BATTLE_SLOTS[side][row];
+        return slots[idx] || slots[slots.length - 1];
+    }
 
     return (
-        <div className={"battle-root" + (isActionCam ? " battle-root--cam" : "")} style={LAYOUT_VARS}>
-            {/* === CINEMATIC BLACKOUT — covers everything below combatants === */}
-            <div className={"battle-blackout" + (isActionCam ? " battle-blackout--active" : "")} />
+        <div className={"battle-root" + (isActionCam ? " battle-root--cam" : "")} style={ROOT_VARS}>
 
-            {/* === SCENE ZONE === */}
+            {/* === STAGE — fixed-ratio character arena, centered === */}
             <div
-                className={sceneCls}
-                ref={sceneRef}
+                className={stageCls}
+                ref={function(el) { stageRef.current = el; sceneRef.current = el; }}
+                style={stageStyle}
                 onAnimationEnd={function() { setShakeLevel(null); }}
                 onTouchStart={handleSceneTouchStart}
                 onTouchEnd={handleSceneTouchEnd}
                 onClick={handleSceneClick}
             >
-                <span className="battle-scene-zoneName">{zoneName}</span>
-                <span className="battle-scene-waveLabel">{waveLabel}</span>
+                {/* Enemy formation — absolute positioned */}
+                {currentEnemies.map(function(e, idx) {
+                    var slot = getSlot("enemy", "front", idx);
+                    return (
+                        <BattleCharacter
+                            key={e.id}
+                            data={combatantMap[e.id] || e}
+                            isParty={false}
+                            index={idx}
+                            phase={phase}
+                            attackerId={activeAtkId}
+                            targetId={targetId}
+                            selectedId={targetId}
+                            turnOwnerId={turnOwnerId}
+                            sceneRect={isActionCam ? sceneRect : null}
+                            restingRects={restingRectsRef.current}
+                            setRef={makeRefSetter(e.id)}
+                            onClick={function() { if (!isActionCam) setTargetId(e.id); }}
+                            spriteFrame={spriteFrame}
+                            flashId={flashId}
+                            animState={animState}
+                            isLeftHanded={isLeftHanded}
+                            slotX={slot.x}
+                            slotY={slot.y}
+                        />
+                    );
+                })}
 
-                {/* Enemy formation (left) */}
-                <div className="battle-formation battle-formation--enemy">
-                    {currentEnemies.map(function(e, idx) {
-                        return (
-                            <BattleCharacter
-                                key={e.id}
-                                data={combatantMap[e.id] || e}
-                                isParty={false}
-                                index={idx}
-                                phase={phase}
-                                attackerId={activeAtkId}
-                                targetId={targetId}
-                                selectedId={targetId}
-                                turnOwnerId={turnOwnerId}
-                                sceneRect={isActionCam ? sceneRect : null}
-                                restingRects={restingRectsRef.current}
-                                setRef={makeRefSetter(e.id)}
-                                onClick={function() { if (!isActionCam) setTargetId(e.id); }}
-                                spriteFrame={spriteFrame}
-                                flashId={flashId}
-                                animState={animState}
-                                isLeftHanded={isLeftHanded}
-                            />
-                        );
-                    })}
-                </div>
-
-                {/* Party formation (right) */}
-                <div className="battle-formation battle-formation--party">
-                    {TEST_PARTY.map(function(p) {
-                        return (
-                            <BattleCharacter
-                                key={p.id}
-                                data={combatantMap[p.id] || p}
-                                isParty={true}
-                                phase={phase}
-                                attackerId={activeAtkId}
-                                targetId={targetId}
-                                selectedId={targetId}
-                                turnOwnerId={turnOwnerId}
-                                sceneRect={isActionCam ? sceneRect : null}
-                                restingRects={restingRectsRef.current}
-                                setRef={makeRefSetter(p.id)}
-                                onClick={function() { if (!isActionCam) setTargetId(p.id); }}
-                                spriteFrame={spriteFrame}
-                                flashId={flashId}
-                                animState={animState}
-                                isLeftHanded={isLeftHanded}
-                            />
-                        );
-                    })}
-                </div>
+                {/* Party formation — absolute positioned */}
+                {TEST_PARTY.map(function(p, idx) {
+                    var slot = getSlot("party", "front", idx);
+                    return (
+                        <BattleCharacter
+                            key={p.id}
+                            data={combatantMap[p.id] || p}
+                            isParty={true}
+                            index={idx}
+                            phase={phase}
+                            attackerId={activeAtkId}
+                            targetId={targetId}
+                            selectedId={targetId}
+                            turnOwnerId={turnOwnerId}
+                            sceneRect={isActionCam ? sceneRect : null}
+                            restingRects={restingRectsRef.current}
+                            setRef={makeRefSetter(p.id)}
+                            onClick={function() { if (!isActionCam) setTargetId(p.id); }}
+                            spriteFrame={spriteFrame}
+                            flashId={flashId}
+                            animState={animState}
+                            isLeftHanded={isLeftHanded}
+                            slotX={slot.x}
+                            slotY={slot.y}
+                        />
+                    );
+                })}
 
                 {/* Clash spark */}
                 <span className={"battle-spark" + (showSpark ? " battle-spark--visible" : "")}>
@@ -1926,6 +1922,12 @@ function BattleView(props) {
                     </div>
                 )}
             </div>
+
+            {/* === OVERLAY LAYER — UI anchored to viewport edges === */}
+
+            {/* Zone + wave labels */}
+            <span className="battle-scene-zoneName">{zoneName}</span>
+            <span className="battle-scene-waveLabel">{waveLabel}</span>
 
             {/* Action cam info panels */}
             <ActionCamInfoPanel
@@ -2011,34 +2013,29 @@ function BattleView(props) {
                 </div>
             )}
 
-            {/* === BOTTOM ZONE === */}
-            <div className="battle-bottom" style={bottomStyle}>
+            {/* === BOTTOM OVERLAY — ATB + Action Menu + submenus === */}
+            <div className="battle-overlay-bottom">
 
-                {/* Open real estate */}
-                <div className="battle-open">
-                    <span className="battle-open__label">open real estate</span>
-                    <span className="battle-open__label">buffs / status</span>
-                </div>
-
-                {/* ATB gauges */}
+                {/* ATB gauges — left side */}
                 <ATBGaugeStrip
                     combatants={allCombatants}
                     hidden={isActionCam}
                 />
 
-                {/* Action menu */}
+                {/* Action menu — right side (flippable) */}
                 <ActionMenu
                     hidden={isActionCam}
                     onAction={handleAction}
+                    isLeftHanded={isLeftHanded}
                 />
 
-                {/* Item submenu — overlays action menu zone */}
+                {/* Item submenu */}
                 <ItemSubmenu
                     visible={itemMenuOpen}
                     items={itemMenuOpen ? (function() {
                         var uid = itemMenuContextRef.current === "in-cam"
                             ? (camExchangeRef.current ? camExchangeRef.current.getSwingerId() : null)
-                            : (turnOwnerId || attackerId);
+                            : activeAtkId;
                         var c = uid ? bState.get(uid) : null;
                         return c ? c.items : [];
                     })() : []}
@@ -2047,7 +2044,7 @@ function BattleView(props) {
                     isInCam={itemMenuContextRef.current === "in-cam"}
                 />
 
-                {/* Skill submenu — overlays action menu zone */}
+                {/* Skill submenu */}
                 <SkillSubmenu
                     visible={skillMenuOpen}
                     skills={skillMenuOpen ? (function() {
@@ -2072,13 +2069,7 @@ function BattleView(props) {
 
                 {/* QTE zone */}
                 {showQTE && (
-                    <div
-                        className={"battle-qte battle-qte--visible"}
-                        style={isLeftHanded
-                            ? { left: "var(--battle-actions-w)", right: "var(--battle-open-w)" }
-                            : { left: "var(--battle-open-w)", right: "var(--battle-actions-w)" }
-                        }
-                    >
+                    <div className={"battle-qte battle-qte--visible"}>
                         <QTERunner
                             qteConfig={qteConfig}
                             onComplete={handleQTEComplete}
@@ -2097,6 +2088,9 @@ function BattleView(props) {
                     isLeftHanded={isLeftHanded}
                 />
             </div>
+
+            {/* === CINEMATIC BLACKOUT === */}
+            <div className={"battle-blackout" + (isActionCam ? " battle-blackout--active" : "")} />
 
             {/* === WAVE TRANSITION BANNER === */}
             {phase === PHASES.WAVE_TRANSITION && (

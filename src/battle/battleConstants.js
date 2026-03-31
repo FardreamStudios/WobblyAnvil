@@ -83,18 +83,50 @@ var IN_CAM_ACTIONS = [
     { id: "pass",    label: "PASS", color: "#8a7a64", bg: "#141009" },
 ];
 
-// --- Layout Config (bottom zone widths, scene/bottom flex) ---
-// All vw values — change here, CSS picks them up via custom properties.
+// --- Stage Config (fixed-ratio character arena) ---
+// Characters live on a fixed 960×540 stage that scales uniformly.
+// Wider/taller devices see more BG bleed — character spacing is constant.
+var STAGE = {
+    designW:    960,            // stage width in design pixels
+    designH:    540,            // stage height in design pixels (16:9)
+    spriteSize: 104,            // character sprite size in stage pixels
+    hpBarW:     64,             // HP bar width in stage pixels
+};
+
+// --- Formation Slot Positions (stage-space pixels) ---
+// Origin = top-left of stage. Each slot = { x, y } center point.
+// Front row closer to center, back row further out.
+// Enemy on left side, party on right side.
+var BATTLE_SLOTS = {
+    enemy: {
+        front: [
+            { x: 300, y: 210 },
+            { x: 230, y: 340 },
+        ],
+        back: [
+            { x: 150, y: 190 },
+            { x: 100, y: 320 },
+        ],
+    },
+    party: {
+        front: [
+            { x: 660, y: 210 },
+            { x: 730, y: 340 },
+        ],
+        back: [
+            { x: 810, y: 190 },
+            { x: 860, y: 320 },
+        ],
+    },
+};
+
+// --- Legacy LAYOUT (kept for overlay components still referencing it) ---
 var LAYOUT = {
-    openW:          "16vw",         // open real estate zone width
-    actionsW:       "18vw",         // action menu zone width
-    sceneFlex:      1.8,            // scene zone flex weight
-    bottomFlex:     1,              // bottom zone flex weight
-    cardMinW:       "14vw",         // combatant card min-width
-    hpBarW:         "8vw",          // HP bar width inside card
+    actionsW:       "18vw",         // action menu overlay width
     atbBarH:        "0.9vh",        // ATB gauge bar height
     atbLabelW:      "7vw",          // ATB label min-width
-    spriteSize:     "clamp(32px, 7vw, 52px)",  // combatant sprite display size
+    spriteSize:     STAGE.spriteSize + "px",
+    hpBarW:         STAGE.hpBarW + "px",
 };
 
 // --- Sprite Configs for Battle ---
@@ -411,6 +443,8 @@ var BattleConstants = {
     EXCHANGE: EXCHANGE,
     PIP_COSTS: PIP_COSTS,
     LAYOUT: LAYOUT,
+    STAGE: STAGE,
+    BATTLE_SLOTS: BATTLE_SLOTS,
     BATTLE_SPRITES: BATTLE_SPRITES,
     CHOREOGRAPHY: CHOREOGRAPHY,
     TEST_PARTY: TEST_PARTY,
