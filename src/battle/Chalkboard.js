@@ -174,7 +174,12 @@ function describeArc(cx, cy, r, startAngle, endAngle) {
 // ============================================================
 
 function Chalkboard(props) {
-    var config = props.config;
+    var rawConfig = props.config;
+    // --- Ring sizing defaults (skills can override) ---
+    var config = Object.assign(
+        { ringStartRadius: 90, targetRadius: 24 },
+        rawConfig
+    );
     var beats = props.beats || [];
     var difficultyProp = props.difficulty || null;
     var onComplete = props.onComplete;

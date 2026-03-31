@@ -23,6 +23,37 @@
     -webkit-user-select: none;
 }
 
+/* --- Cinematic Blackout Overlay --- */
+.battle-blackout {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+.battle-blackout--active {
+    opacity: 1;
+}
+
+/* Hide scene chrome during action cam */
+.battle-root--cam .battle-scene-zoneName,
+.battle-root--cam .battle-scene-waveLabel {
+    opacity: 0;
+}
+
+/* Lift scene + bottom above the blackout overlay during cam */
+.battle-root--cam .battle-scene {
+    z-index: 7;
+    background: #000;
+}
+.battle-root--cam .battle-bottom {
+    z-index: 7;
+    background: #000;
+    border-top-color: transparent;
+}
+
 /* ============================================================
    SCENE ZONE — top half
    ============================================================ */

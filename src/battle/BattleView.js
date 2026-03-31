@@ -439,14 +439,8 @@ function BattleView(props) {
 
     // --- Summary damage number spawner (called on last beat) ---
     function spawnSummaryDamage() {
-        var sum = summaryDmgRef.current;
-        if (sum.total <= 0 || !sum.receiverId) return;
-        var el = combatantRefs.current[sum.receiverId];
-        var sr = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-        if (el && sr) {
-            var r = el.getBoundingClientRect();
-            spawnDamageNumber(sum.total, r.left - sr.left + r.width / 2, r.top - sr.top, sum.color);
-        }
+        // V1: summary damage numbers disabled — too noisy during combat
+        // Refs still tracked for potential V2 use
     }
 
     function handleQTERingResult(index, hit, inputType) {
@@ -532,17 +526,9 @@ function BattleView(props) {
                         setShakeLevel(null);
                         requestAnimationFrame(function() { setShakeLevel(beat.shake); });
                     }
-                    // Spawn summary + combo counter on last beat only
+                    // Spawn summary on last beat only (currently no-op, reserved for V2)
                     if (isLastBeat) {
                         spawnSummaryDamage();
-                        if (comboCount > 1) {
-                            var elR = combatantRefs.current[receiver];
-                            var srR = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                            if (elR && srR) {
-                                var rR = elR.getBoundingClientRect();
-                                spawnDamageNumber("\u00d7" + comboCount, rR.left - srR.left + rR.width / 2, rR.top - srR.top + COMBO.counterOffsetY, COMBO.counterColor);
-                            }
-                        }
                     }
                     // Overkill number (still per-beat — overkill is a moment, not a summary)
                     if (dmgResult.overkill > 0) {
@@ -948,20 +934,22 @@ function BattleView(props) {
                 _difficulty: diff,
             });
 
-            activateQTE(chalkboardConfig, function onChalkboardDone(resultsArray) {
-                // Store results for playback driver
-                playbackResultsRef.current = resultsArray;
-                setQteConfig(null);
-                setPhase(PHASES.CAM_SWING_PLAYBACK);
-                runPlayback(resultsArray, skill, diff, swingerId, receiverId);
-            }, { swingerId: swingerId, receiverId: receiverId, skill: skill });
+            // Hold 2s for skill name display before QTE starts (matches enemy path)
+            setTimeout(function() {
+                activateQTE(chalkboardConfig, function onChalkboardDone(resultsArray) {
+                    // Store results for playback driver
+                    playbackResultsRef.current = resultsArray;
+                    setQteConfig(null);
+                    setPhase(PHASES.CAM_SWING_PLAYBACK);
+                    runPlayback(resultsArray, skill, diff, swingerId, receiverId);
+                }, { swingerId: swingerId, receiverId: receiverId, skill: skill });
+            }, 2000);
 
         } else {
             // ======== ENEMY OFFENSE: Animation-read defense (Step 9) ========
             // No QTE rings. Choreography plays beat-by-beat with defense windows.
             setPhase(PHASES.CAM_SWING_PLAYBACK);
             spawnSkillName(skill.name || skill.id, swingerId, "#ef4444");
-            BattleSFX.telegraph();
             qteContextRef.current = { swingerId: swingerId, receiverId: receiverId, skill: skill };
 
             // Hold for skill name display before first beat
@@ -986,17 +974,8 @@ function BattleView(props) {
 
         function playNextBeat() {
             if (beatIndex >= beats.length) {
-                // All beats done — spawn summary, transition to resolve
+                // All beats done — spawn summary (no-op V1), transition to resolve
                 spawnSummaryDamage();
-                var comboCount = comboCounterRef.current.playerCombo;
-                if (comboCount > 1) {
-                    var elR = combatantRefs.current[receiverId];
-                    var srR = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
-                    if (elR && srR) {
-                        var rR = elR.getBoundingClientRect();
-                        spawnDamageNumber("\u00d7" + comboCount, rR.left - srR.left + rR.width / 2, rR.top - srR.top + COMBO.counterOffsetY, COMBO.counterColor);
-                    }
-                }
                 finishSwing(swingerId, receiverId);
                 return;
             }
@@ -1181,6 +1160,7 @@ function BattleView(props) {
             DefenseTiming.resetBeat();
 
             // --- TELEGRAPH: enemy wind-up ---
+            BattleSFX.telegraph();
             setAnimState(function(prev) {
                 var n = Object.assign({}, prev);
                 n[swingerId] = "telegraph";
@@ -1842,7 +1822,10 @@ function BattleView(props) {
     var sceneCls = "battle-scene" + (shakeLevel ? " battle-scene--shake-" + shakeLevel : "");
 
     return (
-        <div className="battle-root" style={LAYOUT_VARS}>
+        <div className={"battle-root" + (isActionCam ? " battle-root--cam" : "")} style={LAYOUT_VARS}>
+            {/* === CINEMATIC BLACKOUT — covers everything below combatants === */}
+            <div className={"battle-blackout" + (isActionCam ? " battle-blackout--active" : "")} />
+
             {/* === SCENE ZONE === */}
             <div
                 className={sceneCls}
