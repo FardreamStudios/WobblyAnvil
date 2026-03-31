@@ -34,8 +34,10 @@
 // ============================================================
 
 import CircleTimingQTEModule from "../modules/circleTimingQTE.js";
+import ChalkboardModule from "./Chalkboard.js";
 
 var CircleTimingQTE = CircleTimingQTEModule.CircleTimingQTE;
+var Chalkboard = ChalkboardModule.Chalkboard;
 
 // ============================================================
 // Plugin Registry
@@ -49,6 +51,7 @@ var CircleTimingQTE = CircleTimingQTEModule.CircleTimingQTE;
 
 var PLUGIN_REGISTRY = {
     circle_timing: { component: CircleTimingQTE },
+    chalkboard:    { component: Chalkboard },
     // future: bar_sweep, rhythm, etc.
 };
 
@@ -86,6 +89,10 @@ function QTERunner(props) {
             onComplete={onComplete || function() {}}
             onRingResult={onRingResult || null}
             onRingStart={onRingStart || null}
+            beats={qteConfig.beats || null}
+            difficulty={qteConfig._difficulty || null}
+            onCheckResult={qteConfig._onCheckResult || null}
+            onCheckStart={qteConfig._onCheckStart || null}
         />
     );
 }

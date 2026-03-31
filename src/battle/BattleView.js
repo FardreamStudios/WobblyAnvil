@@ -33,6 +33,7 @@ import BattleATB from "./battleATB.js";
 import BattleSFX from "./battleSFX.js";
 import BattleStateModule from "./battleState.js";
 import QTERunnerModule from "./QTERunner.js";
+import ChalkboardModule from "./Chalkboard.js";
 import BattleCharacterModule from "./BattleCharacter.js";
 import BattleResultsScreen from "./BattleResultsScreen.js";
 import DevControls from "./DevControls.js";
@@ -42,6 +43,8 @@ import ItemSubmenu from "./ItemSubmenu.js";
 import ComicPanel from "./ComicPanel.js";
 import ActionCamInfoPanel from "./ActionCamInfoPanel.js";
 import BattleAI from "./battleAI.js";
+import DefenseTiming from "./defenseTiming.js";
+import GestureRecognition from "./gestureRecognition.js";
 import "./BattleView.css";
 
 var QTERunner = QTERunnerModule.QTERunner;
@@ -61,6 +64,7 @@ var FLEE = BattleConstants.FLEE;
 var BATTLE_END = BattleConstants.BATTLE_END;
 var COMBO = BattleConstants.COMBO;
 var WAVE_TRANSITION = BattleConstants.WAVE_TRANSITION;
+var DEFENSE_TIMING = BattleConstants.DEFENSE_TIMING;
 
 // ============================================================
 // COMIC PANEL LINES — fairy speech per phase
@@ -69,6 +73,8 @@ var COMIC_LINES = {};
 COMIC_LINES[PHASES.ACTION_CAM_IN]    = "Let's get 'em!";
 COMIC_LINES[PHASES.CAM_TELEGRAPH]    = "Watch out!";
 COMIC_LINES[PHASES.CAM_SWING]        = "Nail the timing!";
+COMIC_LINES[PHASES.CAM_SWING_QTE]    = "Show 'em what you've got!";
+COMIC_LINES[PHASES.CAM_SWING_PLAYBACK] = "Here it comes!";
 COMIC_LINES[PHASES.CAM_RESOLVE]      = "Nice swing!";
 COMIC_LINES[PHASES.ACTION_CAM_OUT]   = "Not bad!";
 
@@ -109,6 +115,7 @@ function BattleView(props) {
 
     // --- State ---
     var [phase, setPhase] = useState(PHASES.ATB_RUNNING);
+    var [swapTrigger, setSwapTrigger] = useState(0);
     var [targetId, setTargetId] = useState(currentEnemies[0].id);
     var [turnOwnerId, setTurnOwnerId] = useState(null);
     var [attackerId] = useState(TEST_PARTY[0].id);
@@ -148,6 +155,9 @@ function BattleView(props) {
     // enemyUnblocked: hits enemy landed that player failed to brace/dodge
     var comboCounterRef = useRef({ playerCombo: 0, enemyUnblocked: 0 });
     var summaryDmgRef = useRef({ total: 0, color: "#f59e0b", receiverId: null });
+    var playbackResultsRef = useRef(null); // Chalkboard results array for CAM_SWING_PLAYBACK
+    var defenseActiveRef = useRef(false); // true during enemy CAM_SWING_PLAYBACK (defense windows open)
+    var defenseTouchStartRef = useRef(null); // { x, y } for swipe detection on scene zone
 
     // --- Item submenu state ---
     // context: "formation" (out of cam) or "in-cam" (during exchange)
@@ -278,7 +288,7 @@ function BattleView(props) {
 
     // --- Helpers ---
     var isActionCam = phase !== PHASES.ATB_RUNNING && phase !== PHASES.ACTION_SELECT && phase !== PHASES.ACTION_CAM_OUT;
-    var showQTE = phase === PHASES.CAM_SWING;
+    var showQTE = phase === PHASES.CAM_SWING_QTE;
     var showComic = isActionCam;
     var showSpark = phase === PHASES.CAM_RESOLVE;
 
@@ -354,6 +364,9 @@ function BattleView(props) {
         camExchangeRef.current = null;
         comboCounterRef.current = { playerCombo: 0, enemyUnblocked: 0 };
         summaryDmgRef.current = { total: 0, color: "#f59e0b", receiverId: null };
+        defenseActiveRef.current = false;
+        defenseInputResolveRef.current = null;
+        DefenseTiming.destroy();
     }
 
     // ============================================================
@@ -695,6 +708,62 @@ function BattleView(props) {
     }
 
     // ============================================================
+    // DEFENSE INPUT — Scene zone touch/click handlers
+    // Active only during enemy CAM_SWING_PLAYBACK (defenseActiveRef).
+    // Classifies tap vs swipe, routes to DefenseTiming.checkInput().
+    // ============================================================
+    var SWIPE_MIN_PX = 30;
+
+    function handleSceneTouchStart(e) {
+        if (!defenseActiveRef.current) return;
+        var t = e.touches[0];
+        defenseTouchStartRef.current = { x: t.clientX, y: t.clientY };
+    }
+
+    function handleSceneTouchEnd(e) {
+        if (!defenseActiveRef.current) return;
+        if (DefenseTiming.isLocked()) return;
+
+        var start = defenseTouchStartRef.current;
+        var t = e.changedTouches[0];
+        var endPt = { x: t.clientX, y: t.clientY };
+        defenseTouchStartRef.current = null;
+
+        if (!start) {
+            // No start recorded — treat as tap
+            defenseInputResolve("tap");
+            return;
+        }
+
+        var dx = endPt.x - start.x;
+        var dy = endPt.y - start.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist >= SWIPE_MIN_PX) {
+            defenseInputResolve("swipe");
+        } else {
+            defenseInputResolve("tap");
+        }
+    }
+
+    function handleSceneClick() {
+        // Desktop fallback — click = tap
+        if (!defenseActiveRef.current) return;
+        if (DefenseTiming.isLocked()) return;
+        defenseInputResolve("tap");
+    }
+
+    // defenseInputResolve is set by runDefensePlayback per-beat
+    var defenseInputResolveRef = useRef(null);
+    function defenseInputResolve(inputType) {
+        var result = DefenseTiming.checkInput(inputType);
+        if (!result) return; // locked or no anchor
+        if (defenseInputResolveRef.current) {
+            defenseInputResolveRef.current(result, inputType);
+        }
+    }
+
+    // ============================================================
     // QTE ACTIVATOR
     // ============================================================
     function activateQTE(config, onResolve, context) {
@@ -748,7 +817,7 @@ function BattleView(props) {
         }, EXCHANGE.counterDelayMs);
 
         return function() { clearTimeout(timerId); };
-    }, [phase]);
+    }, [phase, swapTrigger]);
 
     function handleCamATK() {
         var cam = camExchangeRef.current;
@@ -796,8 +865,6 @@ function BattleView(props) {
     }
 
     function doCamSwing(swingerId, receiverId, skill) {
-        setPhase(PHASES.CAM_SWING);
-
         // Reset combo counters for this swing sequence
         var swingerIsPlayer = isPartyId(swingerId);
         if (swingerIsPlayer) {
@@ -819,38 +886,487 @@ function BattleView(props) {
             });
         }
 
-        var qteSkill = beatVisuals ? Object.assign({}, skill, { beatVisuals: beatVisuals }) : skill;
+        if (swingerIsPlayer) {
+            // ======== PLAYER OFFENSE: Front-loaded Chalkboard → Playback ========
+            setPhase(PHASES.CAM_SWING_QTE);
 
-        activateQTE(qteSkill, function onQTEDone(result) {
-            var cam = camExchangeRef.current;
-            if (cam) cam.swingCount += 1;
+            // Resolve difficulty for damage map during playback
+            var diff = ChalkboardModule.resolveDifficulty(
+                skill.difficulty || "normal",
+                { hitZone: skill.hitZone, perfectZone: skill.perfectZone, damageMap: skill.damageMap }
+            );
 
-            setPhase(PHASES.CAM_RESOLVE);
+            var chalkboardConfig = Object.assign({}, skill, {
+                type: "chalkboard",
+                beatVisuals: beatVisuals,
+                _difficulty: diff,
+            });
 
-            // --- Post-combo: check if anyone died during this swing ---
-            var receiverState = bState.get(receiverId);
-            var anyKO = receiverState && receiverState.ko;
+            activateQTE(chalkboardConfig, function onChalkboardDone(resultsArray) {
+                // Store results for playback driver
+                playbackResultsRef.current = resultsArray;
+                setQteConfig(null);
+                setPhase(PHASES.CAM_SWING_PLAYBACK);
+                runPlayback(resultsArray, skill, diff, swingerId, receiverId);
+            }, { swingerId: swingerId, receiverId: receiverId, skill: skill });
 
-            // Clean up anim states — preserve KO poses
+        } else {
+            // ======== ENEMY OFFENSE: Animation-read defense (Step 9) ========
+            // No QTE rings. Choreography plays beat-by-beat with defense windows.
+            setPhase(PHASES.CAM_SWING_PLAYBACK);
+            qteContextRef.current = { swingerId: swingerId, receiverId: receiverId, skill: skill };
+
+            DefenseTiming.init(DEFENSE_TIMING);
+            defenseActiveRef.current = true;
+            runDefensePlayback(skill, swingerId, receiverId);
+        }
+    }
+
+    // ============================================================
+    // PLAYBACK DRIVER — Iterates results array, plays choreography
+    // beat-by-beat with damage, anims, shake, SFX, damage numbers.
+    // Called after Chalkboard completes (CAM_SWING_PLAYBACK phase).
+    // ============================================================
+    function runPlayback(resultsArray, skill, difficulty, swingerId, receiverId) {
+        var beats = skill.beats || [];
+        var damageMap = difficulty.damageMap || { perfect: 1.5, good: 1.0, miss: 0.0 };
+        var beatIndex = 0;
+
+        function playNextBeat() {
+            if (beatIndex >= beats.length) {
+                // All beats done — spawn summary, transition to resolve
+                spawnSummaryDamage();
+                var comboCount = comboCounterRef.current.playerCombo;
+                if (comboCount > 1) {
+                    var elR = combatantRefs.current[receiverId];
+                    var srR = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                    if (elR && srR) {
+                        var rR = elR.getBoundingClientRect();
+                        spawnDamageNumber("\u00d7" + comboCount, rR.left - srR.left + rR.width / 2, rR.top - srR.top + COMBO.counterOffsetY, COMBO.counterColor);
+                    }
+                }
+                finishSwing(swingerId, receiverId);
+                return;
+            }
+
+            var beat = BattleSkills.resolveBeat(beats[beatIndex]);
+            var result = resultsArray[beatIndex] || { tier: "miss" };
+            var tier = result.tier || "miss";
+            var mult = damageMap[tier] != null ? damageMap[tier] : 1.0;
+            var isLastBeat = beatIndex === beats.length - 1;
+            var dmgColor = "#f59e0b"; // gold for player offense
+
+            // --- WIND-UP ---
             setAnimState(function(prev) {
                 var n = Object.assign({}, prev);
-                var sState = bState.get(swingerId);
-                if (!sState || !sState.ko) delete n[swingerId];
-                if (!receiverState || !receiverState.ko) delete n[receiverId];
+                n[swingerId] = "wind_up";
                 return n;
             });
 
-            // Play KO SFX + shake if someone died during this combo
-            if (anyKO) {
-                if (BattleSFX.ko) BattleSFX.ko();
-                setShakeLevel(null);
-                requestAnimationFrame(function() { setShakeLevel("ko"); });
+            setTimeout(function() {
+                if (tier === "miss") {
+                    // --- WHIFF: short lunge, no damage ---
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        n[swingerId] = "strike";
+                        return n;
+                    });
+                    if (BattleSFX.whiff) BattleSFX.whiff();
+                    // Spawn per-beat MISS indicator
+                    var elM = combatantRefs.current[receiverId];
+                    var srM = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                    if (elM && srM) {
+                        var rM = elM.getBoundingClientRect();
+                        spawnDamageNumber("MISS", rM.left - srM.left + rM.width / 2, rM.top - srM.top, "#888888");
+                    }
+
+                    setTimeout(function() {
+                        // Return to idle
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev);
+                            delete n[swingerId];
+                            if (!isLastBeat) delete n[receiverId];
+                            return n;
+                        });
+                        beatIndex++;
+                        setTimeout(playNextBeat, 80);
+                    }, CHOREOGRAPHY.strikeMs);
+
+                } else {
+                    // --- HIT: strike + damage ---
+                    setTimeout(function() {
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev);
+                            n[swingerId] = "strike";
+                            return n;
+                        });
+
+                        // SFX
+                        if (beat.sfx) BattleSFX[beat.sfx] ? BattleSFX[beat.sfx]() : BattleSFX.hit();
+
+                        // Calculate damage
+                        var baseDmg = beat.damage;
+                        var finalDmg = Math.round(baseDmg * mult);
+
+                        // Combo multiplier
+                        comboCounterRef.current.playerCombo += 1;
+                        var comboCount = comboCounterRef.current.playerCombo;
+                        if (beat.comboMultiplier != null && beat.comboMultiplier > 0) {
+                            var priorHits = Math.max(0, comboCount - 1);
+                            if (priorHits > 0) {
+                                finalDmg = Math.round(finalDmg * (1 + beat.comboMultiplier * priorHits));
+                            }
+                        }
+
+                        // Apply damage
+                        var dmgResult = bState.applyDamage(receiverId, finalDmg, true);
+                        bumpState();
+                        summaryDmgRef.current.total += finalDmg;
+                        summaryDmgRef.current.color = dmgColor;
+
+                        // Hit reaction on receiver
+                        var recState = bState.get(receiverId);
+                        var isReceiverKO = recState && recState.ko;
+
+                        setTimeout(function() {
+                            setFlashId(receiverId);
+                            if (isReceiverKO && isLastBeat) {
+                                setAnimState(function(prev) {
+                                    var n = Object.assign({}, prev); n[receiverId] = "ko"; return n;
+                                });
+                            } else if (isReceiverKO) {
+                                setAnimState(function(prev) {
+                                    var n = Object.assign({}, prev); n[receiverId] = "hit"; return n;
+                                });
+                            } else if (beat.tgtReact) {
+                                setAnimState(function(prev) {
+                                    var n = Object.assign({}, prev); n[receiverId] = beat.tgtReact; return n;
+                                });
+                            }
+
+                            // Shake — tier-upgraded for perfect
+                            var shakeLevel = beat.shake;
+                            if (tier === "perfect" && shakeLevel) {
+                                var shakeUpgrade = { light: "medium", medium: "heavy", heavy: "ko" };
+                                shakeLevel = shakeUpgrade[shakeLevel] || shakeLevel;
+                            }
+                            if (shakeLevel && !isReceiverKO) {
+                                setShakeLevel(null);
+                                requestAnimationFrame(function() { setShakeLevel(shakeLevel); });
+                            }
+
+                            // Per-beat damage number — color by tier
+                            var tierColor = tier === "perfect" ? "#ffd700" : "#ffffff";
+                            var elD = combatantRefs.current[receiverId];
+                            var srD = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                            if (elD && srD) {
+                                var rD = elD.getBoundingClientRect();
+                                spawnDamageNumber(finalDmg, rD.left - srD.left + rD.width / 2, rD.top - srD.top, tierColor);
+                            }
+
+                            // Overkill
+                            if (dmgResult.overkill > 0) {
+                                var elO = combatantRefs.current[receiverId];
+                                var srO = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                                if (elO && srO) {
+                                    var rO = elO.getBoundingClientRect();
+                                    spawnDamageNumber("+" + dmgResult.overkill + " OVERKILL", rO.left - srO.left + rO.width / 2, rO.top - srO.top - 20, BATTLE_END.overkillColor);
+                                }
+                            }
+
+                            setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+                        }, 60);
+
+                        // Return swinger to idle, clear receiver after hit settles
+                        setTimeout(function() {
+                            setAnimState(function(prev) {
+                                var n = Object.assign({}, prev);
+                                delete n[swingerId];
+                                var recState2 = bState.get(receiverId);
+                                var keepAnim = recState2 && recState2.ko && isLastBeat;
+                                if (!keepAnim) delete n[receiverId];
+                                return n;
+                            });
+                            beatIndex++;
+                            setTimeout(playNextBeat, 80);
+                        }, CHOREOGRAPHY.strikeMs + CHOREOGRAPHY.hitMs);
+
+                    }, CHOREOGRAPHY.strikeMs);
+                }
+            }, CHOREOGRAPHY.windUpMs);
+        }
+
+        // Start first beat
+        playNextBeat();
+    }
+
+    // ============================================================
+    // DEFENSE PLAYBACK — Enemy attacks, player defends by reading
+    // choreography and tapping (brace) or swiping (dodge).
+    // Per beat: telegraph → strike anchor → defense window → resolve.
+    // ============================================================
+    function runDefensePlayback(skill, swingerId, receiverId) {
+        var beats = skill.beats || [];
+        var beatIndex = 0;
+        var dmgColor = "#ef4444"; // red for enemy damage on party
+
+        function playDefenseBeat() {
+            if (beatIndex >= beats.length) {
+                // All beats done
+                spawnSummaryDamage();
+                defenseActiveRef.current = false;
+                defenseInputResolveRef.current = null;
+                DefenseTiming.destroy();
+                finishSwing(swingerId, receiverId);
+                return;
+            }
+
+            var beat = BattleSkills.resolveBeat(beats[beatIndex]);
+            var isLastBeat = beatIndex === beats.length - 1;
+            var beatResolved = false;
+
+            // Reset defense timing for this beat
+            DefenseTiming.resetBeat();
+
+            // --- TELEGRAPH: enemy wind-up ---
+            setAnimState(function(prev) {
+                var n = Object.assign({}, prev);
+                n[swingerId] = "telegraph";
+                return n;
+            });
+
+            // Set telegraph CSS duration
+            var telEl = combatantRefs.current[swingerId];
+            if (telEl) {
+                var choreoEl = telEl.querySelector(".normal-cam-char__choreo");
+                if (choreoEl) {
+                    choreoEl.style.setProperty("--telegraph-duration", CHOREOGRAPHY.telegraphMs + "ms");
+                    choreoEl.classList.remove("normal-cam-char__choreo--telegraph-sync");
+                    void choreoEl.offsetWidth;
+                    choreoEl.classList.add("normal-cam-char__choreo--telegraph-sync");
+                }
             }
 
             setTimeout(function() {
-                advanceOrCamOut();
-            }, EXCHANGE.resolveHoldMs);
-        }, { swingerId: swingerId, receiverId: receiverId, skill: skill });
+                // --- STRIKE: lunge forward, record anchor ---
+                setAnimState(function(prev) {
+                    var n = Object.assign({}, prev);
+                    n[swingerId] = "strike";
+                    return n;
+                });
+
+                // Record strike anchor for defense timing
+                DefenseTiming.recordStrikeAnchor();
+
+                // Play SFX
+                if (beat.sfx) {
+                    if (BattleSFX[beat.sfx]) BattleSFX[beat.sfx]();
+                    else BattleSFX.hit();
+                }
+
+                // Set up per-beat defense input callback
+                defenseInputResolveRef.current = function(result, inputType) {
+                    if (beatResolved) return;
+                    beatResolved = true;
+                    resolveDefenseBeatResult(result, inputType, beat, swingerId, receiverId, dmgColor, isLastBeat);
+                };
+
+                // Defense window timeout — if no input, auto-fail
+                var windowMs = Math.max(
+                    DEFENSE_TIMING.braceGoodMs,
+                    DEFENSE_TIMING.dodgePassMs
+                );
+                setTimeout(function() {
+                    if (beatResolved) return;
+                    beatResolved = true;
+                    var failResult = DefenseTiming.checkNoInput();
+                    resolveDefenseBeatResult(
+                        failResult || { tier: "fail", mult: DEFENSE_TIMING.failMult },
+                        "auto_miss", beat, swingerId, receiverId, dmgColor, isLastBeat
+                    );
+                }, windowMs + 50); // small buffer past the window edge
+
+            }, CHOREOGRAPHY.telegraphMs);
+
+            // --- After beat resolves, advance to next ---
+            function resolveDefenseBeatResult(result, inputType, bt, sw, rec, color, last) {
+                var tier = result.tier;
+                var mult = result.mult;
+
+                // --- Apply defense outcome ---
+                var recCheck = bState.get(rec);
+                if (recCheck && recCheck.ko) {
+                    // Already dead — apply overkill at full damage
+                    comboCounterRef.current.enemyUnblocked += 1;
+                    var overkillDmg = Math.round(bt.damage * mult);
+                    var overkillResult = bState.applyDamage(rec, overkillDmg, false);
+                    bumpState();
+                    summaryDmgRef.current.total += overkillDmg;
+                    summaryDmgRef.current.color = color;
+                    setFlashId(rec);
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        n[rec] = last ? "ko" : "hit";
+                        return n;
+                    });
+                    setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+                    advanceBeat();
+                    return;
+                }
+
+                if (tier === "pass" && inputType === "swipe" && bt.dodgeable !== false) {
+                    // --- DODGE ---
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev); n[rec] = "dodge"; return n;
+                    });
+                    if (BattleSFX.block) BattleSFX.block();
+                    summaryDmgRef.current.color = "#4ade80";
+                    advanceBeat();
+
+                } else if ((tier === "perfect" || tier === "good") && inputType === "tap" && bt.blockable !== false && !bt.unblockable) {
+                    // --- BRACE ---
+                    var blockDmg = Math.round(bt.damage * mult);
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev); n[rec] = "brace"; return n;
+                    });
+                    if (BattleSFX.block) BattleSFX.block();
+                    var braceResult = bState.applyDamage(rec, blockDmg, false);
+                    bumpState();
+                    summaryDmgRef.current.total += blockDmg;
+                    summaryDmgRef.current.color = "#60a5fa";
+
+                    if (braceResult.overkill > 0) {
+                        var elB = combatantRefs.current[rec];
+                        var srB = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                        if (elB && srB) {
+                            var rB = elB.getBoundingClientRect();
+                            spawnDamageNumber("+" + braceResult.overkill + " OVERKILL", rB.left - srB.left + rB.width / 2, rB.top - srB.top - 20, BATTLE_END.overkillColor);
+                        }
+                    }
+
+                    // Tier feedback number
+                    var braceLabel = tier === "perfect" ? "PERFECT!" : "BLOCK";
+                    var braceLabelColor = tier === "perfect" ? "#ffd700" : "#60a5fa";
+                    var elBL = combatantRefs.current[rec];
+                    var srBL = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                    if (elBL && srBL) {
+                        var rBL = elBL.getBoundingClientRect();
+                        spawnDamageNumber(braceLabel, rBL.left - srBL.left + rBL.width / 2, rBL.top - srBL.top - 30, braceLabelColor);
+                    }
+
+                    if (braceResult.killed && last) {
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev); n[rec] = "ko"; return n;
+                        });
+                    }
+                    setFlashId(rec);
+                    setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+                    advanceBeat();
+
+                } else {
+                    // --- FULL HIT (fail, wrong input, unblockable) ---
+                    comboCounterRef.current.enemyUnblocked += 1;
+                    var fullDmg = Math.round(bt.damage * DEFENSE_TIMING.failMult);
+
+                    // Combo multiplier
+                    if (bt.comboMultiplier != null && bt.comboMultiplier > 0) {
+                        var priorUnblocked = Math.max(0, comboCounterRef.current.enemyUnblocked - 1);
+                        if (priorUnblocked > 0) {
+                            fullDmg = Math.round(fullDmg * (1 + bt.comboMultiplier * priorUnblocked));
+                        }
+                    }
+
+                    var hitResult = bState.applyDamage(rec, fullDmg, false);
+                    bumpState();
+                    summaryDmgRef.current.total += fullDmg;
+                    summaryDmgRef.current.color = color;
+
+                    setFlashId(rec);
+                    var recState = bState.get(rec);
+                    var isKO = recState && recState.ko;
+                    if (isKO && last) {
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev); n[rec] = "ko"; return n;
+                        });
+                    } else {
+                        setAnimState(function(prev) {
+                            var n = Object.assign({}, prev); n[rec] = "hit"; return n;
+                        });
+                        if (bt.shake) {
+                            setShakeLevel(null);
+                            requestAnimationFrame(function() { setShakeLevel(bt.shake); });
+                        }
+                    }
+
+                    if (hitResult.overkill > 0) {
+                        var elH = combatantRefs.current[rec];
+                        var srH = sceneRef.current ? sceneRef.current.getBoundingClientRect() : null;
+                        if (elH && srH) {
+                            var rH = elH.getBoundingClientRect();
+                            spawnDamageNumber("+" + hitResult.overkill + " OVERKILL", rH.left - srH.left + rH.width / 2, rH.top - srH.top - 20, BATTLE_END.overkillColor);
+                        }
+                    }
+                    setTimeout(function() { setFlashId(null); }, CHOREOGRAPHY.flashMs);
+                    advanceBeat();
+                }
+            }
+
+            function advanceBeat() {
+                // Clear anims after settling, advance
+                setTimeout(function() {
+                    var recState = bState.get(receiverId);
+                    var keepKO = recState && recState.ko && (beatIndex === beats.length - 1);
+                    setAnimState(function(prev) {
+                        var n = Object.assign({}, prev);
+                        delete n[swingerId];
+                        if (!keepKO) delete n[receiverId];
+                        return n;
+                    });
+                    beatIndex++;
+                    setTimeout(playDefenseBeat, 80);
+                }, CHOREOGRAPHY.hitMs);
+            }
+        }
+
+        // Start first beat
+        playDefenseBeat();
+    }
+
+    // ============================================================
+    // FINISH SWING — shared post-combo cleanup for both paths
+    // ============================================================
+    function finishSwing(swingerId, receiverId) {
+        var cam = camExchangeRef.current;
+        if (cam) cam.swingCount += 1;
+
+        setPhase(PHASES.CAM_RESOLVE);
+        playbackResultsRef.current = null;
+        defenseActiveRef.current = false;
+        defenseInputResolveRef.current = null;
+
+        // --- Post-combo: check if anyone died during this swing ---
+        var receiverState = bState.get(receiverId);
+        var anyKO = receiverState && receiverState.ko;
+
+        // Clean up anim states — preserve KO poses
+        setAnimState(function(prev) {
+            var n = Object.assign({}, prev);
+            var sState = bState.get(swingerId);
+            if (!sState || !sState.ko) delete n[swingerId];
+            if (!receiverState || !receiverState.ko) delete n[receiverId];
+            return n;
+        });
+
+        // Play KO SFX + shake if someone died during this combo
+        if (anyKO) {
+            if (BattleSFX.ko) BattleSFX.ko();
+            setShakeLevel(null);
+            requestAnimationFrame(function() { setShakeLevel("ko"); });
+        }
+
+        setTimeout(function() {
+            advanceOrCamOut();
+        }, EXCHANGE.resolveHoldMs);
     }
 
     function advanceOrCamOut() {
@@ -923,6 +1439,7 @@ function BattleView(props) {
         if (!initPips || initPips.filledPips <= 0) {
             camOut();
         } else {
+            setSwapTrigger(function(v) { return v + 1; });
             setPhase(PHASES.CAM_WAIT_ACTION);
         }
     }
@@ -1153,6 +1670,7 @@ function BattleView(props) {
                 if (!nextPips || nextPips.filledPips <= 0) {
                     camOut();
                 } else {
+                    setSwapTrigger(function(v) { return v + 1; });
                     setPhase(PHASES.CAM_WAIT_ACTION);
                 }
             }
@@ -1329,6 +1847,7 @@ function BattleView(props) {
                 if (!nextPips || nextPips.filledPips <= 0) {
                     camOut();
                 } else {
+                    setSwapTrigger(function(v) { return v + 1; });
                     setPhase(PHASES.CAM_WAIT_ACTION);
                 }
             }
@@ -1393,6 +1912,9 @@ function BattleView(props) {
                 className={sceneCls}
                 ref={sceneRef}
                 onAnimationEnd={function() { setShakeLevel(null); }}
+                onTouchStart={handleSceneTouchStart}
+                onTouchEnd={handleSceneTouchEnd}
+                onClick={handleSceneClick}
             >
                 <span className="battle-scene-zoneName">{zoneName}</span>
                 <span className="battle-scene-waveLabel">{waveLabel}</span>

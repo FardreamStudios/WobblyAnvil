@@ -649,264 +649,263 @@ function Chalkboard(props) {
                     );
                 }
             }
-        }
-        // === CIRCLE VISUAL ===
-    } else if (ct === "circle") {
-        var cRadius = config.targetRadius * 1.8;  // orbit path radius
-        var cs = "waiting";
-        var cOp = 1;
+            // === CIRCLE VISUAL ===
+        } else if (ct === "circle") {
+            var cRadius = config.targetRadius * 1.8;  // orbit path radius
+            var cs = "waiting";
+            var cOp = 1;
 
-        if (chk.result !== null) {
-            cs = chk.result;
-            cOp = Math.max(0, 1 - (elapsed - chk.delayMs - chk.durationMs) / 400);
-        } else if (i === currentCheck && prog >= 0) {
-            cs = "active";
-        } else if (i > currentCheck) {
-            cOp = 0.3;
-        }
-
-        if (cOp > 0.01) {
-            // Orbit path outline (subtle dashed guide)
-            var cpathColor = "rgba(255,255,255,0.08)";
-            if (cs === "perfect") cpathColor = COLOR_PERFECT;
-            else if (cs === "good") cpathColor = COLOR_GOOD;
-            else if (cs === "miss") cpathColor = COLOR_MISS;
-
-            checkVisuals.push(
-                <circle key={"co-" + i} cx={center} cy={center} r={cRadius}
-                        fill="none" stroke={cpathColor}
-                        strokeWidth={cs === "active" || cs === "waiting" ? 1.5 : 3}
-                        strokeDasharray={cs === "active" || cs === "waiting" ? "4 6" : "none"}
-                        opacity={cOp} />
-            );
-
-            // Zone arcs + completion point (active/waiting only)
-            if (cs === "active" || cs === "waiting") {
-                var cgFrac = difficulty.hitZone;
-                var cpFrac = difficulty.perfectZone;
-                var gStartDeg = (1.0 - cgFrac) * 360 - 90;
-                var pStartDeg = (1.0 - cpFrac) * 360 - 90;
-                var endDeg = 270; // 12 o'clock = -90 = 270 in our arc helper
-
-                // Good zone arc
-                checkVisuals.push(
-                    <path key={"cgz-" + i}
-                          d={describeArc(center, center, cRadius, gStartDeg, endDeg)}
-                          fill="none" stroke={COLOR_GOOD} strokeWidth={3}
-                          opacity={cOp * 0.3} />
-                );
-
-                // Perfect zone arc
-                checkVisuals.push(
-                    <path key={"cpz-" + i}
-                          d={describeArc(center, center, cRadius, pStartDeg, endDeg)}
-                          fill="none" stroke={COLOR_PERFECT} strokeWidth={3}
-                          opacity={cOp * 0.4} />
-                );
-
-                // Completion point dot (12 o'clock)
-                var compX = center;
-                var compY = center - cRadius;
-                checkVisuals.push(
-                    <circle key={"ccp-" + i} cx={compX} cy={compY} r={4}
-                            fill={COLOR_TARGET} opacity={cOp * 0.6} />
-                );
+            if (chk.result !== null) {
+                cs = chk.result;
+                cOp = Math.max(0, 1 - (elapsed - chk.delayMs - chk.durationMs) / 400);
+            } else if (i === currentCheck && prog >= 0) {
+                cs = "active";
+            } else if (i > currentCheck) {
+                cOp = 0.3;
             }
 
-            // Orbiting particle head (active only)
-            if (cs === "active" && prog >= 0 && prog <= 1) {
-                var cAngle = -Math.PI / 2 + prog * Math.PI * 2;
-                var cpX = center + cRadius * Math.cos(cAngle);
-                var cpY = center + cRadius * Math.sin(cAngle);
-                var cTierNow = scoreTier(prog, difficulty);
+            if (cOp > 0.01) {
+                // Orbit path outline (subtle dashed guide)
+                var cpathColor = "rgba(255,255,255,0.08)";
+                if (cs === "perfect") cpathColor = COLOR_PERFECT;
+                else if (cs === "good") cpathColor = COLOR_GOOD;
+                else if (cs === "miss") cpathColor = COLOR_MISS;
 
-                // Trail arc from start to current
-                var trailStart = -90;
-                var trailEnd = -90 + prog * 360;
-                var cTrailC = COLOR_PARTICLE_TRAIL;
-                if (cTierNow === "perfect") cTrailC = COLOR_GLOW_PERF;
-                else if (cTierNow === "good") cTrailC = COLOR_GLOW_GOOD;
+                checkVisuals.push(
+                    <circle key={"co-" + i} cx={center} cy={center} r={cRadius}
+                            fill="none" stroke={cpathColor}
+                            strokeWidth={cs === "active" || cs === "waiting" ? 1.5 : 3}
+                            strokeDasharray={cs === "active" || cs === "waiting" ? "4 6" : "none"}
+                            opacity={cOp} />
+                );
 
-                if (prog > 0.01) {
+                // Zone arcs + completion point (active/waiting only)
+                if (cs === "active" || cs === "waiting") {
+                    var cgFrac = difficulty.hitZone;
+                    var cpFrac = difficulty.perfectZone;
+                    var gStartDeg = (1.0 - cgFrac) * 360 - 90;
+                    var pStartDeg = (1.0 - cpFrac) * 360 - 90;
+                    var endDeg = 270; // 12 o'clock = -90 = 270 in our arc helper
+
+                    // Good zone arc
                     checkVisuals.push(
-                        <path key={"ctr-" + i}
-                              d={describeArc(center, center, cRadius, trailStart, trailEnd)}
-                              fill="none" stroke={cTrailC} strokeWidth={4}
-                              strokeLinecap="round" opacity={0.5} />
+                        <path key={"cgz-" + i}
+                              d={describeArc(center, center, cRadius, gStartDeg, endDeg)}
+                              fill="none" stroke={COLOR_GOOD} strokeWidth={3}
+                              opacity={cOp * 0.3} />
+                    );
+
+                    // Perfect zone arc
+                    checkVisuals.push(
+                        <path key={"cpz-" + i}
+                              d={describeArc(center, center, cRadius, pStartDeg, endDeg)}
+                              fill="none" stroke={COLOR_PERFECT} strokeWidth={3}
+                              opacity={cOp * 0.4} />
+                    );
+
+                    // Completion point dot (12 o'clock)
+                    var compX = center;
+                    var compY = center - cRadius;
+                    checkVisuals.push(
+                        <circle key={"ccp-" + i} cx={compX} cy={compY} r={4}
+                                fill={COLOR_TARGET} opacity={cOp * 0.6} />
                     );
                 }
 
-                // Particle dot
-                var cPtC = COLOR_ACTIVE;
-                var cPtR = 7;
-                if (cTierNow === "perfect") { cPtC = COLOR_PERFECT; cPtR = 10; }
-                else if (cTierNow === "good") { cPtC = COLOR_GOOD; cPtR = 9; }
+                // Orbiting particle head (active only)
+                if (cs === "active" && prog >= 0 && prog <= 1) {
+                    var cAngle = -Math.PI / 2 + prog * Math.PI * 2;
+                    var cpX = center + cRadius * Math.cos(cAngle);
+                    var cpY = center + cRadius * Math.sin(cAngle);
+                    var cTierNow = scoreTier(prog, difficulty);
 
-                checkVisuals.push(
-                    <circle key={"cd-" + i} cx={cpX} cy={cpY} r={cPtR}
-                            fill={cPtC} opacity={0.9} />
-                );
-                // Glow halo
-                checkVisuals.push(
-                    <circle key={"cgh-" + i} cx={cpX} cy={cpY} r={cPtR + 7}
-                            fill="none" stroke={cPtC} strokeWidth={2} opacity={0.25} />
-                );
-            }
+                    // Trail arc from start to current
+                    var trailStart = -90;
+                    var trailEnd = -90 + prog * 360;
+                    var cTrailC = COLOR_PARTICLE_TRAIL;
+                    if (cTierNow === "perfect") cTrailC = COLOR_GLOW_PERF;
+                    else if (cTierNow === "good") cTrailC = COLOR_GLOW_GOOD;
 
-            // Result: full orbit ring flash
-            if (cs === "perfect" || cs === "good") {
-                var crc = cs === "perfect" ? COLOR_PERFECT : COLOR_GOOD;
-                checkVisuals.push(
-                    <circle key={"crf-" + i} cx={center} cy={center} r={cRadius}
-                            fill="none" stroke={crc} strokeWidth={4}
-                            opacity={cOp * 0.6} />
-                );
+                    if (prog > 0.01) {
+                        checkVisuals.push(
+                            <path key={"ctr-" + i}
+                                  d={describeArc(center, center, cRadius, trailStart, trailEnd)}
+                                  fill="none" stroke={cTrailC} strokeWidth={4}
+                                  strokeLinecap="round" opacity={0.5} />
+                        );
+                    }
+
+                    // Particle dot
+                    var cPtC = COLOR_ACTIVE;
+                    var cPtR = 7;
+                    if (cTierNow === "perfect") { cPtC = COLOR_PERFECT; cPtR = 10; }
+                    else if (cTierNow === "good") { cPtC = COLOR_GOOD; cPtR = 9; }
+
+                    checkVisuals.push(
+                        <circle key={"cd-" + i} cx={cpX} cy={cpY} r={cPtR}
+                                fill={cPtC} opacity={0.9} />
+                    );
+                    // Glow halo
+                    checkVisuals.push(
+                        <circle key={"cgh-" + i} cx={cpX} cy={cpY} r={cPtR + 7}
+                                fill="none" stroke={cPtC} strokeWidth={2} opacity={0.25} />
+                    );
+                }
+
+                // Result: full orbit ring flash
+                if (cs === "perfect" || cs === "good") {
+                    var crc = cs === "perfect" ? COLOR_PERFECT : COLOR_GOOD;
+                    checkVisuals.push(
+                        <circle key={"crf-" + i} cx={center} cy={center} r={cRadius}
+                                fill="none" stroke={crc} strokeWidth={4}
+                                opacity={cOp * 0.6} />
+                    );
+                }
             }
         }
     }
-}
 
 // --- Ring zone bands (only when current check is ring type) ---
-var ringZoneBands = null;
-if (activeCheckType === "ring") {
-    var gbOp = indicatorInGoodZone ? (indicatorInPerfectZone ? 0.08 : 0.25) : 0.12;
-    var pbOp = indicatorInPerfectZone ? 0.40 : 0.18;
-    ringZoneBands = (
-        <>
-            <circle cx={center} cy={center}
-                    r={(config.targetRadius + goodZoneOuterR) / 2}
-                    fill="none"
-                    stroke={indicatorInGoodZone ? COLOR_GLOW_GOOD : COLOR_ZONE_GOOD}
-                    strokeWidth={goodZoneOuterR - config.targetRadius}
-                    opacity={gbOp}
-                    style={{ transition: "opacity 120ms, stroke 120ms" }} />
-            <circle cx={center} cy={center}
-                    r={(config.targetRadius + perfectZoneOuterR) / 2}
-                    fill="none"
-                    stroke={indicatorInPerfectZone ? COLOR_GLOW_PERF : COLOR_ZONE_PERF}
-                    strokeWidth={perfectZoneOuterR - config.targetRadius}
-                    opacity={pbOp}
-                    style={{ transition: "opacity 120ms, stroke 120ms" }} />
-            <circle cx={center} cy={center}
-                    r={config.targetRadius} fill="none"
-                    stroke={COLOR_TARGET} strokeWidth={TARGET_STROKE} />
-        </>
-    );
-}
+    var ringZoneBands = null;
+    if (activeCheckType === "ring") {
+        var gbOp = indicatorInGoodZone ? (indicatorInPerfectZone ? 0.08 : 0.25) : 0.12;
+        var pbOp = indicatorInPerfectZone ? 0.40 : 0.18;
+        ringZoneBands = (
+            <>
+                <circle cx={center} cy={center}
+                        r={(config.targetRadius + goodZoneOuterR) / 2}
+                        fill="none"
+                        stroke={indicatorInGoodZone ? COLOR_GLOW_GOOD : COLOR_ZONE_GOOD}
+                        strokeWidth={goodZoneOuterR - config.targetRadius}
+                        opacity={gbOp}
+                        style={{ transition: "opacity 120ms, stroke 120ms" }} />
+                <circle cx={center} cy={center}
+                        r={(config.targetRadius + perfectZoneOuterR) / 2}
+                        fill="none"
+                        stroke={indicatorInPerfectZone ? COLOR_GLOW_PERF : COLOR_ZONE_PERF}
+                        strokeWidth={perfectZoneOuterR - config.targetRadius}
+                        opacity={pbOp}
+                        style={{ transition: "opacity 120ms, stroke 120ms" }} />
+                <circle cx={center} cy={center}
+                        r={config.targetRadius} fill="none"
+                        stroke={COLOR_TARGET} strokeWidth={TARGET_STROKE} />
+            </>
+        );
+    }
 
 // --- Result pips ---
-var pips = [];
-for (var p = 0; p < config.rings; p++) {
-    var r = results[p];
-    var pc = "rgba(255,255,255,0.2)";
-    if (r !== null) {
-        if (r.tier === "perfect") pc = COLOR_PERFECT;
-        else if (r.tier === "good") pc = COLOR_GOOD;
-        else pc = COLOR_MISS;
+    var pips = [];
+    for (var p = 0; p < config.rings; p++) {
+        var r = results[p];
+        var pc = "rgba(255,255,255,0.2)";
+        if (r !== null) {
+            if (r.tier === "perfect") pc = COLOR_PERFECT;
+            else if (r.tier === "good") pc = COLOR_GOOD;
+            else pc = COLOR_MISS;
+        }
+        pips.push(
+            <div key={p} style={{
+                width: 10, height: 10, borderRadius: "50%", background: pc,
+                transition: "all 200ms",
+                transform: r !== null ? "scale(1.3)" : "scale(1)",
+            }} />
+        );
     }
-    pips.push(
-        <div key={p} style={{
-            width: 10, height: 10, borderRadius: "50%", background: pc,
-            transition: "all 200ms",
-            transform: r !== null ? "scale(1.3)" : "scale(1)",
-        }} />
-    );
-}
 
 // --- Flash text ---
-var flashEl = null;
-if (flash) {
-    var fc = flash.tier === "perfect" ? COLOR_PERFECT
-        : flash.tier === "good" ? COLOR_GOOD : COLOR_MISS;
-    flashEl = (
-        <div style={{
-            position: "absolute", top: "50%", left: "50%",
-            transform: "translate(-50%, -50%)",
-            fontSize: "clamp(18px, 4vw, 28px)", fontWeight: 700,
-            fontFamily: "monospace", color: fc,
-            textShadow: "0 0 20px " + fc + ", 0 2px 8px rgba(0,0,0,0.5)",
-            pointerEvents: "none", zIndex: 10,
-        }}>
-            {flash.text}
-        </div>
-    );
-}
+    var flashEl = null;
+    if (flash) {
+        var fc = flash.tier === "perfect" ? COLOR_PERFECT
+            : flash.tier === "good" ? COLOR_GOOD : COLOR_MISS;
+        flashEl = (
+            <div style={{
+                position: "absolute", top: "50%", left: "50%",
+                transform: "translate(-50%, -50%)",
+                fontSize: "clamp(18px, 4vw, 28px)", fontWeight: 700,
+                fontFamily: "monospace", color: fc,
+                textShadow: "0 0 20px " + fc + ", 0 2px 8px rgba(0,0,0,0.5)",
+                pointerEvents: "none", zIndex: 10,
+            }}>
+                {flash.text}
+            </div>
+        );
+    }
 
 // --- Summary ---
-var done = phase === "done";
-var perfects = 0, goods = 0;
-for (var s = 0; s < results.length; s++) {
-    if (results[s] !== null) {
-        if (results[s].tier === "perfect") perfects++;
-        else if (results[s].tier === "good") goods++;
+    var done = phase === "done";
+    var perfects = 0, goods = 0;
+    for (var s = 0; s < results.length; s++) {
+        if (results[s] !== null) {
+            if (results[s].tier === "perfect") perfects++;
+            else if (results[s].tier === "good") goods++;
+        }
     }
-}
-var totalHits = perfects + goods;
-var ratio = done ? (totalHits / config.rings) : 0;
-var summaryLabel = "";
-if (done) {
-    if (perfects === config.rings) summaryLabel = "FLAWLESS!";
-    else if (ratio >= 0.8) summaryLabel = "EXCELLENT!";
-    else if (ratio >= 0.5) summaryLabel = "DECENT";
-    else summaryLabel = "POOR";
-}
+    var totalHits = perfects + goods;
+    var ratio = done ? (totalHits / config.rings) : 0;
+    var summaryLabel = "";
+    if (done) {
+        if (perfects === config.rings) summaryLabel = "FLAWLESS!";
+        else if (ratio >= 0.8) summaryLabel = "EXCELLENT!";
+        else if (ratio >= 0.5) summaryLabel = "DECENT";
+        else summaryLabel = "POOR";
+    }
 
-return (
-    <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center",
-        gap: 12, userSelect: "none", WebkitUserSelect: "none",
-        touchAction: "manipulation",
-    }}>
+    return (
         <div style={{
-            fontFamily: "monospace", fontSize: "clamp(14px, 3vw, 20px)",
-            fontWeight: 700, letterSpacing: 3,
-            color: done
-                ? (ratio >= 0.8 ? COLOR_GOOD : ratio >= 0.5 ? COLOR_PERFECT : COLOR_MISS)
-                : "rgba(255,255,255,0.7)",
-            transition: "color 300ms",
+            display: "flex", flexDirection: "column", alignItems: "center",
+            gap: 12, userSelect: "none", WebkitUserSelect: "none",
+            touchAction: "manipulation",
         }}>
-            {done ? summaryLabel : (config.label || "TAP!")}
-        </div>
-
-        <div
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            style={{
-                position: "relative", width: svgSize, height: svgSize,
-                maxWidth: "80vw", maxHeight: "80vw",
-                cursor: "pointer", touchAction: "none",
-            }}
-        >
-            <svg width="100%" height="100%"
-                 viewBox={"0 0 " + svgSize + " " + svgSize}
-                 style={{ display: "block" }}>
-                {ringZoneBands}
-                {checkVisuals}
-            </svg>
-            {flashEl}
-        </div>
-
-        <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-            {pips}
-        </div>
-
-        {done && (
             <div style={{
-                fontFamily: "monospace", fontSize: 14,
-                color: "rgba(255,255,255,0.5)", textAlign: "center",
+                fontFamily: "monospace", fontSize: "clamp(14px, 3vw, 20px)",
+                fontWeight: 700, letterSpacing: 3,
+                color: done
+                    ? (ratio >= 0.8 ? COLOR_GOOD : ratio >= 0.5 ? COLOR_PERFECT : COLOR_MISS)
+                    : "rgba(255,255,255,0.7)",
+                transition: "color 300ms",
             }}>
-                {perfects > 0 && (perfects + " perfect" + (perfects > 1 ? "s" : ""))}
-                {perfects > 0 && goods > 0 && " · "}
-                {goods > 0 && (goods + " good")}
-                {totalHits === 0 && "no hits"}
+                {done ? summaryLabel : (config.label || "TAP!")}
             </div>
-        )}
-    </div>
-);
+
+            <div
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                style={{
+                    position: "relative", width: svgSize, height: svgSize,
+                    maxWidth: "80vw", maxHeight: "80vw",
+                    cursor: "pointer", touchAction: "none",
+                }}
+            >
+                <svg width="100%" height="100%"
+                     viewBox={"0 0 " + svgSize + " " + svgSize}
+                     style={{ display: "block" }}>
+                    {ringZoneBands}
+                    {checkVisuals}
+                </svg>
+                {flashEl}
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                {pips}
+            </div>
+
+            {done && (
+                <div style={{
+                    fontFamily: "monospace", fontSize: 14,
+                    color: "rgba(255,255,255,0.5)", textAlign: "center",
+                }}>
+                    {perfects > 0 && (perfects + " perfect" + (perfects > 1 ? "s" : ""))}
+                    {perfects > 0 && goods > 0 && " · "}
+                    {goods > 0 && (goods + " good")}
+                    {totalHits === 0 && "no hits"}
+                </div>
+            )}
+        </div>
+    );
 }
 
 // ============================================================
