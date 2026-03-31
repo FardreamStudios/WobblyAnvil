@@ -40,6 +40,7 @@ import DevControls from "./DevControls.js";
 import ATBGaugeStrip from "./ATBGaugeStrip.js";
 import ActionMenu from "./ActionMenu.js";
 import ItemSubmenu from "./ItemSubmenu.js";
+import SkillSubmenu from "./SkillSubmenu.js";
 import ComicPanel from "./ComicPanel.js";
 import ActionCamInfoPanel from "./ActionCamInfoPanel.js";
 import BattleAI from "./battleAI.js";
@@ -166,6 +167,9 @@ function BattleView(props) {
     // context: "formation" (out of cam) or "in-cam" (during exchange)
     var [itemMenuOpen, setItemMenuOpen] = useState(false);
     var itemMenuContextRef = useRef("formation");
+    // --- Skill submenu state ---
+    var [skillMenuOpen, setSkillMenuOpen] = useState(false);
+    var selectedSkillRef = useRef(null);
     var [battleResult, setBattleResult] = useState(null);
 
     // --- Sprite animation frame ---
@@ -383,6 +387,8 @@ function BattleView(props) {
         setDamageNumbers([]);
         setQteConfig(null);
         setItemMenuOpen(false);
+        setSkillMenuOpen(false);
+        selectedSkillRef.current = null;
         setBattleResult(null);
         camExchangeRef.current = null;
         comboCounterRef.current = { playerCombo: 0, enemyUnblocked: 0 };
@@ -858,20 +864,8 @@ function BattleView(props) {
         var swingerId = cam.currentSwingerId;
         var receiverId = cam.currentReceiverId;
         console.log("[CAM-ID] handleCamATK swinger=" + swingerId + " receiver=" + receiverId + " swing#=" + cam.swingCount);
-        setAtbValues(function(prev) {
-            var entry = prev[swingerId];
-            if (!entry || entry.filledPips <= 0) return prev;
-            var next = {};
-            for (var key in prev) {
-                if (prev.hasOwnProperty(key)) {
-                    next[key] = key === swingerId
-                        ? { filledPips: entry.filledPips - 1, currentFill: 0 }
-                        : prev[key];
-                }
-            }
-            return next;
-        });
 
+        // --- Resolve skill first so we know pip cost ---
         var swingerData = combatantMap[swingerId];
         var skillId = null;
         if (cam.aiSkillId && !isPartyId(swingerId)) {
@@ -880,8 +874,13 @@ function BattleView(props) {
             var nextAI = BattleAI.pickAction(swingerData, bState);
             cam.aiSkillId = nextAI ? nextAI.skillId : null;
         } else {
-            // Party: first skill (player skill selection is future work)
-            skillId = swingerData && swingerData.skills ? swingerData.skills[0] : null;
+            // Party: use player-selected skill (or first skill for AI-controlled party)
+            if (selectedSkillRef.current) {
+                skillId = selectedSkillRef.current;
+                selectedSkillRef.current = null;
+            } else {
+                skillId = swingerData && swingerData.skills ? swingerData.skills[0] : null;
+            }
         }
         var skill = BattleSkills.getSkill(skillId);
 
@@ -890,6 +889,22 @@ function BattleView(props) {
             advanceOrCamOut();
             return;
         }
+
+        // --- Deduct pip cost (default 1 if not specified) ---
+        var cost = skill.pipCost || 1;
+        setAtbValues(function(prev) {
+            var entry = prev[swingerId];
+            if (!entry || entry.filledPips <= 0) return prev;
+            var next = {};
+            for (var key in prev) {
+                if (prev.hasOwnProperty(key)) {
+                    next[key] = key === swingerId
+                        ? { filledPips: Math.max(0, entry.filledPips - cost), currentFill: 0 }
+                        : prev[key];
+                }
+            }
+            return next;
+        });
 
         doCamSwing(swingerId, receiverId, skill);
     }
@@ -1783,12 +1798,40 @@ function BattleView(props) {
         setItemMenuOpen(false);
     }
 
+    // In-cam ATK button — opens skill picker for player, fires directly for AI
+    function handleCamATKButton() {
+        var cam = camExchangeRef.current;
+        if (!cam) return;
+        if (phase !== PHASES.CAM_WAIT_ACTION) return;
+        var swingerId = cam.currentSwingerId;
+        // Only show skill picker for the player character (smith)
+        if (isPartyId(swingerId) && swingerId === "smith") {
+            setItemMenuOpen(false);
+            setSkillMenuOpen(true);
+        } else {
+            // AI-controlled party members (fairy) — fire directly
+            handleCamATK();
+        }
+    }
+
+    // Player picked a skill from the submenu
+    function handleSkillSelect(skillId) {
+        selectedSkillRef.current = skillId;
+        setSkillMenuOpen(false);
+        handleCamATK();
+    }
+
+    function handleSkillClose() {
+        setSkillMenuOpen(false);
+    }
+
     // In-cam ITEM button handler
     function handleCamItem() {
         var cam = camExchangeRef.current;
         if (!cam) return;
         if (phase !== PHASES.CAM_WAIT_ACTION) return;
         itemMenuContextRef.current = "in-cam";
+        setSkillMenuOpen(false);
         setItemMenuOpen(true);
     }
 
@@ -1964,7 +2007,7 @@ function BattleView(props) {
                         <button
                             className={"battle-cam-atk-btn battle-cam-atk-btn--player" + (playerAtkEnabled ? " battle-cam-atk-btn--active" : "")}
                             disabled={!playerAtkEnabled}
-                            onClick={handleCamATK}
+                            onClick={handleCamATKButton}
                         >
                             PLAYER ATK
                         </button>
@@ -2038,6 +2081,29 @@ function BattleView(props) {
                     onUse={handleItemUse}
                     onClose={handleItemClose}
                     isInCam={itemMenuContextRef.current === "in-cam"}
+                />
+
+                {/* Skill submenu — overlays action menu zone */}
+                <SkillSubmenu
+                    visible={skillMenuOpen}
+                    skills={skillMenuOpen ? (function() {
+                        var cam = camExchangeRef.current;
+                        var uid = cam ? cam.currentSwingerId : null;
+                        var cData = uid ? combatantMap[uid] : null;
+                        if (!cData || !cData.skills) return [];
+                        return cData.skills.map(function(sId) {
+                            return BattleSkills.getSkill(sId);
+                        }).filter(Boolean);
+                    })() : []}
+                    availablePips={skillMenuOpen ? (function() {
+                        var cam = camExchangeRef.current;
+                        var uid = cam ? cam.currentSwingerId : null;
+                        var entry = uid ? atbValues[uid] : null;
+                        return entry ? entry.filledPips : 0;
+                    })() : 0}
+                    onSelect={handleSkillSelect}
+                    onClose={handleSkillClose}
+                    isInCam={true}
                 />
 
                 {/* QTE zone */}

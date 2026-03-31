@@ -37,6 +37,8 @@ import FairyAPI         from "./fairyAPI.js";
 import FairyTutorial    from "./fairyTutorial.js";
 import ForgeTutorial    from "../tutorials/forgeTutorial.js";
 import FairyChatSystem  from "./fairyChatSystem.js";
+import FairyDigest      from "./fairyDigest.js";
+import FairyReactions   from "./fairyReactions.js";
 import EVENT_TAGS       from "../config/eventTags.js";
 
 // ============================================================
@@ -133,6 +135,11 @@ var _tutorialTapCount = 0;       // taps during current tutorial segment (resets
 var _chatActive = false;         // true while chat session is open
 var _chatDismissWarned = false;  // two-tap dismiss pattern
 var _chatHoldTimer = null;       // hold-to-record delay timer
+
+// --- LLM Reaction linger state ---
+var _reactionLingerTimer = null; // setTimeout id for auto-dismiss after LLM reaction
+var _reactionLingerActive = false; // true while fairy is lingering after an LLM reaction
+var REACTION_LINGER_MS = 8000;   // how long fairy waits before auto-dismissing
 
 // Cooldown tracking: { triggerId: lastFiredTimestamp }
 var _cooldowns = {};
@@ -335,6 +342,12 @@ function init(config) {
         bus: _bus,
         stateProvider: _stateProvider,
     });
+
+    // --- Init FairyDigest (event diary for LLM context) ---
+    FairyDigest.init({
+        bus: _bus,
+        stateProvider: _stateProvider,
+    });
 }
 
 // ============================================================
@@ -425,6 +438,9 @@ function _enrichFromPayload(tag, payload) {
         // Auto-clear after 3s — only relevant during the forge-complete window
         setTimeout(function() { _tracked.justCompletedDecree = false; }, 3000);
     }
+
+    // Check if this event should trigger an LLM reaction (fairy appears unprompted)
+    _rollLLMReaction(tag, payload);
 }
 
 function _subscribeTo(tag) {
@@ -763,6 +779,9 @@ function _requestLLMLine(state, trigger) {
     var target = trigger.target || null;
     var cue = trigger.cue || null;
 
+    var digest = FairyDigest.getDigest();
+    if (digest) state.recentEvents = digest;
+
     FairyAPI.requestLine(state).then(function(line) {
         // Validate we're still in a state that can speak
         if (_fsmState === STATES.OFF || _fsmState === STATES.DISMISSED) return;
@@ -777,6 +796,113 @@ function _requestLLMLine(state, trigger) {
             cue: cue,
         });
     });
+}
+
+// ============================================================
+// LLM REACTIONS — event-driven, fairy-initiated chat
+// Bus event → roll dice → LLM call → fairy poofs in and lingers.
+// Player can engage via speak button or tap fairy to dismiss.
+// ============================================================
+
+/**
+ * Called at the end of _enrichFromPayload. Checks if this event
+ * should trigger an LLM reaction (fairy appears unprompted).
+ */
+function _rollLLMReaction(tag, payload) {
+    // Guards: don't react if busy, in tutorial, already chatting, or dismissed
+    if (!_initialized) return;
+    if (_fsmState === STATES.OFF || _fsmState === STATES.DISMISSED) return;
+    if (_fsmState === STATES.POINTING || _fsmState === STATES.EXITING) return;
+    if (_chatActive || _reactionLingerActive) return;
+    if (FairyTutorial.isRunning() || ForgeTutorial.isRunning()) return;
+
+    // Appearance cap
+    if (_currentTier && _appearancesToday >= _currentTier.maxAppearances) return;
+
+    // Get current day
+    var state = _stateProvider ? _stateProvider() : {};
+    var day = state.day || 1;
+
+    // Evaluate
+    var hit = FairyReactions.evaluate(tag, payload, _tracked, day);
+    if (!hit) return;
+
+    // Hit — fire async LLM call
+    _appearancesToday++;
+    _fireLLMReaction(hit, state);
+}
+
+/**
+ * Async: send LLM call with reaction hint, then open linger-chat.
+ */
+function _fireLLMReaction(hit, baseState) {
+    // Build state snapshot with digest + reaction hint
+    var state = {};
+    var bKeys = Object.keys(baseState);
+    for (var b = 0; b < bKeys.length; b++) { state[bKeys[b]] = baseState[bKeys[b]]; }
+    var tKeys = Object.keys(_tracked);
+    for (var t2 = 0; t2 < tKeys.length; t2++) { state[tKeys[t2]] = _tracked[tKeys[t2]]; }
+
+    var digest = FairyDigest.getDigest();
+    if (digest) state.recentEvents = digest;
+    state.reactionHint = hit.hint;
+
+    FairyAPI.requestLine(state).then(function(line) {
+        // Validate we're still in a valid state
+        if (_fsmState === STATES.OFF || _fsmState === STATES.DISMISSED) return;
+        if (_chatActive) return; // player opened chat while we were waiting
+
+        line = _resolveTokens(line, state);
+
+        // Open linger-chat: fairy appears, speaks, stays in chat mode
+        _reactionLingerActive = true;
+        _chatDismissWarned = false;
+        _chatActive = true;
+        _setState(STATES.POINTING);
+
+        // Send cue — poof in at reaction spot, speak, stay visible
+        _sendCommand({
+            intent: "cue",
+            cue: "react_linger",
+            spot: hit.spotId,
+            line: line,
+            target: null,
+            category: "reaction",
+        });
+
+        // Enable chat mode (taps route to dismiss, speak button works)
+        _sendCommand({ intent: "set_chat_mode", value: true });
+
+        // Open chat system with fairy's line as the opening
+        FairyChatSystem.openChat();
+        // Inject the reaction line into chat history so conversation flows naturally
+        FairyChatSystem.injectLine(line);
+
+        // Start linger timer — if player doesn't engage, dismiss
+        _startLingerTimer();
+    });
+}
+
+/**
+ * Start the auto-dismiss timer for linger-chat.
+ * Resets if called again (player activity extends it).
+ */
+function _startLingerTimer() {
+    _clearLingerTimer();
+    _reactionLingerTimer = setTimeout(function() {
+        _reactionLingerTimer = null;
+        if (_reactionLingerActive && _chatActive) {
+            _closeChatSession();
+        }
+        _reactionLingerActive = false;
+    }, REACTION_LINGER_MS);
+}
+
+function _clearLingerTimer() {
+    if (_reactionLingerTimer) {
+        clearTimeout(_reactionLingerTimer);
+        _reactionLingerTimer = null;
+    }
 }
 
 // ============================================================
@@ -831,6 +957,15 @@ function _onChatTap() {
     // Don't interrupt tutorials
     if (FairyTutorial.isRunning() || ForgeTutorial.isRunning()) return;
 
+    // If fairy is lingering from an LLM reaction, player is engaging — keep her
+    if (_reactionLingerActive) {
+        _clearLingerTimer();
+        _reactionLingerActive = false;
+        // Chat is already open, fairy is already visible — just toggle text field
+        if (_bus) _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_TEXT_TOGGLE);
+        return;
+    }
+
     if (!_chatActive) {
         // Summon fairy + open chat
         _chatDismissWarned = false;
@@ -870,8 +1005,15 @@ function _onChatHoldEnd() {
 /** FAIRY_CHAT_DISMISS — player tapped fairy during chat (two-tap pattern) */
 function _onChatDismiss() {
     if (!_chatActive) return;
-    // Don't dismiss during tutorials — fairy tap is handled by tutorial system
     if (FairyTutorial.isRunning() || ForgeTutorial.isRunning()) return;
+
+    // During linger-react, first tap dismisses immediately
+    if (_reactionLingerActive) {
+        _clearLingerTimer();
+        _reactionLingerActive = false;
+        _closeChatSession();
+        return;
+    }
 
     if (!_chatDismissWarned) {
         _chatDismissWarned = true;
@@ -887,6 +1029,13 @@ function _onChatDismiss() {
 /** FAIRY_CHAT_SEND — player submitted text */
 function _onChatSend(payload) {
     if (!_chatActive) return;
+
+    // Player engaged — cancel linger auto-dismiss
+    if (_reactionLingerActive) {
+        _clearLingerTimer();
+        _reactionLingerActive = false;
+    }
+
     var text = payload && payload.text ? payload.text : "";
     if (text.length > 0) {
         FairyChatSystem.sendMessage(text);
@@ -921,6 +1070,8 @@ function _onChatClosed() {
 /** Internal: tear down chat state and dismiss fairy */
 function _closeChatSession() {
     _chatActive = false;
+    _reactionLingerActive = false;
+    _clearLingerTimer();
     _chatDismissWarned = false;
     if (_chatHoldTimer) {
         clearTimeout(_chatHoldTimer);
@@ -1323,6 +1474,10 @@ function reset() {
         _chatHoldTimer = null;
     }
     FairyChatSystem.clearHistory();
+    FairyDigest.reset();
+    FairyReactions.clearCooldowns();
+    _clearLingerTimer();
+    _reactionLingerActive = false;
 
     FairyTutorial.cancel();
     _fsmState     = STATES.IDLE;
@@ -1356,6 +1511,10 @@ function destroy() {
     FairyTutorial.destroy();
     if (ForgeTutorial.isRunning()) ForgeTutorial.cancel();
     FairyChatSystem.destroy();
+    FairyDigest.destroy();
+    FairyReactions.clearCooldowns();
+    _clearLingerTimer();
+    _reactionLingerActive = false;
 
     if (_chatHoldTimer) {
         clearTimeout(_chatHoldTimer);

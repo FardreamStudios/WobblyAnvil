@@ -69,21 +69,25 @@ var FORGE_MAP = {
     // --- Named spots (smart objects / POIs) ---
     // Each references a y-position; scale + z derived from depth curve.
     // scaleOverride: set explicitly to bypass formula (comedic effect, etc.)
+    // layer: "scene" = depth-scaled in forge, "overlay" = fixed scale over UI
     spots: [
-        { id: "doorway",       x: 15,  y: 45,  label: "background doorway" },
-        { id: "back_shelf",    x: 80,  y: 35,  label: "high shelf in back" },
-        { id: "forge_mouth",   x: 55,  y: 70,  label: "next to forge opening" },
-        { id: "near_anvil",    x: 38,  y: 80,  label: "beside the anvil" },
-        { id: "center_floor",  x: 50,  y: 75,  label: "open floor center" },
-        { id: "far_left",      x: 10,  y: 40,  label: "far left back wall" },
-        { id: "far_right",     x: 90,  y: 40,  label: "far right back wall" },
-        { id: "front_left",    x: 15,  y: 88,  label: "front left corner" },
-        { id: "front_right",   x: 85,  y: 88,  label: "front right corner" },
-        { id: "village_outside", x: 65, y: 28, scaleOverride: 0.15, label: "tiny, outside forge in the village through doorway" },
-        // --- Chat overlay positions (scaleOverride bypasses depth curve) ---
-        { id: "talk_left",    x: 25,  y: 82,  scaleOverride: 2.5, label: "close overlay, left side" },
-        { id: "talk_right",   x: 75,  y: 82,  scaleOverride: 2.5, label: "close overlay, right side" },
-        { id: "talk_center",  x: 50,  y: 82,  scaleOverride: 2.5, label: "close overlay, center" },
+        // --- Scene positions (depth-scaled, feet-pinned) ---
+        { id: "doorway",       x: 15,  y: 45,  layer: "scene",   label: "background doorway" },
+        { id: "back_shelf",    x: 80,  y: 35,  layer: "scene",   label: "high shelf in back" },
+        { id: "forge_mouth",   x: 55,  y: 70,  layer: "scene",   label: "next to forge opening" },
+        { id: "near_anvil",    x: 38,  y: 80,  layer: "scene",   label: "beside the anvil" },
+        { id: "center_floor",  x: 50,  y: 75,  layer: "scene",   label: "open floor center" },
+        { id: "far_left",      x: 10,  y: 40,  layer: "scene",   label: "far left back wall" },
+        { id: "far_right",     x: 90,  y: 40,  layer: "scene",   label: "far right back wall" },
+        { id: "front_left",    x: 15,  y: 88,  layer: "scene",   label: "front left corner" },
+        { id: "front_right",   x: 85,  y: 88,  layer: "scene",   label: "front right corner" },
+        { id: "village_outside", x: 65, y: 28,  layer: "scene",   scaleOverride: 0.15, label: "tiny, outside forge in the village through doorway" },
+        // --- Reactive LLM spots (scene, non-intrusive) ---
+        { id: "react_back_left", x: 18, y: 55,  layer: "scene",  label: "back left, out of the way — LLM reactions" },
+        // --- Overlay positions (fixed scale, center-origin) ---
+        { id: "talk_left",    x: 25,  y: 82,  layer: "overlay", scaleOverride: 2.5, label: "close overlay, left side" },
+        { id: "talk_right",   x: 75,  y: 82,  layer: "overlay", scaleOverride: 2.5, label: "close overlay, right side" },
+        { id: "talk_center",  x: 50,  y: 82,  layer: "overlay", scaleOverride: 2.5, label: "close overlay, center" },
     ],
 
     // --- Roam zones (simple bounds, fairy wanders freely inside) ---
@@ -402,6 +406,39 @@ function listDodgePaths(sceneId) {
     return (map.dodgePaths || []).map(function(p) { return p.id; });
 }
 
+/**
+ * List spot IDs filtered by layer ("scene" or "overlay").
+ * Returns array of spot id strings.
+ */
+function getSpotsByLayer(sceneId, layer) {
+    var map = FAIRY_SCENE_MAPS[sceneId];
+    if (!map) return [];
+    var result = [];
+    for (var i = 0; i < map.spots.length; i++) {
+        if (map.spots[i].layer === layer) {
+            result.push(map.spots[i].id);
+        }
+    }
+    return result;
+}
+
+/**
+ * Pick a random spot from a specific layer.
+ * Returns spot object { id, x, y, ... } or null.
+ */
+function getRandomSpotByLayer(sceneId, layer) {
+    var map = FAIRY_SCENE_MAPS[sceneId];
+    if (!map) return null;
+    var pool = [];
+    for (var i = 0; i < map.spots.length; i++) {
+        if (map.spots[i].layer === layer) {
+            pool.push(map.spots[i]);
+        }
+    }
+    if (pool.length === 0) return null;
+    return pool[Math.floor(Math.random() * pool.length)];
+}
+
 // ============================================================
 // EXPORTS
 // ============================================================
@@ -427,6 +464,8 @@ var FairyPositions = {
     listSpots: listSpots,
     listRoamZones: listRoamZones,
     listDodgePaths: listDodgePaths,
+    getSpotsByLayer: getSpotsByLayer,
+    getRandomSpotByLayer: getRandomSpotByLayer,
 };
 
 export default FairyPositions;

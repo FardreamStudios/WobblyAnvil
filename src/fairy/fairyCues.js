@@ -593,6 +593,29 @@ var TUT_CHAT = {
     ],
 };
 
+// ============================================================
+// REACT LINGER
+// Fairy poofs into a scene spot, speaks an LLM line, stays
+// visible in chat mode. Player can engage via speak button or
+// tap fairy to dismiss. Controller manages linger timeout.
+// Layer: scene (non-intrusive, depth-scaled).
+// ============================================================
+
+var REACT_LINGER = {
+    id: "react_linger",
+    description: "LLM reaction — poof in, speak, stay for chat (scene, depth-scaled)",
+    layer: "scene",
+    waitForInput: true,
+    steps: [
+        { at: 0,    cmd: "poof_in",      spot: null, duration: 250 },
+        { at: 350,  cmd: "set_tappable",  value: true },
+        { at: 600,  cmd: "speak",         text: null, duration: null },
+        { at: null,  cmd: "hide_speech" },
+        // Fairy stays visible — waitForInput prevents auto-complete.
+        // Controller handles linger timeout + chat mode switch.
+    ],
+};
+
 var FAIRY_CUES = {
     silent_peek:     SILENT_PEEK,
     silent_poof:     SILENT_POOF,
@@ -619,6 +642,7 @@ var FAIRY_CUES = {
     tut_forge_speak:   TUT_FORGE_SPEAK,
     tut_chat:          TUT_CHAT,
     chat_idle:         CHAT_IDLE,
+    react_linger:      REACT_LINGER,
 };
 
 // ============================================================

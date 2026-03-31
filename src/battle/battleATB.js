@@ -24,13 +24,19 @@ import BattleConstants from "./battleConstants.js";
 var ATB = BattleConstants.ATB;
 
 // ============================================================
-// Init — build empty pip state for all combatants
-// Returns: { [id]: { filledPips: 0, currentFill: 0 } }
+// Init — build pip state for all combatants
+// Seeds starting currentFill from combatant's speed stat + jitter.
+// speed 1–10 → base fill 0.08–0.80, jitter ±0.10, clamped 0–0.95
 // ============================================================
 function initState(combatants) {
     var state = {};
     for (var i = 0; i < combatants.length; i++) {
-        state[combatants[i].id] = { filledPips: 0, currentFill: 0 };
+        var c = combatants[i];
+        var speed = c.speed || 5;
+        var baseFill = speed * 0.08;
+        var jitter = (Math.random() * 0.2) - 0.1; // ±0.10
+        var startFill = Math.max(0, Math.min(0.95, baseFill + jitter));
+        state[c.id] = { filledPips: 0, currentFill: startFill };
     }
     return state;
 }

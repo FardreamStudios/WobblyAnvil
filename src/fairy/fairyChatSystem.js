@@ -32,6 +32,7 @@ import FairyPersonality from "./fairyPersonality.js";
 import FairyPositions   from "./fairyPositions.js";
 import EVENT_TAGS       from "../config/eventTags.js";
 import MobileInfra      from "../hooks/useMobileInfra.js";
+import FairyDigest      from "./fairyDigest.js";
 
 // ============================================================
 // INTERNAL STATE
@@ -339,6 +340,17 @@ function closeChat() {
     // History is NOT cleared — persists for the session
 }
 
+/**
+ * Inject a fairy line into chat history without triggering an API call.
+ * Used by LLM reactions — fairy's opening line is already generated,
+ * just needs to be in history so the conversation flows naturally.
+ */
+function injectLine(line) {
+    if (!line) return;
+    _history.push({ role: "fairy", text: line });
+    _trimHistory();
+}
+
 function isOpen() {
     return _chatOpen;
 }
@@ -373,6 +385,10 @@ function sendMessage(text) {
 
     // Get game state snapshot
     var gameState = _stateProvider ? _stateProvider() : {};
+
+    // Inject event digest — gives fairy awareness of recent gameplay arc
+    var digest = FairyDigest.getDigest();
+    if (digest) gameState.recentEvents = digest;
 
     // Inject random obsession nudge — keeps personality front-of-mind per turn
     var nudges = FairyPersonality.OBSESSION_NUDGES;
@@ -520,6 +536,7 @@ var FairyChatSystem = {
     closeChat:   closeChat,
     isOpen:      isOpen,
     sendMessage: sendMessage,
+    injectLine:  injectLine,
 
     // Speech
     startListening:   startListening,
