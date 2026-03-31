@@ -194,11 +194,35 @@
     transition: transform 0.1s ease-out, filter 0.1s ease-out;
 }
 
-/* Dodge — fast lateral shift away, quicker than knockback, no flash */
+/* Brace Perfect — blue-white flash pulse, stronger squat, attacker recoils */
+@keyframes bracePerfectFlash {
+    0%   { filter: brightness(2.5) saturate(0.2) hue-rotate(180deg); }
+    40%  { filter: brightness(3.5) saturate(0)   hue-rotate(180deg); }
+    100% { filter: brightness(1)   saturate(1)   hue-rotate(0deg);   }
+}
+
+.normal-cam-char__choreo--brace-perfect {
+    transform: scaleY(0.84) scaleX(1.08);
+    animation: bracePerfectFlash 250ms steps(3) 1 forwards;
+}
+
+/* Flinch — minor recoil on attacker (brace-perfect feedback) */
+.normal-cam-char__choreo--flinch {
+    transform: translateX(calc(1.5vw * var(--choreo-dir, 1))) scaleX(0.95);
+    transition: transform 0.08s ease-out;
+}
+
+/* Dodge — fast lateral shift + afterimage trail */
+@keyframes dodgeAfterimage {
+    0%   { opacity: 0.6; }
+    50%  { opacity: 0.3; }
+    100% { opacity: 1;   }
+}
+
 .normal-cam-char__choreo--dodge {
     transform: translateX(calc(5vw * var(--choreo-dir, 1))) translateY(-1vw);
-    opacity: 0.6;
-    transition: transform 0.1s cubic-bezier(0.2, 0, 0, 1), opacity 0.1s ease-out;
+    animation: dodgeAfterimage 200ms steps(3) 1 forwards;
+    transition: transform 0.1s cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* Telegraph — escalating shake + red glow buildup before enemy strike.
@@ -631,6 +655,28 @@
     font-size: clamp(10px, 2vw, 14px);
     font-style: italic;
     letter-spacing: 2px;
+}
+
+/* --- Skill Name Label — floats above attacker sprite on attack start --- */
+@keyframes skillNamePop {
+    0%   { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
+    15%  { transform: translate(-50%, -0.5vh) scale(1.1); opacity: 1; }
+    40%  { transform: translate(-50%, -1vh) scale(1.0); opacity: 1; }
+    75%  { transform: translate(-50%, -1.5vh); opacity: 0.8; }
+    100% { transform: translate(-50%, -2vh); opacity: 0; }
+}
+
+.action-cam-skill-name {
+    position: absolute;
+    z-index: 16;
+    pointer-events: none;
+    font-family: monospace;
+    font-weight: bold;
+    font-size: clamp(11px, 2.2vw, 16px);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.6);
+    animation: skillNamePop 1000ms ease-out forwards;
 }
 
 /* ============================================================

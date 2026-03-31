@@ -35,9 +35,17 @@
 
 import CircleTimingQTEModule from "../modules/circleTimingQTE.js";
 import ChalkboardModule from "./Chalkboard.js";
+import BattleSFX from "./battleSFX.js";
 
 var CircleTimingQTE = CircleTimingQTEModule.CircleTimingQTE;
 var Chalkboard = ChalkboardModule.Chalkboard;
+
+// --- QTE Check SFX — plays tier-appropriate sound on every Chalkboard result ---
+function _playCheckSFX(tier) {
+    if (tier === "perfect") BattleSFX.qtePerfect();
+    else if (tier === "good") BattleSFX.qteGood();
+    else BattleSFX.qteMiss();
+}
 
 // ============================================================
 // Plugin Registry
@@ -82,6 +90,16 @@ function QTERunner(props) {
     // Using JSON.stringify on a small config is fine for key stability.
     var configKey = qteConfig.type + "_" + (qteConfig._key || 0);
 
+    // Wrap onCheckResult — play SFX then forward to host callback
+    var hostCheckResult = qteConfig._onCheckResult || null;
+    var wrappedCheckResult = null;
+    if (entry.component === Chalkboard) {
+        wrappedCheckResult = function(index, tier, checkType) {
+            _playCheckSFX(tier);
+            if (hostCheckResult) hostCheckResult(index, tier, checkType);
+        };
+    }
+
     return (
         <PluginComponent
             key={configKey}
@@ -91,7 +109,7 @@ function QTERunner(props) {
             onRingStart={onRingStart || null}
             beats={qteConfig.beats || null}
             difficulty={qteConfig._difficulty || null}
-            onCheckResult={qteConfig._onCheckResult || null}
+            onCheckResult={wrappedCheckResult || hostCheckResult}
             onCheckStart={qteConfig._onCheckStart || null}
         />
     );

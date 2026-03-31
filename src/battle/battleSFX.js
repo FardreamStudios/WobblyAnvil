@@ -149,6 +149,45 @@ function ko() {
     _noise(0.15, 0.12, 100);
 }
 
+// Brace Perfect — crisp metallic parry clang (sharper, higher than block)
+function bracePerfect() {
+    _tone(1000, "square", 0.04, 0.20);
+    _tone(1600, "sine", 0.06, 0.16, 0.01);
+    _tone(800, "triangle", 0.08, 0.10, 0.02);
+    _noise(0.03, 0.10, 3000);
+}
+
+// Dodge — quick whoosh (noise burst through bandpass, fast decay)
+function dodge() {
+    _sweep(600, 200, "sawtooth", 0.12, 0.14);
+    _noise(0.10, 0.10, 1000);
+}
+
+// Telegraph — rising tension tone before enemy strike (anticipation cue)
+function telegraph() {
+    _sweep(200, 500, "sine", 0.30, 0.10);
+    _sweep(250, 600, "triangle", 0.25, 0.06, 0.05);
+}
+
+// QTE Perfect — bright chime/ding (high, clean, rewarding)
+function qtePerfect() {
+    _tone(1400, "sine", 0.08, 0.18);
+    _tone(2100, "sine", 0.12, 0.12, 0.03);
+    _tone(1800, "triangle", 0.06, 0.08, 0.01);
+}
+
+// QTE Good — softer mid-tone tap/click (acceptable, not celebratory)
+function qteGood() {
+    _tone(800, "sine", 0.06, 0.14);
+    _tone(600, "triangle", 0.04, 0.06, 0.01);
+}
+
+// QTE Miss — dull low thud/buzz (flat negative feedback)
+function qteMiss() {
+    _tone(150, "square", 0.08, 0.12);
+    _noise(0.06, 0.08, 300);
+}
+
 // ============================================================
 // API
 // ============================================================
@@ -162,8 +201,14 @@ var BattleSFX = {
     },
     hit: hit,
     block: block,
+    bracePerfect: bracePerfect,
+    dodge: dodge,
+    telegraph: telegraph,
     impact: impact,
     ko: ko,
+    qtePerfect: qtePerfect,
+    qteGood: qteGood,
+    qteMiss: qteMiss,
 };
 
 export default BattleSFX;
