@@ -50,6 +50,7 @@ var PHASES = {
     HAMMER: "hammer",
     SESS_RESULT: "sess_result",
     QUENCH: "quench",
+    FAIRY_RESCUE: "fairy_rescue",
 };
 
 // --- Smith Ranks ---

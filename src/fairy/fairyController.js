@@ -170,6 +170,10 @@ var _tracked = {
     lastActivityTime:        0,       // timestamp — for idle detection
 };
 
+// --- Fairy Rescue state ---
+var _rescueUsedThisRun = false;      // once per run gate
+var _rescueSnapshot = null;          // weapon state captured at shatter moment
+
 // ============================================================
 // PERSISTENCE (M-12)
 // Taught topics survive across sessions and new games.
@@ -335,6 +339,13 @@ function init(config) {
         _subscribeChatTag(EVENT_TAGS.FAIRY_CHAT_SEND, _onChatSend);
         _subscribeChatTag(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, _onChatSpeak);
         _subscribeChatTag(EVENT_TAGS.UI_FAIRY_CHAT_CLOSE, _onChatClosed);
+
+        // --- Fairy Rescue bus subscription ---
+        var _rescueOfferHandler = function(payload) {
+            _onRescueOffer(payload);
+        };
+        _bus.on(EVENT_TAGS.FAIRY_RESCUE_OFFER, _rescueOfferHandler);
+        _busHandlers.push({ tag: EVENT_TAGS.FAIRY_RESCUE_OFFER, handler: _rescueOfferHandler });
     }
 
     // --- Init FairyChatSystem (owned by controller) ---
@@ -458,6 +469,109 @@ function _stopWatching() {
         _bus.off(_busHandlers[i].tag, _busHandlers[i].handler);
     }
     _busHandlers = [];
+}
+
+// ============================================================
+// FAIRY RESCUE — Shatter Intervention
+// useForgeVM emits FAIRY_RESCUE_OFFER with weapon snapshot.
+// Controller gates on: fairy enabled, day 3+, not used this run.
+// If qualified: fires FAIRY_RESCUE cue, UI locks via forge phase.
+// On accept/decline: emits FAIRY_RESCUE_ACCEPT or _DECLINE.
+// ============================================================
+
+function _onRescueOffer(payload) {
+    // Gate: fairy must be active
+    if (!_initialized) { _passRescue(); return; }
+    if (_fsmState === STATES.OFF || _fsmState === STATES.DISMISSED) { _passRescue(); return; }
+
+    // Gate: once per run
+    if (_rescueUsedThisRun) { _passRescue(); return; }
+
+    // Gate: minimum day survived
+    var state = _stateProvider ? _stateProvider() : {};
+    var day = state.day || 1;
+    if (day < 3) { _passRescue(); return; }
+
+    // Gate: don't interrupt tutorials
+    if (FairyTutorial.isRunning() || ForgeTutorial.isRunning()) { _passRescue(); return; }
+
+    // --- Qualified! Save snapshot, mark used, fire cue ---
+    _rescueUsedThisRun = true;
+    _rescueSnapshot = payload && payload.snapshot ? payload.snapshot : null;
+
+    // Pick a rescue dialogue line from personality data
+    var rescueLines = FairyPersonality.FAIRY_EVENTS
+        && FairyPersonality.FAIRY_EVENTS.fairy_rescue
+        && FairyPersonality.FAIRY_EVENTS.fairy_rescue.dialogue_on_rescue;
+    var line = null;
+    if (rescueLines && rescueLines.length > 0) {
+        line = rescueLines[Math.floor(Math.random() * rescueLines.length)];
+    }
+
+    _setState(STATES.POINTING);
+
+    // Fire the FAIRY_RESCUE cue sequence (poof in, fly to anvil, flash)
+    _sendCommand({
+        intent: "cue",
+        cue: "fairy_rescue",
+        line: line,
+        target: null,
+        category: "rescue",
+    });
+
+    // Open linger-chat so player can interact
+    _chatDismissWarned = false;
+    _chatActive = true;
+    _sendCommand({ intent: "set_chat_mode", value: true });
+    FairyChatSystem.openChat();
+    if (line) FairyChatSystem.injectLine(line);
+
+    // Start linger timer — auto-accept if player doesn't dismiss
+    _startRescueLingerTimer();
+}
+
+/** If fairy can't rescue, emit decline so forgeVM completes the shatter */
+function _passRescue() {
+    _rescueSnapshot = null;
+    if (_bus) _bus.emit(EVENT_TAGS.FAIRY_RESCUE_DECLINE, {});
+}
+
+/** Accept rescue — emit snapshot back to forgeVM */
+function _acceptRescue() {
+    var snapshot = _rescueSnapshot;
+    _rescueSnapshot = null;
+    _closeChatSession();
+    if (_bus && snapshot) {
+        _bus.emit(EVENT_TAGS.FAIRY_RESCUE_ACCEPT, { snapshot: snapshot });
+    }
+}
+
+/** Decline rescue — player dismissed, let shatter proceed */
+function _declineRescue() {
+    _rescueSnapshot = null;
+    _closeChatSession();
+    if (_bus) _bus.emit(EVENT_TAGS.FAIRY_RESCUE_DECLINE, {});
+}
+
+var RESCUE_LINGER_MS = 10000;
+var _rescueLingerTimer = null;
+
+function _startRescueLingerTimer() {
+    _clearRescueLingerTimer();
+    _rescueLingerTimer = setTimeout(function() {
+        _rescueLingerTimer = null;
+        // Auto-accept: fairy caves and gives the weapon back
+        if (_rescueSnapshot) {
+            _acceptRescue();
+        }
+    }, RESCUE_LINGER_MS);
+}
+
+function _clearRescueLingerTimer() {
+    if (_rescueLingerTimer) {
+        clearTimeout(_rescueLingerTimer);
+        _rescueLingerTimer = null;
+    }
 }
 
 // ============================================================
@@ -1007,6 +1121,13 @@ function _onChatDismiss() {
     if (!_chatActive) return;
     if (FairyTutorial.isRunning() || ForgeTutorial.isRunning()) return;
 
+    // During rescue, dismiss = decline (player doesn't want help)
+    if (_rescueSnapshot) {
+        _clearRescueLingerTimer();
+        _declineRescue();
+        return;
+    }
+
     // During linger-react, first tap dismisses immediately
     if (_reactionLingerActive) {
         _clearLingerTimer();
@@ -1478,6 +1599,9 @@ function reset() {
     FairyReactions.clearCooldowns();
     _clearLingerTimer();
     _reactionLingerActive = false;
+    _clearRescueLingerTimer();
+    _rescueSnapshot = null;
+    _rescueUsedThisRun = false;
 
     FairyTutorial.cancel();
     _fsmState     = STATES.IDLE;
@@ -1515,6 +1639,9 @@ function destroy() {
     FairyReactions.clearCooldowns();
     _clearLingerTimer();
     _reactionLingerActive = false;
+    _clearRescueLingerTimer();
+    _rescueSnapshot = null;
+    _rescueUsedThisRun = false;
 
     if (_chatHoldTimer) {
         clearTimeout(_chatHoldTimer);

@@ -157,6 +157,93 @@ function useForgeVM(deps) {
         stressRef.current = 0; qualRef.current = 0;
     }
 
+    // --- Fairy Rescue: shatter interception ---
+    // Pending cleanup stored as ref so accept/decline handlers can run it
+    var pendingShatterCleanup = useRef(null);
+
+    /**
+     * Unified shatter handler. Snapshots weapon state, emits FX,
+     * then asks fairy controller for a rescue. If fairy declines
+     * (or isn't available), cleanup runs immediately via bus reply.
+     * If fairy accepts, weapon is restored from snapshot.
+     *
+     * @param {object} opts - optional overrides
+     *   opts.msg    — toast message (default "WEAPON SHATTERED")
+     *   opts.inline — true if called inside a setTimeout (quench paths)
+     *                 where resetForge can't be used because extra state
+     *                 was already cleared by the caller
+     *   opts.extraCleanup — fn() to run on decline (for quench paths
+     *                       that clear stress/qual/sess manually)
+     */
+    function handleShatter(opts) {
+        opts = opts || {};
+        var msg = opts.msg || "WEAPON SHATTERED\n50% materials recovered.";
+
+        // 1. Snapshot weapon state BEFORE any destruction
+        var snapshot = {
+            wKey: wKey,
+            matKey: matKey,
+            qualScore: qualRef.current,
+            stress: stressRef.current,
+            forgeSess: forgeSess,
+            sessResult: sessResult,
+        };
+
+        // 2. FX + shake (always immediate — player sees the drama)
+        GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {});
+        triggerWeaponShake();
+
+        // 3. Store the cleanup that runs if fairy declines (or can't help)
+        pendingShatterCleanup.current = function() {
+            GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, {
+                key: matKey,
+                qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY),
+            });
+            addToast(msg, "", "#ef4444");
+            if (opts.extraCleanup) {
+                opts.extraCleanup();
+            } else {
+                resetForge();
+            }
+        };
+
+        // 4. Lock forge UI while fairy resolves
+        ForgeMode.transitionTo(PHASES.FAIRY_RESCUE); setPhase(PHASES.FAIRY_RESCUE);
+
+        // 5. Ask fairy controller — it will emit ACCEPT or DECLINE
+        GameplayEventBus.emit(EVENT_TAGS.FAIRY_RESCUE_OFFER, { snapshot: snapshot });
+    }
+
+    /** Fairy accepted rescue — restore weapon from snapshot */
+    function onRescueAccept(payload) {
+        pendingShatterCleanup.current = null;
+        var snap = payload && payload.snapshot;
+        if (!snap) { resetForge(); return; }
+
+        // Restore forge state to pre-shatter
+        qualRef.current = snap.qualScore;
+        stressRef.current = snap.stress;
+        setQualScore(snap.qualScore);
+        setStress(snap.stress);
+        setForgeSess(snap.forgeSess);
+        setSessResult(snap.sessResult || null);
+        setQteFlash(null);
+        setForgeBubble(null);
+        qteProcessing.current = false;
+
+        // Resume at session result so player can continue forging
+        ForgeMode.transitionTo(PHASES.SESS_RESULT);
+        setPhase(PHASES.SESS_RESULT);
+        addToast("The fairy caught your weapon!", "", "#c89aff");
+    }
+
+    /** Fairy declined rescue — run the stored shatter cleanup */
+    function onRescueDecline() {
+        var cleanup = pendingShatterCleanup.current;
+        pendingShatterCleanup.current = null;
+        if (cleanup) cleanup();
+    }
+
     function takeBreak() {
         setWipWeapon({ wKey: wKey, matKey: matKey, qualScore: qualRef.current, stress: stressRef.current, forgeSess: forgeSess, sessResult: sessResult });
         qteProcessing.current = false; sfx.setMode("idle");
@@ -251,7 +338,7 @@ function useForgeVM(deps) {
         setTimeout(function() {
             qteLog("HAMMER", "RESULT", "pts=" + actualDelta + " newQ=" + newQ + " flashMs=" + QTE_FLASH_MS);
             setQteFlash(null); qteProcessing.current = false;
-            if (newQ <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
+            if (newQ <= 0) { handleShatter(); return; }
             if (newL <= 0) finishHammerSession();
         }, QTE_FLASH_MS);
     }
@@ -271,7 +358,7 @@ function useForgeVM(deps) {
     function attemptForge() {
         if (stress >= STRESS_MAX - 1) {
             var chance = stress >= STRESS_MAX ? BALANCE.shatterChanceMax : BALANCE.shatterChanceHigh;
-            if (Math.random() < chance) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON SHATTERED\n50% materials recovered.", "", "#ef4444"); resetForge(); return; }
+            if (Math.random() < chance) { handleShatter(); return; }
         }
         ForgeMode.transitionTo(PHASES.HEAT); setPhase(PHASES.HEAT);
     }
@@ -333,9 +420,9 @@ function useForgeVM(deps) {
             else if (tier.id === "good") { var nq3 = clamp(qualRef.current, 0, 100); qualRef.current = nq3; if (!isSandbox) advanceTime(sessCost, undefined, true); finishWeapon(nq3); }
             else if (tier.id === "poor") {
                 var loss = randInt(10, 20), nq4 = clamp(qualRef.current - loss, 0, 100); qualRef.current = nq4; if (!isSandbox) advanceTime(sessCost, undefined, true);
-                if (nq4 <= 0) { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
+                if (nq4 <= 0) { handleShatter({ msg: "WEAPON DESTROYED\n50% materials recovered.", extraCleanup: function() { stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); } }); }
                 else finishWeapon(nq4);
-            } else { GameplayEventBus.emit(EVENT_TAGS.FX_SHATTER, {}); triggerWeaponShake(); GameplayEventBus.emit(EVENT_TAGS.ECONOMY_ADD_MATERIAL, { key: matKey, qty: Math.ceil(weapon.materialCost * MAT_DESTROY_RECOVERY) }); addToast("WEAPON DESTROYED\n50% materials recovered.", "", "#ef4444"); stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); }
+            } else { handleShatter({ msg: "WEAPON DESTROYED\n50% materials recovered.", extraCleanup: function() { stressRef.current = 0; qualRef.current = 0; setQualScore(0); setStress(0); setForgeSess(0); setSessResult(null); setForgeBubble(null); ForgeMode.transitionTo(PHASES.IDLE); setPhase(PHASES.IDLE); } }); }
         }, QTE_FLASH_MS);
     }
 
@@ -383,6 +470,16 @@ function useForgeVM(deps) {
         }
         GameplayEventBus.on(EVENT_TAGS.MODE_FORGE_EXIT, onForgeExit);
         return function() { GameplayEventBus.off(EVENT_TAGS.MODE_FORGE_EXIT, onForgeExit); };
+    }, []);
+
+    // --- Bus: Fairy Rescue accept/decline ---
+    useEffect(function() {
+        GameplayEventBus.on(EVENT_TAGS.FAIRY_RESCUE_ACCEPT, onRescueAccept);
+        GameplayEventBus.on(EVENT_TAGS.FAIRY_RESCUE_DECLINE, onRescueDecline);
+        return function() {
+            GameplayEventBus.off(EVENT_TAGS.FAIRY_RESCUE_ACCEPT, onRescueAccept);
+            GameplayEventBus.off(EVENT_TAGS.FAIRY_RESCUE_DECLINE, onRescueDecline);
+        };
     }, []);
 
     // ============================================================

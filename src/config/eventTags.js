@@ -119,6 +119,11 @@ var EVENT_TAGS = {
     FX_MYSTERY_BAD:         "fx.mystery.bad",
     FX_FANFARE:             "fx.ui.fanfare",
     FX_ANVIL_SPARK:         "fx.forge.anvil.spark",
+
+    // --- Fairy Rescue (shatter intervention) ---
+    FAIRY_RESCUE_OFFER:     "event.fairy.rescue.offer",
+    FAIRY_RESCUE_ACCEPT:    "event.fairy.rescue.accept",
+    FAIRY_RESCUE_DECLINE:   "event.fairy.rescue.decline",
 };
 
 export default EVENT_TAGS;
