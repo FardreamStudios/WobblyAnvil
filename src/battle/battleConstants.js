@@ -4,7 +4,12 @@
 // All tuning values for the battle system live here.
 // Imported by battle components and App.js transition wiring.
 // Separate from main constants.js to keep battle portable.
+//
+// Layout/spatial values live in battleLayout.js.
+// Re-exported here for backward compat.
 // ============================================================
+
+import BattleLayout from "./battleLayout.js";
 
 // --- Battle Transition Config ---
 var BATTLE_TRANSITION = {
@@ -83,51 +88,13 @@ var IN_CAM_ACTIONS = [
     { id: "pass",    label: "PASS", color: "#8a7a64", bg: "#141009" },
 ];
 
-// --- Stage Config (fixed-ratio character arena) ---
-// Characters live on a fixed 960×540 stage that scales uniformly.
-// Wider/taller devices see more BG bleed — character spacing is constant.
-var STAGE = {
-    designW:    960,            // stage width in design pixels
-    designH:    540,            // stage height in design pixels (16:9)
-    spriteSize: 104,            // character sprite size in stage pixels
-    hpBarW:     64,             // HP bar width in stage pixels
-};
-
-// --- Formation Slot Positions (stage-space pixels) ---
-// Origin = top-left of stage. Each slot = { x, y } center point.
-// Front row closer to center, back row further out.
-// Enemy on left side, party on right side.
-var BATTLE_SLOTS = {
-    enemy: {
-        front: [
-            { x: 300, y: 210 },
-            { x: 230, y: 340 },
-        ],
-        back: [
-            { x: 150, y: 190 },
-            { x: 100, y: 320 },
-        ],
-    },
-    party: {
-        front: [
-            { x: 660, y: 210 },
-            { x: 730, y: 340 },
-        ],
-        back: [
-            { x: 810, y: 190 },
-            { x: 860, y: 320 },
-        ],
-    },
-};
-
-// --- Legacy LAYOUT (kept for overlay components still referencing it) ---
-var LAYOUT = {
-    actionsW:       "18vw",         // action menu overlay width
-    atbBarH:        "0.9vh",        // ATB gauge bar height
-    atbLabelW:      "7vw",          // ATB label min-width
-    spriteSize:     STAGE.spriteSize + "px",
-    hpBarW:         STAGE.hpBarW + "px",
-};
+// --- Stage, Slots, Overlay, Selection — imported from battleLayout.js ---
+var STAGE = BattleLayout.STAGE;
+var BATTLE_SLOTS = BattleLayout.BATTLE_SLOTS;
+var ACTION_CAM_SLOTS = BattleLayout.ACTION_CAM_SLOTS;
+var LAYOUT = BattleLayout.OVERLAY;
+var SELECTION = BattleLayout.SELECTION;
+var CHOREO_DISTANCES = BattleLayout.CHOREO_DISTANCES;
 
 // --- Sprite Configs for Battle ---
 var PUB = "";  // process.env.PUBLIC_URL resolved at runtime by React
@@ -333,14 +300,11 @@ var CHOREOGRAPHY = {
     telegraphMs:        300,    // should match EXCHANGE.counterDelayMs
     koMs:               600,
 
-    // Lunge distances (vw)
-    lungeVw:            3,
-    knockbackVw:        4,
+    // Lunge distances — see CHOREO_DISTANCES in battleLayout.js
+    // (lungeVw and knockbackVw removed — now lungePx/knockbackPx in stage pixels)
 
     // Damage numbers
     dmgPopMs:           800,    // total lifetime
-    dmgFloatVh:         3,      // drift distance
-    dmgScaleOvershoot:  1.3,    // pop scale peak
 
     // Hit flash
     flashMs:            80,
@@ -352,14 +316,7 @@ var CHOREOGRAPHY = {
     shakeKO:            { px: 10, ms: 400 },
 };
 
-// --- Selection Indicator Config (corner brackets on selected/turn-owner) ---
-var SELECTION = {
-    cornerSize:     "10px",         // length of each corner line
-    thickness:      "2px",          // line thickness
-    selectedColor:  "#4ade80",      // green — selected target
-    turnOwnerColor: "#f0e6c8",      // warm parchment — whose turn it is
-    offset:         "-4px",         // inset from card edge (negative = outside)
-};
+// (SELECTION moved to battleLayout.js)
 
 // --- Battle End Config (KO wipe → result exit) ---
 var BATTLE_END = {
@@ -445,6 +402,8 @@ var BattleConstants = {
     LAYOUT: LAYOUT,
     STAGE: STAGE,
     BATTLE_SLOTS: BATTLE_SLOTS,
+    ACTION_CAM_SLOTS: ACTION_CAM_SLOTS,
+    CHOREO_DISTANCES: CHOREO_DISTANCES,
     BATTLE_SPRITES: BATTLE_SPRITES,
     CHOREOGRAPHY: CHOREOGRAPHY,
     TEST_PARTY: TEST_PARTY,

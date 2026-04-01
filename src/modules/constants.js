@@ -133,10 +133,10 @@ var STAT_META = {
 // --- Upgrades ---
 var UPGRADES = {
     anvil: [
-        { name: "Basic Anvil",      cost: 0,    desc: "No hammering QTE speed bonus." },
-        { name: "Reinforced Anvil", cost: 80,   desc: "+1 hammering QTE speed bonus." },
-        { name: "Master's Anvil",   cost: 600,  desc: "+2 hammering QTE speed bonus." },
-        { name: "Legendary Anvil",  cost: 3000, desc: "+3 hammering QTE speed bonus." },
+        { name: "Basic Anvil",      cost: 0,    desc: "No hammering bar slowdown." },
+        { name: "Reinforced Anvil", cost: 80,   desc: "+1 hammering bar slowdown." },
+        { name: "Master's Anvil",   cost: 600,  desc: "+2 hammering bar slowdown." },
+        { name: "Legendary Anvil",  cost: 3000, desc: "+3 hammering bar slowdown." },
     ],
     hammer: [
         { name: "Iron Hammer",     cost: 0,    desc: "No strike multiplier bonus." },
@@ -145,16 +145,16 @@ var UPGRADES = {
         { name: "Master's Hammer", cost: 3500, desc: "+3 strike multiplier bonus." },
     ],
     forge: [
-        { name: "Clay Forge",   cost: 0,    desc: "No heating QTE speed bonus." },
-        { name: "Stone Forge",  cost: 90,   desc: "+1 heating QTE speed bonus." },
-        { name: "Brick Forge",  cost: 650,  desc: "+2 heating QTE speed bonus." },
-        { name: "Dragon Forge", cost: 3200, desc: "+3 heating QTE speed bonus." },
+        { name: "Clay Forge",   cost: 0,    desc: "No heating bar slowdown." },
+        { name: "Stone Forge",  cost: 90,   desc: "+1 heating bar slowdown." },
+        { name: "Brick Forge",  cost: 650,  desc: "+2 heating bar slowdown." },
+        { name: "Dragon Forge", cost: 3200, desc: "+3 heating bar slowdown." },
     ],
     quench: [
-        { name: "Water Bucket", cost: 0,    desc: "No quenching QTE speed bonus." },
-        { name: "Oil Bath",     cost: 120,  desc: "+1 quenching QTE speed bonus." },
-        { name: "Large Tank",   cost: 800,  desc: "+2 quenching QTE speed bonus." },
-        { name: "Cryo Chamber", cost: 4000, desc: "+3 quenching QTE speed bonus." },
+        { name: "Water Bucket", cost: 0,    desc: "No quenching bar slowdown." },
+        { name: "Oil Bath",     cost: 120,  desc: "+1 quenching bar slowdown." },
+        { name: "Large Tank",   cost: 800,  desc: "+2 quenching bar slowdown." },
+        { name: "Cryo Chamber", cost: 4000, desc: "+3 quenching bar slowdown." },
     ],
     furnace: [
         { name: "Clay Furnace",        cost: 0,      desc: "Normalize loss: 18-28%." },

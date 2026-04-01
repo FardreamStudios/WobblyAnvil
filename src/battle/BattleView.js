@@ -2013,7 +2013,7 @@ function BattleView(props) {
                 </div>
             )}
 
-            {/* === BOTTOM OVERLAY — ATB + Action Menu + submenus === */}
+            {/* === BOTTOM OVERLAY — ATB + Action Menu === */}
             <div className="battle-overlay-bottom">
 
                 {/* ATB gauges — left side */}
@@ -2029,56 +2029,6 @@ function BattleView(props) {
                     isLeftHanded={isLeftHanded}
                 />
 
-                {/* Item submenu */}
-                <ItemSubmenu
-                    visible={itemMenuOpen}
-                    items={itemMenuOpen ? (function() {
-                        var uid = itemMenuContextRef.current === "in-cam"
-                            ? (camExchangeRef.current ? camExchangeRef.current.getSwingerId() : null)
-                            : activeAtkId;
-                        var c = uid ? bState.get(uid) : null;
-                        return c ? c.items : [];
-                    })() : []}
-                    onUse={handleItemUse}
-                    onClose={handleItemClose}
-                    isInCam={itemMenuContextRef.current === "in-cam"}
-                />
-
-                {/* Skill submenu */}
-                <SkillSubmenu
-                    visible={skillMenuOpen}
-                    skills={skillMenuOpen ? (function() {
-                        var cam = camExchangeRef.current;
-                        var uid = cam ? cam.getSwingerId() : null;
-                        var cData = uid ? combatantMap[uid] : null;
-                        if (!cData || !cData.skills) return [];
-                        return cData.skills.map(function(sId) {
-                            return BattleSkills.getSkill(sId);
-                        }).filter(Boolean);
-                    })() : []}
-                    availablePips={skillMenuOpen ? (function() {
-                        var cam = camExchangeRef.current;
-                        var uid = cam ? cam.getSwingerId() : null;
-                        var entry = uid ? atbValues[uid] : null;
-                        return entry ? entry.filledPips : 0;
-                    })() : 0}
-                    onSelect={handleSkillSelect}
-                    onClose={handleSkillClose}
-                    isInCam={true}
-                />
-
-                {/* QTE zone */}
-                {showQTE && (
-                    <div className={"battle-qte battle-qte--visible"}>
-                        <QTERunner
-                            qteConfig={qteConfig}
-                            onComplete={handleQTEComplete}
-                            onRingResult={handleQTERingResult}
-                            onRingStart={handleQTERingStart}
-                        />
-                    </div>
-                )}
-
                 {/* Comic panel */}
                 <ComicPanel
                     visible={showComic}
@@ -2088,6 +2038,58 @@ function BattleView(props) {
                     isLeftHanded={isLeftHanded}
                 />
             </div>
+
+            {/* === VIEWPORT-LEVEL UI — above all stacking contexts === */}
+
+            {/* Item submenu */}
+            <ItemSubmenu
+                visible={itemMenuOpen}
+                items={itemMenuOpen ? (function() {
+                    var uid = itemMenuContextRef.current === "in-cam"
+                        ? (camExchangeRef.current ? camExchangeRef.current.getSwingerId() : null)
+                        : activeAtkId;
+                    var c = uid ? bState.get(uid) : null;
+                    return c ? c.items : [];
+                })() : []}
+                onUse={handleItemUse}
+                onClose={handleItemClose}
+                isInCam={itemMenuContextRef.current === "in-cam"}
+            />
+
+            {/* Skill submenu */}
+            <SkillSubmenu
+                visible={skillMenuOpen}
+                skills={skillMenuOpen ? (function() {
+                    var cam = camExchangeRef.current;
+                    var uid = cam ? cam.getSwingerId() : null;
+                    var cData = uid ? combatantMap[uid] : null;
+                    if (!cData || !cData.skills) return [];
+                    return cData.skills.map(function(sId) {
+                        return BattleSkills.getSkill(sId);
+                    }).filter(Boolean);
+                })() : []}
+                availablePips={skillMenuOpen ? (function() {
+                    var cam = camExchangeRef.current;
+                    var uid = cam ? cam.getSwingerId() : null;
+                    var entry = uid ? atbValues[uid] : null;
+                    return entry ? entry.filledPips : 0;
+                })() : 0}
+                onSelect={handleSkillSelect}
+                onClose={handleSkillClose}
+                isInCam={true}
+            />
+
+            {/* QTE zone */}
+            {showQTE && (
+                <div className={"battle-qte battle-qte--visible"}>
+                    <QTERunner
+                        qteConfig={qteConfig}
+                        onComplete={handleQTEComplete}
+                        onRingResult={handleQTERingResult}
+                        onRingStart={handleQTERingStart}
+                    />
+                </div>
+            )}
 
             {/* === CINEMATIC BLACKOUT === */}
             <div className={"battle-blackout" + (isActionCam ? " battle-blackout--active" : "")} />

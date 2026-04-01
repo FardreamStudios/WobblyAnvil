@@ -13,6 +13,7 @@ import BattleConstants from "./battleConstants.js";
 
 var PHASES = BattleConstants.BATTLE_PHASES;
 var ACTION_CAM = BattleConstants.ACTION_CAM;
+var ACTION_CAM_SLOTS = BattleConstants.ACTION_CAM_SLOTS;
 var LAYOUT = BattleConstants.LAYOUT;
 var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
 
@@ -101,20 +102,21 @@ function BattleCharacter(props) {
         style["--bob-delay"] = (props.index * -0.8) + "s";
     }
 
-    // Action cam slide — translate from slot to center stage
+    // Action cam slide — translate from slot to engagement position
+    // scale lives on CSS `scale` property (composes with transform, not overridden by choreo)
     if ((isAttacker || isTarget) && props.sceneRect && props.restingRects) {
-        var sr = props.sceneRect;
-        var cx = sr.width / 2;
-        var cy = sr.height / 2 + sr.height * 0.18;
         var cached = props.restingRects[c.id];
         if (cached) {
-            var gap = sr.width * 0.08;
+            var cx = ACTION_CAM_SLOTS.centerX;
+            var cy = ACTION_CAM_SLOTS.centerY;
+            var gap = ACTION_CAM_SLOTS.gap;
             var partySide = props.isLeftHanded ? (cx - gap) : (cx + gap);
             var enemySide = props.isLeftHanded ? (cx + gap) : (cx - gap);
             var destX = isParty ? partySide : enemySide;
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
-            style.transform = "translate(" + dx + "px, " + dy + "px) scale(" + ACTION_CAM.activeScale + ")";
+            style.transform = "translate(" + dx + "px, " + dy + "px)";
+            style.scale = ACTION_CAM.activeScale;
             style.zIndex = 10;
         }
     }

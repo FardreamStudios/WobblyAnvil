@@ -50,32 +50,34 @@
     z-index: 7;
 }
 
-/* Hide overlay bottom during cam, except QTE */
+/* Hide overlay bottom during cam */
 .battle-root--cam .battle-overlay-bottom > * {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.35s ease;
 }
-.battle-root--cam .battle-overlay-bottom > .battle-qte--visible {
-    opacity: 1;
-    pointer-events: auto;
+
+/* QTE zone — viewport-level, above all stacking contexts */
+.battle-qte--visible {
     position: fixed;
     inset: 0;
-    z-index: 15;
+    z-index: 60;
     background: transparent;
+    display: flex;
     align-items: flex-end;
     justify-content: flex-end;
     padding: 0 8vw 12vh 0;
+    pointer-events: auto;
 }
-.battle-root--cam .battle-qte--visible > div {
+.battle-qte--visible > div {
     max-width: 15vw;
     max-height: 15vw;
 }
+
+/* Item + Skill submenus — viewport-level when in cam */
 .battle-root--cam .battle-item-submenu,
 .battle-root--cam .battle-skill-submenu {
-    opacity: 1;
-    pointer-events: auto;
-    z-index: 50;
+    z-index: 55;
 }
 
 /* ============================================================
@@ -167,12 +169,15 @@
 
 /* --- BattleCharacter — absolute positioned, no card chrome --- */
 .normal-cam-char {
-    display: flex;
-    align-items: center;
+    /* Explicit size = sprite dimensions. Info bar overflows below. */
+    width: var(--battle-sprite-size, 104px);
+    height: var(--battle-sprite-size, 104px);
+    overflow: visible;
     /* position: absolute + left/top set inline from slot config */
     transition:
             opacity 0.45s ease,
-            transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+            scale 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     cursor: pointer;
 }
 
@@ -200,19 +205,19 @@
 
 /* Strike — lunge toward opponent */
 .normal-cam-char__choreo--strike {
-    transform: translateX(calc(-3vw * var(--choreo-dir, 1))) scaleX(1.1);
+    transform: translateX(calc(-30px * var(--choreo-dir, 1))) scaleX(1.1);
     transition: transform 0.15s cubic-bezier(0.2, 0, 0.8, 1);
 }
 
 /* Hit — knockback away from opponent */
 .normal-cam-char__choreo--hit {
-    transform: translateX(calc(4vw * var(--choreo-dir, 1)));
+    transform: translateX(calc(40px * var(--choreo-dir, 1)));
     transition: transform 0.08s ease-out;
 }
 
 /* Wind-up — lean back + squeeze before striking */
 .normal-cam-char__choreo--wind_up {
-    transform: translateX(calc(1.5vw * var(--choreo-dir, 1))) scaleX(0.92);
+    transform: translateX(calc(15px * var(--choreo-dir, 1))) scaleX(0.92);
     transition: transform 0.2s ease-in;
 }
 
@@ -243,7 +248,7 @@
 
 /* Flinch — minor recoil on attacker (brace-perfect feedback) */
 .normal-cam-char__choreo--flinch {
-    transform: translateX(calc(1.5vw * var(--choreo-dir, 1))) scaleX(0.95);
+    transform: translateX(calc(15px * var(--choreo-dir, 1))) scaleX(0.95);
     transition: transform 0.08s ease-out;
 }
 
@@ -255,7 +260,7 @@
 }
 
 .normal-cam-char__choreo--dodge {
-    transform: translateX(calc(5vw * var(--choreo-dir, 1))) translateY(-1vw);
+    transform: translateX(calc(50px * var(--choreo-dir, 1))) translateY(-10px);
     animation: dodgeAfterimage 200ms steps(3) 1 forwards;
     transition: transform 0.1s cubic-bezier(0.2, 0, 0, 1);
 }
@@ -296,9 +301,9 @@
    Chained via animation shorthand with delay on dissolve. */
 @keyframes koLaunch {
     0%   { transform: translateY(0) rotate(0deg) scale(1); }
-    30%  { transform: translateY(-3vh) rotate(-20deg) scale(1.1); }
-    60%  { transform: translateY(-4vh) rotate(15deg) scale(1.05); }
-    80%  { transform: translateY(-2vh) rotate(-40deg) scale(0.9); }
+    30%  { transform: translateY(-30px) rotate(-20deg) scale(1.1); }
+    60%  { transform: translateY(-40px) rotate(15deg) scale(1.05); }
+    80%  { transform: translateY(-20px) rotate(-40deg) scale(0.9); }
     100% { transform: translateY(0) rotate(-60deg) scale(0.7); }
 }
 
@@ -346,12 +351,12 @@
 
 @keyframes combatSyncMove {
     0%   { transform: translateX(0) scaleX(1);    }
-    25%  { transform: translateX(calc(0.5vw * var(--choreo-dir, 1))) scaleX(0.97); }
-    50%  { transform: translateX(calc(1.0vw * var(--choreo-dir, 1))) scaleX(0.94); }
-    78%  { transform: translateX(calc(1.5vw * var(--choreo-dir, 1))) scaleX(0.92); }
-    83%  { transform: translateX(calc(-3.0vw * var(--choreo-dir, 1))) scaleX(1.1);  }
-    88%  { transform: translateX(calc(-3.0vw * var(--choreo-dir, 1))) scaleX(1.1);  }
-    94%  { transform: translateX(calc(-0.8vw * var(--choreo-dir, 1))) scaleX(1.02); }
+    25%  { transform: translateX(calc(5px * var(--choreo-dir, 1))) scaleX(0.97); }
+    50%  { transform: translateX(calc(10px * var(--choreo-dir, 1))) scaleX(0.94); }
+    78%  { transform: translateX(calc(15px * var(--choreo-dir, 1))) scaleX(0.92); }
+    83%  { transform: translateX(calc(-30px * var(--choreo-dir, 1))) scaleX(1.1);  }
+    88%  { transform: translateX(calc(-30px * var(--choreo-dir, 1))) scaleX(1.1);  }
+    94%  { transform: translateX(calc(-8px * var(--choreo-dir, 1))) scaleX(1.02); }
     100% { transform: translateX(0) scaleX(1);    }
 }
 
@@ -591,14 +596,8 @@
             inset 0 0 0 10px #000;
 }
 
-/* Dark vignette corners to focus attention on center stage */
-.battle-cam-frame::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background:
-            radial-gradient(ellipse 70% 65% at 50% 50%, transparent 40%, #000 100%);
-}
+/* Vignette removed — blackout overlay on .battle-root handles cinematic dimming.
+   Pixel border (::before) kept for stage frame. */
 
 /* --- Action Cam Info — name/HP pinned to scene edges --- */
 /* --- Action Cam Info Panels — pinned to scene edges ---
@@ -665,10 +664,10 @@
 /* --- Damage Numbers — floating pop text in scene zone --- */
 @keyframes dmgPop {
     0%   { transform: translate(-50%, 0) scale(0.5); opacity: 1; }
-    15%  { transform: translate(-50%, -0.5vh) scale(1.3); opacity: 1; }
-    35%  { transform: translate(-50%, -1vh) scale(1.0); opacity: 1; }
-    65%  { transform: translate(-50%, -2vh); opacity: 1; }
-    100% { transform: translate(-50%, -3vh); opacity: 0; }
+    15%  { transform: translate(-50%, -5px) scale(1.3); opacity: 1; }
+    35%  { transform: translate(-50%, -10px) scale(1.0); opacity: 1; }
+    65%  { transform: translate(-50%, -20px); opacity: 1; }
+    100% { transform: translate(-50%, -30px); opacity: 0; }
 }
 
 .action-cam-dmg {
@@ -696,10 +695,10 @@
 /* --- Skill Name Label — floats above attacker sprite on attack start --- */
 @keyframes skillNamePop {
     0%   { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
-    10%  { transform: translate(-50%, -0.5vh) scale(1.1); opacity: 1; }
-    25%  { transform: translate(-50%, -1vh) scale(1.0); opacity: 1; }
-    70%  { transform: translate(-50%, -1vh); opacity: 1; }
-    100% { transform: translate(-50%, -1.5vh); opacity: 0; }
+    10%  { transform: translate(-50%, -5px) scale(1.1); opacity: 1; }
+    25%  { transform: translate(-50%, -10px) scale(1.0); opacity: 1; }
+    70%  { transform: translate(-50%, -10px); opacity: 1; }
+    100% { transform: translate(-50%, -15px); opacity: 0; }
 }
 
 .action-cam-skill-name {
