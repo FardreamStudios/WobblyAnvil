@@ -99,12 +99,12 @@ var QUENCH_TIERS = {
 // Base speed + random range for each phase's needle.
 // heatAccelExponent controls heat needle acceleration curve.
 var QTE_SPEED = {
-    heatSpeedBase: 60,
+    heatSpeedBase: 70,
     heatSpeedRange: 15,
     heatAccelExponent: 1.8,
-    hammerSpeedBase: 210,
+    hammerSpeedBase: 225,
     hammerSpeedRange: 50,
-    quenchSpeedBase: 175,
+    quenchSpeedBase: 190,
     quenchSpeedRange: 30,
 };
 
