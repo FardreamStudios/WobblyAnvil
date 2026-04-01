@@ -418,89 +418,10 @@
     border-color: rgba(255, 255, 255, 0.15);
 }
 
-/* --- Selection indicator — four corner brackets ---
-   Root is zero-size, so we position/size the pseudo explicitly
-   relative to the sprite dimensions. */
-
-.battle-char--selected {
-    border-color: transparent;
-}
-
-.battle-char--selected::before {
-    content: "";
-    position: absolute;
-    width: calc(var(--battle-sprite-size, 104px) + 8px);
-    height: calc(var(--battle-sprite-size, 104px) + 8px);
-    left: 0;
-    top: 0;
-    margin-left: calc((var(--battle-sprite-size, 104px) + 8px) / -2);
-    margin-top: calc((var(--battle-sprite-size, 104px) + 8px) / -2);
-    border: 2px solid #4ade80;
-    border-radius: 4px;
-    pointer-events: none;
-    z-index: 3;
-    -webkit-mask-image:
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000);
-    -webkit-mask-position:
-            top left, top right,
-            bottom left, bottom right;
-    -webkit-mask-size: 10px 10px;
-    -webkit-mask-repeat: no-repeat;
-    mask-image:
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000);
-    mask-position:
-            top left, top right,
-            bottom left, bottom right;
-    mask-size: 10px 10px;
-    mask-repeat: no-repeat;
-}
-
-/* --- Turn owner indicator — white corner brackets --- */
-
-.battle-char--turn-owner {
-    border-color: transparent;
-}
-
-.battle-char--turn-owner::before {
-    content: "";
-    position: absolute;
-    width: calc(var(--battle-sprite-size, 104px) + 8px);
-    height: calc(var(--battle-sprite-size, 104px) + 8px);
-    left: 0;
-    top: 0;
-    margin-left: calc((var(--battle-sprite-size, 104px) + 8px) / -2);
-    margin-top: calc((var(--battle-sprite-size, 104px) + 8px) / -2);
-    border: 2px solid #f0e6c8;
-    border-radius: 4px;
-    pointer-events: none;
-    z-index: 3;
-    -webkit-mask-image:
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000);
-    -webkit-mask-position:
-            top left, top right,
-            bottom left, bottom right;
-    -webkit-mask-size: 10px 10px;
-    -webkit-mask-repeat: no-repeat;
-    mask-image:
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000),
-            linear-gradient(#000, #000);
-    mask-position:
-            top left, top right,
-            bottom left, bottom right;
-    mask-size: 10px 10px;
-    mask-repeat: no-repeat;
-}
+/* --- Selection indicators now rendered as real DOM elements in
+   BattleCharacter.js (SelectionBrackets component) instead of
+   ::before pseudos. Measures actual sprite bounds via ResizeObserver
+   so brackets track correctly regardless of scale/transforms. --- */
 
 .normal-cam-char--party {
     text-align: center;
@@ -518,12 +439,7 @@
     z-index: 10;
 }
 
-/* Hide selection/turn-owner brackets during action cam */
-.action-cam-char--attacker::before,
-.action-cam-char--target::before,
-.action-cam-char--dimmed::before {
-    display: none;
-}
+/* Selection brackets hidden during action cam via JS (SelectionBrackets visible prop) */
 
 .normal-cam-char__sprite {
     width: var(--battle-sprite-size, clamp(32px, 7vw, 52px));

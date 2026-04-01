@@ -9,6 +9,7 @@
 // All three are pure presentational components.
 // ============================================================
 
+import { useRef, useState, useEffect, useCallback } from "react";
 import BattleConstants from "./battleConstants.js";
 
 var PHASES = BattleConstants.BATTLE_PHASES;
@@ -33,7 +34,7 @@ function BattleSprite(props) {
     // Static image (1 frame or fps=0)
     if (cfg.frames <= 1 || cfg.fps <= 0) {
         return (
-            <div className="normal-cam-char__sprite" style={{
+            <div ref={props.spriteRef || null} className="normal-cam-char__sprite" style={{
                 width: size, height: size,
                 backgroundImage: "url(" + src + ")",
                 backgroundSize: "contain",
@@ -55,7 +56,7 @@ function BattleSprite(props) {
     var bgY = totalRows > 1 ? (row * (100 / (totalRows - 1))) : 0;
 
     return (
-        <div className="normal-cam-char__sprite" style={{
+        <div ref={props.spriteRef || null} className="normal-cam-char__sprite" style={{
             width: size, height: size,
             backgroundImage: "url(" + src + ")",
             backgroundPosition: bgX + "% " + bgY + "%",
@@ -63,6 +64,84 @@ function BattleSprite(props) {
             backgroundSize: (cols * 100) + "% " + (totalRows * 100) + "%",
             imageRendering: "auto",
         }} />
+    );
+}
+
+// ============================================================
+// SelectionBrackets — measures the sprite DOM node via
+// ResizeObserver and renders a real div with corner brackets
+// that always matches the sprite's painted bounds.
+// Props: spriteRef, color, visible
+// ============================================================
+
+var BRACKET_PAD = 4;   // px padding around sprite
+var BRACKET_SIZE = 10;  // corner line length
+var BRACKET_THICK = 2;  // line thickness
+
+function SelectionBrackets(props) {
+    var spriteRef = props.spriteRef;
+    var color = props.color || "#4ade80";
+    var visible = props.visible;
+
+    var sizeRef = useRef({ w: 0, h: 0 });
+    var _forceUpdate = useState(0)[1];
+
+    useEffect(function() {
+        var el = spriteRef.current;
+        if (!el) return;
+
+        function measure() {
+            var w = el.offsetWidth;
+            var h = el.offsetHeight;
+            if (w !== sizeRef.current.w || h !== sizeRef.current.h) {
+                sizeRef.current = { w: w, h: h };
+                _forceUpdate(function(n) { return n + 1; });
+            }
+        }
+
+        measure();
+
+        var ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return function() { ro.disconnect(); };
+    }, [spriteRef, _forceUpdate]);
+
+    if (!visible || sizeRef.current.w === 0) return null;
+
+    var w = sizeRef.current.w + BRACKET_PAD * 2;
+    var h = sizeRef.current.h + BRACKET_PAD * 2;
+
+    // Overlay on top of sprite — __visual is position:relative,
+    // so inset positioning centers brackets around the sprite.
+    var style = {
+        position: "absolute",
+        width: w + "px",
+        height: h + "px",
+        top: (-BRACKET_PAD) + "px",
+        left: (-BRACKET_PAD) + "px",
+        pointerEvents: "none",
+        zIndex: 3,
+    };
+
+    // Four corner brackets as small absolute divs
+    var corners = [
+        { top: 0, left: 0, borderTop: BRACKET_THICK + "px solid " + color, borderLeft: BRACKET_THICK + "px solid " + color },
+        { top: 0, right: 0, borderTop: BRACKET_THICK + "px solid " + color, borderRight: BRACKET_THICK + "px solid " + color },
+        { bottom: 0, left: 0, borderBottom: BRACKET_THICK + "px solid " + color, borderLeft: BRACKET_THICK + "px solid " + color },
+        { bottom: 0, right: 0, borderBottom: BRACKET_THICK + "px solid " + color, borderRight: BRACKET_THICK + "px solid " + color },
+    ];
+
+    return (
+        <div style={style}>
+            {corners.map(function(c, i) {
+                return <div key={i} style={Object.assign({
+                    position: "absolute",
+                    width: BRACKET_SIZE + "px",
+                    height: BRACKET_SIZE + "px",
+                    borderRadius: "2px",
+                }, c)} />;
+            })}
+        </div>
     );
 }
 
@@ -81,14 +160,19 @@ function BattleCharacter(props) {
     var isSelected = !isActive && c.id === props.selectedId;
     var isTurnOwner = !isActive && c.id === props.turnOwnerId;
 
+    // Sprite ref for bracket measurement
+    var spriteElRef = useRef(null);
+
+    // Show brackets: selected (green) or turn owner (parchment), but not during action cam
+    var showSelected = isSelected && !isTurnOwner && !isAttacker && !isTarget && !isDimmed;
+    var showTurnOwner = isTurnOwner && !isAttacker && !isTarget && !isDimmed;
+
     var cls = "normal-cam-char";
     if (isParty) cls += " normal-cam-char--party";
     if (!isParty) cls += " normal-cam-char--enemy-idle";
     if (isDimmed) cls += " action-cam-char--dimmed";
     if (isAttacker) cls += " action-cam-char--attacker";
     if (isTarget) cls += " action-cam-char--target";
-    if (isTurnOwner) cls += " battle-char--turn-owner";
-    if (isSelected && !isTurnOwner) cls += " battle-char--selected";
 
     // --- ROOT: zero-size anchor positioned at slot center ---
     // Like UE root motion — this point moves, visuals hang off it
@@ -104,12 +188,6 @@ function BattleCharacter(props) {
 
     // Action cam slide — translate root from slot to engagement position
     var inCam = (isAttacker || isTarget) && props.sceneRect && props.restingRects;
-    // DEBUG TRACE — remove after diagnosis
-    if (isAttacker || isTarget) {
-        console.log("[CAM-POS] " + c.id + " | isAtk=" + isAttacker + " isTgt=" + isTarget
-            + " | sceneRect=" + !!props.sceneRect + " restingRects=" + !!props.restingRects
-            + " → inCam=" + inCam);
-    }
     if (inCam) {
         var cached = props.restingRects[c.id];
         if (cached) {
@@ -121,14 +199,8 @@ function BattleCharacter(props) {
             var destX = isParty ? partySide : enemySide;
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
-            console.log("[CAM-POS] " + c.id + " | slot=(" + props.slotX + "," + props.slotY
-                + ") cached=(" + cached.cx + "," + cached.cy
-                + ") dest=(" + destX + "," + cy
-                + ") delta=(" + dx + "," + dy + ")");
             rootStyle.transform = "translate(" + dx + "px, " + dy + "px)";
             rootStyle.zIndex = 10;
-        } else {
-            console.warn("[CAM-POS] " + c.id + " | inCam=true but NO cached rect! keys=" + Object.keys(props.restingRects).join(","));
         }
     }
 
@@ -144,18 +216,27 @@ function BattleCharacter(props) {
     }
     var choreoStyle = { "--choreo-dir": isParty ? "1" : "-1" };
 
-    // --- VISUAL layer: no per-sprite scale, stage zoom handles action cam ---
+    // Click handler — stopPropagation so stage background tap can deselect
+    var handleClick = useCallback(function(e) {
+        e.stopPropagation();
+        if (props.onClick) props.onClick();
+    }, [props.onClick]);
 
     return (
         <div
             className={cls}
             style={rootStyle}
             ref={props.setRef}
-            onClick={props.onClick}
+            onClick={handleClick}
         >
             <div className={choreoCls} style={choreoStyle}>
-                <div className="normal-cam-char__visual">
-                    <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} />
+                <div className="normal-cam-char__visual" style={{ position: "relative" }}>
+                    <SelectionBrackets
+                        spriteRef={spriteElRef}
+                        color={showSelected ? "#4ade80" : "#f0e6c8"}
+                        visible={showSelected || showTurnOwner}
+                    />
+                    <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} spriteRef={spriteElRef} />
                 </div>
                 <div className={"normal-cam-char__info" + (isActive ? " action-cam-char__info--hidden" : "")}>
                     <span className="normal-cam-char__name">{c.name}</span>

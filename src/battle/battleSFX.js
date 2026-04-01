@@ -188,6 +188,12 @@ function qteMiss() {
     _noise(0.06, 0.08, 300);
 }
 
+// Select — light UI tick (short, clean, non-intrusive)
+function select() {
+    _tone(1100, "sine", 0.04, 0.10);
+    _tone(1400, "sine", 0.03, 0.06, 0.02);
+}
+
 // ============================================================
 // API
 // ============================================================
@@ -209,6 +215,7 @@ var BattleSFX = {
     qtePerfect: qtePerfect,
     qteGood: qteGood,
     qteMiss: qteMiss,
+    select: select,
 };
 
 export default BattleSFX;

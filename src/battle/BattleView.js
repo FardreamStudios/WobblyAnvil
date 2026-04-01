@@ -142,7 +142,7 @@ function BattleView(props) {
     // --- State ---
     var [phase, setPhase] = useState(PHASES.ATB_RUNNING);
     var [swapTrigger, setSwapTrigger] = useState(0);
-    var [targetId, setTargetId] = useState(currentEnemies[0].id);
+    var [targetId, setTargetId] = useState(null);
     var [turnOwnerId, setTurnOwnerId] = useState(null);
     var [attackerId] = useState(TEST_PARTY[0].id);
     var [atbRunning, setAtbRunning] = useState(true);
@@ -158,6 +158,13 @@ function BattleView(props) {
     var qteKeyRef = useRef(0);
     var qteResolveRef = useRef(null);
     var readyIdRef = useRef(null);
+
+    // --- Single source of truth for player-initiated selection ---
+    // All player taps route here. System/AI changes use setTargetId directly.
+    function selectTarget(id) {
+        setTargetId(id);
+        if (id != null) BattleSFX.select();
+    }
     var atbValuesRef = useRef(null);
 
     // --- In-cam exchange state ---
@@ -429,7 +436,7 @@ function BattleView(props) {
         setPhase(PHASES.ATB_RUNNING);
         setAtbRunning(false);
         setAtbValues(BattleATB.initState(TEST_PARTY.concat(wave0)));
-        setTargetId(wave0[0].id);
+        setTargetId(null);
         setTurnOwnerId(null);
         setAnimState({});
         setShakeLevel(null);
@@ -792,36 +799,48 @@ function BattleView(props) {
     }
 
     function handleSceneTouchEnd(e) {
-        if (!defenseActiveRef.current) return;
-        if (DefenseTiming.isLocked()) return;
+        // Defense active — classify tap vs swipe for defense input
+        if (defenseActiveRef.current) {
+            if (DefenseTiming.isLocked()) return;
 
-        var start = defenseTouchStartRef.current;
-        var t = e.changedTouches[0];
-        var endPt = { x: t.clientX, y: t.clientY };
-        defenseTouchStartRef.current = null;
+            var start = defenseTouchStartRef.current;
+            var t = e.changedTouches[0];
+            var endPt = { x: t.clientX, y: t.clientY };
+            defenseTouchStartRef.current = null;
 
-        if (!start) {
-            // No start recorded — treat as tap
-            defenseInputResolve("tap");
+            if (!start) {
+                defenseInputResolve("tap");
+                return;
+            }
+
+            var dx = endPt.x - start.x;
+            var dy = endPt.y - start.y;
+            var dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist >= SWIPE_MIN_PX) {
+                defenseInputResolve("swipe");
+            } else {
+                defenseInputResolve("tap");
+            }
             return;
         }
-
-        var dx = endPt.x - start.x;
-        var dy = endPt.y - start.y;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist >= SWIPE_MIN_PX) {
-            defenseInputResolve("swipe");
-        } else {
-            defenseInputResolve("tap");
+        // Not in action cam — tap empty space deselects
+        if (!isActionCam) {
+            setTargetId(null);
         }
     }
 
     function handleSceneClick() {
-        // Desktop fallback — click = tap
-        if (!defenseActiveRef.current) return;
-        if (DefenseTiming.isLocked()) return;
-        defenseInputResolve("tap");
+        // Defense active — desktop fallback, click = tap
+        if (defenseActiveRef.current) {
+            if (DefenseTiming.isLocked()) return;
+            defenseInputResolve("tap");
+            return;
+        }
+        // Not in action cam — tap empty space deselects
+        if (!isActionCam) {
+            setTargetId(null);
+        }
     }
 
     // defenseInputResolve is set by runDefensePlayback per-beat
@@ -1480,8 +1499,8 @@ function BattleView(props) {
             setFlashId(null);
             camExchangeRef.current = null;
 
-            // Auto-select first living enemy in new wave
-            setTargetId(nextEnemies[0].id);
+            // No auto-select — player picks target in new wave
+            setTargetId(null);
             setTurnOwnerId(null);
 
             // Resume battle
@@ -1506,10 +1525,7 @@ function BattleView(props) {
             var atkState = atkTarget ? bState.get(atkTarget) : null;
             var atkValid = atkState && !atkState.ko && !bState.isPartyId(atkTarget);
             if (!atkValid) {
-                // Auto-select first living enemy
-                var picked = pickFirstLivingEnemy();
-                if (picked) setTargetId(picked);
-                return; // don't fire — player must press ATK again
+                return; // no valid target — player must select one first
             }
             startExchange(userId, atkTarget);
         } else if (actionId === "item") {
@@ -1710,10 +1726,8 @@ function BattleView(props) {
                 var tgtState = targetId ? bState.get(targetId) : null;
                 var tgtValid = tgtState && !tgtState.ko && !bState.isPartyId(targetId);
                 if (!tgtValid) {
-                    var picked = pickFirstLivingEnemy();
-                    if (picked) setTargetId(picked);
                     setItemMenuOpen(false);
-                    return; // don't fire — selection updated, player retries
+                    return; // no valid target — player must select one first
                 }
                 effectTarget = targetId;
             }
@@ -1877,7 +1891,7 @@ function BattleView(props) {
                                 sceneRect={isActionCam ? sceneRect : null}
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(e.id)}
-                                onClick={function() { if (!isActionCam) setTargetId(e.id); }}
+                                onClick={function() { if (!isActionCam) selectTarget(e.id); }}
                                 spriteFrame={spriteFrame}
                                 flashId={flashId}
                                 animState={animState}
@@ -1905,7 +1919,7 @@ function BattleView(props) {
                                 sceneRect={isActionCam ? sceneRect : null}
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(p.id)}
-                                onClick={function() { if (!isActionCam) setTargetId(p.id); }}
+                                onClick={function() { if (!isActionCam) selectTarget(p.id); }}
                                 spriteFrame={spriteFrame}
                                 flashId={flashId}
                                 animState={animState}
