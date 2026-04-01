@@ -147,11 +147,11 @@ function BattleCharacter(props) {
                     transform: "scale(" + visualScale + ")",
                 }}>
                     <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} />
-                    <div className={"normal-cam-char__info" + (isActive ? " action-cam-char__info--hidden" : "")}>
-                        <span className="normal-cam-char__name">{c.name}</span>
-                        <div className="battle-hp-bg">
-                            <div className={fillCls} style={{ width: hpPct + "%" }} />
-                        </div>
+                </div>
+                <div className={"normal-cam-char__info" + (isActive ? " action-cam-char__info--hidden" : "")}>
+                    <span className="normal-cam-char__name">{c.name}</span>
+                    <div className="battle-hp-bg">
+                        <div className={fillCls} style={{ width: hpPct + "%" }} />
                     </div>
                 </div>
             </div>

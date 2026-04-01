@@ -183,6 +183,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 0.4vh;
     /* Center the content on the zero-size root anchor.
        Uses negative margin so transform property is free for choreo. */
     margin-left: calc(var(--battle-sprite-size, 104px) / -2);
@@ -196,7 +197,6 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.4vh;
     transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 

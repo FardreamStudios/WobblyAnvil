@@ -58,6 +58,7 @@ var EXCHANGE = BattleConstants.EXCHANGE;
 var LAYOUT = BattleConstants.LAYOUT;
 var STAGE = BattleConstants.STAGE;
 var BATTLE_SLOTS = BattleConstants.BATTLE_SLOTS;
+var ACTION_CAM_SLOTS = BattleConstants.ACTION_CAM_SLOTS;
 var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
 var CHOREOGRAPHY = BattleConstants.CHOREOGRAPHY;
 var TEST_PARTY = BattleConstants.TEST_PARTY;
@@ -369,7 +370,18 @@ function BattleView(props) {
     }
 
     // Stage-space position helper — returns { x, y } center of a combatant
+    // Action-cam-aware: returns engagement position when combatant is in cam
     function stagePos(combatantId) {
+        if (isActionCam && (combatantId === activeAtkId || combatantId === targetId)) {
+            var cx = ACTION_CAM_SLOTS.centerX;
+            var cy = ACTION_CAM_SLOTS.centerY;
+            var gap = ACTION_CAM_SLOTS.gap;
+            var isCombatantParty = isPartyId(combatantId);
+            var destX = isCombatantParty
+                ? (isLeftHanded ? (cx - gap) : (cx + gap))
+                : (isLeftHanded ? (cx + gap) : (cx - gap));
+            return { x: destX, y: cy };
+        }
         var slot = slotMapRef.current[combatantId];
         if (slot) return { x: slot.cx, y: slot.cy };
         return { x: STAGE.designW / 2, y: STAGE.designH / 2 };
