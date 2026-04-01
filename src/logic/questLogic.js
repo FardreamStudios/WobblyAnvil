@@ -60,11 +60,11 @@ function generateRoyalQuest(questNumber, unlockedBlueprints, currentDay, reputat
 
     // Material selection
     var matKeys = Object.keys(MATS);
-    var matIndex = clamp(Math.floor(curvedPressure * matKeys.length + rand(-1, 1)), 0, matKeys.length - 1);
+    var matIndex = clamp(Math.floor(curvedPressure * matKeys.length + rand(-2, 1.5)), 0, matKeys.length - 1);
     var materialRequired = matKeys[matIndex];
 
     // Difficulty targeting
-    var targetDifficulty = clamp(Math.round(curvedPressure * 8 + rand(-0.5, 0.5)) + 1, 1, 9);
+    var targetDifficulty = clamp(Math.round(curvedPressure * 8 + rand(-1.5, 1)) + 1, 1, 9);
     targetDifficulty = Math.min(targetDifficulty, Math.floor(currentDay / 2) + 2);
     var repDiffBonus = reputation >= 9 ? 2 : reputation >= 7 ? 1 : reputation >= 5 ? (Math.random() < 0.5 ? 1 : 0) : 0;
     var repQualityBonus = reputation >= 9 ? 1 : reputation >= 7 ? (Math.random() < 0.5 ? 1 : 0) : 0;
@@ -84,7 +84,7 @@ function generateRoyalQuest(questNumber, unlockedBlueprints, currentDay, reputat
     // Quality tier selection
     var questTiers = TIERS.filter(function(t) { return t.scoreMin > 0; });
     var commonIndex = questTiers.findIndex(function(t) { return t.label === "Common"; });
-    var qualityIndex = clamp(Math.floor(curvedPressure * questTiers.length + rand(-1, 0.8)) + repQualityBonus, commonIndex, questTiers.length - 1);
+    var qualityIndex = clamp(Math.floor(curvedPressure * questTiers.length + rand(-2, 1)) + repQualityBonus, commonIndex, questTiers.length - 1);
     var questTier = questTiers[qualityIndex];
 
     // Quantity scaling

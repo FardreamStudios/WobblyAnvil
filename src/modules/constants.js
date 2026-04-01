@@ -95,9 +95,9 @@ var WEAPONS = {
     battleaxe:  { name: "Battle Axe", difficulty: 5, materialCost: 5, baseValue: 45,  tier: 3, blueprintCost: 300,  priceBonus: 20 },
     warhammer:  { name: "War Hammer", difficulty: 6, materialCost: 5, baseValue: 55,  tier: 3, blueprintCost: 300,  priceBonus: 25 },
     longsword:  { name: "Longsword",  difficulty: 6, materialCost: 6, baseValue: 58,  tier: 3, blueprintCost: 300,  priceBonus: 20 },
-    halberd:    { name: "Halberd",    difficulty: 7, materialCost: 7, baseValue: 68,  tier: 4, blueprintCost: 1000, priceBonus: 15 },
-    greatsword: { name: "Greatsword", difficulty: 7, materialCost: 8, baseValue: 72,  tier: 4, blueprintCost: 1000, priceBonus: 10 },
-    greataxe:   { name: "Great Axe",  difficulty: 8, materialCost: 8, baseValue: 85,  tier: 4, blueprintCost: 1000, priceBonus: 15 },
+    halberd:    { name: "Halberd",    difficulty: 7, materialCost: 7, baseValue: 68,  tier: 4, blueprintCost: 600,  priceBonus: 15 },
+    greatsword: { name: "Greatsword", difficulty: 7, materialCost: 8, baseValue: 72,  tier: 4, blueprintCost: 700,  priceBonus: 10 },
+    greataxe:   { name: "Great Axe",  difficulty: 8, materialCost: 8, baseValue: 85,  tier: 4, blueprintCost: 800,  priceBonus: 15 },
     katana:     { name: "Katana",     difficulty: 9, materialCost: 6, baseValue: 100, tier: 4, blueprintCost: 1000, priceBonus: 40 },
 };
 
