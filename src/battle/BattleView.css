@@ -162,30 +162,42 @@
 .battle-stage--shake-heavy  { animation: shakeHeavy  300ms steps(6) 1; }
 .battle-stage--shake-ko     { animation: shakeKO     400ms steps(9) 1; }
 
-/* --- BattleCharacter — absolute positioned, no card chrome --- */
+/* --- BattleCharacter — ROOT is a zero-size anchor at slot center.
+   Choreo layer moves it. Visual layer scales it. Root only translates. --- */
 .normal-cam-char {
-    /* Explicit size = sprite dimensions. Info bar overflows below. */
-    width: var(--battle-sprite-size, 104px);
-    height: var(--battle-sprite-size, 104px);
+    /* Zero-size position anchor — like UE root motion component */
+    width: 0;
+    height: 0;
     overflow: visible;
-    /* position: absolute + left/top set inline from slot config */
+    /* position: absolute + left/top set inline at slot center */
     transition:
             opacity 0.45s ease,
-            transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-            scale 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     cursor: pointer;
 }
 
 /* Inner wrapper — choreography transforms layer on this div.
-   Outer div owns slide (inline px). Inner owns lunge/knockback (CSS class).
-   Stacked: sprite on top, info centered below. */
+   Root owns slide (inline translate). Choreo owns lunge/knockback.
+   Visual owns scale. Centered on the root anchor via negative margin. */
 .normal-cam-char__choreo {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.4vh;
-    width: 100%;
+    /* Center the content on the zero-size root anchor.
+       Uses negative margin so transform property is free for choreo. */
+    margin-left: calc(var(--battle-sprite-size, 104px) / -2);
+    margin-top: calc(var(--battle-sprite-size, 104px) / -2);
     transition: transform 0.15s ease-out;
+}
+
+/* Visual scale layer — zoom for action cam, isolated from position math.
+   transform-origin defaults to center so scale grows from sprite center. */
+.normal-cam-char__visual {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4vh;
+    transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* Hit flash — bright white burst on damage */
@@ -398,8 +410,8 @@
 }
 
 /* --- Selection indicator — four corner brackets ---
-   Single pseudo-element with border. Mask-image clips to corners only.
-   Hidden during action cam (isActive blocks the class in JS). */
+   Root is zero-size, so we position/size the pseudo explicitly
+   relative to the sprite dimensions. */
 
 .battle-char--selected {
     border-color: transparent;
@@ -408,7 +420,12 @@
 .battle-char--selected::before {
     content: "";
     position: absolute;
-    inset: -4px;
+    width: calc(var(--battle-sprite-size, 104px) + 8px);
+    height: calc(var(--battle-sprite-size, 104px) + 8px);
+    left: 0;
+    top: 0;
+    margin-left: calc((var(--battle-sprite-size, 104px) + 8px) / -2);
+    margin-top: calc((var(--battle-sprite-size, 104px) + 8px) / -2);
     border: 2px solid #4ade80;
     border-radius: 4px;
     pointer-events: none;
@@ -444,7 +461,12 @@
 .battle-char--turn-owner::before {
     content: "";
     position: absolute;
-    inset: -4px;
+    width: calc(var(--battle-sprite-size, 104px) + 8px);
+    height: calc(var(--battle-sprite-size, 104px) + 8px);
+    left: 0;
+    top: 0;
+    margin-left: calc((var(--battle-sprite-size, 104px) + 8px) / -2);
+    margin-top: calc((var(--battle-sprite-size, 104px) + 8px) / -2);
     border: 2px solid #f0e6c8;
     border-radius: 4px;
     pointer-events: none;
@@ -475,20 +497,15 @@
     text-align: center;
 }
 
-/* Action cam states */
+/* Action cam states — applied to zero-size root */
 .action-cam-char--dimmed {
     opacity: 0;
     pointer-events: none;
 }
 
-/* Strip card chrome during action cam — sprites float clean in scene */
+/* Active combatants in cam — root stays clean, visual layer handles scale */
 .action-cam-char--attacker,
 .action-cam-char--target {
-    background: none;
-    border: none;
-    box-shadow: none;
-    padding: 0;
-    min-width: 0;
     z-index: 10;
 }
 
@@ -862,7 +879,7 @@
 }
 
 /* ============================================================
-   QTE ZONE — overlay on bottom center during action cam
+   QTE ZONE — overlay during action cam
    Base state: invisible. --visible state: fixed fullscreen above everything.
    ============================================================ */
 .battle-qte {

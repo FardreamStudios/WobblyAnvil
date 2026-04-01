@@ -90,21 +90,21 @@ function BattleCharacter(props) {
     if (isTurnOwner) cls += " battle-char--turn-owner";
     if (isSelected && !isTurnOwner) cls += " battle-char--selected";
 
-    // Absolute positioning from slot config (stage-space pixels)
-    var spriteW = parseInt(LAYOUT.spriteSize) || 52;
-    var style = {
+    // --- ROOT: zero-size anchor positioned at slot center ---
+    // Like UE root motion — this point moves, visuals hang off it
+    var rootStyle = {
         position: "absolute",
-        left: (props.slotX - spriteW / 2) + "px",
-        top: (props.slotY - spriteW / 2) + "px",
+        left: props.slotX + "px",
+        top: props.slotY + "px",
     };
 
     if (!isParty && props.index != null) {
-        style["--bob-delay"] = (props.index * -0.8) + "s";
+        rootStyle["--bob-delay"] = (props.index * -0.8) + "s";
     }
 
-    // Action cam slide — translate from slot to engagement position
-    // scale lives on CSS `scale` property (composes with transform, not overridden by choreo)
-    if ((isAttacker || isTarget) && props.sceneRect && props.restingRects) {
+    // Action cam slide — translate root from slot to engagement position
+    var inCam = (isAttacker || isTarget) && props.sceneRect && props.restingRects;
+    if (inCam) {
         var cached = props.restingRects[c.id];
         if (cached) {
             var cx = ACTION_CAM_SLOTS.centerX;
@@ -115,36 +115,43 @@ function BattleCharacter(props) {
             var destX = isParty ? partySide : enemySide;
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
-            style.transform = "translate(" + dx + "px, " + dy + "px)";
-            style.zIndex = 10;
+            rootStyle.transform = "translate(" + dx + "px, " + dy + "px)";
+            rootStyle.zIndex = 10;
         }
     }
 
     var hpPct = c.maxHP > 0 ? Math.round(c.currentHP / c.maxHP * 100) : 0;
     var fillCls = "battle-hp-fill " + (isParty ? "battle-hp-fill--party" : "battle-hp-fill--enemy");
 
-    // Choreography: build __inner class + direction CSS var
-    var innerCls = "normal-cam-char__choreo";
-    if (props.flashId === c.id) innerCls += " normal-cam-char__choreo--flash";
+    // --- CHOREO layer: lunge/knockback/dodge transforms ---
+    var choreoCls = "normal-cam-char__choreo";
+    if (props.flashId === c.id) choreoCls += " normal-cam-char__choreo--flash";
     var myAnim = props.animState && props.animState[c.id];
     if (myAnim) {
-        innerCls += " normal-cam-char__choreo--" + myAnim;
+        choreoCls += " normal-cam-char__choreo--" + myAnim;
     }
-    var innerStyle = { "--choreo-dir": isParty ? "1" : "-1" };
+    var choreoStyle = { "--choreo-dir": isParty ? "1" : "-1" };
+
+    // --- VISUAL layer: scale for action cam zoom (doesn't affect root or choreo) ---
+    var visualScale = inCam ? ACTION_CAM.activeScale : 1;
 
     return (
         <div
             className={cls}
-            style={style}
+            style={rootStyle}
             ref={props.setRef}
             onClick={props.onClick}
         >
-            <div className={innerCls} style={innerStyle}>
-                <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} />
-                <div className={"normal-cam-char__info" + (isActive ? " action-cam-char__info--hidden" : "")}>
-                    <span className="normal-cam-char__name">{c.name}</span>
-                    <div className="battle-hp-bg">
-                        <div className={fillCls} style={{ width: hpPct + "%" }} />
+            <div className={choreoCls} style={choreoStyle}>
+                <div className="normal-cam-char__visual" style={{
+                    transform: "scale(" + visualScale + ")",
+                }}>
+                    <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} />
+                    <div className={"normal-cam-char__info" + (isActive ? " action-cam-char__info--hidden" : "")}>
+                        <span className="normal-cam-char__name">{c.name}</span>
+                        <div className="battle-hp-bg">
+                            <div className={fillCls} style={{ width: hpPct + "%" }} />
+                        </div>
                     </div>
                 </div>
             </div>

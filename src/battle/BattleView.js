@@ -58,7 +58,6 @@ var EXCHANGE = BattleConstants.EXCHANGE;
 var LAYOUT = BattleConstants.LAYOUT;
 var STAGE = BattleConstants.STAGE;
 var BATTLE_SLOTS = BattleConstants.BATTLE_SLOTS;
-var ACTION_CAM_SLOTS = BattleConstants.ACTION_CAM_SLOTS;
 var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
 var CHOREOGRAPHY = BattleConstants.CHOREOGRAPHY;
 var TEST_PARTY = BattleConstants.TEST_PARTY;
@@ -1814,17 +1813,10 @@ function BattleView(props) {
 
     // --- Render ---
     var stageCls = "battle-stage" + (shakeLevel ? " battle-stage--shake-" + shakeLevel : "");
-    var camZoom = isActionCam ? ACTION_CAM.activeScale : 1;
     var stageStyle = {
         width: STAGE.designW + "px",
         height: STAGE.designH + "px",
-        transform: "translate(-50%, -50%) scale(" + (stageScale * camZoom) + ")",
-        transformOrigin: isActionCam
-            ? ACTION_CAM_SLOTS.centerX + "px " + ACTION_CAM_SLOTS.centerY + "px"
-            : "center center",
-        transition: isActionCam || phase === PHASES.ACTION_CAM_OUT
-            ? "transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform-origin 0.45s ease"
-            : "none",
+        transform: "translate(-50%, -50%) scale(" + stageScale + ")",
     };
 
     // Slot assignment helper — maps combatant index to a slot position
