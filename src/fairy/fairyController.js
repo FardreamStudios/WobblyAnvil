@@ -1178,7 +1178,7 @@ function _onChatSpeak(payload) {
     if (payload.gift && payload.gift.type === "gold") {
         var amount = payload.gift.amount || 50;
         if (_bus) _bus.emit(EVENT_TAGS.ECONOMY_EARN_GOLD, { amount: amount });
-        _sendCommand({ intent: "show_gold_drop" });
+        _sendCommand({ intent: "show_gold_drop", amount: amount });
     }
 }
 
@@ -1190,6 +1190,14 @@ function _onChatClosed() {
 
 /** Internal: tear down chat state and dismiss fairy */
 function _closeChatSession() {
+    // If rescue is pending and we're closing chat (idle timeout, etc),
+    // treat it as an accept — fairy caves and gives the weapon back
+    if (_rescueSnapshot) {
+        _clearRescueLingerTimer();
+        _acceptRescue();
+        return; // _acceptRescue already calls _closeChatSession after clearing snapshot
+    }
+
     _chatActive = false;
     _reactionLingerActive = false;
     _clearLingerTimer();
@@ -1600,6 +1608,9 @@ function reset() {
     _clearLingerTimer();
     _reactionLingerActive = false;
     _clearRescueLingerTimer();
+    if (_rescueSnapshot && _bus) {
+        _bus.emit(EVENT_TAGS.FAIRY_RESCUE_DECLINE, {});
+    }
     _rescueSnapshot = null;
     _rescueUsedThisRun = false;
 
@@ -1640,6 +1651,9 @@ function destroy() {
     _clearLingerTimer();
     _reactionLingerActive = false;
     _clearRescueLingerTimer();
+    if (_rescueSnapshot && _bus) {
+        _bus.emit(EVENT_TAGS.FAIRY_RESCUE_DECLINE, {});
+    }
     _rescueSnapshot = null;
     _rescueUsedThisRun = false;
 

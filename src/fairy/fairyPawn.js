@@ -198,7 +198,7 @@ function handleCommand(cmd) {
     if (cmd.intent === "show_gold_drop") {
         if (_animRef && _animRef.current && _animRef.current.showGoldDrop) {
             var gpos = _currentPos || { x: 50, y: 50 };
-            _animRef.current.showGoldDrop(gpos.x, gpos.y);
+            _animRef.current.showGoldDrop(gpos.x, gpos.y, cmd.amount || 50);
         }
         return;
     }

@@ -350,7 +350,7 @@ function GoldDrop(props) {
                     display: "block",
                 }}
             />
-            {/* Floating +50 text */}
+            {/* Floating gold text */}
             <div style={{
                 position: "absolute",
                 left: "50%",
@@ -366,7 +366,7 @@ function GoldDrop(props) {
                 whiteSpace: "nowrap",
                 pointerEvents: "none",
             }}>
-                +50g
+                +{props.amount || 50}g
             </div>
         </div>
     );
@@ -1150,12 +1150,12 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
                 if (!mountedRef.current) return;
                 setLaserTargetState(null);
             },
-            showGoldDrop: function(x, y) {
+            showGoldDrop: function(x, y, amount) {
                 if (!mountedRef.current) return;
                 // Reset then trigger — ensures re-trigger if already showing
                 setGoldDropAt(null);
                 setTimeout(function() {
-                    if (mountedRef.current) setGoldDropAt({ x: x, y: y });
+                    if (mountedRef.current) setGoldDropAt({ x: x, y: y, amount: amount || 50 });
                 }, 30);
                 // Auto-clear after animation completes
                 schedule(function() {
@@ -1186,7 +1186,7 @@ var FairyAnimInstance = forwardRef(function FairyAnimInstanceInner(props, ref) {
             overflow: "hidden",
         }}>
             {showFX && <PoofFX x={poofAt.x} y={poofAt.y} />}
-            {showGoldDrop && <GoldDrop x={goldDropAt.x} y={goldDropAt.y} visible={true} />}
+            {showGoldDrop && <GoldDrop x={goldDropAt.x} y={goldDropAt.y} amount={goldDropAt.amount} visible={true} />}
 
             {showFairy && (
                 <div

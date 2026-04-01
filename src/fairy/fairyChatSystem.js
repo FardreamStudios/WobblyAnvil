@@ -201,7 +201,7 @@ function _splitIntoBubbles(line) {
 // ============================================================
 
 var _ACTION_RE = /\[MOVE:([a-z_]+)\]/i;
-var _GIVE_RE = /\[GIVE:gold\]/i;
+var _GIVE_RE = /\[GIVE:gold(?::(\d+))?\]/i;
 
 /**
  * Fuzzy-match an LLM spot id against the registry.
@@ -256,7 +256,8 @@ function _parseActions(line) {
     var giveMatch = _GIVE_RE.exec(cleanText);
     if (giveMatch) {
         cleanText = cleanText.replace(giveMatch[0], "").trim();
-        gift = { type: "gold", amount: 50 };
+        var giveAmt = giveMatch[1] ? Math.max(1, Math.min(50, parseInt(giveMatch[1], 10) || 50)) : 50;
+        gift = { type: "gold", amount: giveAmt };
     }
 
     return {
