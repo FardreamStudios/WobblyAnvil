@@ -10,7 +10,7 @@
 // ============================================================
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import BattleConstants from "./battleConstants.js";
+import BattleConstants from "../config/battleConstants.js";
 
 var PHASES = BattleConstants.BATTLE_PHASES;
 var ACTION_CAM = BattleConstants.ACTION_CAM;

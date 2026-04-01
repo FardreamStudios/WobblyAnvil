@@ -5,7 +5,7 @@
 // Props: combatants (array with _isParty, _pips), hidden (bool)
 // ============================================================
 
-import BattleConstants from "./battleConstants.js";
+import BattleConstants from "../config/battleConstants.js";
 
 var ATB = BattleConstants.ATB;
 

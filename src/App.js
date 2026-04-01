@@ -55,7 +55,7 @@ import MicPrompt from "./components/MicPrompt.js";
 import FairyChatSystem from "./fairy/fairyChatSystem.js";
 import BattleViewModule from "./battle/BattleView.js";
 import BattleTransitionModule from "./battle/BattleTransition.js";
-import BattleConstants from "./battle/battleConstants.js";
+import BattleConstants from "./battle/config/battleConstants.js";
 
 var BattleView = BattleViewModule.BattleView;
 var BattleTransition = BattleTransitionModule.BattleTransition;

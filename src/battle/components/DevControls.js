@@ -7,7 +7,7 @@
 // Gated by _DEV_CONTROLS flag — returns null when false.
 // ============================================================
 
-import BattleConstants from "./battleConstants.js";
+import BattleConstants from "../config/battleConstants.js";
 import "./DevControls.css";
 
 var PHASES = BattleConstants.BATTLE_PHASES;
@@ -33,19 +33,19 @@ PHASE_LABELS[PHASES.BATTLE_ENDING]   = "BATTLE END";
 var _DEV_CONTROLS = true;
 
 function DevControls(props) {
-        if (!_DEV_CONTROLS) return null;
+    if (!_DEV_CONTROLS) return null;
 
-        return (
-            <div className="battle-dev">
-                    <button className="battle-dev__btn" onClick={props.onToggleATB}>
-                            {props.atbRunning ? "Pause" : "Fight"}
-                    </button>
-                    <button className="battle-dev__btn" onClick={props.onFillPips}>Fill Pips</button>
-                    <button className="battle-dev__btn" onClick={props.onReset}>Reset</button>
-                    <button className="battle-dev__btn" onClick={props.onExit}>Exit</button>
-                    <span className="battle-dev__badge">{PHASE_LABELS[props.phase] || props.phase}</span>
-            </div>
-        );
+    return (
+        <div className="battle-dev">
+            <button className="battle-dev__btn" onClick={props.onToggleATB}>
+                {props.atbRunning ? "Pause" : "Fight"}
+            </button>
+            <button className="battle-dev__btn" onClick={props.onFillPips}>Fill Pips</button>
+            <button className="battle-dev__btn" onClick={props.onReset}>Reset</button>
+            <button className="battle-dev__btn" onClick={props.onExit}>Exit</button>
+            <span className="battle-dev__badge">{PHASE_LABELS[props.phase] || props.phase}</span>
+        </div>
+    );
 }
 
 export default DevControls;

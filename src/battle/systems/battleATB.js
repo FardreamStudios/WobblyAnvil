@@ -19,7 +19,7 @@
 //
 // ============================================================
 
-import BattleConstants from "./battleConstants.js";
+import BattleConstants from "../config/battleConstants.js";
 
 var ATB = BattleConstants.ATB;
 

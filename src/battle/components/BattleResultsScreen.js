@@ -6,7 +6,7 @@
 // ============================================================
 
 import { useState, useEffect } from "react";
-import BattleConstants from "./battleConstants.js";
+import BattleConstants from "../config/battleConstants.js";
 import "./BattleResultsScreen.css";
 
 var RESULTS_SCREEN = BattleConstants.RESULTS_SCREEN;

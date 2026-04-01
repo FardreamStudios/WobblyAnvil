@@ -5,7 +5,7 @@
 // Props: hidden (bool), onAction (callback)
 // ============================================================
 
-import BattleConstants from "./battleConstants.js";
+import BattleConstants from "../config/battleConstants.js";
 
 var ACTIONS = BattleConstants.ACTIONS;
 

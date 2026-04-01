@@ -37,8 +37,8 @@
 // ============================================================
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import BattleConstants from "./battleConstants.js";
-import GestureRecognition from "./gestureRecognition.js";
+import BattleConstants from "../config/battleConstants.js";
+import GestureRecognition from "../systems/gestureRecognition.js";
 
 var QTE_DIFFICULTY = BattleConstants.QTE_DIFFICULTY;
 

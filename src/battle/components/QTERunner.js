@@ -33,9 +33,9 @@
 //   Gameplay Ability based on a tag, routes the result back.
 // ============================================================
 
-import CircleTimingQTEModule from "../modules/circleTimingQTE.js";
+import CircleTimingQTEModule from "../../modules/circleTimingQTE.js";
 import ChalkboardModule from "./Chalkboard.js";
-import BattleSFX from "./battleSFX.js";
+import BattleSFX from "../systems/battleSFX.js";
 
 var CircleTimingQTE = CircleTimingQTEModule.CircleTimingQTE;
 var Chalkboard = ChalkboardModule.Chalkboard;

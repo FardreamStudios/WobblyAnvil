@@ -27,25 +27,25 @@
 // ============================================================
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import BattleConstants from "./battleConstants.js";
-import BattleSkills from "./battleSkills.js";
-import BattleATB from "./battleATB.js";
-import BattleSFX from "./battleSFX.js";
+import BattleConstants from "./config/battleConstants.js";
+import BattleSkills from "./config/battleSkills.js";
+import BattleATB from "./systems/battleATB.js";
+import BattleSFX from "./systems/battleSFX.js";
 import BattleStateModule from "./battleState.js";
-import QTERunnerModule from "./QTERunner.js";
-import ChalkboardModule from "./Chalkboard.js";
-import BattleCharacterModule from "./BattleCharacter.js";
-import BattleResultsScreen from "./BattleResultsScreen.js";
-import DevControls from "./DevControls.js";
-import ATBGaugeStrip from "./ATBGaugeStrip.js";
-import ActionMenu from "./ActionMenu.js";
-import ItemSubmenu from "./ItemSubmenu.js";
-import SkillSubmenu from "./SkillSubmenu.js";
-import ComicPanel from "./ComicPanel.js";
-import ActionCamInfoPanel from "./ActionCamInfoPanel.js";
-import BattleAI from "./battleAI.js";
-import DefenseTiming from "./defenseTiming.js";
-import GestureRecognition from "./gestureRecognition.js";
+import QTERunnerModule from "./components/QTERunner.js";
+import ChalkboardModule from "./components/Chalkboard.js";
+import BattleCharacterModule from "./components/BattleCharacter.js";
+import BattleResultsScreen from "./components/BattleResultsScreen.js";
+import DevControls from "./components/DevControls.js";
+import ATBGaugeStrip from "./components/ATBGaugeStrip.js";
+import ActionMenu from "./components/ActionMenu.js";
+import ItemSubmenu from "./components/ItemSubmenu.js";
+import SkillSubmenu from "./components/SkillSubmenu.js";
+import ComicPanel from "./components/ComicPanel.js";
+import ActionCamInfoPanel from "./components/ActionCamInfoPanel.js";
+import BattleAI from "./systems/battleAI.js";
+import DefenseTiming from "./systems/defenseTiming.js";
+import GestureRecognition from "./systems/gestureRecognition.js";
 import "./BattleView.css";
 
 var QTERunner = QTERunnerModule.QTERunner;
