@@ -194,6 +194,12 @@ function select() {
     _tone(1400, "sine", 0.03, 0.06, 0.02);
 }
 
+// Invalid — short low buzz (wrong target, can't do that)
+function invalid() {
+    _tone(180, "square", 0.08, 0.14);
+    _tone(120, "square", 0.06, 0.10, 0.04);
+}
+
 // ============================================================
 // API
 // ============================================================
@@ -216,6 +222,7 @@ var BattleSFX = {
     qteGood: qteGood,
     qteMiss: qteMiss,
     select: select,
+    invalid: invalid,
 };
 
 export default BattleSFX;

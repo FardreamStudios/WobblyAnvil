@@ -14,6 +14,7 @@ function SkillSubmenu(props) {
     var onClose = props.onClose;
     var isInCam = props.isInCam;
     var availableAP = props.availableAP || 0;
+    var pendingSkillId = props.pendingSkillId || null;
 
     if (!visible) return null;
 
@@ -33,7 +34,10 @@ function SkillSubmenu(props) {
                 {skills.map(function(skill) {
                     var cost = skill.apCost || 25;
                     var cantAfford = cost > availableAP;
-                    var cls = "battle-skill-submenu__row" + (cantAfford ? " battle-skill-submenu__row--disabled" : "");
+                    var isPending = skill.id === pendingSkillId;
+                    var cls = "battle-skill-submenu__row"
+                        + (cantAfford ? " battle-skill-submenu__row--disabled" : "")
+                        + (isPending ? " battle-skill-submenu__row--pending" : "");
                     return (
                         <button
                             key={skill.id}
@@ -43,7 +47,10 @@ function SkillSubmenu(props) {
                         >
                             <span className="battle-skill-submenu__name">{skill.name}</span>
                             <span className="battle-skill-submenu__cost">{cost + " AP"}</span>
-                            <span className="battle-skill-submenu__rings">{skill.rings + " hit"}</span>
+                            {isPending
+                                ? <span className="battle-skill-submenu__confirm">TAP TO CONFIRM</span>
+                                : <span className="battle-skill-submenu__rings">{skill.rings + " hit"}</span>
+                            }
                         </button>
                     );
                 })}

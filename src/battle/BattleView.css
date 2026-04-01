@@ -1533,6 +1533,92 @@
     text-align: right;
 }
 
+/* --- Pending skill row — highlighted when selected, awaiting confirm --- */
+.battle-skill-submenu__row--pending {
+    background: rgba(96, 165, 250, 0.15);
+    border-color: rgba(96, 165, 250, 0.5);
+    box-shadow: 0 0 6px rgba(96, 165, 250, 0.2);
+}
+
+.battle-skill-submenu__row--pending:hover {
+    background: rgba(96, 165, 250, 0.22);
+    border-color: rgba(96, 165, 250, 0.6);
+}
+
+/* --- Confirm hint on pending skill row --- */
+.battle-skill-submenu__confirm {
+    font-size: clamp(6px, 0.9vw, 8px);
+    color: #4ade80;
+    font-weight: bold;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    text-align: right;
+    animation: confirmPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes confirmPulse {
+    0%, 100% { opacity: 0.6; }
+    50%      { opacity: 1; }
+}
+
+/* --- Pick Target prompt — floats above skill submenu --- */
+.battle-pick-target-prompt {
+    position: absolute;
+    bottom: 14vh;
+    right: 2vw;
+    z-index: 21;
+    pointer-events: none;
+    animation: pickTargetFadeIn 0.2s ease-out;
+}
+
+.battle-pick-target-prompt__text {
+    font-family: monospace;
+    font-size: clamp(9px, 1.6vw, 13px);
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #60a5fa;
+    padding: 0.6vh 1.5vw;
+    background: rgba(10, 7, 4, 0.85);
+    border: 1px solid rgba(96, 165, 250, 0.4);
+    border-radius: 5px;
+    animation: pickTargetPulse 2s ease-in-out infinite;
+}
+
+@keyframes pickTargetFadeIn {
+    0%   { opacity: 0; transform: translateY(5px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pickTargetPulse {
+    0%, 100% { border-color: rgba(96, 165, 250, 0.4); }
+    50%      { border-color: rgba(96, 165, 250, 0.8); }
+}
+
+/* --- Character AP bar (formation view, below HP bar) --- */
+.battle-char-ap-bg {
+    width: 64px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 1px;
+}
+
+.battle-char-ap-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.2s ease;
+}
+
+.battle-char-ap-fill--party {
+    background: #60a5fa;
+}
+
+.battle-char-ap-fill--enemy {
+    background: #fb923c;
+}
+
 /* In-cam ITEM button color */
 .battle-cam-sec-btn--item {
     color: #f59e0b;

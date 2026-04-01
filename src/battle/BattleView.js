@@ -161,9 +161,29 @@ function BattleView(props) {
 
     // --- Single source of truth for player-initiated selection ---
     // All player taps route here. System/AI changes use setTargetId directly.
+    // When a skill is pending, only valid targets are accepted.
     function selectTarget(id) {
+        if (selectedSkillRef.current) {
+            // Skill pending — validate target
+            var skill = BattleSkills.getSkill(selectedSkillRef.current);
+            if (!isValidTarget(id, skill)) {
+                BattleSFX.invalid();
+                return;
+            }
+        }
         setTargetId(id);
         if (id != null) BattleSFX.select();
+    }
+
+    // Check if a combatant is a valid target for a given skill
+    function isValidTarget(id, skill) {
+        if (!id) return false;
+        var c = bState.get(id);
+        if (!c || c.ko) return false;
+        // Attack skills target enemies; future: heal/buff target allies
+        var targetsEnemy = !skill || !skill.targetAlly;
+        if (targetsEnemy) return !bState.isPartyId(id);
+        return bState.isPartyId(id);
     }
 
     // --- AP state (replaces ATB pip state) ---
@@ -662,9 +682,17 @@ function BattleView(props) {
             }
             return;
         }
-        // Not in action cam — tap empty space deselects
+        // Not in action cam — tap empty space
         if (!isActionCam) {
-            setTargetId(null);
+            if (selectedSkillRef.current) {
+                // Cancel pending skill + close submenu
+                selectedSkillRef.current = null;
+                setSkillMenuOpen(false);
+                setTargetId(null);
+                bumpState();
+            } else {
+                setTargetId(null);
+            }
         }
     }
 
@@ -675,9 +703,16 @@ function BattleView(props) {
             defenseInputResolve("tap");
             return;
         }
-        // Not in action cam — tap empty space deselects
+        // Not in action cam — tap empty space
         if (!isActionCam) {
-            setTargetId(null);
+            if (selectedSkillRef.current) {
+                selectedSkillRef.current = null;
+                setSkillMenuOpen(false);
+                setTargetId(null);
+                bumpState();
+            } else {
+                setTargetId(null);
+            }
         }
     }
 
@@ -1069,18 +1104,24 @@ function BattleView(props) {
                     handleSkillConfirm();
                 }
             }
-        } else if (actionId === "item") {
-            // Check AP
-            if (!BattleEngagement.canAfford(apStateRef.current, userId, ENGAGEMENT.AP_COST_ITEM)) return;
-            itemMenuContextRef.current = "formation";
-            setItemMenuOpen(true);
-        } else if (actionId === "defend") {
-            handleDefend(userId);
-        } else if (actionId === "flee") {
-            handleFlee(userId);
-        } else if (actionId === "wait") {
-            // Free action — end turn, keep AP, earn more next turn
-            endFormationTurn();
+        } else {
+            // Any non-ATK action cancels pending skill state
+            selectedSkillRef.current = null;
+            setSkillMenuOpen(false);
+
+            if (actionId === "item") {
+                // Check AP
+                if (!BattleEngagement.canAfford(apStateRef.current, userId, ENGAGEMENT.AP_COST_ITEM)) return;
+                itemMenuContextRef.current = "formation";
+                setItemMenuOpen(true);
+            } else if (actionId === "defend") {
+                handleDefend(userId);
+            } else if (actionId === "flee") {
+                handleFlee(userId);
+            } else if (actionId === "wait") {
+                // Free action — end turn, keep AP, earn more next turn
+                endFormationTurn();
+            }
         }
     }
 
@@ -1239,11 +1280,29 @@ function BattleView(props) {
         setItemMenuOpen(false);
     }
 
-    // Player picked a skill from the formation skill submenu
+    // Player tapped a skill in the submenu
     function handleSkillSelect(skillId) {
+        // Same skill tapped again — confirm and execute
+        if (selectedSkillRef.current === skillId) {
+            handleSkillConfirm();
+            return;
+        }
+        // Different skill (or first pick) — set pending, auto-pick first valid target
         selectedSkillRef.current = skillId;
-        setSkillMenuOpen(false);
-        // Now player needs to select a target — stay in TURN_ACTIVE
+        var skill = BattleSkills.getSkill(skillId);
+        var targetsEnemy = !skill || !skill.targetAlly;
+        var autoTarget = null;
+        if (targetsEnemy) {
+            autoTarget = pickFirstLivingEnemy();
+        } else {
+            autoTarget = pickFirstLivingAlly();
+        }
+        if (autoTarget) {
+            setTargetId(autoTarget);
+            BattleSFX.select();
+        }
+        // Force re-render so SkillSubmenu shows pending state
+        bumpState();
     }
 
     // Player confirms attack after selecting skill + target
@@ -1268,6 +1327,7 @@ function BattleView(props) {
         if (!atkValid) return;
 
         selectedSkillRef.current = null;
+        setSkillMenuOpen(false);
         startExchange(userId, atkTarget, skillId);
     }
 
@@ -1326,6 +1386,7 @@ function BattleView(props) {
                                 key={e.id}
                                 data={combatantMap[e.id] || e}
                                 isParty={false}
+                                isActionCam={isActionCam}
                                 index={idx}
                                 phase={phase}
                                 attackerId={activeAtkId}
@@ -1354,6 +1415,7 @@ function BattleView(props) {
                                 key={p.id}
                                 data={combatantMap[p.id] || p}
                                 isParty={true}
+                                isActionCam={isActionCam}
                                 index={idx}
                                 phase={phase}
                                 attackerId={activeAtkId}
@@ -1485,7 +1547,7 @@ function BattleView(props) {
                 isInCam={false}
             />
 
-            {/* Skill submenu — formation: pick skill, then pick target, then confirm */}
+            {/* Skill submenu — pick skill, pick target, retap skill to confirm */}
             <SkillSubmenu
                 visible={skillMenuOpen}
                 skills={skillMenuOpen ? (function() {
@@ -1496,10 +1558,18 @@ function BattleView(props) {
                     }).filter(Boolean);
                 })() : []}
                 availableAP={skillMenuOpen ? BattleEngagement.getAP(apState, activeAtkId) : 0}
+                pendingSkillId={selectedSkillRef.current}
                 onSelect={handleSkillSelect}
                 onClose={handleSkillClose}
                 isInCam={false}
             />
+
+            {/* Pick target prompt — shown when a skill is pending */}
+            {skillMenuOpen && selectedSkillRef.current && (
+                <div className="battle-pick-target-prompt">
+                    <span className="battle-pick-target-prompt__text">PICK TARGET</span>
+                </div>
+            )}
 
             {/* QTE zone */}
             {showQTE && (

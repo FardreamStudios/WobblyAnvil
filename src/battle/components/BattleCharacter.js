@@ -12,8 +12,6 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import BattleConstants from "../config/battleConstants.js";
 
-var PHASES = BattleConstants.BATTLE_PHASES;
-var ACTION_CAM = BattleConstants.ACTION_CAM;
 var ACTION_CAM_SLOTS = BattleConstants.ACTION_CAM_SLOTS;
 var LAYOUT = BattleConstants.LAYOUT;
 var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
@@ -152,13 +150,13 @@ function SelectionBrackets(props) {
 function BattleCharacter(props) {
     var c = props.data;
     var isParty = props.isParty;
-    var isActive = props.phase !== PHASES.ATB_RUNNING && props.phase !== PHASES.ACTION_SELECT && props.phase !== PHASES.ACTION_CAM_OUT;
+    var inActionCam = !!props.isActionCam;
 
-    var isDimmed = isActive && c.id !== props.attackerId && c.id !== props.targetId;
-    var isAttacker = isActive && c.id === props.attackerId;
-    var isTarget = isActive && c.id === props.targetId;
-    var isSelected = !isActive && c.id === props.selectedId;
-    var isTurnOwner = !isActive && c.id === props.turnOwnerId;
+    var isDimmed = inActionCam && c.id !== props.attackerId && c.id !== props.targetId;
+    var isAttacker = inActionCam && c.id === props.attackerId;
+    var isTarget = inActionCam && c.id === props.targetId;
+    var isSelected = !inActionCam && c.id === props.selectedId;
+    var isTurnOwner = !inActionCam && c.id === props.turnOwnerId;
 
     // Sprite ref for bracket measurement
     var spriteElRef = useRef(null);
@@ -238,11 +236,19 @@ function BattleCharacter(props) {
                     />
                     <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} spriteRef={spriteElRef} />
                 </div>
-                <div className={"normal-cam-char__info" + (isActive ? " action-cam-char__info--hidden" : "")}>
+                <div className={"normal-cam-char__info" + (inActionCam ? " action-cam-char__info--hidden" : "")}>
                     <span className="normal-cam-char__name">{c.name}</span>
                     <div className="battle-hp-bg">
                         <div className={fillCls} style={{ width: hpPct + "%" }} />
                     </div>
+                    {c._ap && (
+                        <div className="battle-char-ap-bg">
+                            <div
+                                className={"battle-char-ap-fill" + (isParty ? " battle-char-ap-fill--party" : " battle-char-ap-fill--enemy")}
+                                style={{ width: (c._ap.max > 0 ? Math.round(c._ap.current / c._ap.max * 100) : 0) + "%" }}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
