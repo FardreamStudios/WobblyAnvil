@@ -101,7 +101,7 @@ var QUENCH_TIERS = {
 var QTE_SPEED = {
     heatSpeedBase: 70,
     heatSpeedRange: 15,
-    heatAccelExponent: 1.8,
+    heatAccelExponent: 1.85,
     hammerSpeedBase: 225,
     hammerSpeedRange: 50,
     quenchSpeedBase: 190,

@@ -163,7 +163,32 @@ function MobileLayout(props) {
 
     // --- Drawer state ---
     var [drawerOpen, setDrawerOpen] = useState(false);
-    var [heldStat, setHeldStat] = useState(null);
+    // Unified tooltip: { type: "stat"|"upgrade", key: string } or null
+    var [drawerTooltip, setDrawerTooltip] = useState(null);
+    var tooltipTimerRef = useRef(null);
+
+    // Toggle tooltip — same item closes, different item switches
+    function toggleTooltip(type, key) {
+        setDrawerTooltip(function(prev) {
+            if (prev && prev.type === type && prev.key === key) return null;
+            return { type: type, key: key };
+        });
+    }
+
+    // 5-second auto-dismiss
+    useEffect(function() {
+        if (!drawerTooltip) return;
+        clearTimeout(tooltipTimerRef.current);
+        tooltipTimerRef.current = setTimeout(function() {
+            setDrawerTooltip(null);
+        }, 5000);
+        return function() { clearTimeout(tooltipTimerRef.current); };
+    }, [drawerTooltip]);
+
+    // Clear tooltip when drawer closes
+    useEffect(function() {
+        if (!drawerOpen) setDrawerTooltip(null);
+    }, [drawerOpen]);
 
     var prevInForgeFlow = useRef(false);
     useEffect(function() {
@@ -234,13 +259,13 @@ function MobileLayout(props) {
                         var canAfford = points >= cost;
                         var locked = props.statLocked;
                         var meta = GameConstants.STAT_META[statKey];
-                        var isHeld = heldStat === statKey;
+                        var isHeld = drawerTooltip && drawerTooltip.type === "stat" && drawerTooltip.key === statKey;
                         var showBtn = points > 0 && !locked;
                         return (
                             <W.Box key={s[0]} style={{ position: "relative", width: "100%" }}>
                                 <W.Strip justify="space-between" gap="xs" center
                                          style={{ cursor: "pointer", paddingRight: 4 }}
-                                         onClick={function() { setHeldStat(function(h) { return h === statKey ? null : statKey; }); }}>
+                                         onClick={function() { toggleTooltip("stat", statKey); }}>
                                     <W.Label size="lg" color={s[2]} spacing="tight" bold font="heading">{s[0]}</W.Label>
                                     <button onClick={function(e) { e.stopPropagation(); if (canAfford && props.onAllocate) props.onAllocate(statKey); }} style={{
                                         background: "#2a1f0a", border: "1px solid " + (canAfford ? "#f59e0b" : "#3d2e0f"),
@@ -277,11 +302,28 @@ function MobileLayout(props) {
                 var lvl = (props.upgrades[key] || 0);
                 var upgradeData = GameConstants.UPGRADES[key][lvl];
                 var upgradeColor = GameConstants.UPGRADE_COLORS[lvl] || "#a0a0a0";
+                var isUpHeld = drawerTooltip && drawerTooltip.type === "upgrade" && drawerTooltip.key === key;
                 return (
-                    <W.Strip key={key} justify="space-between" gap="xs" style={{ minHeight: 22 }}>
-                        <W.Label size="lg" color="textLabel" spacing="tight" bold font="heading">{label.toUpperCase()}</W.Label>
-                        <W.Label size="lg" color={upgradeColor} bold style={{ textAlign: "right" }}>{upgradeData ? upgradeData.name : "\u2014"}</W.Label>
-                    </W.Strip>
+                    <W.Box key={key} style={{ position: "relative" }}>
+                        <W.Strip justify="space-between" gap="xs" style={{ minHeight: 22, cursor: "pointer" }}
+                                 onClick={function() { toggleTooltip("upgrade", key); }}>
+                            <W.Label size="lg" color="textLabel" spacing="tight" bold font="heading">{label.toUpperCase()}</W.Label>
+                            <W.Label size="lg" color={upgradeColor} bold style={{ textAlign: "right" }}>{upgradeData ? upgradeData.name : "\u2014"}</W.Label>
+                        </W.Strip>
+                        {isUpHeld && upgradeData && (
+                            <div style={{
+                                position: "absolute", left: 0, right: 0, top: "100%",
+                                background: "#0a0704", border: "1px solid " + upgradeColor + "55",
+                                borderRadius: 6, padding: "6px 10px", marginTop: 2,
+                                fontSize: 11, color: "#c8b89a", lineHeight: 1.5,
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.9)",
+                                zIndex: T.z.shelfPopup,
+                            }}>
+                                <div style={{ color: upgradeColor, fontWeight: "bold", marginBottom: 2, fontSize: 10 }}>{upgradeData.name.toUpperCase()}</div>
+                                {upgradeData.desc}
+                            </div>
+                        )}
+                    </W.Box>
                 );
             })}
         </W.Box>
