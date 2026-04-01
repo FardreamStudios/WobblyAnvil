@@ -48,7 +48,7 @@ var BATTLE_TAGS = {
     ACTION_FLEE:            "BATTLE:ACTION:FLEE",             // { userId, success }
     ACTION_ITEM:            "BATTLE:ACTION:ITEM",             // { userId, itemId, targetId, effect }
     ACTION_SKILL_SELECT:    "BATTLE:ACTION:SKILL_SELECT",     // { userId, skillId }
-    TURN_END:               "BATTLE:ACTION:TURN_END",         // { combatantId }
+    ACTION_RESOLVED:        "BATTLE:ACTION:RESOLVED",         // { combatantId } — an action finished resolving
 
     // --- Wave / Battle lifecycle ---
     WAVE_CLEAR:             "BATTLE:WAVE:CLEAR",              // { waveIndex }
@@ -65,6 +65,19 @@ var BATTLE_TAGS = {
     SPAWN_DAMAGE:           "BATTLE:UI:SPAWN_DAMAGE",         // { combatantId, value, color, yOffset }
     SPAWN_SKILL_NAME:       "BATTLE:UI:SPAWN_SKILL_NAME",     // { skillName, combatantId, color }
     PHASE_CHANGE:           "BATTLE:UI:PHASE_CHANGE",         // { phase }
+    AP_CHANGED:             "BATTLE:UI:AP_CHANGED",           // { combatantId, current, max, delta }
+
+    // --- Engagement System (Initiative + AP + Turn Order) ---
+    INITIATIVE_ROLLED:      "BATTLE:ENGAGE:INITIATIVE_ROLLED", // { turnOrder: [id, ...] }
+    TURN_START:             "BATTLE:ENGAGE:TURN_START",        // { combatantId, turnIndex, isParty }
+    TURN_END:               "BATTLE:ENGAGE:TURN_END",          // { combatantId }
+    AP_EARNED:              "BATTLE:ENGAGE:AP_EARNED",         // { combatantId, amount, newTotal }
+    AP_SPENT:               "BATTLE:ENGAGE:AP_SPENT",          // { combatantId, cost, newTotal }
+    COUNTER_PROMPT:         "BATTLE:ENGAGE:COUNTER_PROMPT",    // { responderId, cost, canAfford }
+    COUNTER_ACCEPTED:       "BATTLE:ENGAGE:COUNTER_ACCEPTED",  // { responderId }
+    COUNTER_DECLINED:       "BATTLE:ENGAGE:COUNTER_DECLINED",  // { responderId }
+
+    // --- Legacy (kept for migration — remove after full engagement rework) ---
     PIP_DEDUCTED:           "BATTLE:UI:PIP_DEDUCTED",         // { combatantId }
 };
 

@@ -25,12 +25,19 @@ var BATTLE_TRANSITION = {
     fanfareDelayMs: 100,                        // delay before battle fanfare plays
 };
 
-// --- ATB / Pip Config ---
-var ATB = {
-    pipsPerCombatant:   3,          // everyone gets 3 pips
-    pipFillMs:          350,       // base ms to fill one pip at speed 1.0 (actual = pipFillMs / atbSpeed)
-    resumeEaseMs:       400,        // soft ease-in on ATB resume after action cam
-    freezeGlobal:       true,       // all ATB freezes when anyone is acting (cam or out-of-cam)
+// --- Engagement System Config (replaces ATB/Pip) ---
+// All AP costs and initiative tuning in one place.
+// Stats use 1–100 internal scale; display format is a view concern.
+var ENGAGEMENT = {
+    AP_MAX:                 100,    // shared cap for all combatants
+    AP_EARN_BASE:           15,     // floor AP earned per turn
+    AP_EARN_SPEED_SCALE:    0.35,   // multiplied by speed, added to base. speed 10→18, speed 50→32, speed 90→46
+    AP_COST_ITEM:           15,     // formation only
+    AP_COST_DEFEND:         15,     // formation only
+    AP_COST_FLEE:           70,     // formation only, high commitment
+    AP_COST_COUNTER:        25,     // in-cam, responder pays to swing back
+    INITIATIVE_VARIANCE:    20,     // random(0, variance) added to speed for turn order roll
+    FLEE_BASE_CHANCE:       0.5,    // 50% flat chance V1
 };
 
 // --- Action Camera Config ---
@@ -48,27 +55,18 @@ var EXCHANGE = {
     counterDelayMs:     300,        // delay before enemy counter starts
 };
 
-// --- Pip Costs ---
-// All actions cost 1 pip. Attack entering action cam = turn ends when cam resolves.
-var PIP_COSTS = {
-    attack:     1,          // enters action cam, 1 attack per out-of-cam turn max
-    defend:     1,          // formation or in-cam: defense buff, instant
-    item:       1,          // formation or in-cam: instant, no QTE
-    pass:       1,          // yields initiative, costs a pip (not free)
-    flee:       3,          // formation only: costs ALL pips (full turn)
-};
+// --- AP Costs — see ENGAGEMENT config above ---
+// Skill AP costs are per-skill in battleSkills.js (apCost field).
+// All other costs (item, defend, flee, counter) are in ENGAGEMENT.
 
 // --- Defend Buff Config ---
 var DEFEND_BUFF = {
     stat:       "defensePower",
     value:      3,              // +3 defense
-    turns:      99,             // sentinel — cleared on next ATB fill, not turn-counted
+    turns:      99,             // sentinel — cleared on combatant's next turn start, not turn-counted
 };
 
-// --- Flee Config ---
-var FLEE = {
-    baseChance:     0.5,        // 50% flat chance V1 (future: wave-based)
-};
+// --- Flee — chance is in ENGAGEMENT.FLEE_BASE_CHANCE ---
 
 // --- Formation-View Action Buttons ---
 var ACTIONS = [
@@ -76,17 +74,11 @@ var ACTIONS = [
     { id: "defend",  label: "DEF",  color: "#4ade80", bg: "#0a1a14" },
     { id: "item",    label: "ITEM", color: "#f59e0b", bg: "#1a1408" },
     { id: "flee",    label: "FLEE", color: "#8a7a64", bg: "#141009" },
+    { id: "wait",    label: "WAIT", color: "#a0a0a0", bg: "#111111" },
 ];
 
-// --- In-Cam Action Buttons (defender response) ---
-// Separate from formation-view to preserve muscle memory.
-// No flee option in-cam. Defend = buff for remaining beats this exchange.
-var IN_CAM_ACTIONS = [
-    { id: "attack",  label: "ATK",  color: "#60a5fa", bg: "#1a1428" },
-    { id: "defend",  label: "DEF",  color: "#4ade80", bg: "#0a1a14" },
-    { id: "item",    label: "ITEM", color: "#f59e0b", bg: "#1a1408" },
-    { id: "pass",    label: "PASS", color: "#8a7a64", bg: "#141009" },
-];
+// --- In-Cam Actions removed — engagement system uses formation-only actions ---
+// Counter prompt is handled inline by BattleView, not a menu.
 
 // --- Stage, Slots, Overlay, Selection — imported from battleLayout.js ---
 var STAGE = BattleLayout.STAGE;
@@ -150,6 +142,7 @@ var BATTLE_SPRITES = {
 };
 
 // --- Combat Test Data (dev/prototype only) ---
+// Stats use 1–100 internal scale. Display layer decides presentation.
 var TEST_PARTY = [
     {
         id: "smith",
@@ -157,8 +150,7 @@ var TEST_PARTY = [
         spriteKey: "fairyIdle",
         maxHP: 20,
         currentHP: 20,
-        speed: 5,
-        atbSpeed: 0.3,
+        speed: 45,
         attackPower: 12,
         defensePower: 8,
         skills: ["basic_attack", "power_strike", "anvils_verdict"],
@@ -174,8 +166,7 @@ var TEST_PARTY = [
         spriteKey: "fairyCombatIdle",
         maxHP: 20,
         currentHP: 20,
-        speed: 7,
-        atbSpeed: 0.3,
+        speed: 65,
         attackPower: 6,
         defensePower: 5,
         skills: ["basic_attack"],
@@ -193,8 +184,7 @@ var TEST_ENEMIES = [
         spriteKey: "enemyTrashBag",
         maxHP: 20,
         currentHP: 20,
-        speed: 4,
-        atbSpeed: 0.3,
+        speed: 30,
         attackPower: 8,
         defensePower: 3,
         skills: ["rat_bite"],
@@ -205,8 +195,7 @@ var TEST_ENEMIES = [
         spriteKey: "enemyCrateMimic",
         maxHP: 20,
         currentHP: 20,
-        speed: 5,
-        atbSpeed: 0.3,
+        speed: 40,
         attackPower: 6,
         defensePower: 2,
         skills: ["scavenger_combo"],
@@ -223,8 +212,7 @@ var TEST_WAVES = [
             spriteKey: "enemyTrashBag",
             maxHP: 20,
             currentHP: 20,
-            speed: 4,
-            atbSpeed: 0.3,
+            speed: 30,
             attackPower: 8,
             defensePower: 3,
             skills: ["rat_bite"],
@@ -235,8 +223,7 @@ var TEST_WAVES = [
             spriteKey: "enemyCrateMimic",
             maxHP: 20,
             currentHP: 20,
-            speed: 5,
-            atbSpeed: 0.3,
+            speed: 40,
             attackPower: 6,
             defensePower: 2,
             skills: ["scavenger_combo"],
@@ -250,8 +237,7 @@ var TEST_WAVES = [
             spriteKey: "enemyCrateMimic",
             maxHP: 25,
             currentHP: 25,
-            speed: 6,
-            atbSpeed: 0.3,
+            speed: 50,
             attackPower: 10,
             defensePower: 4,
             skills: ["scavenger_combo", "flurry_combo"],
@@ -262,8 +248,7 @@ var TEST_WAVES = [
             spriteKey: "enemySackGolem",
             maxHP: 200,
             currentHP: 200,
-            speed: 2,
-            atbSpeed: 0.3,
+            speed: 15,
             attackPower: 12,
             defensePower: 6,
             skills: ["trash_golem_slam"],
@@ -273,19 +258,24 @@ var TEST_WAVES = [
 
 // --- Battle Phases ---
 var BATTLE_PHASES = {
-    ATB_RUNNING:      "atb_running",
-    ACTION_SELECT:    "action_select",       // formation-view: party member picks action
+    INITIATIVE_ROLL:  "initiative_roll",    // rolling initiative at fight/wave start
+    TURN_ACTIVE:      "turn_active",        // current combatant's formation turn (spend AP)
     ACTION_CAM_IN:    "action_cam_in",       // sliding combatants to center stage
-    CAM_TURN_START:   "cam_turn_start",      // determine whose swing, check pips
-    CAM_WAIT_ACTION:  "cam_wait_action",     // player: show in-cam menu. enemy: auto-pick
-    CAM_TELEGRAPH:    "cam_telegraph",       // enemy wind-up glow before their swing
-    CAM_SWING:        "cam_swing",           // QTE active — active swinger hits other side (legacy, kept for compat)
     CAM_SWING_QTE:    "cam_swing_qte",       // front-loaded Chalkboard: all offense checks before choreography
     CAM_SWING_PLAYBACK: "cam_swing_playback", // cinematic playback driven by results array (offense + defense windows)
-    CAM_RESOLVE:      "cam_resolve",         // brief pause after swing before next turn
+    CAM_RESOLVE:      "cam_resolve",         // brief pause after swing before counter prompt
+    CAM_COUNTER_PROMPT: "cam_counter_prompt", // responder decides: counter or eat it
     ACTION_CAM_OUT:   "action_cam_out",      // sliding back to formation
     BATTLE_ENDING:    "battle_ending",       // KO wipe detected — freeze, hold, exit
     WAVE_TRANSITION:  "wave_transition",     // between-wave banner + enemy swap
+
+    // Legacy aliases — kept for compat during migration, remove after full rework
+    ATB_RUNNING:      "atb_running",
+    ACTION_SELECT:    "action_select",
+    CAM_TURN_START:   "cam_turn_start",
+    CAM_WAIT_ACTION:  "cam_wait_action",
+    CAM_TELEGRAPH:    "cam_telegraph",
+    CAM_SWING:        "cam_swing",
 };
 
 // --- Choreography Config (anim states, hit reactions, screen FX) ---
@@ -395,10 +385,9 @@ var BATTLE_ITEMS = [
 // ============================================================
 var BattleConstants = {
     BATTLE_TRANSITION: BATTLE_TRANSITION,
-    ATB: ATB,
+    ENGAGEMENT: ENGAGEMENT,
     ACTION_CAM: ACTION_CAM,
     EXCHANGE: EXCHANGE,
-    PIP_COSTS: PIP_COSTS,
     LAYOUT: LAYOUT,
     STAGE: STAGE,
     BATTLE_SLOTS: BATTLE_SLOTS,
@@ -411,11 +400,9 @@ var BattleConstants = {
     TEST_WAVES: TEST_WAVES,
     WAVE_TRANSITION: WAVE_TRANSITION,
     ACTIONS: ACTIONS,
-    IN_CAM_ACTIONS: IN_CAM_ACTIONS,
     BATTLE_PHASES: BATTLE_PHASES,
     BATTLE_ITEMS: BATTLE_ITEMS,
     DEFEND_BUFF: DEFEND_BUFF,
-    FLEE: FLEE,
     BATTLE_END: BATTLE_END,
     COMBO: COMBO,
     RESULTS_SCREEN: RESULTS_SCREEN,

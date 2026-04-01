@@ -30,7 +30,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import BattleConstants from "./config/battleConstants.js";
 import BattleSkills from "./config/battleSkills.js";
-import BattleATB from "./systems/battleATB.js";
+import BattleEngagement from "./systems/battleEngagement.js";
 import BattleSFX from "./systems/battleSFX.js";
 import BattleStateModule from "./battleState.js";
 import QTERunnerModule from "./components/QTERunner.js";
@@ -38,7 +38,7 @@ import ChalkboardModule from "./components/Chalkboard.js";
 import BattleCharacterModule from "./components/BattleCharacter.js";
 import BattleResultsScreen from "./components/BattleResultsScreen.js";
 import DevControls from "./components/DevControls.js";
-import ATBGaugeStrip from "./components/ATBGaugeStrip.js";
+import ATBGaugeStrip from "./components/ATBGaugeStrip.js"; // TODO: replace with TurnOrderStrip in Block 5
 import ActionMenu from "./components/ActionMenu.js";
 import ItemSubmenu from "./components/ItemSubmenu.js";
 import SkillSubmenu from "./components/SkillSubmenu.js";
@@ -49,7 +49,7 @@ import DefenseTiming from "./systems/defenseTiming.js";
 import GestureRecognition from "./systems/gestureRecognition.js";
 import BattleBus from "./battleBus.js";
 import BATTLE_TAGS from "./battleTags.js";
-import useBattleATBLoop from "./hooks/useBattleATBLoop.js";
+import useBattleTurnLoop from "./hooks/useBattleTurnLoop.js";
 import PlaybackManager from "./managers/battlePlaybackManager.js";
 import BattleHelpers from "./systems/battleHelpers.js";
 import "./BattleView.css";
@@ -61,6 +61,7 @@ var DamageNumber = BattleCharacterModule.DamageNumber;
 var PHASES = BattleConstants.BATTLE_PHASES;
 var ACTION_CAM = BattleConstants.ACTION_CAM;
 var EXCHANGE = BattleConstants.EXCHANGE;
+var ENGAGEMENT = BattleConstants.ENGAGEMENT;
 var LAYOUT = BattleConstants.LAYOUT;
 var STAGE = BattleConstants.STAGE;
 var BATTLE_SLOTS = BattleConstants.BATTLE_SLOTS;
@@ -69,8 +70,6 @@ var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
 var CHOREOGRAPHY = BattleConstants.CHOREOGRAPHY;
 var TEST_PARTY = BattleConstants.TEST_PARTY;
 var TEST_WAVES = BattleConstants.TEST_WAVES;
-var DEFEND_BUFF = BattleConstants.DEFEND_BUFF;
-var FLEE = BattleConstants.FLEE;
 var BATTLE_END = BattleConstants.BATTLE_END;
 var COMBO = BattleConstants.COMBO;
 var WAVE_TRANSITION = BattleConstants.WAVE_TRANSITION;
@@ -146,12 +145,11 @@ function BattleView(props) {
     var waveLabel = "Wave " + (waveIndex + 1) + "/" + totalWaves;
 
     // --- State ---
-    var [phase, setPhase] = useState(PHASES.ATB_RUNNING);
-    var [swapTrigger, setSwapTrigger] = useState(0);
+    var [phase, setPhase] = useState(PHASES.TURN_ACTIVE);
     var [targetId, setTargetId] = useState(null);
     var [turnOwnerId, setTurnOwnerId] = useState(null);
     var [attackerId] = useState(TEST_PARTY[0].id);
-    var [atbRunning, setAtbRunning] = useState(true);
+    var [turnLoopRunning, setTurnLoopRunning] = useState(true);
     var [shakeLevel, setShakeLevel] = useState(null);
     var [flashId, setFlashId] = useState(null);
     var [animState, setAnimState] = useState({});
@@ -170,14 +168,16 @@ function BattleView(props) {
         setTargetId(id);
         if (id != null) BattleSFX.select();
     }
-    var atbValuesRef = useRef(null);
+
+    // --- AP state (replaces ATB pip state) ---
+    var [apState, setApState] = useState(function() {
+        return BattleEngagement.initAPState(TEST_PARTY.concat(currentEnemies), ENGAGEMENT.AP_MAX);
+    });
+    var apStateRef = useRef(apState);
+    apStateRef.current = apState;
 
     // --- In-cam exchange state ---
     var camExchangeRef = useRef(null);
-    var [atbValues, setAtbValues] = useState(function() {
-        return BattleATB.initState(TEST_PARTY.concat(currentEnemies));
-    });
-    atbValuesRef.current = atbValues;
 
     // --- Battle State (mutable combatant data: HP, items, KO, buffs) ---
     var battleStateRef = useRef(null);
@@ -274,51 +274,49 @@ function BattleView(props) {
         restingRectsRef.current = Object.assign({}, slotMapRef.current);
     }, [phase]);
 
-    // --- ATB tick loop (extracted to hook) ---
-    var atbFrozen = phase !== PHASES.ATB_RUNNING;
-
-    useBattleATBLoop({
-        bus:          bus,
-        running:      atbRunning,
-        frozen:       atbFrozen,
-        combatants:   TEST_PARTY.concat(currentEnemiesRef.current),
-        bState:       bState,
-        atbModule:    BattleATB,
-        atbValuesRef: atbValuesRef,
-        setAtbValues: setAtbValues,
+    // --- Turn loop (replaces ATB tick loop) ---
+    var turnLoop = useBattleTurnLoop({
+        bus:              bus,
+        running:          turnLoopRunning,
+        combatants:       TEST_PARTY.concat(currentEnemiesRef.current),
+        bState:           bState,
+        engagement:       BattleEngagement,
+        engagementConfig: ENGAGEMENT,
+        apState:          apState,
+        setApState:       setApState,
     });
 
-    // --- ATB_READY subscriber — routes ready combatant to turn start ---
+    // --- TURN_START subscriber — routes combatant to formation turn or AI action ---
     useEffect(function() {
-        function onATBReady(payload) {
-            var whoIsReady = payload.combatantId;
+        function onTurnStart(payload) {
+            var whosTurn = payload.combatantId;
 
-            // Skip KO'd combatants — they can't take turns
-            var readyState = bState.get(whoIsReady);
-            if (readyState && readyState.ko) return;
+            // Skip KO'd combatants — safety check (loop should already skip)
+            var turnState = bState.get(whosTurn);
+            if (turnState && turnState.ko) return;
 
-            // Clear defend buffs — they last "until your next turn"
-            bState.clearDefendBuffs(whoIsReady);
             bumpState();
+            setTurnOwnerId(whosTurn);
 
-            var isPartyMember = isPartyId(whoIsReady);
-            setTurnOwnerId(whoIsReady);
-
-            if (isPartyMember) {
-                setPhase(PHASES.ACTION_SELECT);
-                setAtbRunning(false);
+            if (payload.isParty) {
+                setPhase(PHASES.TURN_ACTIVE);
+                setTurnLoopRunning(false);
             } else {
-                setAtbRunning(false);
+                setTurnLoopRunning(false);
                 // AI picks target + skill
-                var aiDecision = BattleAI.pickAction(bState.get(whoIsReady), bState);
-                if (!aiDecision) return;
+                var aiDecision = BattleAI.pickAction(bState.get(whosTurn), bState);
+                if (!aiDecision) {
+                    // AI can't act — end turn
+                    endFormationTurn();
+                    return;
+                }
                 setTargetId(aiDecision.targetId);
-                startExchange(whoIsReady, aiDecision.targetId, aiDecision.skillId);
+                startExchange(whosTurn, aiDecision.targetId, aiDecision.skillId);
             }
         }
 
-        bus.on(BATTLE_TAGS.ATB_READY, onATBReady);
-        return function() { bus.off(BATTLE_TAGS.ATB_READY, onATBReady); };
+        bus.on(BATTLE_TAGS.TURN_START, onTurnStart);
+        return function() { bus.off(BATTLE_TAGS.TURN_START, onTurnStart); };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // --- Playback bus subscribers — map manager events to React state ---
@@ -353,7 +351,7 @@ function BattleView(props) {
             defenseActiveRef.current = false;
             defenseInputResolveRef.current = null;
             setTimeout(function() {
-                advanceOrCamOut();
+                handlePostSwing();
             }, EXCHANGE.resolveHoldMs);
         }
         function onDefenseWindow(p) {
@@ -401,7 +399,9 @@ function BattleView(props) {
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // --- Helpers ---
-    var isActionCam = phase !== PHASES.ATB_RUNNING && phase !== PHASES.ACTION_SELECT && phase !== PHASES.ACTION_CAM_OUT;
+    var isActionCam = phase === PHASES.ACTION_CAM_IN || phase === PHASES.CAM_SWING_QTE
+        || phase === PHASES.CAM_SWING_PLAYBACK || phase === PHASES.CAM_RESOLVE
+        || phase === PHASES.CAM_COUNTER_PROMPT;
     var showQTE = phase === PHASES.CAM_SWING_QTE;
     var showComic = isActionCam;
     var showSpark = phase === PHASES.CAM_RESOLVE;
@@ -410,14 +410,14 @@ function BattleView(props) {
 
     var activeAtkId = turnOwnerId || attackerId;
 
-    // --- Combatant map: built from battleState (mutable HP/items) + ATB pips ---
+    // --- Combatant map: built from battleState (mutable HP/items) + AP ---
     var bSnap = bState.snapshot();
     var combatantMap = {};
     var allIds = bState.getPartyIds().concat(bState.getEnemyIds());
     allIds.forEach(function(id) {
         var c = bSnap[id];
-        var pips = atbValues[id] || { filledPips: 0, currentFill: 0 };
-        combatantMap[id] = Object.assign({}, c, { _isParty: c.isParty, _pips: pips });
+        var ap = apState[id] || { current: 0, max: ENGAGEMENT.AP_MAX };
+        combatantMap[id] = Object.assign({}, c, { _isParty: c.isParty, _ap: ap });
     });
 
     function isPartyId(id) { return bState.isPartyId(id); }
@@ -491,9 +491,17 @@ function BattleView(props) {
     // ============================================================
     // DEV HANDLERS
     // ============================================================
-    function handleDevToggleATB() { setAtbRunning(function(v) { return !v; }); }
-    function handleDevFillPips() {
-        setAtbValues(function(prev) { return BattleATB.fillAll(prev, attackerId); });
+    function handleDevAdvanceTurn() { turnLoop.advance(); }
+    function handleDevFillAP() {
+        setApState(function(prev) {
+            var next = {};
+            for (var key in prev) {
+                if (prev.hasOwnProperty(key)) {
+                    next[key] = { current: prev[key].max, max: prev[key].max };
+                }
+            }
+            return next;
+        });
     }
     function handleDevReset() {
         // Reset wave tracking
@@ -504,9 +512,10 @@ function BattleView(props) {
         battleStateRef.current = BattleStateModule.createBattleState(TEST_PARTY, wave0);
         bumpState();
         // Reset all transient UI state
-        setPhase(PHASES.ATB_RUNNING);
-        setAtbRunning(false);
-        setAtbValues(BattleATB.initState(TEST_PARTY.concat(wave0)));
+        setPhase(PHASES.TURN_ACTIVE);
+        setTurnLoopRunning(false);
+        setApState(BattleEngagement.initAPState(TEST_PARTY.concat(wave0), ENGAGEMENT.AP_MAX));
+        turnLoop.reset();
         setTargetId(null);
         setTurnOwnerId(null);
         setAnimState({});
@@ -695,96 +704,67 @@ function BattleView(props) {
     }
 
     // ============================================================
-    // IN-CAM EXCHANGE — Manual Button-Driven Turn Loop
+    // IN-CAM EXCHANGE — One Trade Model
     //
     // Flow:
-    //   startExchange(initiatorId, responderId)
-    //     → cam in → CAM_WAIT_ACTION (initiator's ATK button lights up)
-    //
-    //   handleCamATK()  [player presses the lit button]
-    //     → telegraph/wind-up → QTE → resolve
-    //     → swap sides → CAM_WAIT_ACTION (other button lights up)
-    //     → after 2 swings: cam out
+    //   startExchange(initiatorId, responderId, skillId)
+    //     → cam in → doCamSwing (initiator attacks)
+    //     → resolve → handlePostSwing:
+    //       if responder alive + can afford counter → CAM_COUNTER_PROMPT
+    //       else → cam out
+    //     if counter accepted → doCamSwing (responder attacks)
+    //       → resolve → cam out (always, one counter max)
     // ============================================================
 
     function startExchange(initiatorId, responderId, skillId) {
         console.log("[CAM-ID] startExchange initiator=" + initiatorId + " responder=" + responderId);
+
+        // Resolve skill for initiator
+        var skill = BattleSkills.getSkill(skillId);
+        if (!skill) {
+            skill = BattleSkills.getSkill(
+                combatantMap[initiatorId] && combatantMap[initiatorId].skills
+                    ? combatantMap[initiatorId].skills[0]
+                    : null
+            );
+        }
+        if (!skill) {
+            console.warn("[BattleView] No skill for " + initiatorId + ", skipping");
+            endFormationTurn();
+            return;
+        }
+
+        // Deduct skill AP cost
+        var apCost = skill.apCost || 25;
+        setApState(function(prev) {
+            var next = BattleEngagement.spendAP(prev, initiatorId, apCost);
+            apStateRef.current = next;
+            bus.emit(BATTLE_TAGS.AP_SPENT, {
+                combatantId: initiatorId,
+                cost: apCost,
+                newTotal: BattleEngagement.getAP(next, initiatorId),
+            });
+            return next;
+        });
+
         var ex = {
             initiatorId: initiatorId,
             responderId: responderId,
             swinger: "initiator",   // "initiator" | "responder"
-            swingCount: 0,
-            aiSkillId: skillId || null,
-            skill: null,            // set by doCamSwing when a swing starts
+            isCounter: false,       // true when responder is countering
+            skill: skill,
+            counterSkill: null,     // set if counter accepted
             getSwingerId: function() { return ex.swinger === "initiator" ? ex.initiatorId : ex.responderId; },
             getReceiverId: function() { return ex.swinger === "initiator" ? ex.responderId : ex.initiatorId; },
         };
         camExchangeRef.current = ex;
 
         setPhase(PHASES.ACTION_CAM_IN);
-        setAtbRunning(false);
+        setTurnLoopRunning(false);
 
         setTimeout(function() {
-            setPhase(PHASES.CAM_WAIT_ACTION);
+            doCamSwing(initiatorId, responderId, skill);
         }, ACTION_CAM.transitionInMs);
-    }
-
-    // --- Enemy auto-swing: when it's an enemy's turn in-cam, fire automatically ---
-    useEffect(function() {
-        if (phase !== PHASES.CAM_WAIT_ACTION) return;
-        var cam = camExchangeRef.current;
-        if (!cam) return;
-        var swingerId = cam.getSwingerId();
-        if (isPartyId(swingerId)) return; // player turn — wait for button press
-
-        var timerId = setTimeout(function() {
-            handleCamATK();
-        }, EXCHANGE.counterDelayMs);
-
-        return function() { clearTimeout(timerId); };
-    }, [phase, swapTrigger]);
-
-    function handleCamATK() {
-        var cam = camExchangeRef.current;
-        if (!cam) return;
-        if (phase !== PHASES.CAM_WAIT_ACTION) return;
-
-        var swingerId = cam.getSwingerId();
-        var receiverId = cam.getReceiverId();
-        console.log("[CAM-ID] handleCamATK swinger=" + swingerId + " receiver=" + receiverId + " swing#=" + cam.swingCount);
-
-        // --- Resolve skill first so we know pip cost ---
-        var swingerData = combatantMap[swingerId];
-        var skillId = null;
-        if (cam.aiSkillId && !isPartyId(swingerId)) {
-            // Enemy: use AI-selected skill, then pick fresh for next swing
-            skillId = cam.aiSkillId;
-            var nextAI = BattleAI.pickAction(swingerData, bState);
-            cam.aiSkillId = nextAI ? nextAI.skillId : null;
-        } else {
-            // Party: use player-selected skill (or first skill for AI-controlled party)
-            if (selectedSkillRef.current) {
-                skillId = selectedSkillRef.current;
-                selectedSkillRef.current = null;
-            } else {
-                skillId = swingerData && swingerData.skills ? swingerData.skills[0] : null;
-            }
-        }
-        var skill = BattleSkills.getSkill(skillId);
-
-        if (!skill) {
-            console.warn("[BattleView] No skill for " + swingerId + ", skipping");
-            advanceOrCamOut();
-            return;
-        }
-
-        // --- Deduct pip cost (default 1 if not specified) ---
-        var cost = skill.pipCost || 1;
-        for (var p = 0; p < cost; p++) {
-            deductPip(swingerId);
-        }
-
-        doCamSwing(swingerId, receiverId, skill);
     }
 
     function doCamSwing(swingerId, receiverId, skill) {
@@ -876,17 +856,18 @@ function BattleView(props) {
     // Emits bus events for anims/shake/flash/damage; subscribers above drive React state.
     // Legacy ring QTE path in handleQTERingResult still uses inline logic.
     // ============================================================
-    function advanceOrCamOut() {
-        // --- POST-COMBO WIPE CHECK ---
+    // ============================================================
+    // POST-SWING — One-trade logic: counter prompt or cam out
+    // ============================================================
+    function handlePostSwing() {
+        // --- POST-SWING WIPE CHECK ---
         if (bState.isPartyWiped()) {
             triggerBattleEnd("ko");
             return;
         }
         if (bState.isEnemyWiped()) {
-            // More waves remaining? Transition. Otherwise victory.
             if (waveIndexRef.current < totalWaves - 1) {
                 camOut();
-                // Small delay so cam-out completes before banner
                 setTimeout(function() {
                     startWaveTransition();
                 }, ACTION_CAM.transitionOutMs + 100);
@@ -899,32 +880,97 @@ function BattleView(props) {
         var cam = camExchangeRef.current;
         if (!cam) { camOut(); return; }
 
-        // Swap to other side's turn — gate handles KO + pip checks
-        swapSides();
+        // If this was already a counter, cam out — one counter max
+        if (cam.isCounter) {
+            camOut();
+            return;
+        }
+
+        // Check if responder can counter
+        var responderId = cam.responderId;
+        var responderState = bState.get(responderId);
+        if (responderState && responderState.ko) {
+            camOut();
+            return;
+        }
+
+        var counterCost = ENGAGEMENT.AP_COST_COUNTER;
+        var canCounter = BattleEngagement.canAfford(apStateRef.current, responderId, counterCost);
+
+        if (!canCounter) {
+            camOut();
+            return;
+        }
+
+        // Show counter prompt
+        var responderIsParty = isPartyId(responderId);
+        bus.emit(BATTLE_TAGS.COUNTER_PROMPT, {
+            responderId: responderId,
+            cost: counterCost,
+            canAfford: true,
+        });
+
+        if (responderIsParty) {
+            // Player decides — show counter prompt UI
+            setPhase(PHASES.CAM_COUNTER_PROMPT);
+        } else {
+            // AI always counters if affordable (V1 simple behavior)
+            setPhase(PHASES.CAM_COUNTER_PROMPT);
+            setTimeout(function() {
+                handleCounterAccept();
+            }, EXCHANGE.counterDelayMs);
+        }
     }
 
-    // RELENT — initiator forfeits remaining turns, exits action cam (free)
-    function handleCamRelent() {
+    // --- Counter prompt handlers ---
+    function handleCounterAccept() {
         var cam = camExchangeRef.current;
         if (!cam) return;
-        if (phase !== PHASES.CAM_WAIT_ACTION) return;
+
+        var responderId = cam.responderId;
+        var counterCost = ENGAGEMENT.AP_COST_COUNTER;
+
+        // Deduct counter AP
+        setApState(function(prev) {
+            var next = BattleEngagement.spendAP(prev, responderId, counterCost);
+            apStateRef.current = next;
+            bus.emit(BATTLE_TAGS.AP_SPENT, {
+                combatantId: responderId,
+                cost: counterCost,
+                newTotal: BattleEngagement.getAP(next, responderId),
+            });
+            return next;
+        });
+
+        bus.emit(BATTLE_TAGS.COUNTER_ACCEPTED, { responderId: responderId });
+
+        // Swap to responder's swing
+        cam.swinger = "responder";
+        cam.isCounter = true;
+
+        // Resolve responder's skill (use their first skill for V1)
+        var responderData = combatantMap[responderId];
+        var counterSkillId = responderData && responderData.skills ? responderData.skills[0] : null;
+        var counterSkill = BattleSkills.getSkill(counterSkillId);
+        if (!counterSkill) {
+            camOut();
+            return;
+        }
+        cam.counterSkill = counterSkill;
+
+        doCamSwing(responderId, cam.initiatorId, counterSkill);
+    }
+
+    function handleCounterDecline() {
+        var cam = camExchangeRef.current;
+        if (!cam) return;
+
+        bus.emit(BATTLE_TAGS.COUNTER_DECLINED, { responderId: cam.responderId });
         camOut();
-    }
-
-    // PASS — responder gives up their turn, control returns to other side
-    function handleCamPass() {
-        var cam = camExchangeRef.current;
-        if (!cam) return;
-        if (phase !== PHASES.CAM_WAIT_ACTION) return;
-
-        // Gate handles swap + KO/pip checks
-        swapSides();
     }
 
     function camOut() {
         setPhase(PHASES.ACTION_CAM_OUT);
-        var cam = camExchangeRef.current;
-        var initiatorId = cam ? cam.initiatorId : null;
 
         setTimeout(function() {
             // Preserve KO anims for dead combatants
@@ -938,44 +984,10 @@ function BattleView(props) {
                 return kept;
             });
             camExchangeRef.current = null;
-
-            var resetState = initiatorId
-                ? BattleATB.reset(atbValuesRef.current, initiatorId)
-                : atbValuesRef.current;
-            setAtbValues(resetState);
             setTurnOwnerId(null);
 
-            var checkCombatants = TEST_PARTY.concat(currentEnemiesRef.current);
-            var alreadyReady = BattleATB.checkReady(resetState, checkCombatants);
-
-            // Skip KO'd combatants that happen to have full pips
-            if (alreadyReady) {
-                var readyC = bState.get(alreadyReady);
-                if (readyC && readyC.ko) alreadyReady = null;
-            }
-
-            if (alreadyReady) {
-                var isPartyMember = isPartyId(alreadyReady);
-                setTurnOwnerId(alreadyReady);
-
-                if (isPartyMember) {
-                    setPhase(PHASES.ACTION_SELECT);
-                } else {
-                    // AI picks target + skill
-                    var aiDecision2 = BattleAI.pickAction(bState.get(alreadyReady), bState);
-                    if (aiDecision2) {
-                        setTargetId(aiDecision2.targetId);
-                        setPhase(PHASES.ATB_RUNNING);
-                        startExchange(alreadyReady, aiDecision2.targetId, aiDecision2.skillId);
-                    } else {
-                        setPhase(PHASES.ATB_RUNNING);
-                        setAtbRunning(true);
-                    }
-                }
-            } else {
-                setPhase(PHASES.ATB_RUNNING);
-                setAtbRunning(true);
-            }
+            // End the current combatant's turn — turn loop advances
+            endFormationTurn();
         }, ACTION_CAM.transitionOutMs);
     }
 
@@ -984,10 +996,9 @@ function BattleView(props) {
     // ============================================================
     function triggerBattleEnd(outcome) {
         setPhase(PHASES.BATTLE_ENDING);
-        setAtbRunning(false);
+        setTurnLoopRunning(false);
         camExchangeRef.current = null;
 
-        // Hold for KO anim to play, then show results screen
         setTimeout(function() {
             var result = bState.buildResult(outcome);
             console.log("[BattleView] Battle ended:", outcome, result);
@@ -996,7 +1007,7 @@ function BattleView(props) {
     }
 
     // ============================================================
-    // WAVE TRANSITION — swap enemies, show banner, resume ATB
+    // WAVE TRANSITION — swap enemies, reroll initiative, resume
     // ============================================================
     function startWaveTransition() {
         var nextIndex = waveIndexRef.current + 1;
@@ -1004,51 +1015,36 @@ function BattleView(props) {
         if (!nextEnemies) return;
 
         setPhase(PHASES.WAVE_TRANSITION);
-        setAtbRunning(false);
+        setTurnLoopRunning(false);
 
-        // After banner display time, swap enemies and resume
         setTimeout(function() {
-            // Update wave tracking
             waveIndexRef.current = nextIndex;
             setWaveIndex(nextIndex);
 
-            // Swap enemies in battle state
             bState.replaceEnemies(nextEnemies);
             bumpState();
 
-            // Reinit ATB — party keeps current values, new enemies start fresh
-            var freshEnemyAtb = BattleATB.initState(nextEnemies);
-            setAtbValues(function(prev) {
-                var merged = {};
-                // Preserve party ATB
-                for (var id in prev) {
-                    if (prev.hasOwnProperty(id) && bState.isPartyId(id)) {
-                        merged[id] = prev[id];
-                    }
-                }
-                // Add fresh enemy ATB
-                for (var eid in freshEnemyAtb) {
-                    if (freshEnemyAtb.hasOwnProperty(eid)) {
-                        merged[eid] = freshEnemyAtb[eid];
-                    }
-                }
-                return merged;
-            });
+            // Merge AP state — party keeps AP, new enemies start at 0
+            var partyIds = bState.getPartyIds();
+            var mergedAP = BattleEngagement.mergeAPState(
+                apStateRef.current, nextEnemies, ENGAGEMENT.AP_MAX, partyIds
+            );
+            setApState(mergedAP);
+            apStateRef.current = mergedAP;
 
-            // Clear visual state from previous wave
+            // Clear visual state
             setAnimState({});
             setDamageNumbers([]);
             setShakeLevel(null);
             setFlashId(null);
             camExchangeRef.current = null;
-
-            // No auto-select — player picks target in new wave
             setTargetId(null);
             setTurnOwnerId(null);
 
-            // Resume battle
-            setPhase(PHASES.ATB_RUNNING);
-            setAtbRunning(true);
+            // Reroll initiative for new wave and resume
+            var allCombatantsNew = TEST_PARTY.concat(nextEnemies);
+            turnLoop.reroll(allCombatantsNew);
+            setTurnLoopRunning(true);
         }, WAVE_TRANSITION.bannerMs);
     }
 
@@ -1063,21 +1059,31 @@ function BattleView(props) {
         var userId = activeAtkId;
 
         if (actionId === "attack") {
-            // Validate: need a living enemy selected
-            var atkTarget = targetId;
-            var atkState = atkTarget ? bState.get(atkTarget) : null;
-            var atkValid = atkState && !atkState.ko && !bState.isPartyId(atkTarget);
-            if (!atkValid) {
-                return; // no valid target — player must select one first
+            // Open skill picker — player chooses skill, then picks target
+            if (userId === "smith") {
+                setItemMenuOpen(false);
+                setSkillMenuOpen(true);
+            } else {
+                // AI-controlled party — auto-select first skill
+                var autoSkill = combatantMap[userId] && combatantMap[userId].skills
+                    ? combatantMap[userId].skills[0] : null;
+                if (autoSkill) {
+                    selectedSkillRef.current = autoSkill;
+                    handleSkillConfirm();
+                }
             }
-            startExchange(userId, atkTarget);
         } else if (actionId === "item") {
+            // Check AP
+            if (!BattleEngagement.canAfford(apStateRef.current, userId, ENGAGEMENT.AP_COST_ITEM)) return;
             itemMenuContextRef.current = "formation";
             setItemMenuOpen(true);
         } else if (actionId === "defend") {
-            handleDefend(userId, "formation");
+            handleDefend(userId);
         } else if (actionId === "flee") {
             handleFlee(userId);
+        } else if (actionId === "wait") {
+            // Free action — end turn, keep AP, earn more next turn
+            endFormationTurn();
         }
     }
 
@@ -1094,13 +1100,18 @@ function BattleView(props) {
     }
 
     // ============================================================
-    // DEFEND — formation or in-cam, costs 1 pip, instant
-    // Grants +defensePower buff until this combatant's ATB fills again.
+    // DEFEND — formation only, costs AP
+    // Grants +defensePower buff until this combatant's next turn.
     // ============================================================
-    function handleDefend(userId, context) {
-        deductPip(userId);
+    function handleDefend(userId) {
+        var cost = ENGAGEMENT.AP_COST_DEFEND;
+        if (!BattleEngagement.canAfford(apStateRef.current, userId, cost)) return;
+
+        // Deduct AP
+        spendAP(userId, cost);
 
         // Apply buff via battleState
+        var DEFEND_BUFF = BattleConstants.DEFEND_BUFF;
         bState.get(userId).buffs.push({
             stat:      DEFEND_BUFF.stat,
             value:     DEFEND_BUFF.value,
@@ -1111,132 +1122,75 @@ function BattleView(props) {
         // Visual feedback
         spawnDmgAt(userId, "DEF UP", "#4ade80");
 
-        // Post-use flow — gate handles both contexts
-        endAction(userId, context);
-    }
-
-    // In-cam DEF button handler
-    function handleCamDefend() {
-        var cam = camExchangeRef.current;
-        if (!cam) return;
-        if (phase !== PHASES.CAM_WAIT_ACTION) return;
-        handleDefend(cam.getSwingerId(), "in-cam");
+        // Stay in formation turn — player can chain more actions
     }
 
     // ============================================================
-    // FLEE — formation only, costs ALL 3 pips (entire turn)
-    // Roll chance. Success = exit. Fail = turn over.
+    // FLEE — formation only, costs AP. High commitment.
+    // Roll chance. Success = exit. Fail = AP spent, turn over.
     // ============================================================
     function handleFlee(userId) {
-        // Drain all pips
-        var entry = atbValuesRef.current[userId];
-        var pipCount = entry ? entry.filledPips : 0;
-        for (var p = 0; p < pipCount; p++) {
-            deductPip(userId);
-        }
+        var cost = ENGAGEMENT.AP_COST_FLEE;
+        if (!BattleEngagement.canAfford(apStateRef.current, userId, cost)) return;
+
+        spendAP(userId, cost);
 
         var roll = Math.random();
-        if (roll < FLEE.baseChance) {
-            // Success
+        if (roll < ENGAGEMENT.FLEE_BASE_CHANCE) {
             spawnDmgAt(userId, "FLED!", "#4ade80");
             setTimeout(function() {
                 triggerBattleEnd("fled");
             }, 400);
         } else {
-            // Fail — turn is over (all pips spent)
             spawnDmgAt(userId, "FAIL", "#ef4444");
             endFormationTurn();
         }
     }
 
     // ============================================================
-    // ITEM USE — shared logic for formation + in-cam
+    // AP SPEND HELPER — deducts AP and emits bus event
     // ============================================================
-
-    // Helper: deduct 1 pip from a combatant's ATB
-    function deductPip(combatantId) {
-        // Build updated ATB state synchronously so callers can
-        // read atbValuesRef.current immediately after.
-        var prev = atbValuesRef.current;
-        var entry = prev[combatantId];
-        if (!entry || entry.filledPips <= 0) return;
-        var next = {};
-        for (var key in prev) {
-            if (prev.hasOwnProperty(key)) {
-                next[key] = key === combatantId
-                    ? { filledPips: entry.filledPips - 1, currentFill: 0 }
-                    : prev[key];
-            }
-        }
-        atbValuesRef.current = next;
-        setAtbValues(next);
+    function spendAP(combatantId, cost) {
+        setApState(function(prev) {
+            var next = BattleEngagement.spendAP(prev, combatantId, cost);
+            apStateRef.current = next;
+            bus.emit(BATTLE_TAGS.AP_SPENT, {
+                combatantId: combatantId,
+                cost: cost,
+                newTotal: BattleEngagement.getAP(next, combatantId),
+            });
+            return next;
+        });
     }
 
     // ============================================================
-    // GATE: endFormationTurn — clears turn, resumes ATB
+    // GATE: endFormationTurn — emits TURN_END, turn loop advances
     // Single source of truth for "formation turn is over."
     // ============================================================
     function endFormationTurn() {
+        var currentId = turnOwnerId;
         setTurnOwnerId(null);
-        setPhase(PHASES.ATB_RUNNING);
-        setAtbRunning(true);
+        setTurnLoopRunning(true);
+        // Turn loop listens for TURN_END and auto-advances
+        if (currentId) {
+            bus.emit(BATTLE_TAGS.TURN_END, { combatantId: currentId });
+        }
     }
 
     // ============================================================
-    // GATE: swapSides — flip exchange turn to the other combatant.
-    // KO check + pip check → camOut() if can't continue.
-    // Single source of truth for "pass turn inside action cam."
+    // ITEM USE — formation only, costs AP
     // ============================================================
-    function swapSides() {
-        var cam = camExchangeRef.current;
-        if (!cam) { camOut(); return; }
+    function handleItemUse(itemId) {
+        var userId = activeAtkId;
+        if (!userId) return;
 
-        // Flip turn
-        cam.swinger = cam.swinger === "initiator" ? "responder" : "initiator";
-        var nextSwingerId = cam.getSwingerId();
-
-        // KO'd combatants can't act
-        var nextSwingerState = bState.get(nextSwingerId);
-        if (nextSwingerState && nextSwingerState.ko) {
-            camOut();
+        var cost = ENGAGEMENT.AP_COST_ITEM;
+        if (!BattleEngagement.canAfford(apStateRef.current, userId, cost)) {
+            setItemMenuOpen(false);
             return;
         }
 
-        // No pips = can't act
-        var nextPips = atbValuesRef.current[nextSwingerId];
-        if (!nextPips || nextPips.filledPips <= 0) {
-            camOut();
-        } else {
-            setSwapTrigger(function(v) { return v + 1; });
-            setPhase(PHASES.CAM_WAIT_ACTION);
-        }
-    }
-
-    // ============================================================
-    // GATE: endAction — called after any action resolves.
-    // Routes to swapSides (in-cam) or pip-check (formation).
-    // ============================================================
-    function endAction(combatantId, context) {
-        if (context === "in-cam") {
-            swapSides();
-        } else {
-            var remaining = atbValuesRef.current[combatantId];
-            if (!remaining || remaining.filledPips <= 0) {
-                endFormationTurn();
-            }
-            // else stay in ACTION_SELECT — player can chain more actions
-        }
-    }
-
-    function handleItemUse(itemId) {
-        var context = itemMenuContextRef.current;
-        var userId = context === "in-cam"
-            ? (camExchangeRef.current ? camExchangeRef.current.getSwingerId() : null)
-            : activeAtkId;
-
-        if (!userId) return;
-
-        // Determine target — heals/buffs target self, debuff/damage targets enemy
+        // Determine target
         var userItems = bState.get(userId);
         if (!userItems) return;
         var itemEntry = null;
@@ -1247,38 +1201,26 @@ function BattleView(props) {
 
         var effectTarget = userId;
         if (itemEntry.effect.type === "damage" || itemEntry.effect.type === "debuff_enemy") {
-            if (context === "in-cam" && camExchangeRef.current) {
-                effectTarget = camExchangeRef.current.getReceiverId();
-            } else {
-                // Validate: need a living enemy selected
-                var tgtState = targetId ? bState.get(targetId) : null;
-                var tgtValid = tgtState && !tgtState.ko && !bState.isPartyId(targetId);
-                if (!tgtValid) {
-                    setItemMenuOpen(false);
-                    return; // no valid target — player must select one first
-                }
-                effectTarget = targetId;
+            var tgtState = targetId ? bState.get(targetId) : null;
+            var tgtValid = tgtState && !tgtState.ko && !bState.isPartyId(targetId);
+            if (!tgtValid) {
+                setItemMenuOpen(false);
+                return;
             }
+            effectTarget = targetId;
         } else if (itemEntry.effect.type === "heal" || itemEntry.effect.type === "buff") {
-            if (context !== "in-cam") {
-                // Validate: need a living ally selected
-                var allyState = targetId ? bState.get(targetId) : null;
-                var allyValid = allyState && !allyState.ko && bState.isPartyId(targetId);
-                if (allyValid) {
-                    effectTarget = targetId;
-                } else {
-                    // Default to self (the user)
-                    effectTarget = userId;
-                }
+            var allyState = targetId ? bState.get(targetId) : null;
+            var allyValid = allyState && !allyState.ko && bState.isPartyId(targetId);
+            if (allyValid) {
+                effectTarget = targetId;
             }
         }
 
-        // Apply via battleState
         var result = bState.useItem(userId, itemId, effectTarget);
         if (!result || !result.success) return;
 
-        // Deduct pip
-        deductPip(userId);
+        // Deduct AP
+        spendAP(userId, cost);
 
         // Spawn feedback number
         var feedbackText = result.effect.type === "heal" ? ("+" + result.effect.value) :
@@ -1290,80 +1232,57 @@ function BattleView(props) {
                 result.effect.type === "buff" ? "#60a5fa" : "#f59e0b";
 
         spawnDmgAt(result.targetId, feedbackText, feedbackColor);
-
-        // Close submenu
         setItemMenuOpen(false);
         bumpState();
 
-        // Post-use flow — gate handles both contexts
-        endAction(userId, context);
+        // Stay in formation turn — player can chain more actions
     }
 
     function handleItemClose() {
         setItemMenuOpen(false);
     }
 
-    // In-cam ATK button — opens skill picker for player, fires directly for AI
-    function handleCamATKButton() {
-        var cam = camExchangeRef.current;
-        if (!cam) return;
-        if (phase !== PHASES.CAM_WAIT_ACTION) return;
-        var swingerId = cam.getSwingerId();
-        // Only show skill picker for the player character (smith)
-        if (isPartyId(swingerId) && swingerId === "smith") {
-            setItemMenuOpen(false);
-            setSkillMenuOpen(true);
-        } else {
-            // AI-controlled party members (fairy) — fire directly
-            handleCamATK();
-        }
-    }
-
-    // Player picked a skill from the submenu
+    // Player picked a skill from the formation skill submenu
     function handleSkillSelect(skillId) {
         selectedSkillRef.current = skillId;
         setSkillMenuOpen(false);
-        handleCamATK();
+        // Now player needs to select a target — stay in TURN_ACTIVE
+    }
+
+    // Player confirms attack after selecting skill + target
+    function handleSkillConfirm() {
+        var userId = activeAtkId;
+        var skillId = selectedSkillRef.current;
+        if (!skillId) return;
+
+        var skill = BattleSkills.getSkill(skillId);
+        if (!skill) return;
+
+        var apCost = skill.apCost || 25;
+        if (!BattleEngagement.canAfford(apStateRef.current, userId, apCost)) {
+            spawnDmgAt(userId, "NO AP", "#ef4444");
+            return;
+        }
+
+        // Validate: need a living enemy selected
+        var atkTarget = targetId;
+        var atkState = atkTarget ? bState.get(atkTarget) : null;
+        var atkValid = atkState && !atkState.ko && !bState.isPartyId(atkTarget);
+        if (!atkValid) return;
+
+        selectedSkillRef.current = null;
+        startExchange(userId, atkTarget, skillId);
     }
 
     function handleSkillClose() {
         setSkillMenuOpen(false);
+        selectedSkillRef.current = null;
     }
 
-    // In-cam ITEM button handler
-    function handleCamItem() {
-        var cam = camExchangeRef.current;
-        if (!cam) return;
-        if (phase !== PHASES.CAM_WAIT_ACTION) return;
-        itemMenuContextRef.current = "in-cam";
-        setSkillMenuOpen(false);
-        setItemMenuOpen(true);
-    }
-
-    // ============================================================
-    // IN-CAM BUTTON STATE — Initiator vs Responder
-    // Initiator: ATK + RELENT. Responder: ATK + PASS.
-    // ============================================================
-    var camWaiting = phase === PHASES.CAM_WAIT_ACTION;
-    var cam = camExchangeRef.current;
-    var camSwingerId = cam ? cam.getSwingerId() : null;
-    var camInitiatorId = cam ? cam.initiatorId : null;
-    var camIsInitiatorTurn = camSwingerId && camSwingerId === camInitiatorId;
-    var camSwingerIsParty = camSwingerId ? isPartyId(camSwingerId) : false;
-    var camSwingerIsEnemy = camSwingerId ? !isPartyId(camSwingerId) : false;
-
-    // ATK enabled if waiting and it's this side's turn and they have pips
-    var swingerPips = camSwingerId ? (atbValues[camSwingerId] || { filledPips: 0 }).filledPips : 0;
-    var playerAtkEnabled = camWaiting && camSwingerIsParty && swingerPips > 0;
-    var enemyAtkEnabled  = camWaiting && camSwingerIsEnemy && swingerPips > 0;
-
-    // RELENT: only for initiator's turn
-    var playerRelentEnabled = camWaiting && camSwingerIsParty && camIsInitiatorTurn;
-    var enemyRelentEnabled  = camWaiting && camSwingerIsEnemy && camIsInitiatorTurn;
-
-    // PASS: only for responder's turn
-    var playerPassEnabled = camWaiting && camSwingerIsParty && !camIsInitiatorTurn;
-    var enemyPassEnabled  = camWaiting && camSwingerIsEnemy && !camIsInitiatorTurn;
+    // --- Counter prompt state ---
+    var showCounterPrompt = phase === PHASES.CAM_COUNTER_PROMPT;
+    var counterResponderId = camExchangeRef.current ? camExchangeRef.current.responderId : null;
+    var counterResponderIsParty = counterResponderId ? isPartyId(counterResponderId) : false;
 
     // --- Render ---
     var stageCls = "battle-stage";
@@ -1500,88 +1419,34 @@ function BattleView(props) {
                 attacker={attackerData}
                 target={targetData}
                 isLeftHanded={isLeftHanded}
-                atbValues={atbValues}
+                apState={apState}
             />
 
-            {/* === IN-CAM ACTION BUTTONS — grouped by side === */}
-            {isActionCam && (
-                <div className="battle-cam-atk-buttons">
-                    {/* Enemy side (left) */}
-                    <div className="battle-cam-atk-group">
-                        <button
-                            className={"battle-cam-atk-btn battle-cam-atk-btn--enemy" + (enemyAtkEnabled ? " battle-cam-atk-btn--active" : "")}
-                            disabled={!enemyAtkEnabled}
-                            onClick={handleCamATK}
-                        >
-                            ENEMY ATK
-                        </button>
-                        {enemyRelentEnabled && (
-                            <button
-                                className="battle-cam-sec-btn battle-cam-sec-btn--relent"
-                                onClick={handleCamRelent}
-                            >
-                                RELENT
-                            </button>
-                        )}
-                        {enemyPassEnabled && (
-                            <button
-                                className="battle-cam-sec-btn battle-cam-sec-btn--pass"
-                                onClick={handleCamPass}
-                            >
-                                PASS
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Player side (right) */}
-                    <div className="battle-cam-atk-group">
-                        <button
-                            className={"battle-cam-atk-btn battle-cam-atk-btn--player" + (playerAtkEnabled ? " battle-cam-atk-btn--active" : "")}
-                            disabled={!playerAtkEnabled}
-                            onClick={handleCamATKButton}
-                        >
-                            PLAYER ATK
-                        </button>
-                        {playerRelentEnabled && (
-                            <button
-                                className="battle-cam-sec-btn battle-cam-sec-btn--relent"
-                                onClick={handleCamRelent}
-                            >
-                                RELENT
-                            </button>
-                        )}
-                        {playerPassEnabled && (
-                            <button
-                                className="battle-cam-sec-btn battle-cam-sec-btn--pass"
-                                onClick={handleCamPass}
-                            >
-                                PASS
-                            </button>
-                        )}
-                        {(playerAtkEnabled || playerRelentEnabled || playerPassEnabled) && (
-                            <button
-                                className="battle-cam-sec-btn battle-cam-sec-btn--defend"
-                                onClick={handleCamDefend}
-                            >
-                                DEF
-                            </button>
-                        )}
-                        {(playerAtkEnabled || playerRelentEnabled || playerPassEnabled) && (
-                            <button
-                                className="battle-cam-sec-btn battle-cam-sec-btn--item"
-                                onClick={handleCamItem}
-                            >
-                                ITEM
-                            </button>
-                        )}
-                    </div>
+            {/* === COUNTER PROMPT — shown after initiator's swing === */}
+            {showCounterPrompt && counterResponderIsParty && (
+                <div className="battle-counter-prompt">
+                    <span className="battle-counter-prompt__label">
+                        {"Counter? (" + ENGAGEMENT.AP_COST_COUNTER + " AP)"}
+                    </span>
+                    <button
+                        className="battle-counter-prompt__btn battle-counter-prompt__btn--yes"
+                        onClick={handleCounterAccept}
+                    >
+                        YES
+                    </button>
+                    <button
+                        className="battle-counter-prompt__btn battle-counter-prompt__btn--no"
+                        onClick={handleCounterDecline}
+                    >
+                        NO
+                    </button>
                 </div>
             )}
 
-            {/* === BOTTOM OVERLAY — ATB + Action Menu === */}
+            {/* === BOTTOM OVERLAY — Turn Order + Action Menu === */}
             <div className="battle-overlay-bottom">
 
-                {/* ATB gauges — left side */}
+                {/* ATB gauges — TODO: replace with TurnOrderStrip in Block 5 */}
                 <ATBGaugeStrip
                     combatants={allCombatants}
                     hidden={isActionCam}
@@ -1606,42 +1471,32 @@ function BattleView(props) {
 
             {/* === VIEWPORT-LEVEL UI — above all stacking contexts === */}
 
-            {/* Item submenu */}
+            {/* Item submenu — formation only */}
             <ItemSubmenu
                 visible={itemMenuOpen}
                 items={itemMenuOpen ? (function() {
-                    var uid = itemMenuContextRef.current === "in-cam"
-                        ? (camExchangeRef.current ? camExchangeRef.current.getSwingerId() : null)
-                        : activeAtkId;
-                    var c = uid ? bState.get(uid) : null;
+                    var c = bState.get(activeAtkId);
                     return c ? c.items : [];
                 })() : []}
                 onUse={handleItemUse}
                 onClose={handleItemClose}
-                isInCam={itemMenuContextRef.current === "in-cam"}
+                isInCam={false}
             />
 
-            {/* Skill submenu */}
+            {/* Skill submenu — formation: pick skill, then pick target, then confirm */}
             <SkillSubmenu
                 visible={skillMenuOpen}
                 skills={skillMenuOpen ? (function() {
-                    var cam = camExchangeRef.current;
-                    var uid = cam ? cam.getSwingerId() : null;
-                    var cData = uid ? combatantMap[uid] : null;
+                    var cData = combatantMap[activeAtkId];
                     if (!cData || !cData.skills) return [];
                     return cData.skills.map(function(sId) {
                         return BattleSkills.getSkill(sId);
                     }).filter(Boolean);
                 })() : []}
-                availablePips={skillMenuOpen ? (function() {
-                    var cam = camExchangeRef.current;
-                    var uid = cam ? cam.getSwingerId() : null;
-                    var entry = uid ? atbValues[uid] : null;
-                    return entry ? entry.filledPips : 0;
-                })() : 0}
+                availableAP={skillMenuOpen ? BattleEngagement.getAP(apState, activeAtkId) : 0}
                 onSelect={handleSkillSelect}
                 onClose={handleSkillClose}
-                isInCam={true}
+                isInCam={false}
             />
 
             {/* QTE zone */}
@@ -1679,9 +1534,9 @@ function BattleView(props) {
             {/* === DEV CONTROLS === */}
             <DevControls
                 phase={phase}
-                atbRunning={atbRunning}
-                onToggleATB={handleDevToggleATB}
-                onFillPips={handleDevFillPips}
+                turnLoopRunning={turnLoopRunning}
+                onAdvanceTurn={handleDevAdvanceTurn}
+                onFillAP={handleDevFillAP}
                 onReset={handleDevReset}
                 onExit={onExit}
             />
