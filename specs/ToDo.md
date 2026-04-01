@@ -1,7 +1,7 @@
 # Wobbly Anvil — ToDo
 
-**Last updated:** 2026-03-30
-**Last session:** Wave Transitions + Enemy AI + Flurry Combo + Cleanup
+**Last updated:** 2026-04-01
+**Last session:** Engagement System Design + Spec Cleanup
 
 ---
 battle bugs
@@ -11,70 +11,37 @@ battle bugs
 4. item/skill menus are semi transparent they should be solid
 5. cannot dodge, new action cam setup may have the "chalkboard not in the action cam screen area.
 
-## ✅ Recently Completed
-
-### Dead Code Cleanup
-- Deleted `QTEZone.js` — dead placeholder component, QTE renders via `QTERunner` directly
-- Removed `spriteOverride` prop from `BattleCharacter.js` — nothing passed it
-- Removed dead `QTEZone` import from `BattleView.js`
-
-### Choreography Step 12 — Confirmed Complete
-- `combatSyncMove` keyframe already handles full pull-back → snap → return per ring
-- `--telegraph-duration` CSS var matches ring shrink time
-- `onRingStart` restarts anim via reflow trick for multi-ring combos
-
-### Wave Transitions
-- `WAVE_TRANSITION` phase added to `BATTLE_PHASES`
-- `TEST_WAVES` — 2-wave test data in `battleConstants.js`
-- `replaceEnemies(newEnemyArray)` method on `battleState.js`
-- `advanceOrCamOut` wave-aware: enemy wipe + more waves → `startWaveTransition()`, last wave → victory
-- Wave banner overlay with fade-in/hold/fade-out animation
-- Party HP/buffs/items carry across waves, enemy ATB fresh per wave
-- `waveLabel` derived from `waveIndex` state (no longer a static prop)
-- Dev Reset resets wave tracking back to wave 1
-
-### Enemy AI System
-- New file: `battleAI.js` — `pickAction(combatantData, bState)` returns `{ targetId, skillId }`
-- Random living party target + random skill from combatant's skill list
-- Wired into both ATB tick enemy turn and `camOut` alreadyReady path
-- `startExchange` accepts optional `skillId`, stored on cam exchange ref
-- `handleCamATK` uses AI-selected skill for enemies, picks fresh skill for next swing
-
-### Enemy Auto-Swing
-- `useEffect` on `CAM_WAIT_ACTION` — auto-fires `handleCamATK` after 300ms when swinger is enemy
-- No more manual enemy ATK button pressing needed
-
-### New Skill: Flurry Combo
-- 7 rings: 3 fast jabs (speed 1.6, 150ms delays, 4 dmg) → heavy (speed 0.6, 500ms delay, 10 dmg) → 2 fast jabs → heavy
-- Shorter shrink duration (700ms), no combo multipliers
-- Wave 2 Raccoon Alpha has both `scavenger_combo` + `flurry_combo`
-
-### Battle Auto-Start
-- `atbRunning` initializes to `true` — battle begins immediately
-
-### Selection Brackets Hidden in Action Cam
-- CSS `display: none` on `::before` pseudo for attacker/target/dimmed states
-
-### Prior Session (Combo Beat Steps 1–8)
-- Full combo beat system, swipe detection, defense matrix, dodge class, unblockable visual tells
-- Dev controls slimmed (12 → 4 buttons), ATB KO bug fixed
-
----
-
 ## 🔲 Battle System — Remaining V1
 
+### Engagement System Rework (see `EngagementSystemSpec.md`)
+- Replace ATB tick loop with initiative roll + fixed turn order
+- Replace pip tracking with AP pools (earn per turn, carry over, cap)
+- Replace exchange flow (swap sides, RELENT, PASS) with one-trade model + optional counter
+- Remove in-cam item/defend buttons (formation-only now)
+- Replace ATB gauge strip UI with turn order strip
+- Replace pip display in info panels with AP bar
+- Update formation action menu for new action list (immediate skill, delayed skill, item, defend, flee, wait)
+- Adapt enemy auto-swing to initiative-driven turns
+
+### CombatFeel Step 7 (see `CombatFeelSpec.md`)
+- Wire Chalkboard.js into QTERunner.js
+- Update BattleView.js phase flow (CAM_SWING_QTE → CAM_SWING_PLAYBACK)
+
+### Other V1
 - Loot drops from enemies (loot tables exist in spec, not wired)
 - INTRO phase
 - Enemy variety (3–4 types specced, currently 2 wired + wave 2 test data)
 - Battle music integration
+- Player skill choice (currently always `skills[0]`)
 
 ---
 
 ## 🎯 Next Priority — "Find the Fun" Polish
 
 - **Ring QTE intuitiveness** — shrinking circle mechanic may need UX rework for mobile (clearer hit zone, better timing feedback, "tap here" indicator, or rethink interaction model)
-- **Player choice** — skill selection during player's turn (currently always `skills[0]`), meaningful pre-exchange decisions
-- **Pacing/feel** — tune ATB speeds, exchange tempo, delay between waves
+- **AP tuning** — earn rates per speed tier, skill costs, counter cost. "Eat the hit vs counter" needs to feel like a real choice
+- **Initiative feel** — turn order strip readability, speed variance range, does the fixed sequence feel fair or frustrating?
+- **One-trade cam pacing** — does a single exchange feel satisfying or too short? Counter decision timing
 - **Juice** — hit feel, screen shake tuning, SFX variety, damage number polish
 
 ---
@@ -101,12 +68,12 @@ battle bugs
 
 ### Battle
 - `battleMode.js` state machine (sub-mode contract: `canEnter`, `onEnter`, `onExit`)
-- QTE-driven exchange extension (perfect timing → bonus beats, cap 2+2)
+- Delayed skills + combo triggers (see `EngagementSystemSpec.md` §6)
+- Intercept & Taunt protection skills (see `EngagementSystemSpec.md` §7)
 - Boss waves
 - Fairy commentary via observer
 - Fairy as party member (`aiControlled` + `onActionNeeded` callback)
-- ATB resume tuning (ease-in ramp)
-- Addendum systems: pip persistence, exchange restructure, Block replacing Defend, Poise & Stagger
+- Enemy AI personality — AP spending behavior (saving, baiting, aggression profiles)
 
 ### QTE
 - DES-2 QTE plugin system — decoupled `QTERunner` with plugin contract

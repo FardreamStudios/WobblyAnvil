@@ -392,6 +392,15 @@ CAM_SWING_PLAYBACK: "cam_swing_playback",
 
 `CAM_TELEGRAPH` folds into the playback phase. On offense, the choreography playback handles wind-up per beat. On defense, each beat's telegraph animation IS the gameplay cue. No need for a separate global telegraph phase.
 
+### Cam Resolve Exit
+
+Under the engagement system (`EngagementSystemSpec.md` §5), `CAM_RESOLVE` exits to one of:
+
+- **Counter offered:** Responder has enough AP and chooses to counter → responder's `CAM_SWING_QTE` → `CAM_SWING_PLAYBACK` → `CAM_RESOLVE` → cam out.
+- **No counter:** Responder can't afford it or declines → cam out immediately.
+
+There is no swap-sides loop. One trade maximum (initiator swing + optional counter).
+
 ---
 
 ## 9. Ownership & Boundaries
@@ -516,12 +525,19 @@ For swipe and circle checks, the release moment (`touchend` / `mouseup`) is scor
 
 - All existing choreography CSS (strike, hit, brace, dodge, telegraph, combat-sync)
 - BattleCharacter component
-- ATB system
-- Exchange flow (initiator/responder, pips, RELENT/PASS)
-- Items, Defend buff, Flee
 - Wave transitions
 - Battle state (HP, KO, buffs, result builder)
-- Comic panel, info panels, action menu
+- Comic panel, info panels
+
+### What Changes Independently (Engagement System)
+
+The following systems are being reworked by the engagement system (`EngagementSystemSpec.md`), separate from this spec's QTE/defense work:
+
+- ATB → initiative + turn order
+- Pips → AP
+- Exchange flow (RELENT/PASS, swap sides) → one-trade + counter
+- In-cam items/defend → formation-only
+- Action menu → new action list
 
 ---
 
