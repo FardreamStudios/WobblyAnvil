@@ -116,7 +116,6 @@ function BattleCharacter(props) {
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
             style.transform = "translate(" + dx + "px, " + dy + "px)";
-            style.scale = ACTION_CAM.activeScale;
             style.zIndex = 10;
         }
     }

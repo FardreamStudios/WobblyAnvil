@@ -147,7 +147,7 @@ function RepPanel({ reputation }) {
 
 // --- Customer Panel (with haggle logic) ---
 
-function CustomerPanel({ customer, weapon, onSell, onRefuse, silverTongue, priceBonus, priceDebuff, sfx }) {
+function CustomerPanel({ customer, weapon, onSell, onRefuse, silverTongue, priceBonus, priceDebuff, sfx, handedness }) {
     var shelfValue = weapon.val || qualityValue(weapon.wKey, weapon.matKey || "bronze", weapon.score, { anvil: 0, hammer: 0, forge: 0, quench: 0, furnace: 0 });
     var budgetRef = useRef(Math.round(shelfValue * rand(customer.type.budgetLow, customer.type.budgetHigh)));
     var moodRef = useRef(MOODS[randInt(0, weapon.score >= TIERS[8].scoreMin ? 3 : weapon.score >= TIERS[4].scoreMin ? 2 : 1)]);
@@ -221,7 +221,7 @@ function CustomerPanel({ customer, weapon, onSell, onRefuse, silverTongue, price
                 </div>
                 <div style={{ flex: 1, background: "#1a1209", border: "1px solid #f59e0b33", borderRadius: 8, padding: "12px 16px", textAlign: "center" }}>
                     <SectionLabel style={{ marginBottom: 6 }}>YOUR PRICE</SectionLabel>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, flexDirection: handedness === "left" ? "row" : "row-reverse" }}>
                         <button onClick={function() { if (!done) lower(); }} disabled={done || priceAtOffer} style={{ background: "#2a1f0a", border: "1px solid " + (done || priceAtOffer ? "#3d2e0f" : "#f59e0b"), borderRadius: 4, color: done || priceAtOffer ? "#4a3c2c" : "#f59e0b", width: 28, height: 28, fontSize: 16, cursor: done || priceAtOffer ? "not-allowed" : "pointer", fontFamily: "monospace", display: "flex", alignItems: "center", justifyContent: "center" }}>-</button>
                         <span style={{ fontSize: 28, color: "#f59e0b", fontWeight: "bold", minWidth: 60, textAlign: "center" }}>{myPrice}g</span>
                     </div>
