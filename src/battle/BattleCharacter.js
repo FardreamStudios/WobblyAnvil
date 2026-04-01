@@ -104,6 +104,12 @@ function BattleCharacter(props) {
 
     // Action cam slide — translate root from slot to engagement position
     var inCam = (isAttacker || isTarget) && props.sceneRect && props.restingRects;
+    // DEBUG TRACE — remove after diagnosis
+    if (isAttacker || isTarget) {
+        console.log("[CAM-POS] " + c.id + " | isAtk=" + isAttacker + " isTgt=" + isTarget
+            + " | sceneRect=" + !!props.sceneRect + " restingRects=" + !!props.restingRects
+            + " → inCam=" + inCam);
+    }
     if (inCam) {
         var cached = props.restingRects[c.id];
         if (cached) {
@@ -115,8 +121,14 @@ function BattleCharacter(props) {
             var destX = isParty ? partySide : enemySide;
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
+            console.log("[CAM-POS] " + c.id + " | slot=(" + props.slotX + "," + props.slotY
+                + ") cached=(" + cached.cx + "," + cached.cy
+                + ") dest=(" + destX + "," + cy
+                + ") delta=(" + dx + "," + dy + ")");
             rootStyle.transform = "translate(" + dx + "px, " + dy + "px)";
             rootStyle.zIndex = 10;
+        } else {
+            console.warn("[CAM-POS] " + c.id + " | inCam=true but NO cached rect! keys=" + Object.keys(props.restingRects).join(","));
         }
     }
 
@@ -132,8 +144,7 @@ function BattleCharacter(props) {
     }
     var choreoStyle = { "--choreo-dir": isParty ? "1" : "-1" };
 
-    // --- VISUAL layer: scale for action cam zoom (doesn't affect root or choreo) ---
-    var visualScale = inCam ? ACTION_CAM.activeScale : 1;
+    // --- VISUAL layer: no per-sprite scale, stage zoom handles action cam ---
 
     return (
         <div
@@ -143,9 +154,7 @@ function BattleCharacter(props) {
             onClick={props.onClick}
         >
             <div className={choreoCls} style={choreoStyle}>
-                <div className="normal-cam-char__visual" style={{
-                    transform: "scale(" + visualScale + ")",
-                }}>
+                <div className="normal-cam-char__visual">
                     <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} />
                 </div>
                 <div className={"normal-cam-char__info" + (isActive ? " action-cam-char__info--hidden" : "")}>

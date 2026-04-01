@@ -1824,11 +1824,18 @@ function BattleView(props) {
     var enemyPassEnabled  = camWaiting && camSwingerIsEnemy && !camIsInitiatorTurn;
 
     // --- Render ---
-    var stageCls = "battle-stage" + (shakeLevel ? " battle-stage--shake-" + shakeLevel : "");
+    var stageCls = "battle-stage";
+    var shakeCls = "battle-stage-shake" + (shakeLevel ? " battle-stage--shake-" + shakeLevel : "");
+    // Action cam zooms the stage (camera zoom), centering on engagement area
+    var camZoom = isActionCam ? ACTION_CAM.activeScale : 1;
+    var totalScale = stageScale * camZoom;
+    // Engagement center is below stage center — compensate so it stays at screen center
+    var engOffsetY = ACTION_CAM_SLOTS.centerY - STAGE.designH / 2; // 310 - 270 = 40
+    var panY = isActionCam ? (engOffsetY * totalScale) : 0;
     var stageStyle = {
         width: STAGE.designW + "px",
         height: STAGE.designH + "px",
-        transform: "translate(-50%, -50%) scale(" + stageScale + ")",
+        transform: "translate(-50%, calc(-50% - " + panY + "px)) scale(" + totalScale + ")",
     };
 
     // Slot assignment helper — maps combatant index to a slot position
@@ -1845,94 +1852,98 @@ function BattleView(props) {
                 className={stageCls}
                 ref={function(el) { stageRef.current = el; sceneRef.current = el; }}
                 style={stageStyle}
-                onAnimationEnd={function() { setShakeLevel(null); }}
-                onTouchStart={handleSceneTouchStart}
-                onTouchEnd={handleSceneTouchEnd}
-                onClick={handleSceneClick}
             >
-                {/* Enemy formation — absolute positioned */}
-                {currentEnemies.map(function(e, idx) {
-                    var slot = getSlot("enemy", "front", idx);
-                    return (
-                        <BattleCharacter
-                            key={e.id}
-                            data={combatantMap[e.id] || e}
-                            isParty={false}
-                            index={idx}
-                            phase={phase}
-                            attackerId={activeAtkId}
-                            targetId={targetId}
-                            selectedId={targetId}
-                            turnOwnerId={turnOwnerId}
-                            sceneRect={isActionCam ? sceneRect : null}
-                            restingRects={restingRectsRef.current}
-                            setRef={makeRefSetter(e.id)}
-                            onClick={function() { if (!isActionCam) setTargetId(e.id); }}
-                            spriteFrame={spriteFrame}
-                            flashId={flashId}
-                            animState={animState}
-                            isLeftHanded={isLeftHanded}
-                            slotX={slot.x}
-                            slotY={slot.y}
-                        />
-                    );
-                })}
+                <div
+                    className={shakeCls}
+                    onAnimationEnd={function() { setShakeLevel(null); }}
+                    onTouchStart={handleSceneTouchStart}
+                    onTouchEnd={handleSceneTouchEnd}
+                    onClick={handleSceneClick}
+                >
+                    {/* Enemy formation — absolute positioned */}
+                    {currentEnemies.map(function(e, idx) {
+                        var slot = getSlot("enemy", "front", idx);
+                        return (
+                            <BattleCharacter
+                                key={e.id}
+                                data={combatantMap[e.id] || e}
+                                isParty={false}
+                                index={idx}
+                                phase={phase}
+                                attackerId={activeAtkId}
+                                targetId={targetId}
+                                selectedId={targetId}
+                                turnOwnerId={turnOwnerId}
+                                sceneRect={isActionCam ? sceneRect : null}
+                                restingRects={restingRectsRef.current}
+                                setRef={makeRefSetter(e.id)}
+                                onClick={function() { if (!isActionCam) setTargetId(e.id); }}
+                                spriteFrame={spriteFrame}
+                                flashId={flashId}
+                                animState={animState}
+                                isLeftHanded={isLeftHanded}
+                                slotX={slot.x}
+                                slotY={slot.y}
+                            />
+                        );
+                    })}
 
-                {/* Party formation — absolute positioned */}
-                {TEST_PARTY.map(function(p, idx) {
-                    var slot = getSlot("party", "front", idx);
-                    return (
-                        <BattleCharacter
-                            key={p.id}
-                            data={combatantMap[p.id] || p}
-                            isParty={true}
-                            index={idx}
-                            phase={phase}
-                            attackerId={activeAtkId}
-                            targetId={targetId}
-                            selectedId={targetId}
-                            turnOwnerId={turnOwnerId}
-                            sceneRect={isActionCam ? sceneRect : null}
-                            restingRects={restingRectsRef.current}
-                            setRef={makeRefSetter(p.id)}
-                            onClick={function() { if (!isActionCam) setTargetId(p.id); }}
-                            spriteFrame={spriteFrame}
-                            flashId={flashId}
-                            animState={animState}
-                            isLeftHanded={isLeftHanded}
-                            slotX={slot.x}
-                            slotY={slot.y}
-                        />
-                    );
-                })}
+                    {/* Party formation — absolute positioned */}
+                    {TEST_PARTY.map(function(p, idx) {
+                        var slot = getSlot("party", "front", idx);
+                        return (
+                            <BattleCharacter
+                                key={p.id}
+                                data={combatantMap[p.id] || p}
+                                isParty={true}
+                                index={idx}
+                                phase={phase}
+                                attackerId={activeAtkId}
+                                targetId={targetId}
+                                selectedId={targetId}
+                                turnOwnerId={turnOwnerId}
+                                sceneRect={isActionCam ? sceneRect : null}
+                                restingRects={restingRectsRef.current}
+                                setRef={makeRefSetter(p.id)}
+                                onClick={function() { if (!isActionCam) setTargetId(p.id); }}
+                                spriteFrame={spriteFrame}
+                                flashId={flashId}
+                                animState={animState}
+                                isLeftHanded={isLeftHanded}
+                                slotX={slot.x}
+                                slotY={slot.y}
+                            />
+                        );
+                    })}
 
-                {/* Clash spark */}
-                <span className={"battle-spark" + (showSpark ? " battle-spark--visible" : "")}>
+                    {/* Clash spark */}
+                    <span className={"battle-spark" + (showSpark ? " battle-spark--visible" : "")}>
                     {"\u2694\uFE0F"}
                 </span>
 
-                {/* Action cam pixel frame */}
-                <div className={"battle-cam-frame" + (isActionCam ? " battle-cam-frame--visible" : "")} />
+                    {/* Action cam pixel frame */}
+                    <div className={"battle-cam-frame" + (isActionCam ? " battle-cam-frame--visible" : "")} />
 
-                {/* Damage numbers */}
-                {damageNumbers.map(function(d) {
-                    return <DamageNumber key={d.key} value={d.value} x={d.x} y={d.y} color={d.color} />;
-                })}
+                    {/* Damage numbers */}
+                    {damageNumbers.map(function(d) {
+                        return <DamageNumber key={d.key} value={d.value} x={d.x} y={d.y} color={d.color} />;
+                    })}
 
-                {/* Skill name label */}
-                {skillNameLabel && (
-                    <div
-                        key={"skn-" + skillNameLabel.key}
-                        className="action-cam-skill-name"
-                        style={{
-                            left: skillNameLabel.x,
-                            top: skillNameLabel.y,
-                            color: skillNameLabel.color,
-                        }}
-                    >
-                        {skillNameLabel.text}
-                    </div>
-                )}
+                    {/* Skill name label */}
+                    {skillNameLabel && (
+                        <div
+                            key={"skn-" + skillNameLabel.key}
+                            className="action-cam-skill-name"
+                            style={{
+                                left: skillNameLabel.x,
+                                top: skillNameLabel.y,
+                                color: skillNameLabel.color,
+                            }}
+                        >
+                            {skillNameLabel.text}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* === OVERLAY LAYER — UI anchored to viewport edges === */}
