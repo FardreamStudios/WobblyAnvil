@@ -56,7 +56,7 @@ function generateRoyalQuest(questNumber, unlockedBlueprints, currentDay, reputat
     var spike = Math.random() < PRESSURE_SPIKE_CHANCE ? rand(1, PRESSURE_SPIKE_MAX) : 0;
     var pressure = clamp(currentDay * PRESSURE_PER_DAY + spike + rand(-0.5, 0.5), 0, MAX_PRESSURE);
     var normalizedPressure = clamp(pressure / MAX_PRESSURE, 0, 1);
-    var curvedPressure = Math.sqrt(normalizedPressure);
+    var curvedPressure = Math.pow(normalizedPressure, 0.85);
 
     // Material selection
     var matKeys = Object.keys(MATS);
@@ -84,7 +84,20 @@ function generateRoyalQuest(questNumber, unlockedBlueprints, currentDay, reputat
     // Quality tier selection
     var questTiers = TIERS.filter(function(t) { return t.scoreMin > 0; });
     var commonIndex = questTiers.findIndex(function(t) { return t.label === "Common"; });
-    var qualityIndex = clamp(Math.floor(curvedPressure * questTiers.length + rand(-2, 1)) + repQualityBonus, commonIndex, questTiers.length - 1);
+    var masterworkIndex = questTiers.findIndex(function(t) { return t.label === "Masterwork"; });
+    var qualityIndex = clamp(Math.floor(curvedPressure * questTiers.length + rand(-0.5, 1) + 0.75) + repQualityBonus, commonIndex, questTiers.length - 1);
+
+    // Top-3 lerp: once in Masterwork+ pool, weights converge to equal 33/33/33
+    if (qualityIndex >= masterworkIndex) {
+        var t = clamp(normalizedPressure * 1.5, 0, 1);
+        var wM = 3 - t * 2;
+        var wL = 1;
+        var wY = 0.5 + t * 0.5;
+        var wTotal = wM + wL + wY;
+        var wRoll = Math.random() * wTotal;
+        qualityIndex = wRoll < wM ? masterworkIndex : wRoll < wM + wL ? masterworkIndex + 1 : masterworkIndex + 2;
+    }
+
     var questTier = questTiers[qualityIndex];
 
     // Quantity scaling
