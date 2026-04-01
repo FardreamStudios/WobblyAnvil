@@ -1,8 +1,16 @@
 // ============================================================
-// DevControls.js — Battle dev overlay (streamlined)
+// DevControls.js — Battle dev overlay (engagement system)
 //
-// Four buttons: Fight/Pause ATB, Fill Pips, Reset, Exit
+// Buttons: Advance Turn, Fill AP, Reset, Exit
 // Plus phase badge for debugging.
+//
+// Props:
+//   phase            — current BATTLE_PHASES value
+//   turnLoopRunning  — bool, whether turn loop is active
+//   onAdvanceTurn    — fn, manually advance to next turn
+//   onFillAP         — fn, fill all combatant AP to max
+//   onReset          — fn, full battle reset
+//   onExit           — fn, leave battle
 //
 // Gated by _DEV_CONTROLS flag — returns null when false.
 // ============================================================
@@ -16,16 +24,16 @@ var PHASES = BattleConstants.BATTLE_PHASES;
 // PHASE DISPLAY LABELS
 // ============================================================
 var PHASE_LABELS = {};
-PHASE_LABELS[PHASES.ATB_RUNNING]     = "ATB RUNNING";
-PHASE_LABELS[PHASES.ACTION_SELECT]   = "ACTION SELECT";
-PHASE_LABELS[PHASES.ACTION_CAM_IN]   = "ACTION CAM IN";
-PHASE_LABELS[PHASES.CAM_TURN_START]  = "CAM TURN";
-PHASE_LABELS[PHASES.CAM_WAIT_ACTION] = "CAM WAIT";
-PHASE_LABELS[PHASES.CAM_TELEGRAPH]   = "TELEGRAPH";
-PHASE_LABELS[PHASES.CAM_SWING]       = "SWING";
-PHASE_LABELS[PHASES.CAM_RESOLVE]     = "RESOLVE";
-PHASE_LABELS[PHASES.ACTION_CAM_OUT]  = "CAM OUT";
-PHASE_LABELS[PHASES.BATTLE_ENDING]   = "BATTLE END";
+PHASE_LABELS[PHASES.INITIATIVE_ROLL]    = "INIT ROLL";
+PHASE_LABELS[PHASES.TURN_ACTIVE]        = "TURN ACTIVE";
+PHASE_LABELS[PHASES.ACTION_CAM_IN]      = "CAM IN";
+PHASE_LABELS[PHASES.CAM_SWING_QTE]      = "QTE";
+PHASE_LABELS[PHASES.CAM_SWING_PLAYBACK] = "PLAYBACK";
+PHASE_LABELS[PHASES.CAM_RESOLVE]        = "RESOLVE";
+PHASE_LABELS[PHASES.CAM_COUNTER_PROMPT] = "COUNTER?";
+PHASE_LABELS[PHASES.ACTION_CAM_OUT]     = "CAM OUT";
+PHASE_LABELS[PHASES.WAVE_TRANSITION]    = "WAVE";
+PHASE_LABELS[PHASES.BATTLE_ENDING]      = "BATTLE END";
 
 // ============================================================
 // DEV FLAG — show dev controls overlay
@@ -35,12 +43,14 @@ var _DEV_CONTROLS = true;
 function DevControls(props) {
     if (!_DEV_CONTROLS) return null;
 
+    var loopLabel = props.turnLoopRunning ? "Pause" : "Resume";
+
     return (
         <div className="battle-dev">
-            <button className="battle-dev__btn" onClick={props.onToggleATB}>
-                {props.atbRunning ? "Pause" : "Fight"}
+            <button className="battle-dev__btn" onClick={props.onAdvanceTurn}>
+                Advance
             </button>
-            <button className="battle-dev__btn" onClick={props.onFillPips}>Fill Pips</button>
+            <button className="battle-dev__btn" onClick={props.onFillAP}>Fill AP</button>
             <button className="battle-dev__btn" onClick={props.onReset}>Reset</button>
             <button className="battle-dev__btn" onClick={props.onExit}>Exit</button>
             <span className="battle-dev__badge">{PHASE_LABELS[props.phase] || props.phase}</span>

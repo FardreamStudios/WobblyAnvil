@@ -38,7 +38,7 @@ import ChalkboardModule from "./components/Chalkboard.js";
 import BattleCharacterModule from "./components/BattleCharacter.js";
 import BattleResultsScreen from "./components/BattleResultsScreen.js";
 import DevControls from "./components/DevControls.js";
-import ATBGaugeStrip from "./components/ATBGaugeStrip.js"; // TODO: replace with TurnOrderStrip in Block 5
+import TurnOrderStrip from "./components/TurnOrderStrip.js";
 import ActionMenu from "./components/ActionMenu.js";
 import ItemSubmenu from "./components/ItemSubmenu.js";
 import SkillSubmenu from "./components/SkillSubmenu.js";
@@ -79,13 +79,12 @@ var DEFENSE_TIMING = BattleConstants.DEFENSE_TIMING;
 // COMIC PANEL LINES — fairy speech per phase
 // ============================================================
 var COMIC_LINES = {};
-COMIC_LINES[PHASES.ACTION_CAM_IN]    = "Let's get 'em!";
-COMIC_LINES[PHASES.CAM_TELEGRAPH]    = "Watch out!";
-COMIC_LINES[PHASES.CAM_SWING]        = "Nail the timing!";
-COMIC_LINES[PHASES.CAM_SWING_QTE]    = "Show 'em what you've got!";
+COMIC_LINES[PHASES.ACTION_CAM_IN]      = "Let's get 'em!";
+COMIC_LINES[PHASES.CAM_SWING_QTE]      = "Show 'em what you've got!";
 COMIC_LINES[PHASES.CAM_SWING_PLAYBACK] = "Here it comes!";
-COMIC_LINES[PHASES.CAM_RESOLVE]      = "Nice swing!";
-COMIC_LINES[PHASES.ACTION_CAM_OUT]   = "Not bad!";
+COMIC_LINES[PHASES.CAM_RESOLVE]        = "Nice swing!";
+COMIC_LINES[PHASES.CAM_COUNTER_PROMPT] = "Counter time!";
+COMIC_LINES[PHASES.ACTION_CAM_OUT]     = "Not bad!";
 
 // ============================================================
 // CSS Custom Properties — driven from STAGE + LAYOUT constants
@@ -94,8 +93,6 @@ COMIC_LINES[PHASES.ACTION_CAM_OUT]   = "Not bad!";
 var PUB = process.env.PUBLIC_URL || "";
 var ROOT_VARS = {
     "--battle-actions-w":   LAYOUT.actionsW,
-    "--battle-atb-bar-h":   LAYOUT.atbBarH,
-    "--battle-atb-label-w": LAYOUT.atbLabelW,
     "--battle-sprite-size": LAYOUT.spriteSize,
     "--battle-scene-bg":    "url(" + PUB + "/images/scenes/waSceneSewer.png)",
 };
@@ -263,7 +260,7 @@ function BattleView(props) {
     useEffect(function() {
         var entering = phase === PHASES.ACTION_CAM_IN;
         if (!entering) {
-            if (phase === PHASES.ATB_RUNNING || phase === PHASES.ACTION_CAM_OUT) {
+            if (phase === PHASES.TURN_ACTIVE || phase === PHASES.ACTION_CAM_OUT) {
                 restingRectsRef.current = {};
                 setSceneRect(null);
             }
@@ -304,7 +301,7 @@ function BattleView(props) {
             } else {
                 setTurnLoopRunning(false);
                 // AI picks target + skill
-                var aiDecision = BattleAI.pickAction(bState.get(whosTurn), bState);
+                var aiDecision = BattleAI.pickAction(bState.get(whosTurn), bState, apStateRef.current, BattleSkills.getSkill);
                 if (!aiDecision) {
                     // AI can't act — end turn
                     endFormationTurn();
@@ -1446,9 +1443,12 @@ function BattleView(props) {
             {/* === BOTTOM OVERLAY — Turn Order + Action Menu === */}
             <div className="battle-overlay-bottom">
 
-                {/* ATB gauges — TODO: replace with TurnOrderStrip in Block 5 */}
-                <ATBGaugeStrip
-                    combatants={allCombatants}
+                {/* Turn order strip — initiative queue with AP bars */}
+                <TurnOrderStrip
+                    turnOrder={turnLoop.turnOrder}
+                    turnIndex={turnLoop.turnIndex}
+                    apState={apState}
+                    combatantMap={combatantMap}
                     hidden={isActionCam}
                 />
 
@@ -1457,6 +1457,8 @@ function BattleView(props) {
                     hidden={isActionCam}
                     onAction={handleAction}
                     isLeftHanded={isLeftHanded}
+                    apState={apState}
+                    activeId={activeAtkId}
                 />
 
                 {/* Comic panel */}

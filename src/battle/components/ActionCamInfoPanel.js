@@ -2,19 +2,18 @@
 // ActionCamInfoPanel.js — attacker vs target HUD in action cam
 //
 // Extracted from BattleView.js. Pure component.
-// Props: visible, isLeftHanded, attacker, target, atbValues
+// Props: visible, isLeftHanded, attacker, target, apState
 // ============================================================
 
 import BattleConstants from "../config/battleConstants.js";
 
-var ATB = BattleConstants.ATB;
+var ENGAGEMENT = BattleConstants.ENGAGEMENT;
 
 function ActionCamInfoPanel(props) {
     var visible = props.visible;
     var isLeft = props.isLeftHanded;
     var baseCls = "action-cam-info" + (visible ? " action-cam-info--visible" : "");
-    var atbVals = props.atbValues || {};
-    var maxPips = ATB.pipsPerCombatant;
+    var apState = props.apState || {};
 
     var attacker = props.attacker;
     var target = props.target;
@@ -37,16 +36,18 @@ function ActionCamInfoPanel(props) {
     var leftIsParty  = isLeft ? true : false;
     var rightIsParty = isLeft ? false : true;
 
-    // Build pip dots for a combatant
-    function renderPips(cId, isParty) {
-        var entry = atbVals[cId] || { filledPips: 0 };
-        var dots = [];
-        for (var i = 0; i < maxPips; i++) {
-            var filled = i < entry.filledPips;
-            var cls = "action-cam-info__pip" + (filled ? (isParty ? " action-cam-info__pip--party" : " action-cam-info__pip--enemy") : "");
-            dots.push(<span className={cls} key={i} />);
-        }
-        return <div className="action-cam-info__pips">{dots}</div>;
+    // Build AP bar for a combatant
+    function renderAPBar(cId, isParty) {
+        var entry = apState[cId] || { current: 0, max: ENGAGEMENT.AP_MAX };
+        var pct = entry.max > 0 ? Math.round(entry.current / entry.max * 100) : 0;
+        var fillCls = "action-cam-info__ap-fill" + (isParty ? " action-cam-info__ap-fill--party" : " action-cam-info__ap-fill--enemy");
+
+        return (
+            <div className="action-cam-info__ap-bg">
+                <div className={fillCls} style={{ width: pct + "%" }} />
+                <span className="action-cam-info__ap-text">{entry.current}</span>
+            </div>
+        );
     }
 
     return (
@@ -57,7 +58,7 @@ function ActionCamInfoPanel(props) {
                     <div className={"battle-hp-fill " + (leftIsParty ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: leftHp + "%" }} />
                 </div>
                 <span className="action-cam-info__hp-text">{leftData.currentHP + "/" + leftData.maxHP}</span>
-                {renderPips(leftData.id, leftIsParty)}
+                {renderAPBar(leftData.id, leftIsParty)}
             </div>
             <div className={baseCls + " action-cam-info--right action-cam-info__side--" + (rightIsParty ? "atk" : "tgt")}>
                 <span className="action-cam-info__name">{rightData.name}</span>
@@ -65,7 +66,7 @@ function ActionCamInfoPanel(props) {
                     <div className={"battle-hp-fill " + (rightIsParty ? "battle-hp-fill--party" : "battle-hp-fill--enemy")} style={{ width: rightHp + "%" }} />
                 </div>
                 <span className="action-cam-info__hp-text">{rightData.currentHP + "/" + rightData.maxHP}</span>
-                {renderPips(rightData.id, rightIsParty)}
+                {renderAPBar(rightData.id, rightIsParty)}
             </div>
         </>
     );

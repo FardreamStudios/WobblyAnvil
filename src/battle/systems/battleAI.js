@@ -2,16 +2,15 @@
 // battleAI.js — Enemy Decision Module
 //
 // Pure function, no React, no state. Portable.
-// Input: combatant data, battle state reference.
+// Input: combatant data, battle state, AP state, skill lookup.
 // Output: { targetId, skillId }
 //
-// BattleView calls pickAction() when an enemy's ATB fills
-// or when it's the enemy's turn in-cam. The AI picks a
-// random living party target and a random skill from the
-// combatant's skill list.
+// BattleView calls pickAction() on the enemy's turn.
+// The AI picks a random living party target and a random
+// affordable skill from the combatant's skill list.
 //
 // Future: personality-driven decisions, HP-aware targeting,
-// threat assessment, poise exploitation.
+// threat assessment, AP spending behavior.
 // ============================================================
 
 // Pick a random element from an array
@@ -26,10 +25,12 @@ function pickRandom(arr) {
 // combatantData: the enemy's runtime data from combatantMap
 //   (needs .id, .skills[])
 // bState: battleState instance (for querying living party)
+// apState: AP state map (optional — if omitted, skips cost check)
+// getSkill: skill lookup fn (optional — if omitted, skips cost check)
 //
 // Returns: { targetId: string, skillId: string } or null
 // ============================================================
-function pickAction(combatantData, bState) {
+function pickAction(combatantData, bState, apState, getSkill) {
     if (!combatantData || !bState) return null;
 
     // Pick random living party target
@@ -42,9 +43,26 @@ function pickAction(combatantData, bState) {
     var targetId = pickRandom(livingTargets);
     if (!targetId) return null;
 
-    // Pick random skill from combatant's skill list
+    // Filter skills by AP affordability
     var skills = combatantData.skills;
-    var skillId = pickRandom(skills);
+    if (!skills || skills.length === 0) return null;
+
+    var affordable = skills;
+    if (apState && getSkill) {
+        var currentAP = apState[combatantData.id]
+            ? apState[combatantData.id].current
+            : 0;
+        affordable = [];
+        for (var j = 0; j < skills.length; j++) {
+            var skill = getSkill(skills[j]);
+            var cost = skill ? (skill.apCost || 25) : 25;
+            if (cost <= currentAP) {
+                affordable.push(skills[j]);
+            }
+        }
+    }
+
+    var skillId = pickRandom(affordable);
     if (!skillId) return null;
 
     return {

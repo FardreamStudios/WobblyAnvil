@@ -268,14 +268,6 @@ var BATTLE_PHASES = {
     ACTION_CAM_OUT:   "action_cam_out",      // sliding back to formation
     BATTLE_ENDING:    "battle_ending",       // KO wipe detected — freeze, hold, exit
     WAVE_TRANSITION:  "wave_transition",     // between-wave banner + enemy swap
-
-    // Legacy aliases — kept for compat during migration, remove after full rework
-    ATB_RUNNING:      "atb_running",
-    ACTION_SELECT:    "action_select",
-    CAM_TURN_START:   "cam_turn_start",
-    CAM_WAIT_ACTION:  "cam_wait_action",
-    CAM_TELEGRAPH:    "cam_telegraph",
-    CAM_SWING:        "cam_swing",
 };
 
 // --- Choreography Config (anim states, hit reactions, screen FX) ---
