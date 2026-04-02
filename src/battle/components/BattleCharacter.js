@@ -265,16 +265,12 @@ function DamageNumber(props) {
     var isCrit = typeof props.value === "number" && props.value >= 20;
     var cls = "action-cam-dmg" + (isCrit ? " action-cam-dmg--crit" : "") + (isMiss ? " action-cam-dmg--miss" : "");
 
-    // Convert stage-space px to % of stage dimensions
-    var leftPct = (props.x / STAGE.designW) * 100;
-    var topPct = (props.y / STAGE.designH) * 100;
-
     return (
         <span
             className={cls}
             style={{
-                left: leftPct + "%",
-                top: topPct + "%",
+                left: props.x + "px",
+                top: props.y + "px",
                 color: props.color || "#ffffff",
             }}
         >

@@ -24,7 +24,7 @@
     user-select: none;
     -webkit-user-select: none;
     transition: background-size 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94),
-                background-position 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    background-position 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* --- Cinematic Blackout Overlay --- */
@@ -194,7 +194,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.4vh;
+    gap: 3px;
     /* Center the content on the zero-size root anchor.
        Uses negative margin so transform property is free for choreo. */
     margin-left: calc(var(--battle-sprite-size, 104px) / -2);
@@ -444,8 +444,8 @@
 /* Selection brackets hidden during action cam via JS (SelectionBrackets visible prop) */
 
 .normal-cam-char__sprite {
-    width: var(--battle-sprite-size, clamp(32px, 7vw, 52px));
-    height: var(--battle-sprite-size, clamp(32px, 7vw, 52px));
+    width: var(--battle-sprite-size, 104px);
+    height: var(--battle-sprite-size, 104px);
     flex-shrink: 0;
 }
 
@@ -462,7 +462,7 @@
 }
 
 .normal-cam-char__name {
-    font-size: clamp(8px, 1.5vw, 11px);
+    font-size: 10px;
     font-weight: bold;
     letter-spacing: 1px;
     text-transform: uppercase;
@@ -498,7 +498,7 @@
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    font-size: clamp(18px, 4vw, 28px);
+    font-size: 24px;
     opacity: 0;
     transition: opacity 0.25s ease;
     z-index: 12;
@@ -615,18 +615,18 @@
     pointer-events: none;
     font-family: monospace;
     font-weight: bold;
-    font-size: clamp(14px, 3vw, 22px);
+    font-size: 18px;
     letter-spacing: 1px;
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.5);
     animation: dmgPop 800ms ease-out forwards;
 }
 
 .action-cam-dmg--crit {
-    font-size: clamp(18px, 4vw, 28px);
+    font-size: 24px;
 }
 
 .action-cam-dmg--miss {
-    font-size: clamp(10px, 2vw, 14px);
+    font-size: 12px;
     font-style: italic;
     letter-spacing: 2px;
 }
@@ -646,7 +646,7 @@
     pointer-events: none;
     font-family: monospace;
     font-weight: bold;
-    font-size: clamp(11px, 2.2vw, 16px);
+    font-size: 14px;
     letter-spacing: 2px;
     text-transform: uppercase;
     text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.6);
