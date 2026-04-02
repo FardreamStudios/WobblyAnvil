@@ -163,16 +163,19 @@ function BattleView(props) {
     // All player taps route here. System/AI changes use setTargetId directly.
     // When a skill is pending, only valid targets are accepted.
     function selectTarget(id) {
+        console.log("[selectTarget] id=" + id + " pendingSkill=" + selectedSkillRef.current);
         if (selectedSkillRef.current) {
             // Skill pending — validate target
             var skill = BattleSkills.getSkill(selectedSkillRef.current);
             if (!isValidTarget(id, skill)) {
+                console.log("[selectTarget] REJECTED — invalid target for skill");
                 BattleSFX.invalid();
                 return;
             }
         }
         setTargetId(id);
         if (id != null) BattleSFX.select();
+        console.log("[selectTarget] target set to " + id);
     }
 
     // Check if a combatant is a valid target for a given skill
@@ -716,6 +719,15 @@ function BattleView(props) {
         }
         // Not in action cam — tap empty space
         if (!isActionCam) {
+            // Check if touch landed on a combatant (has closest battle character parent)
+            var touchTarget = e.target;
+            var hitCombatant = touchTarget && touchTarget.closest && touchTarget.closest(".normal-cam-char");
+            if (hitCombatant) {
+                console.log("[sceneTouchEnd] hit combatant — skipping deselect");
+                return;
+            }
+
+            console.log("[sceneTouchEnd] empty space tap — deselecting");
             if (selectedSkillRef.current) {
                 // Cancel pending skill + close submenu
                 selectedSkillRef.current = null;
@@ -728,7 +740,7 @@ function BattleView(props) {
         }
     }
 
-    function handleSceneClick() {
+    function handleSceneClick(e) {
         // Defense active — desktop fallback, click = tap
         if (defenseActiveRef.current) {
             if (DefenseTiming.isLocked()) return;
@@ -737,6 +749,13 @@ function BattleView(props) {
         }
         // Not in action cam — tap empty space
         if (!isActionCam) {
+            var hitCombatant = e.target && e.target.closest && e.target.closest(".normal-cam-char");
+            if (hitCombatant) {
+                console.log("[sceneClick] hit combatant — skipping deselect");
+                return;
+            }
+
+            console.log("[sceneClick] empty space click — deselecting");
             if (selectedSkillRef.current) {
                 selectedSkillRef.current = null;
                 setSkillMenuOpen(false);
@@ -1126,23 +1145,13 @@ function BattleView(props) {
 
     function handleAction(actionId) {
         var userId = activeAtkId;
+        console.log("[handleAction] actionId=" + actionId + " userId=" + userId);
 
         if (actionId === "attack") {
-            // Open skill picker — player chooses skill, then picks target
-            if (userId === "smith") {
-                setItemMenuOpen(false);
-                setSkillMenuOpen(true);
-            } else {
-                // AI-controlled party — auto-select first skill + first living enemy
-                var autoSkill = combatantMap[userId] && combatantMap[userId].skills
-                    ? combatantMap[userId].skills[0] : null;
-                if (autoSkill) {
-                    selectedSkillRef.current = autoSkill;
-                    var autoTarget = pickFirstLivingEnemy();
-                    if (autoTarget) setTargetId(autoTarget);
-                    handleSkillConfirm();
-                }
-            }
+            // Open skill picker for any party member
+            console.log("[handleAction] opening skill submenu for " + userId);
+            setItemMenuOpen(false);
+            setSkillMenuOpen(true);
         } else {
             // Any non-ATK action cancels pending skill state
             selectedSkillRef.current = null;
@@ -1331,26 +1340,32 @@ function BattleView(props) {
 
     // Player tapped a skill in the submenu
     function handleSkillSelect(skillId) {
+        console.log("[handleSkillSelect] skillId=" + skillId + " current pending=" + selectedSkillRef.current + " targetId=" + targetId);
         // Same skill tapped again — confirm and execute
         if (selectedSkillRef.current === skillId) {
+            console.log("[handleSkillSelect] same skill tapped — confirming");
             handleSkillConfirm();
             return;
         }
-        // Different skill (or first pick) — set pending, auto-pick first valid target
+        // Different skill (or first pick) — set pending
         selectedSkillRef.current = skillId;
         var skill = BattleSkills.getSkill(skillId);
         var targetsEnemy = !skill || !skill.targetAlly;
-        var autoTarget = null;
-        if (targetsEnemy) {
-            autoTarget = pickFirstLivingEnemy();
-        } else {
-            autoTarget = pickFirstLivingAlly();
+
+        // Keep existing target if it's valid for this skill
+        if (targetId && isValidTarget(targetId, skill)) {
+            console.log("[handleSkillSelect] keeping existing target " + targetId);
+            bumpState();
+            return;
         }
+
+        // No valid target selected — auto-pick first
+        var autoTarget = targetsEnemy ? pickFirstLivingEnemy() : pickFirstLivingAlly();
+        console.log("[handleSkillSelect] auto-picked target " + autoTarget);
         if (autoTarget) {
             setTargetId(autoTarget);
             BattleSFX.select();
         }
-        // Force re-render so SkillSubmenu shows pending state
         bumpState();
     }
 
@@ -1358,13 +1373,15 @@ function BattleView(props) {
     function handleSkillConfirm() {
         var userId = activeAtkId;
         var skillId = selectedSkillRef.current;
-        if (!skillId) return;
+        console.log("[handleSkillConfirm] userId=" + userId + " skillId=" + skillId + " targetId=" + targetId);
+        if (!skillId) { console.warn("[handleSkillConfirm] no skillId"); return; }
 
         var skill = BattleSkills.getSkill(skillId);
-        if (!skill) return;
+        if (!skill) { console.warn("[handleSkillConfirm] skill not found: " + skillId); return; }
 
         var apCost = skill.apCost || 25;
         if (!BattleEngagement.canAfford(apStateRef.current, userId, apCost)) {
+            console.log("[handleSkillConfirm] can't afford — need " + apCost);
             spawnDmgAt(userId, "NO AP", "#ef4444");
             return;
         }
@@ -1373,8 +1390,12 @@ function BattleView(props) {
         var atkTarget = targetId;
         var atkState = atkTarget ? bState.get(atkTarget) : null;
         var atkValid = atkState && !atkState.ko && !bState.isPartyId(atkTarget);
-        if (!atkValid) return;
+        if (!atkValid) {
+            console.warn("[handleSkillConfirm] invalid target: " + atkTarget);
+            return;
+        }
 
+        console.log("[handleSkillConfirm] CONFIRMED — starting exchange " + userId + " → " + atkTarget + " with " + skillId);
         selectedSkillRef.current = null;
         setSkillMenuOpen(false);
         startExchange(userId, atkTarget, skillId);

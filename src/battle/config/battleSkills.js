@@ -57,7 +57,7 @@ var PLAYER_SKILLS = {
         name:             "Anvil's Verdict",
         type:             "circle_timing",
         difficulty:       "hard",
-        apCost:           50,
+        apCost:           40,
         rings:            5,
         speeds:           [1.4, 1.4, 0.8, 1.4, 0.5],
         delays:           [0, 200, 600, 200, 800],
@@ -74,10 +74,54 @@ var PLAYER_SKILLS = {
             { check: "ring", damage: 16, atkAnim: "strike", tgtReact: "hit",    shake: "ko",     sfx: "impact", finisher: true },
         ],
     },
+
+    fairy_barrage: {
+        id:               "fairy_barrage",
+        name:             "Spark Flurry",
+        type:             "circle_timing",
+        difficulty:       "normal",
+        apCost:           30,
+        rings:            4,
+        speeds:           [1.8, 1.8, 1.8, 0.5],
+        delays:           [0, 150, 150, 600],
+        shrinkDurationMs: 700,
+        zoneBonus:        0.12,
+        targetRadius:     28,
+        ringStartRadius:  70,
+        label:            "SPARK!",
+        beats: [
+            { check: "ring", damage: 4,  atkAnim: "strike", tgtReact: "flinch", shake: "light",  sfx: "hit"    },
+            { check: "ring", damage: 4,  atkAnim: "strike", tgtReact: "flinch", shake: "light",  sfx: "hit"    },
+            { check: "ring", damage: 4,  atkAnim: "strike", tgtReact: "flinch", shake: "light",  sfx: "hit"    },
+            { check: "ring", damage: 10, atkAnim: "strike", tgtReact: "hit",    shake: "heavy",  sfx: "impact", finisher: true },
+        ],
+    },
 };
 
 // --- Enemy Skills ---
 var ENEMY_SKILLS = {
+    enemy_basic: {
+        id:               "enemy_basic",
+        name:             "Strike",
+        type:             "circle_timing",
+        difficulty:       "easy",
+        apCost:           20,
+        rings:            2,
+        speeds:           [1.0, 1.0],
+        delays:           [0, 400],
+        shrinkDurationMs: 800,
+        zoneBonus:        0.15,
+        targetRadius:     28,
+        ringStartRadius:  70,
+        label:            "DEFEND!",
+        beats: [
+            { check: "ring", damage: 5, atkAnim: "strike", tgtReact: "hit", shake: "light",  sfx: "hit",
+                blockable: true, dodgeable: true },
+            { check: "ring", damage: 5, atkAnim: "strike", tgtReact: "hit", shake: "medium", sfx: "hit",
+                blockable: true, dodgeable: true },
+        ],
+    },
+
     rat_bite: {
         id:               "rat_bite",
         name:             "Bite",
@@ -129,7 +173,7 @@ var ENEMY_SKILLS = {
         name:             "Trash Slam",
         type:             "circle_timing",
         difficulty:       "hard",
-        apCost:           45,
+        apCost:           40,
         rings:            5,
         speeds:           [0.8, 1.0, 1.2, 0.5, 2.0],
         delays:           [0, 300, 300, 1500, 100],

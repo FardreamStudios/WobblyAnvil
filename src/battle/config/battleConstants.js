@@ -30,12 +30,12 @@ var BATTLE_TRANSITION = {
 // Stats use 1–100 internal scale; display format is a view concern.
 var ENGAGEMENT = {
     AP_MAX:                 100,    // shared cap for all combatants
-    AP_EARN_BASE:           15,     // floor AP earned per turn
-    AP_EARN_SPEED_SCALE:    0.35,   // multiplied by speed, added to base. speed 10→18, speed 50→32, speed 90→46
+    AP_EARN_BASE:           25,     // floor AP earned per turn
+    AP_EARN_SPEED_SCALE:    0.10,   // multiplied by speed, added to base
     AP_COST_ITEM:           15,     // formation only
     AP_COST_DEFEND:         15,     // formation only
     AP_COST_FLEE:           70,     // formation only, high commitment
-    AP_COST_COUNTER:        25,     // in-cam, responder pays to swing back
+    AP_COST_COUNTER:        5,      // in-cam, cheap — encourages counter play
     INITIATIVE_VARIANCE:    20,     // random(0, variance) added to speed for turn order roll
     FLEE_BASE_CHANCE:       0.5,    // 50% flat chance V1
 };
@@ -169,7 +169,7 @@ var TEST_PARTY = [
         speed: 65,
         attackPower: 6,
         defensePower: 5,
-        skills: ["basic_attack"],
+        skills: ["basic_attack", "fairy_barrage"],
         items: [
             { id: "health_potion", name: "Health Potion", icon: "\u2764\uFE0F", description: "Restores 25 HP",              effect: { type: "heal", value: 25 }, qty: 1 },
             { id: "smoke_bomb",    name: "Smoke Bomb",    icon: "\uD83D\uDCA8", description: "-3 attack on enemy, 2 turns", effect: { type: "debuff_enemy", stat: "attackPower", value: 3, turns: 2 }, qty: 1 },
@@ -187,7 +187,7 @@ var TEST_ENEMIES = [
         speed: 30,
         attackPower: 8,
         defensePower: 3,
-        skills: ["rat_bite"],
+        skills: ["enemy_basic", "rat_bite"],
     },
     {
         id: "crate_mimic",
@@ -198,7 +198,7 @@ var TEST_ENEMIES = [
         speed: 40,
         attackPower: 6,
         defensePower: 2,
-        skills: ["scavenger_combo"],
+        skills: ["enemy_basic", "scavenger_combo"],
     },
 ];
 
@@ -215,7 +215,7 @@ var TEST_WAVES = [
             speed: 30,
             attackPower: 8,
             defensePower: 3,
-            skills: ["rat_bite"],
+            skills: ["enemy_basic", "rat_bite"],
         },
         {
             id: "crate_mimic",
@@ -226,7 +226,7 @@ var TEST_WAVES = [
             speed: 40,
             attackPower: 6,
             defensePower: 2,
-            skills: ["scavenger_combo"],
+            skills: ["enemy_basic", "scavenger_combo"],
         },
     ],
     // Wave 2
@@ -240,7 +240,7 @@ var TEST_WAVES = [
             speed: 50,
             attackPower: 10,
             defensePower: 4,
-            skills: ["scavenger_combo", "flurry_combo"],
+            skills: ["enemy_basic", "scavenger_combo", "flurry_combo"],
         },
         {
             id: "sack_golem",
@@ -251,7 +251,7 @@ var TEST_WAVES = [
             speed: 15,
             attackPower: 12,
             defensePower: 6,
-            skills: ["trash_golem_slam"],
+            skills: ["enemy_basic", "trash_golem_slam"],
         },
     ],
 ];

@@ -55,10 +55,12 @@ function useBattleTurnLoop(opts) {
     var turnIndexRef = useRef(turnIndex);
     var runningRef = useRef(running);
     var apStateRef = useRef(apState);
+    var combatantsRef = useRef(combatants);
     turnOrderRef.current = turnOrder;
     turnIndexRef.current = turnIndex;
     runningRef.current = running;
     apStateRef.current = apState;
+    combatantsRef.current = combatants;
 
     // --- Explicit start — called by BattleView when player presses Start ---
     var hasStartedRef = useRef(false);
@@ -66,7 +68,7 @@ function useBattleTurnLoop(opts) {
         if (hasStartedRef.current) return;
         hasStartedRef.current = true;
 
-        var order = engagement.rollInitiative(combatants, engagementConfig.INITIATIVE_VARIANCE);
+        var order = engagement.rollInitiative(combatantsRef.current, engagementConfig.INITIATIVE_VARIANCE);
         setTurnOrder(order);
         turnOrderRef.current = order;
 
@@ -99,9 +101,10 @@ function useBattleTurnLoop(opts) {
 
         // Earn AP for this combatant — compute synchronously so ref
         // is current before TURN_START fires and BattleView reads it.
+        var liveCombatants = combatantsRef.current;
         var combatant = null;
-        for (var i = 0; i < combatants.length; i++) {
-            if (combatants[i].id === id) { combatant = combatants[i]; break; }
+        for (var i = 0; i < liveCombatants.length; i++) {
+            if (liveCombatants[i].id === id) { combatant = liveCombatants[i]; break; }
         }
         var speed = combatant ? combatant.speed : 1;
 
@@ -176,6 +179,9 @@ function useBattleTurnLoop(opts) {
 
     // --- Reroll initiative (wave transition) ---
     var reroll = useCallback(function(newCombatants) {
+        // Update combatants ref so startTurnAt reads wave 2 data
+        combatantsRef.current = newCombatants;
+
         var order = engagement.rollInitiative(
             newCombatants,
             engagementConfig.INITIATIVE_VARIANCE
