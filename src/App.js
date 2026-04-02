@@ -603,7 +603,7 @@ export default function App() {
     );
   }
 
-  if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu audioReady={audioReady} onAudioWarmup={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setAudioReady(true); }} onStart={function() { setScreen("game"); }} onEnterAdventure={function() { sfx.setMode("battle"); setAdventureMode("transition"); }} sfx={sfx} /></ScaleWrapper>;
+  if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu audioReady={audioReady} onAudioWarmup={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setAudioReady(true); }} onStart={function() { setScreen("game"); }} onEnterAdventure={function() { sfx.setMode("battle"); setAdventureMode("transition"); }} sfx={sfx} leaderboardEntries={leaderboard.entries} /></ScaleWrapper>;
 
   // ============================================================
   // FAIRY CHAT OVERLAY (shared by mobile + desktop)
