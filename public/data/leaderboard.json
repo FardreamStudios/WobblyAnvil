@@ -9,5 +9,16 @@
     "reputation": 0,
     "level": 13,
     "questsCompleted": 3
+  },
+  {
+    "name": "Wren",
+    "gold": 281,
+    "day": 11,
+    "weaponsForged": 8,
+    "weaponsSold": 4,
+    "bestQuality": 84,
+    "reputation": 0,
+    "level": 9,
+    "questsCompleted": 4
   }
 ]
