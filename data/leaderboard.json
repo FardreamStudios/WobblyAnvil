@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "name": "Campbell Soup",
+    "gold": 1732,
+    "day": 12,
+    "weaponsForged": 15,
+    "weaponsSold": 11,
+    "bestQuality": 87,
+    "reputation": 0,
+    "level": 13,
+    "questsCompleted": 3
+  }
+]
