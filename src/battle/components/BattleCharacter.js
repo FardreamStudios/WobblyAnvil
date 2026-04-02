@@ -145,6 +145,83 @@ function SelectionBrackets(props) {
 }
 
 // ============================================================
+// TurnStartFX — pixel sparkle burst on turn start
+// Spawns 8 small pixel particles from bracket corners.
+// One-shot: mounts, animates, auto-hides via CSS.
+// Props: spriteRef, color, isParty
+// ============================================================
+
+var PARTICLE_COUNT = 8;
+var PARTICLE_SIZE = 3;   // px — small pixel dot
+
+// Fixed directions: 2 per corner (diagonal + orthogonal)
+var PARTICLE_DIRS = [
+    { dx: -1, dy: -1 }, { dx: -1, dy:  0 },   // top-left
+    { dx:  1, dy: -1 }, { dx:  1, dy:  0 },   // top-right
+    { dx: -1, dy:  1 }, { dx: -1, dy:  0 },   // bottom-left
+    { dx:  1, dy:  1 }, { dx:  1, dy:  0 },   // bottom-right
+];
+
+function TurnStartFX(props) {
+    var spriteRef = props.spriteRef;
+    var color = props.color || "#f0e6c8";
+
+    var sizeRef = useRef({ w: 0, h: 0 });
+    var [ready, setReady] = useState(false);
+
+    useEffect(function() {
+        var el = spriteRef.current;
+        if (!el) return;
+        sizeRef.current = { w: el.offsetWidth, h: el.offsetHeight };
+        setReady(true);
+    }, [spriteRef]);
+
+    if (!ready || sizeRef.current.w === 0) return null;
+
+    var w = sizeRef.current.w + BRACKET_PAD * 2;
+    var h = sizeRef.current.h + BRACKET_PAD * 2;
+
+    // Corner origins (relative to bracket container)
+    var origins = [
+        { x: 0, y: 0 }, { x: 0, y: 0 },           // top-left x2
+        { x: w, y: 0 }, { x: w, y: 0 },             // top-right x2
+        { x: 0, y: h }, { x: 0, y: h },             // bottom-left x2
+        { x: w, y: h }, { x: w, y: h },             // bottom-right x2
+    ];
+
+    var containerStyle = {
+        position: "absolute",
+        width: w + "px",
+        height: h + "px",
+        top: (-BRACKET_PAD) + "px",
+        left: (-BRACKET_PAD) + "px",
+        pointerEvents: "none",
+        zIndex: 4,
+    };
+
+    return (
+        <div style={containerStyle}>
+            {origins.map(function(origin, i) {
+                var dir = PARTICLE_DIRS[i];
+                var dist = 12 + (i % 2) * 8;  // 12px or 20px travel
+                var style = {
+                    position: "absolute",
+                    left: origin.x + "px",
+                    top: origin.y + "px",
+                    width: PARTICLE_SIZE + "px",
+                    height: PARTICLE_SIZE + "px",
+                    background: color,
+                    "--px-dx": (dir.dx * dist) + "px",
+                    "--px-dy": (dir.dy * dist) + "px",
+                    animationDelay: (i % 2) * 40 + "ms",
+                };
+                return <div key={i} className="battle-turn-particle" style={style} />;
+            })}
+        </div>
+    );
+}
+
+// ============================================================
 // BattleCharacter — single fighter card
 // ============================================================
 
@@ -165,6 +242,16 @@ function BattleCharacter(props) {
     // Show brackets: selected (green) or turn owner (parchment), but not during action cam
     var showSelected = isSelected && !isTurnOwner && !isAttacker && !isTarget && !isDimmed;
     var showTurnOwner = isTurnOwner && !isAttacker && !isTarget && !isDimmed;
+
+    // Turn-start FX: detect showTurnOwner rising edge
+    var prevTurnOwnerRef = useRef(false);
+    var [turnFxKey, setTurnFxKey] = useState(0);
+    useEffect(function() {
+        if (showTurnOwner && !prevTurnOwnerRef.current) {
+            setTurnFxKey(function(k) { return k + 1; });
+        }
+        prevTurnOwnerRef.current = showTurnOwner;
+    }, [showTurnOwner]);
 
     var cls = "normal-cam-char";
     if (isParty) cls += " normal-cam-char--party";
@@ -235,6 +322,13 @@ function BattleCharacter(props) {
                         color={showSelected ? "#4ade80" : "#f0e6c8"}
                         visible={showSelected || showTurnOwner}
                     />
+                    {turnFxKey > 0 && (
+                        <TurnStartFX
+                            key={"tfx-" + turnFxKey}
+                            spriteRef={spriteElRef}
+                            color={isParty ? "#f0e6c8" : "#fb923c"}
+                        />
+                    )}
                     <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} spriteRef={spriteElRef} />
                 </div>
                 <div className={"normal-cam-char__info" + (inActionCam ? " action-cam-char__info--hidden" : "")}>

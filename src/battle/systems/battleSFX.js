@@ -194,6 +194,12 @@ function select() {
     _tone(1400, "sine", 0.03, 0.06, 0.02);
 }
 
+// Turn Start — FF6 ATB-fill "pip-pip" (two ascending square pips, snappy)
+function turnStart() {
+    _tone(880, "square", 0.06, 0.14);
+    _tone(1175, "square", 0.08, 0.14, 0.06);
+}
+
 // Invalid — short low buzz (wrong target, can't do that)
 function invalid() {
     _tone(180, "square", 0.08, 0.14);
@@ -222,6 +228,7 @@ var BattleSFX = {
     qteGood: qteGood,
     qteMiss: qteMiss,
     select: select,
+    turnStart: turnStart,
     invalid: invalid,
 };
 

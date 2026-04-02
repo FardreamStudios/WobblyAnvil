@@ -824,6 +824,8 @@ function BattleView(props) {
     // ============================================================
     // --- Counter prompt handlers — thin pass-through to Director ---
     function handleCounterAccept() {
+        BattleSFX.select();
+        setPhase(PHASES.CAM_RESOLVE);
         if (counterDecisionRef.current) {
             counterDecisionRef.current(true);
             counterDecisionRef.current = null;
@@ -831,6 +833,8 @@ function BattleView(props) {
     }
 
     function handleCounterDecline() {
+        BattleSFX.select();
+        setPhase(PHASES.CAM_RESOLVE);
         if (counterDecisionRef.current) {
             counterDecisionRef.current(false);
             counterDecisionRef.current = null;
@@ -844,11 +848,14 @@ function BattleView(props) {
     var chainSelectedSkillRef = useRef(null);
 
     function handleChainAttack() {
+        BattleSFX.select();
         // Open skill submenu inside cam
         setChainSkillMenuOpen(true);
     }
 
     function handleChainRelent() {
+        BattleSFX.select();
+        setPhase(PHASES.CAM_RESOLVE);
         setChainSkillMenuOpen(false);
         chainSelectedSkillRef.current = null;
         director.onPlayerCamRelent();
@@ -1186,7 +1193,7 @@ function BattleView(props) {
             />
 
             {/* === BOTTOM OVERLAY — Turn Order + Decision Slot + Comic === */}
-            <div className={"battle-overlay-bottom" + (showCounterPrompt ? " battle-overlay-bottom--counter" : "")}>
+            <div className={"battle-overlay-bottom" + ((showCounterPrompt || showChainPrompt) ? " battle-overlay-bottom--counter" : "")}>
 
                 {/* Turn order strip — initiative queue with AP bars */}
                 <TurnOrderStrip
@@ -1200,20 +1207,18 @@ function BattleView(props) {
                 {/* === RIGHT DECISION SLOT — mutually exclusive === */}
                 {showCounterPrompt && counterResponderIsParty ? (
                     <div className="battle-counter-prompt">
-                        <span className="battle-counter-prompt__label">
-                            {"Counter? (" + ENGAGEMENT.AP_COST_COUNTER + " AP)"}
-                        </span>
                         <button
-                            className="battle-counter-prompt__btn battle-counter-prompt__btn--yes"
+                            className="battle-counter-prompt__btn battle-counter-prompt__btn--counter"
                             onClick={handleCounterAccept}
                         >
-                            YES
+                            <span className="battle-counter-prompt__btn-label">COUNTER</span>
+                            <span className="battle-counter-prompt__btn-cost">{ENGAGEMENT.AP_COST_COUNTER + " AP"}</span>
                         </button>
                         <button
-                            className="battle-counter-prompt__btn battle-counter-prompt__btn--no"
+                            className="battle-counter-prompt__btn battle-counter-prompt__btn--pass"
                             onClick={handleCounterDecline}
                         >
-                            NO
+                            <span className="battle-counter-prompt__btn-label">PASS</span>
                         </button>
                     </div>
                 ) : showChainPrompt ? (
@@ -1234,21 +1239,26 @@ function BattleView(props) {
                                 onClose={handleChainSkillClose}
                                 isInCam={true}
                             />
-                        </div>
-                    ) : (
-                        <div className="battle-counter-prompt">
-                            <span className="battle-counter-prompt__label">Chain Attack?</span>
                             <button
-                                className="battle-counter-prompt__btn battle-counter-prompt__btn--yes"
-                                onClick={handleChainAttack}
-                            >
-                                ATK
-                            </button>
-                            <button
-                                className="battle-counter-prompt__btn battle-counter-prompt__btn--no"
+                                className="battle-chain-relent-btn"
                                 onClick={handleChainRelent}
                             >
                                 RELENT
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="battle-counter-prompt">
+                            <button
+                                className="battle-counter-prompt__btn battle-counter-prompt__btn--counter"
+                                onClick={handleChainAttack}
+                            >
+                                <span className="battle-counter-prompt__btn-label">ATK</span>
+                            </button>
+                            <button
+                                className="battle-counter-prompt__btn battle-counter-prompt__btn--pass"
+                                onClick={handleChainRelent}
+                            >
+                                <span className="battle-counter-prompt__btn-label">RELENT</span>
                             </button>
                         </div>
                     )

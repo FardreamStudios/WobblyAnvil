@@ -54,13 +54,14 @@
     z-index: 7;
 }
 
-/* Hide overlay bottom during cam — except counter prompt */
+/* Hide overlay bottom during cam — except counter prompt and right slot */
 .battle-root--cam .battle-overlay-bottom > * {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.35s ease;
 }
-.battle-root--cam .battle-overlay-bottom > .battle-counter-prompt {
+.battle-root--cam .battle-overlay-bottom > .battle-counter-prompt,
+.battle-root--cam .battle-overlay-bottom > .battle-right-slot {
     opacity: 1;
     pointer-events: auto;
 }
@@ -453,6 +454,19 @@
 
 /* Selection brackets hidden during action cam via JS (SelectionBrackets visible prop) */
 
+/* --- Turn Start FX — pixel particles burst from bracket corners --- */
+.battle-turn-particle {
+    position: absolute;
+    image-rendering: pixelated;
+    animation: turnParticleBurst 0.4s ease-out forwards;
+}
+
+@keyframes turnParticleBurst {
+    0%   { opacity: 1; transform: translate(0, 0) scale(1.5); }
+    40%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--px-dx), var(--px-dy)) scale(0.5); }
+}
+
 .normal-cam-char__sprite {
     width: var(--battle-sprite-size, 104px);
     height: var(--battle-sprite-size, 104px);
@@ -674,7 +688,7 @@
     display: flex;
     flex-direction: row;
     align-items: flex-end;
-    padding: 1vh 2vw;
+    padding: 3vh 3vw;
     z-index: 5;
     pointer-events: none;
 }
@@ -1148,70 +1162,72 @@
 
 /* ============================================================
    COUNTER PROMPT — appears after initiator's swing in action cam
+   Matches formation action button style (grid, same sizing)
    ============================================================ */
 
 .battle-counter-prompt {
     margin-left: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1vh;
-    padding: 1.5vh 2vw;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6vh 0.6vw;
+    padding: 1vh 1.2vw;
     background: rgba(10, 7, 4, 0.85);
-    border: 1px solid rgba(245, 158, 11, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
     z-index: 60;
-    animation: counterPromptIn 0.25s ease-out;
-}
-
-@keyframes counterPromptIn {
-    0%   { opacity: 0; transform: translateY(10px); }
-    100% { opacity: 1; transform: translateY(0); }
-}
-
-.battle-counter-prompt__label {
-    font-size: clamp(10px, 1.8vw, 14px);
-    font-family: monospace;
-    font-weight: bold;
-    color: #f59e0b;
-    letter-spacing: 1px;
-    white-space: nowrap;
+    width: clamp(100px, 18vw, 160px);
 }
 
 .battle-counter-prompt__btn {
-    font-size: clamp(10px, 1.6vw, 13px);
-    font-family: monospace;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    font-size: clamp(9px, 1.5vw, 12px);
     font-weight: bold;
     letter-spacing: 1px;
-    padding: 0.8vh 2vw;
-    border-radius: 5px;
-    border: 1px solid;
+    text-transform: uppercase;
+    padding: 1.2vh 0.8vw;
     cursor: pointer;
-    transition: background 0.15s ease, transform 0.1s ease;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
 }
 
 .battle-counter-prompt__btn:active {
     transform: scale(0.95);
 }
 
-.battle-counter-prompt__btn--yes {
+.battle-counter-prompt__btn--counter {
     color: #4ade80;
-    border-color: rgba(74, 222, 128, 0.4);
-    background: rgba(74, 222, 128, 0.1);
+    border-color: rgba(74, 222, 128, 0.25);
 }
 
-.battle-counter-prompt__btn--yes:active {
-    background: rgba(74, 222, 128, 0.25);
+.battle-counter-prompt__btn--counter:active {
+    background: rgba(74, 222, 128, 0.15);
 }
 
-.battle-counter-prompt__btn--no {
+.battle-counter-prompt__btn--pass {
     color: #8a7a64;
-    border-color: rgba(138, 122, 100, 0.3);
-    background: rgba(138, 122, 100, 0.08);
+    border-color: rgba(138, 122, 100, 0.2);
 }
 
-.battle-counter-prompt__btn--no:active {
-    background: rgba(138, 122, 100, 0.2);
+.battle-counter-prompt__btn--pass:active {
+    background: rgba(138, 122, 100, 0.15);
+}
+
+.battle-counter-prompt__btn-label {
+    line-height: 1;
+}
+
+.battle-counter-prompt__btn-cost {
+    font-size: clamp(7px, 1vw, 9px);
+    font-weight: normal;
+    opacity: 0.5;
+    letter-spacing: 0;
 }
 
 /* ============================================================
@@ -1584,6 +1600,33 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
+}
+
+/* Chain RELENT button — sits below centered in-cam skill submenu */
+.battle-chain-relent-btn {
+    position: fixed;
+    left: 50%;
+    top: calc(50% + 28vh);
+    transform: translateX(-50%);
+    z-index: 56;
+    background: rgba(10, 7, 4, 0.9);
+    border: 1px solid rgba(138, 122, 100, 0.3);
+    border-radius: 6px;
+    color: #8a7a64;
+    font-family: monospace;
+    font-size: clamp(9px, 1.5vw, 12px);
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 1.2vh 3vw;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.battle-chain-relent-btn:active {
+    background: rgba(138, 122, 100, 0.15);
+    transform: translateX(-50%) scale(0.95);
 }
 
 .battle-pick-target-prompt__text {

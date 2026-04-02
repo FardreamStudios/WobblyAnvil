@@ -253,6 +253,7 @@ function createBattleDirector(bridge, config) {
             currentTurnId = id;
             bridge.setTurnOwnerId(id);
             bridge.setPhase(PHASES.TURN_ACTIVE);
+            BattleSFX.turnStart();
             done();
         });
 
@@ -445,6 +446,7 @@ function createBattleDirector(bridge, config) {
             currentTurnId = id;
             bridge.setTurnOwnerId(id);
             bridge.setPhase(PHASES.TURN_ACTIVE);
+            BattleSFX.turnStart();
             setTimeout(done, 2000);
         });
 

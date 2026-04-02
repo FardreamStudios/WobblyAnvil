@@ -456,6 +456,24 @@ function Chalkboard(props) {
     }, [beats, resolveSwipeRelease, resolveCircleRelease]);
 
     // ============================================================
+    // Full-screen ring tap — captures taps outside the SVG area
+    // Only fires for ring checks. Swipe/circle use the local SVG handlers.
+    // ============================================================
+
+    var handleFullScreenTouch = useCallback(function(e) {
+        e.preventDefault();
+        var ci = currentCheckRef.current;
+        var ct = getCheckType(beats, ci);
+        if (ct === "ring") resolveRingTap();
+    }, [beats, resolveRingTap]);
+
+    var handleFullScreenClick = useCallback(function(e) {
+        var ci = currentCheckRef.current;
+        var ct = getCheckType(beats, ci);
+        if (ct === "ring") resolveRingTap();
+    }, [beats, resolveRingTap]);
+
+    // ============================================================
     // RENDER
     // ============================================================
 
@@ -857,58 +875,74 @@ function Chalkboard(props) {
 
     return (
         <div style={{
-            display: "flex", flexDirection: "column", alignItems: "center",
-            gap: 12, userSelect: "none", WebkitUserSelect: "none",
-            touchAction: "manipulation",
+            position: "absolute", inset: 0,
+            userSelect: "none", WebkitUserSelect: "none",
         }}>
-            <div style={{
-                fontFamily: "monospace", fontSize: "clamp(14px, 3vw, 20px)",
-                fontWeight: 700, letterSpacing: 3,
-                color: done
-                    ? (ratio >= 0.8 ? COLOR_GOOD : ratio >= 0.5 ? COLOR_PERFECT : COLOR_MISS)
-                    : "rgba(255,255,255,0.7)",
-                transition: "color 300ms",
-            }}>
-                {done ? summaryLabel : (config.label || "TAP!")}
-            </div>
-
+            {/* Full-screen ring tap catcher — behind visual content */}
             <div
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
+                onTouchStart={handleFullScreenTouch}
+                onClick={handleFullScreenClick}
                 style={{
-                    position: "relative", width: svgSize, height: svgSize,
-                    maxWidth: "80vw", maxHeight: "80vw",
-                    cursor: "pointer", touchAction: "none",
+                    position: "absolute", inset: 0,
+                    touchAction: "none", zIndex: 0,
                 }}
-            >
-                <svg width="100%" height="100%"
-                     viewBox={"0 0 " + svgSize + " " + svgSize}
-                     style={{ display: "block" }}>
-                    {ringZoneBands}
-                    {checkVisuals}
-                </svg>
-                {flashEl}
-            </div>
+            />
 
-            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                {pips}
-            </div>
-
-            {done && (
+            {/* Visual content — anchored to bottom-right thumb zone */}
+            <div style={{
+                position: "absolute", bottom: "3vh", right: "3vw",
+                display: "flex", flexDirection: "column", alignItems: "center",
+                gap: 12, touchAction: "manipulation", zIndex: 1,
+            }}>
                 <div style={{
-                    fontFamily: "monospace", fontSize: 14,
-                    color: "rgba(255,255,255,0.5)", textAlign: "center",
+                    fontFamily: "monospace", fontSize: "clamp(14px, 3vw, 20px)",
+                    fontWeight: 700, letterSpacing: 3,
+                    color: done
+                        ? (ratio >= 0.8 ? COLOR_GOOD : ratio >= 0.5 ? COLOR_PERFECT : COLOR_MISS)
+                        : "rgba(255,255,255,0.7)",
+                    transition: "color 300ms",
                 }}>
-                    {perfects > 0 && (perfects + " perfect" + (perfects > 1 ? "s" : ""))}
-                    {perfects > 0 && goods > 0 && " · "}
-                    {goods > 0 && (goods + " good")}
-                    {totalHits === 0 && "no hits"}
+                    {done ? summaryLabel : (config.label || "TAP!")}
                 </div>
-            )}
+
+                <div
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    style={{
+                        position: "relative", width: svgSize, height: svgSize,
+                        maxWidth: "80vw", maxHeight: "80vw",
+                        cursor: "pointer", touchAction: "none",
+                    }}
+                >
+                    <svg width="100%" height="100%"
+                         viewBox={"0 0 " + svgSize + " " + svgSize}
+                         style={{ display: "block" }}>
+                        {ringZoneBands}
+                        {checkVisuals}
+                    </svg>
+                    {flashEl}
+                </div>
+
+                <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                    {pips}
+                </div>
+
+                {done && (
+                    <div style={{
+                        fontFamily: "monospace", fontSize: 14,
+                        color: "rgba(255,255,255,0.5)", textAlign: "center",
+                    }}>
+                        {perfects > 0 && (perfects + " perfect" + (perfects > 1 ? "s" : ""))}
+                        {perfects > 0 && goods > 0 && " · "}
+                        {goods > 0 && (goods + " good")}
+                        {totalHits === 0 && "no hits"}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
