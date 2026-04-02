@@ -33,6 +33,7 @@ var CHOREOGRAPHY   = BattleConstants.CHOREOGRAPHY;
 var DEFENSE_TIMING = BattleConstants.DEFENSE_TIMING;
 var BATTLE_END     = BattleConstants.BATTLE_END;
 var WAVE_TRANSITION = BattleConstants.WAVE_TRANSITION;
+var ENEMY_AI       = BattleConstants.ENEMY_AI;
 
 // ============================================================
 // Timing — director-owned delays (tunable here, move to
@@ -107,6 +108,15 @@ function createBattleDirector(bridge, config) {
     // Player input gates — stored resolve callbacks
     var pendingPlayerDone    = null; // formation wait step
     var pendingCounterDone   = null; // counter prompt step
+    var pendingCamChainDone  = null; // in-cam chain prompt step
+
+    // In-cam chaining state (player multi-action cam session)
+    var camSession = {
+        active:      false,
+        actionsUsed: 0,
+        initiatorId: null,
+        targetId:    null,
+    };
 
     // Per-swing tracking (reset each swing)
     var comboCounter = { playerCombo: 0, enemyUnblocked: 0 };
@@ -326,9 +336,58 @@ function createBattleDirector(bridge, config) {
             if (!tgt || tgt.ko) { rejectAction(done); return; }
 
             spendAP(id, apCost);
-            enqueueExchange(id, targetId, skill);
-            // After exchange, advance to next turn
-            seq.enqueue(function(d) { advanceToNextTurn(); d(); });
+
+            var maxCamActions = ENGAGEMENT.MAX_ENGAGEMENT_ACTIONS || 1;
+
+            if (maxCamActions <= 1) {
+                // Single exchange — return to formation after if AP remains
+                enqueueExchange(id, targetId, skill);
+                seq.enqueue(function(d) { maybeChainOrAdvance(id, d); });
+            } else {
+                // Multi-action cam session — stay in cam until relent/exhausted
+                camSession.active = true;
+                camSession.actionsUsed = 1;
+                camSession.initiatorId = id;
+                camSession.targetId = targetId;
+
+                // Cam in
+                seq.enqueue(function(d) {
+                    console.log("[Cam] === PLAYER CAM SESSION START ===", id, "→", targetId);
+                    bridge.setCamExchange(id, targetId);
+                    bridge.setPhase(PHASES.ACTION_CAM_IN);
+                    setTimeout(d, ACTION_CAM.transitionInMs);
+                });
+
+                // Swing + wipe + counter
+                enqueueSwingSteps(id, targetId, skill, false);
+                seq.enqueue(makeWipeCheckStep());
+                seq.enqueue(makeCounterCheckStep(id, targetId));
+
+                // Chain decision
+                seq.enqueue(makePlayerChainStep());
+
+                // Cam out (reached when chain ends)
+                seq.enqueue(function(d) {
+                    console.log("[Cam] === PLAYER CAM SESSION END === cam out");
+                    bridge.setPhase(PHASES.ACTION_CAM_OUT);
+                    setTimeout(function() {
+                        bridge.setTargetId(null);
+                        bridge.setPhase(PHASES.TURN_ACTIVE);
+                        d();
+                    }, ACTION_CAM.transitionOutMs);
+                });
+
+                // Breathing pause
+                seq.enqueue(function(d) {
+                    setTimeout(d, DIRECTOR_TIMING.breathingPauseMs);
+                });
+
+                // Back to formation — may still have AP for non-attack actions
+                seq.enqueue(function(d) {
+                    camSession.active = false;
+                    maybeChainOrAdvance(id, d);
+                });
+            }
             done();
             return;
         }
@@ -372,8 +431,11 @@ function createBattleDirector(bridge, config) {
     // ============================================================
     // ENEMY TURN
     //
-    // Fully automatic. Earn AP → AI picks action → exchange.
-    // No waiting, no input — just sequenced steps.
+    // Enemies don't use AP for attacks. They get N actions per
+    // turn (actionsPerTurn config) with weighted skill selection.
+    // All actions play inside a single cam session.
+    // If a skill's apCost >= ENEMY_AI.SUPER_THRESHOLD, it ends
+    // the turn early. If the target dies mid-chain, bail to cam out.
     // ============================================================
 
     function enqueueEnemyTurn(id) {
@@ -386,35 +448,105 @@ function createBattleDirector(bridge, config) {
             setTimeout(done, 2000);
         });
 
+        // AI planning + cam session — all enqueued from one decision step
         seq.enqueue(function(done) {
-            console.log("[Director] → enemy AI deciding for:", id);
+            console.log("[Director] → enemy AI planning for:", id);
 
-            // AI decision — reads director's own apState (never stale)
             var combatantData = bState.get(id);
-            var aiDecision = BattleAI.pickAction(
-                combatantData, bState, apState, BattleSkills.getSkill
+            var config = getCombatantConfig(id);
+
+            // Merge runtime data with AI config fields
+            var aiData = Object.assign({}, combatantData, {
+                actionsPerTurn: config ? config.actionsPerTurn : 1,
+                skillWeights:   config ? config.skillWeights : null,
+            });
+
+            var superThreshold = ENEMY_AI ? ENEMY_AI.SUPER_THRESHOLD : 35;
+            var actions = BattleAI.planTurn(
+                aiData, bState, BattleSkills.getSkill, superThreshold
             );
 
-            if (!aiDecision) {
+            if (!actions || actions.length === 0) {
                 // Can't act — skip to next turn
                 seq.enqueue(function(d) { advanceToNextTurn(); d(); });
                 done();
                 return;
             }
 
-            var skill = BattleSkills.getSkill(aiDecision.skillId);
-            if (!skill) {
-                seq.enqueue(function(d) { advanceToNextTurn(); d(); });
-                done();
-                return;
+            var targetId = actions[0].targetId;
+            bridge.setTargetId(targetId);
+
+            // --- CAM IN (once for entire chain) ---
+            seq.enqueue(function(d) {
+                console.log("[Cam] === ENEMY CHAIN START ===", id, "→", targetId, actions.length, "action(s)");
+                bridge.setCamExchange(id, targetId);
+                bridge.setPhase(PHASES.ACTION_CAM_IN);
+                setTimeout(d, ACTION_CAM.transitionInMs);
+            });
+
+            // --- ENQUEUE EACH ACTION ---
+            for (var i = 0; i < actions.length; i++) {
+                (function(actionIndex) {
+                    var action = actions[actionIndex];
+                    var skill = BattleSkills.getSkill(action.skillId);
+                    if (!skill) return;
+
+                    // Target alive gate (after first action)
+                    if (actionIndex > 0) {
+                        seq.enqueue(function(d) {
+                            var tgt = bState.get(targetId);
+                            if (!tgt || tgt.ko) {
+                                console.log("[Cam] ENEMY CHAIN — target dead after action", actionIndex, ", bailing");
+                                seq.clear();
+                                // Cam out → breathing pause → advance
+                                seq.enqueue(function(dd) {
+                                    bridge.setPhase(PHASES.ACTION_CAM_OUT);
+                                    setTimeout(function() {
+                                        bridge.setTargetId(null);
+                                        bridge.setPhase(PHASES.TURN_ACTIVE);
+                                        dd();
+                                    }, ACTION_CAM.transitionOutMs);
+                                });
+                                seq.enqueue(function(dd) {
+                                    setTimeout(dd, DIRECTOR_TIMING.breathingPauseMs);
+                                });
+                                seq.enqueue(function(dd) { advanceToNextTurn(); dd(); });
+                            }
+                            d();
+                        });
+                    }
+
+                    // Swing steps (skill name → QTE/defense → playback)
+                    enqueueSwingSteps(id, targetId, skill, false);
+
+                    // Wipe check after each swing
+                    seq.enqueue(makeWipeCheckStep());
+
+                    // Counter check after each swing
+                    seq.enqueue(makeCounterCheckStep(id, targetId));
+
+                })(i);
             }
 
-            var apCost = skill.apCost || 25;
-            spendAP(id, apCost);
-            bridge.setTargetId(aiDecision.targetId);
+            // --- CAM OUT (once after all actions) ---
+            seq.enqueue(function(d) {
+                console.log("[Cam] === ENEMY CHAIN END === cam out");
+                bridge.setPhase(PHASES.ACTION_CAM_OUT);
+                setTimeout(function() {
+                    bridge.setTargetId(null);
+                    bridge.setPhase(PHASES.TURN_ACTIVE);
+                    d();
+                }, ACTION_CAM.transitionOutMs);
+            });
 
-            enqueueExchange(id, aiDecision.targetId, skill);
+            // --- BREATHING PAUSE ---
+            seq.enqueue(function(d) {
+                setTimeout(d, DIRECTOR_TIMING.breathingPauseMs);
+            });
+
+            // --- ADVANCE TO NEXT TURN ---
             seq.enqueue(function(d) { advanceToNextTurn(); d(); });
+
             done();
         });
     }
@@ -759,6 +891,165 @@ function createBattleDirector(bridge, config) {
     }
 
     // ============================================================
+    // PLAYER CHAIN CHECK STEP (factory)
+    //
+    // After a player exchange in a multi-action cam session:
+    // can the player chain another attack?
+    // If yes → CAM_CHAIN_PROMPT phase, park for input.
+    // If no → fall through to cam out.
+    // ============================================================
+
+    function makePlayerChainStep() {
+        return function(done) {
+            if (!camSession.active) { done(); return; }
+
+            var id = camSession.initiatorId;
+            var tid = camSession.targetId;
+            var maxActions = ENGAGEMENT.MAX_ENGAGEMENT_ACTIONS || 1;
+
+            // Target dead?
+            var tgt = bState.get(tid);
+            if (!tgt || tgt.ko) {
+                console.log("[Cam] CHAIN CHECK → target dead, exiting cam");
+                done(); return;
+            }
+
+            // Max actions hit?
+            if (camSession.actionsUsed >= maxActions) {
+                console.log("[Cam] CHAIN CHECK → max actions reached (" + maxActions + ")");
+                done(); return;
+            }
+
+            // Any skill affordable?
+            var cfg = getCombatantConfig(id);
+            var hasAffordable = false;
+            if (cfg && cfg.skills) {
+                for (var i = 0; i < cfg.skills.length; i++) {
+                    var sk = BattleSkills.getSkill(cfg.skills[i]);
+                    if (sk && canAfford(id, sk.apCost || 25)) { hasAffordable = true; break; }
+                }
+            }
+            if (!hasAffordable) {
+                console.log("[Cam] CHAIN CHECK → no affordable skills");
+                done(); return;
+            }
+
+            // All conditions met — show chain prompt, park
+            console.log("[Cam] CHAIN CHECK → offering chain prompt (actions:", camSession.actionsUsed + "/" + maxActions + ")");
+            pendingCamChainDone = done;
+            bridge.showCamChainPrompt(id);
+        };
+    }
+
+    // Inject chain swing steps at front of queue (before cam out).
+    // Player-only — always offense QTE path.
+    function injectChainSwing(skillId) {
+        var id = camSession.initiatorId;
+        var tid = camSession.targetId;
+        var skill = BattleSkills.getSkill(skillId);
+        if (!skill) return;
+
+        var apCost = skill.apCost || 25;
+        if (!canAfford(id, apCost)) {
+            bridge.spawnDamageNumber(id, "NO AP", "#ef4444");
+            // Re-park on the chain prompt
+            pendingCamChainDone = pendingCamChainDone; // already set
+            return false;
+        }
+
+        spendAP(id, apCost);
+        camSession.actionsUsed++;
+
+        var steps = [];
+
+        // Reset per-swing tracking
+        steps.push(function(done) {
+            comboCounter.playerCombo = 0;
+            summaryDmg.total = 0;
+            summaryDmg.color = "#f59e0b";
+            summaryDmg.receiverId = tid;
+            done();
+        });
+
+        // Skill name
+        steps.push(function(done) {
+            bridge.spawnSkillName(skill.name || skill.id, id, "#60a5fa");
+            setTimeout(done, DIRECTOR_TIMING.skillNameHoldMs);
+        });
+
+        // QTE → playback (player offense)
+        steps.push(function(done) {
+            bridge.setPhase(PHASES.CAM_SWING_QTE);
+
+            var diff = ChalkboardModule
+                ? ChalkboardModule.resolveDifficulty(
+                    skill.difficulty || "normal",
+                    { hitZone: skill.hitZone, perfectZone: skill.perfectZone, damageMap: skill.damageMap }
+                )
+                : null;
+
+            var beatVisuals = null;
+            if (skill.beats) {
+                beatVisuals = skill.beats.map(function(b) {
+                    var resolved = BattleSkills.resolveBeat(b);
+                    return { unblockable: resolved.unblockable || false, finisher: resolved.finisher || false };
+                });
+            }
+
+            var qteConfig = Object.assign({}, skill, {
+                type: "chalkboard", beatVisuals: beatVisuals, _difficulty: diff,
+            });
+
+            bridge.activateQTE(qteConfig, function(resultsArray) {
+                bridge.setPhase(PHASES.CAM_SWING_PLAYBACK);
+                var ctx = buildPlaybackContext(skill, id, tid);
+                ctx.difficulty = diff;
+                ctx.resultsArray = resultsArray;
+                bridge.runOffensePlayback(ctx, function() { done(); });
+            });
+        });
+
+        // Wipe check
+        steps.push(makeWipeCheckStep());
+
+        // Counter check
+        steps.push(makeCounterCheckStep(id, tid));
+
+        // Next chain check
+        steps.push(makePlayerChainStep());
+
+        seq.prepend(steps);
+        return true;
+    }
+
+    // ============================================================
+    // PLAYER CAM CHAIN INPUT
+    // ============================================================
+
+    function onPlayerCamChain(skillId) {
+        if (!pendingCamChainDone) return;
+        var done = pendingCamChainDone;
+        pendingCamChainDone = null;
+
+        var success = injectChainSwing(skillId);
+        if (success === false) {
+            // AP check failed — re-park
+            pendingCamChainDone = done;
+            return;
+        }
+        done();
+    }
+
+    function onPlayerCamRelent() {
+        if (!pendingCamChainDone) return;
+        var done = pendingCamChainDone;
+        pendingCamChainDone = null;
+        console.log("[Cam] PLAYER RELENT — exiting cam session");
+        // Fall through to cam out (next in queue)
+        done();
+    }
+
+    // ============================================================
     // WAVE TRANSITION
     // ============================================================
 
@@ -919,6 +1210,11 @@ function createBattleDirector(bridge, config) {
         currentEnemies = waves[0] || [];
         pendingPlayerDone = null;
         pendingCounterDone = null;
+        pendingCamChainDone = null;
+        camSession.active = false;
+        camSession.actionsUsed = 0;
+        camSession.initiatorId = null;
+        camSession.targetId = null;
         bridge.setPhase(PHASES.INTRO);
         bridge.setTurnOwnerId(null);
         bridge.setTargetId(null);
@@ -929,6 +1225,7 @@ function createBattleDirector(bridge, config) {
         destroyed = true;
         pendingPlayerDone = null;
         pendingCounterDone = null;
+        pendingCamChainDone = null;
     }
 
     // ============================================================
@@ -945,6 +1242,8 @@ function createBattleDirector(bridge, config) {
         onPlayerAction:             onPlayerAction,
         onPlayerItemUsed:           onPlayerItemUsed,
         onPlayerCounterDecision:    onPlayerCounterDecision,
+        onPlayerCamChain:           onPlayerCamChain,
+        onPlayerCamRelent:          onPlayerCamRelent,
 
         // Getters (view reads for rendering)
         getApState:                 getApState,

@@ -38,6 +38,14 @@ var ENGAGEMENT = {
     AP_COST_COUNTER:        5,      // in-cam, cheap — encourages counter play
     INITIATIVE_VARIANCE:    20,     // random(0, variance) added to speed for turn order roll
     FLEE_BASE_CHANCE:       0.5,    // 50% flat chance V1
+    MAX_ENGAGEMENT_ACTIONS: 3,      // max attacks per action cam session (1 = current behavior)
+};
+
+// --- Enemy AI Config ---
+// Enemies ignore AP entirely — they get N actions per turn via config.
+// If a picked skill's apCost >= superThreshold, it ends the turn immediately.
+var ENEMY_AI = {
+    SUPER_THRESHOLD:    35,     // apCost at or above this = turn-ender for enemies
 };
 
 // --- Action Camera Config ---
@@ -188,6 +196,8 @@ var TEST_ENEMIES = [
         attackPower: 8,
         defensePower: 3,
         skills: ["enemy_basic", "rat_bite"],
+        actionsPerTurn: 2,
+        skillWeights: { enemy_basic: 80, rat_bite: 20 },
     },
     {
         id: "crate_mimic",
@@ -199,6 +209,8 @@ var TEST_ENEMIES = [
         attackPower: 6,
         defensePower: 2,
         skills: ["enemy_basic", "scavenger_combo"],
+        actionsPerTurn: 2,
+        skillWeights: { enemy_basic: 70, scavenger_combo: 30 },
     },
 ];
 
@@ -216,6 +228,8 @@ var TEST_WAVES = [
             attackPower: 8,
             defensePower: 3,
             skills: ["enemy_basic", "rat_bite"],
+            actionsPerTurn: 2,
+            skillWeights: { enemy_basic: 80, rat_bite: 20 },
         },
         {
             id: "crate_mimic",
@@ -227,6 +241,8 @@ var TEST_WAVES = [
             attackPower: 6,
             defensePower: 2,
             skills: ["enemy_basic", "scavenger_combo"],
+            actionsPerTurn: 2,
+            skillWeights: { enemy_basic: 70, scavenger_combo: 30 },
         },
     ],
     // Wave 2
@@ -241,6 +257,8 @@ var TEST_WAVES = [
             attackPower: 10,
             defensePower: 4,
             skills: ["enemy_basic", "scavenger_combo", "flurry_combo"],
+            actionsPerTurn: 2,
+            skillWeights: { enemy_basic: 50, scavenger_combo: 30, flurry_combo: 20 },
         },
         {
             id: "sack_golem",
@@ -252,6 +270,8 @@ var TEST_WAVES = [
             attackPower: 12,
             defensePower: 6,
             skills: ["enemy_basic", "trash_golem_slam"],
+            actionsPerTurn: 3,
+            skillWeights: { enemy_basic: 40, trash_golem_slam: 60 },
         },
     ],
 ];
@@ -266,6 +286,7 @@ var BATTLE_PHASES = {
     CAM_SWING_PLAYBACK: "cam_swing_playback", // cinematic playback driven by results array (offense + defense windows)
     CAM_RESOLVE:      "cam_resolve",         // brief pause after swing before counter prompt
     CAM_COUNTER_PROMPT: "cam_counter_prompt", // responder decides: counter or eat it
+    CAM_CHAIN_PROMPT:   "cam_chain_prompt",   // player decides: chain another attack or relent
     ACTION_CAM_OUT:   "action_cam_out",      // sliding back to formation
     BATTLE_ENDING:    "battle_ending",       // KO wipe detected — freeze, hold, exit
     WAVE_TRANSITION:  "wave_transition",     // between-wave banner + enemy swap
@@ -387,6 +408,7 @@ var BATTLE_ITEMS = [
 var BattleConstants = {
     BATTLE_TRANSITION: BATTLE_TRANSITION,
     ENGAGEMENT: ENGAGEMENT,
+    ENEMY_AI: ENEMY_AI,
     ACTION_CAM: ACTION_CAM,
     EXCHANGE: EXCHANGE,
     LAYOUT: LAYOUT,

@@ -85,6 +85,7 @@ COMIC_LINES[PHASES.CAM_SWING_QTE]      = "Show 'em what you've got!";
 COMIC_LINES[PHASES.CAM_SWING_PLAYBACK] = "Here it comes!";
 COMIC_LINES[PHASES.CAM_RESOLVE]        = "Nice swing!";
 COMIC_LINES[PHASES.CAM_COUNTER_PROMPT] = "Counter time!";
+COMIC_LINES[PHASES.CAM_CHAIN_PROMPT]   = "Keep going!";
 COMIC_LINES[PHASES.ACTION_CAM_OUT]     = "Not bad!";
 
 // ============================================================
@@ -354,6 +355,11 @@ function BattleView(props) {
                 setPhase(PHASES.CAM_COUNTER_PROMPT);
             },
 
+            // --- Async: Chain prompt (player multi-action cam) ---
+            showCamChainPrompt: function(initiatorId) {
+                setPhase(PHASES.CAM_CHAIN_PROMPT);
+            },
+
             // --- Item menu ---
             openItemMenu: function() {
                 itemMenuContextRef.current = "formation";
@@ -485,7 +491,8 @@ function BattleView(props) {
     // --- Helpers ---
     var isActionCam = phase === PHASES.ACTION_CAM_IN || phase === PHASES.CAM_SWING_QTE
         || phase === PHASES.CAM_SWING_PLAYBACK || phase === PHASES.CAM_RESOLVE
-        || phase === PHASES.CAM_COUNTER_PROMPT || phase === PHASES.ACTION_CAM_OUT;
+        || phase === PHASES.CAM_COUNTER_PROMPT || phase === PHASES.CAM_CHAIN_PROMPT
+        || phase === PHASES.ACTION_CAM_OUT;
     var isIntro = phase === PHASES.INTRO;
     var showQTE = phase === PHASES.CAM_SWING_QTE;
     var showComic = isActionCam;
@@ -592,6 +599,8 @@ function BattleView(props) {
         setItemMenuOpen(false);
         setSkillMenuOpen(false);
         selectedSkillRef.current = null;
+        setChainSkillMenuOpen(false);
+        chainSelectedSkillRef.current = null;
         setBattleResult(null);
         camExchangeRef.current = null;
         defenseActiveRef.current = false;
@@ -829,6 +838,46 @@ function BattleView(props) {
     }
 
     // ============================================================
+    // IN-CAM CHAIN — player multi-action cam session
+    // ============================================================
+    var [chainSkillMenuOpen, setChainSkillMenuOpen] = useState(false);
+    var chainSelectedSkillRef = useRef(null);
+
+    function handleChainAttack() {
+        // Open skill submenu inside cam
+        setChainSkillMenuOpen(true);
+    }
+
+    function handleChainRelent() {
+        setChainSkillMenuOpen(false);
+        chainSelectedSkillRef.current = null;
+        director.onPlayerCamRelent();
+    }
+
+    function handleChainSkillSelect(skillId) {
+        // Same skill tapped again — confirm
+        if (chainSelectedSkillRef.current === skillId) {
+            handleChainSkillConfirm(skillId);
+            return;
+        }
+        chainSelectedSkillRef.current = skillId;
+        bumpState();
+    }
+
+    function handleChainSkillConfirm(skillId) {
+        var sid = skillId || chainSelectedSkillRef.current;
+        if (!sid) return;
+        chainSelectedSkillRef.current = null;
+        setChainSkillMenuOpen(false);
+        director.onPlayerCamChain(sid);
+    }
+
+    function handleChainSkillClose() {
+        setChainSkillMenuOpen(false);
+        chainSelectedSkillRef.current = null;
+    }
+
+    // ============================================================
     // BATTLE END + WAVE TRANSITION — owned by Director
     // ============================================================
 
@@ -989,6 +1038,9 @@ function BattleView(props) {
     var showCounterPrompt = phase === PHASES.CAM_COUNTER_PROMPT;
     var counterResponderId = camExchangeRef.current ? camExchangeRef.current.responderId : null;
     var counterResponderIsParty = counterResponderId ? isPartyId(counterResponderId) : false;
+
+    // --- Chain prompt state (player multi-action cam) ---
+    var showChainPrompt = phase === PHASES.CAM_CHAIN_PROMPT;
 
     // --- Render ---
     var stageCls = "battle-stage";
@@ -1164,6 +1216,42 @@ function BattleView(props) {
                             NO
                         </button>
                     </div>
+                ) : showChainPrompt ? (
+                    chainSkillMenuOpen ? (
+                        <div className="battle-right-slot">
+                            <SkillSubmenu
+                                visible={true}
+                                skills={(function() {
+                                    var cData = combatantMap[activeAtkId];
+                                    if (!cData || !cData.skills) return [];
+                                    return cData.skills.map(function(sId) {
+                                        return BattleSkills.getSkill(sId);
+                                    }).filter(Boolean);
+                                })()}
+                                availableAP={BattleEngagement.getAP(apState, activeAtkId)}
+                                pendingSkillId={chainSelectedSkillRef.current}
+                                onSelect={handleChainSkillSelect}
+                                onClose={handleChainSkillClose}
+                                isInCam={true}
+                            />
+                        </div>
+                    ) : (
+                        <div className="battle-counter-prompt">
+                            <span className="battle-counter-prompt__label">Chain Attack?</span>
+                            <button
+                                className="battle-counter-prompt__btn battle-counter-prompt__btn--yes"
+                                onClick={handleChainAttack}
+                            >
+                                ATK
+                            </button>
+                            <button
+                                className="battle-counter-prompt__btn battle-counter-prompt__btn--no"
+                                onClick={handleChainRelent}
+                            >
+                                RELENT
+                            </button>
+                        </div>
+                    )
                 ) : itemMenuOpen ? (
                     <ItemSubmenu
                         visible={true}
