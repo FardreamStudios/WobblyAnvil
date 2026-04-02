@@ -23,6 +23,8 @@
     color: #e0d8c8;
     user-select: none;
     -webkit-user-select: none;
+    transition: background-size 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                background-position 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 /* --- Cinematic Blackout Overlay --- */

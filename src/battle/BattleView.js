@@ -491,9 +491,11 @@ function BattleView(props) {
     }
 
     // Stage-space position helper — returns { x, y } center of a combatant
-    // Action-cam-aware: returns engagement position when combatant is in cam
+    // Uses camExchangeRef (ref) instead of isActionCam (render-time value)
+    // so setTimeout callbacks in playback manager get the correct position
     function stagePos(combatantId) {
-        if (isActionCam && (combatantId === activeAtkId || combatantId === targetId)) {
+        var cam = camExchangeRef.current;
+        if (cam && (combatantId === cam.initiatorId || combatantId === cam.responderId)) {
             var cx = ACTION_CAM_SLOTS.centerX;
             var cy = ACTION_CAM_SLOTS.centerY;
             var gap = ACTION_CAM_SLOTS.gap;
@@ -511,7 +513,7 @@ function BattleView(props) {
     // Convenience: spawn damage number at a combatant's stage position
     function spawnDmgAt(combatantId, value, color, yOffset) {
         var pos = stagePos(combatantId);
-        spawnDamageNumber(value, pos.x, pos.y + (yOffset || 0), color);
+        spawnDamageNumber(value, pos.x - 10, pos.y - 25 + (yOffset || 0), color);
     }
 
     // Spawn a skill name label above a combatant sprite
@@ -522,7 +524,7 @@ function BattleView(props) {
         setSkillNameLabel({
             key: key,
             text: skillName,
-            x: pos.x,
+            x: pos.x - 10,
             y: pos.y - STAGE.spriteSize / 2 - 10,
             color: color || "#e0d8c8",
         });
@@ -1432,8 +1434,16 @@ function BattleView(props) {
         return slots[idx] || slots[slots.length - 1];
     }
 
+    // BG zoom — match stage zoom so background moves with camera
+    var bgFocusX = (ACTION_CAM_SLOTS.centerX / STAGE.designW * 100);
+    var bgFocusY = (ACTION_CAM_SLOTS.centerY / STAGE.designH * 100);
+    var rootStyle = Object.assign({}, ROOT_VARS, {
+        backgroundSize: isActionCam ? (camZoom * 100) + "%" : "cover",
+        backgroundPosition: isActionCam ? bgFocusX + "% " + bgFocusY + "%" : "center",
+    });
+
     return (
-        <div className={"battle-root" + (isActionCam ? " battle-root--cam" : "")} style={ROOT_VARS}>
+        <div className={"battle-root" + (isActionCam ? " battle-root--cam" : "")} style={rootStyle}>
 
             {/* === STAGE — fixed-ratio character arena, centered === */}
             <div
@@ -1525,8 +1535,8 @@ function BattleView(props) {
                             key={"skn-" + skillNameLabel.key}
                             className="action-cam-skill-name"
                             style={{
-                                left: skillNameLabel.x,
-                                top: skillNameLabel.y,
+                                left: skillNameLabel.x + "px",
+                                top: skillNameLabel.y + "px",
                                 color: skillNameLabel.color,
                             }}
                         >

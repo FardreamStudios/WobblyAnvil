@@ -145,15 +145,6 @@ function runOffense(bus, ctx) {
                         // Per-beat damage number — color by tier
                         var tierColor = tier === "perfect" ? "#ffd700" : "#ffffff";
                         bus.emit(BATTLE_TAGS.SPAWN_DAMAGE, { combatantId: receiverId, value: finalDmg, color: tierColor });
-
-                        // Overkill
-                        if (dmgResult.overkill > 0) {
-                            bus.emit(BATTLE_TAGS.SPAWN_DAMAGE, {
-                                combatantId: receiverId,
-                                value: "+" + dmgResult.overkill + " OVERKILL",
-                                color: BATTLE_END.overkillColor, yOffset: -20,
-                            });
-                        }
                     }, 60);
 
                     // Return swinger to idle, clear receiver after hit settles
@@ -352,14 +343,8 @@ function _applyDefenseOutcome(bus, ctx, tier, mult, inputType, beat, swingerId, 
         summaryDmg.total += blockDmg;
         summaryDmg.color = "#60a5fa";
 
-        if (braceResult.overkill > 0) {
-            bus.emit(BATTLE_TAGS.SPAWN_DAMAGE, {
-                combatantId: receiverId, value: "+" + braceResult.overkill + " OVERKILL",
-                color: BATTLE_END.overkillColor, yOffset: -20,
-            });
-        }
-
-        // Tier label
+        // Damage number + tier label
+        bus.emit(BATTLE_TAGS.SPAWN_DAMAGE, { combatantId: receiverId, value: blockDmg, color: "#60a5fa" });
         var braceLabel = isPerfect ? "PERFECT!" : "BLOCK";
         var braceLabelColor = isPerfect ? "#ffd700" : "#60a5fa";
         bus.emit(BATTLE_TAGS.SPAWN_DAMAGE, { combatantId: receiverId, value: braceLabel, color: braceLabelColor, yOffset: -30 });
@@ -393,6 +378,9 @@ function _applyDefenseOutcome(bus, ctx, tier, mult, inputType, beat, swingerId, 
     bus.emit(BATTLE_TAGS.FLASH, { combatantId: receiverId });
     BattleSFX.hit();
 
+    // Damage number
+    bus.emit(BATTLE_TAGS.SPAWN_DAMAGE, { combatantId: receiverId, value: fullDmg, color: dmgColor });
+
     var recState = bState.get(receiverId);
     var isKO = recState && recState.ko;
     if (isKO && isLastBeat) {
@@ -404,12 +392,6 @@ function _applyDefenseOutcome(bus, ctx, tier, mult, inputType, beat, swingerId, 
         }
     }
 
-    if (hitResult.overkill > 0) {
-        bus.emit(BATTLE_TAGS.SPAWN_DAMAGE, {
-            combatantId: receiverId, value: "+" + hitResult.overkill + " OVERKILL",
-            color: BATTLE_END.overkillColor, yOffset: -20,
-        });
-    }
     if (onDone) onDone();
 }
 
@@ -529,13 +511,6 @@ function resolveOffenseHit(bus, ctx, hit, beat, swingerId, receiverId, dmgColor,
 
             if (beat.shake && !isReceiverKO) {
                 bus.emit(BATTLE_TAGS.SHAKE, { level: beat.shake });
-            }
-
-            if (dmgResult.overkill > 0) {
-                bus.emit(BATTLE_TAGS.SPAWN_DAMAGE, {
-                    combatantId: receiverId, value: "+" + dmgResult.overkill + " OVERKILL",
-                    color: BATTLE_END.overkillColor, yOffset: -20,
-                });
             }
         }, 60);
 
