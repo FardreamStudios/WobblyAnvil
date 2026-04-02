@@ -157,28 +157,31 @@ var CRASH_ENTRANCE = {
 
 // ============================================================
 // FAIRY RESCUE
-// Catches a weapon mid-shatter. Flies to anvil, flash, restore.
-// Once per run. Controller gates availability.
-// Layer: scene (interacting with forge props).
+// Catches a weapon mid-shatter. Dramatic entrance, speaks,
+// then stays visible for chat. Player must convince fairy
+// to return weapon via LLM chat. No auto-exit.
+// Layer: overlay (unmissable, full size like chat_idle).
 // ============================================================
 
 var FAIRY_RESCUE = {
     id: "fairy_rescue",
-    description: "Intercept shatter — fly to anvil, flash, restore weapon",
-    layer: "scene",
+    description: "Intercept shatter — dramatic entrance, stay for chat (overlay)",
+    layer: "overlay",
+    waitForInput: true,
     steps: [
         { at: 0,    cmd: "play_audio",   sound: "fairy_alert" },
-        { at: 0,    cmd: "poof_in",      spot: "far_right", duration: 100 },
-        { at: 150,  cmd: "set_anim",     anim: "point" },
-        { at: 200,  cmd: "move",         spot: "near_anvil", duration: 400 },
-        { at: 650,  cmd: "play_fx",      busTag: "FX_FAIRY_RESCUE" },
-        { at: 650,  cmd: "play_audio",   sound: "fairy_magic" },
-        { at: 900,  cmd: "speak",        text: "NOT ON MY WATCH.", duration: 2500 },
-        { at: 3500, cmd: "hide_speech" },
-        { at: 3600, cmd: "speak",        text: null, duration: null },
+        { at: 0,    cmd: "poof_in",      spot: { x: 50, y: 50 }, scale: 2.5, duration: 150 },
+        { at: 200,  cmd: "set_anim",     anim: "point" },
+        { at: 250,  cmd: "play_fx",      busTag: "FX_FAIRY_RESCUE" },
+        { at: 250,  cmd: "play_audio",   sound: "fairy_magic" },
+        { at: 500,  cmd: "speak",        text: "NOT ON MY WATCH.", duration: 2500 },
+        { at: 3100, cmd: "hide_speech" },
+        { at: 3300, cmd: "speak",        text: null, duration: null },
         { at: null, cmd: "hide_speech" },
         { at: null, cmd: "set_anim",     anim: "idle" },
-        { at: null, cmd: "poof_out",     duration: 200 },
+        { at: null, cmd: "set_tappable",  value: true },
+        // Fairy stays visible — waitForInput prevents auto-complete.
+        // Controller manages linger timeout + chat mode.
     ],
 };
 

@@ -202,6 +202,7 @@ function _splitIntoBubbles(line) {
 
 var _ACTION_RE = /\[MOVE:([a-z_]+)\]/i;
 var _GIVE_RE = /\[GIVE:gold(?::(\d+))?\]/i;
+var _REPAIR_RE = /\[REPAIR\]/i;
 
 /**
  * Fuzzy-match an LLM spot id against the registry.
@@ -238,6 +239,7 @@ function _fuzzyMatchSpot(rawSpot) {
 function _parseActions(line) {
     var action = null;
     var gift = null;
+    var repair = false;
     var cleanText = line;
 
     // Parse MOVE
@@ -260,10 +262,18 @@ function _parseActions(line) {
         gift = { type: "gold", amount: giveAmt };
     }
 
+    // Parse REPAIR — fairy agreed to fix the weapon
+    var repairMatch = _REPAIR_RE.exec(cleanText);
+    if (repairMatch) {
+        cleanText = cleanText.replace(repairMatch[0], "").trim();
+        repair = true;
+    }
+
     return {
         text: cleanText,
         action: action,
         gift: gift,
+        repair: repair,
     };
 }
 
@@ -411,6 +421,7 @@ function sendMessage(text) {
         var displayText = parsed.text;
         var action = parsed.action;
         var gift = parsed.gift;
+        var repair = parsed.repair;
 
         // Store the clean text (no action tags) in history
         _history.push({ role: "fairy", text: displayText });
@@ -425,7 +436,7 @@ function sendMessage(text) {
 
             // Emit first bubble immediately — attach action to first bubble only
             var hasMore = bubbles.length > 1;
-            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[0], action: action || null, gift: gift || null, hasMore: hasMore });
+            _bus.emit(EVENT_TAGS.UI_FAIRY_CHAT_SPEAK, { line: bubbles[0], action: action || null, gift: gift || null, repair: repair || false, hasMore: hasMore });
 
             // Stagger remaining bubbles (no action on subsequent bubbles)
             var delay = FAIRY_CONFIG.chatBubbleDelayMs || 2800;

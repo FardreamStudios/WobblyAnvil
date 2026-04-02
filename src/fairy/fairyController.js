@@ -351,7 +351,14 @@ function init(config) {
     // --- Init FairyChatSystem (owned by controller) ---
     FairyChatSystem.init({
         bus: _bus,
-        stateProvider: _stateProvider,
+        stateProvider: function() {
+            var state = _stateProvider ? _stateProvider() : {};
+            // Inject rescue context so LLM knows it can [REPAIR]
+            if (_rescueSnapshot) {
+                state.rescueActive = true;
+            }
+            return state;
+        },
     });
 
     // --- Init FairyDigest (event diary for LLM context) ---
@@ -553,16 +560,16 @@ function _declineRescue() {
     if (_bus) _bus.emit(EVENT_TAGS.FAIRY_RESCUE_DECLINE, {});
 }
 
-var RESCUE_LINGER_MS = 10000;
+var RESCUE_LINGER_MS = 25000;
 var _rescueLingerTimer = null;
 
 function _startRescueLingerTimer() {
     _clearRescueLingerTimer();
     _rescueLingerTimer = setTimeout(function() {
         _rescueLingerTimer = null;
-        // Auto-accept: fairy caves and gives the weapon back
+        // Timed out — player didn't convince fairy. Weapon is lost.
         if (_rescueSnapshot) {
-            _acceptRescue();
+            _declineRescue();
         }
     }, RESCUE_LINGER_MS);
 }
@@ -1180,6 +1187,15 @@ function _onChatSpeak(payload) {
         if (_bus) _bus.emit(EVENT_TAGS.ECONOMY_EARN_GOLD, { amount: amount });
         _sendCommand({ intent: "show_gold_drop", amount: amount });
     }
+
+    // Handle weapon repair (parsed by fairyChatSystem) — player convinced fairy
+    if (payload.repair && _rescueSnapshot) {
+        _clearRescueLingerTimer();
+        // Brief delay so player sees the fairy's acceptance line first
+        setTimeout(function() {
+            _acceptRescue();
+        }, 2000);
+    }
 }
 
 /** UI_FAIRY_CHAT_CLOSE — chat system closed (idle timeout or explicit) */
@@ -1191,11 +1207,11 @@ function _onChatClosed() {
 /** Internal: tear down chat state and dismiss fairy */
 function _closeChatSession() {
     // If rescue is pending and we're closing chat (idle timeout, etc),
-    // treat it as an accept — fairy caves and gives the weapon back
+    // treat it as a decline — player didn't convince fairy, weapon is lost
     if (_rescueSnapshot) {
         _clearRescueLingerTimer();
-        _acceptRescue();
-        return; // _acceptRescue already calls _closeChatSession after clearing snapshot
+        _declineRescue();
+        return; // _declineRescue already calls _closeChatSession after clearing snapshot
     }
 
     _chatActive = false;
@@ -1293,11 +1309,11 @@ function _onTutorialComplete(result, stored) {
                 FairyTutorial.start("tut_rep");
             }, 500);
         } else {
-            // Player declined — dismiss fairy, persist opt-out, unlock UI
+            // Player declined tutorial — but fairy stays alive for
+            // rescue, ambient reactions, and chat. Only tutorial is off.
             _persistFlag(LS_KEY_TUTORIAL_OFF, "true");
-            _saveEnabledPref(false);
             _setTutorialHighlight(null);
-            _setState(STATES.DISMISSED);
+            _setState(STATES.IDLE);
         }
         return;
     }
