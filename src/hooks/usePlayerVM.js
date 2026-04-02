@@ -65,7 +65,7 @@ function usePlayerVM(deps) {
             setXp(cur); setLevel(lv); setStatPoints(function(p) { return p + pts; });
             GameplayEventBus.emit(EVENT_TAGS.FX_LEVEL_UP, { level: lv });
             GameplayEventBus.emit(EVENT_TAGS.UI_ADD_TOAST, {
-                msg: "LEVEL UP\nYou are now Level " + lv + "! +" + pts + " stat " + (pts > 1 ? "points" : "point") + ".",
+                msg: "LEVEL UP\nLevel " + lv + "\n+" + pts + " stat " + (pts > 1 ? "points" : "point"),
                 icon: "",
                 color: "#4ade80",
                 duration: 3500,

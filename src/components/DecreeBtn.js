@@ -141,9 +141,9 @@ function DecreeBtn(props) {
     var fulfilled = quest.fulfilled;
     var accentColor = fulfilled ? T.colors.green : T.colors.gold;
 
-    // Due tomorrow glow check
+    // Glow: none when fulfilled, red when due tomorrow, yellow when active
     var dueSoon = !fulfilled && quest.deadline && quest.deadline <= (quest._currentDay || 999) + 1;
-    var glowClass = dueSoon ? "decree-urgent-img" : "decree-glow-img";
+    var glowClass = fulfilled ? "" : dueSoon ? "decree-urgent-img" : "decree-glow-img";
 
     return (
         <div ref={btnRef} style={{ position: "relative", width: "100%", height: "100%", flex: 1 }}>
