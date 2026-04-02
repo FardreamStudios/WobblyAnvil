@@ -2,25 +2,19 @@
 // TurnOrderStrip.js — Initiative turn order display
 //
 // Shows combatant portraits in initiative sequence.
-// Highlights the active combatant. Shows AP bar per entry.
+// Highlights the active combatant.
 // Replaces ATBGaugeStrip.js.
 //
 // Props:
 //   turnOrder     — array of combatant ids in initiative order
 //   turnIndex     — current index in turnOrder (-1 = not started)
-//   apState       — AP state map from battleEngagement
 //   combatantMap  — keyed object { id: { id, name, _isParty, ... } }
 //   hidden        — bool, hide during action cam
 // ============================================================
 
-import BattleConstants from "../config/battleConstants.js";
-
-var ENGAGEMENT = BattleConstants.ENGAGEMENT;
-
 function TurnOrderStrip(props) {
     var turnOrder = props.turnOrder || [];
     var turnIndex = props.turnIndex;
-    var apState = props.apState || {};
     var combatantMap = props.combatantMap || {};
     var hidden = props.hidden;
 
@@ -34,8 +28,6 @@ function TurnOrderStrip(props) {
 
                 var isActive = idx === turnIndex;
                 var isParty = c._isParty;
-                var ap = apState[id] || { current: 0, max: ENGAGEMENT.AP_MAX };
-                var apPct = ap.max > 0 ? Math.round(ap.current / ap.max * 100) : 0;
                 var isKO = c.currentHP != null && c.currentHP <= 0;
 
                 var entryCls = "battle-turn-order__entry"
@@ -50,12 +42,6 @@ function TurnOrderStrip(props) {
                     <div className={entryCls} key={id + "-" + idx}>
                         <div className="battle-turn-order__portrait">
                             <span className="battle-turn-order__initial">{initial}</span>
-                        </div>
-                        <div className="battle-turn-order__ap-bg">
-                            <div
-                                className={"battle-turn-order__ap-fill" + (isParty ? " battle-turn-order__ap-fill--party" : " battle-turn-order__ap-fill--enemy")}
-                                style={{ width: apPct + "%" }}
-                            />
                         </div>
                     </div>
                 );

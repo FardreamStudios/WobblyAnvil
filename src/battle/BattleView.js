@@ -142,11 +142,11 @@ function BattleView(props) {
     var waveLabel = "Wave " + (waveIndex + 1) + "/" + totalWaves;
 
     // --- State ---
-    var [phase, setPhase] = useState(PHASES.TURN_ACTIVE);
+    var [phase, setPhase] = useState(PHASES.INTRO);
     var [targetId, setTargetId] = useState(null);
     var [turnOwnerId, setTurnOwnerId] = useState(null);
     var [attackerId] = useState(TEST_PARTY[0].id);
-    var [turnLoopRunning, setTurnLoopRunning] = useState(true);
+    var [turnLoopRunning, setTurnLoopRunning] = useState(false);
     var [shakeLevel, setShakeLevel] = useState(null);
     var [flashId, setFlashId] = useState(null);
     var [animState, setAnimState] = useState({});
@@ -336,6 +336,28 @@ function BattleView(props) {
         return function() { bus.off(BATTLE_TAGS.TURN_START, onTurnStart); };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // --- Auto-end turn when TURN_ACTIVE + no AP or enemy turn owner ---
+    // This is the formation layer deciding "this turn is over."
+    // Runs after camOut returns to TURN_ACTIVE, or after any AP-spending action.
+    useEffect(function() {
+        if (phase !== PHASES.TURN_ACTIVE) return;
+        if (!turnOwnerId) return;
+
+        // Enemy turn owner returned to formation — auto-end (shouldn't normally happen, safety net)
+        if (!bState.isPartyId(turnOwnerId)) {
+            console.log("[auto-end] enemy " + turnOwnerId + " in TURN_ACTIVE, ending turn");
+            endFormationTurn();
+            return;
+        }
+
+        // Check AP — if 0, auto-end
+        var currentAP = BattleEngagement.getAP(apStateRef.current, turnOwnerId);
+        if (currentAP <= 0) {
+            console.log("[auto-end] " + turnOwnerId + " has 0 AP, ending turn");
+            endFormationTurn();
+        }
+    }, [phase, turnOwnerId, apState]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // --- Playback bus subscribers — map manager events to React state ---
     useEffect(function() {
         function onAnimSet(p) {
@@ -418,14 +440,15 @@ function BattleView(props) {
     // --- Helpers ---
     var isActionCam = phase === PHASES.ACTION_CAM_IN || phase === PHASES.CAM_SWING_QTE
         || phase === PHASES.CAM_SWING_PLAYBACK || phase === PHASES.CAM_RESOLVE
-        || phase === PHASES.CAM_COUNTER_PROMPT;
+        || phase === PHASES.CAM_COUNTER_PROMPT || phase === PHASES.ACTION_CAM_OUT;
+    var isIntro = phase === PHASES.INTRO;
     var showQTE = phase === PHASES.CAM_SWING_QTE;
     var showComic = isActionCam;
     var showSpark = phase === PHASES.CAM_RESOLVE;
 
     var comicLine = COMIC_LINES[phase] || "...";
 
-    var activeAtkId = turnOwnerId || attackerId;
+    var activeAtkId = turnOwnerId || null;
 
     // --- Combatant map: built from battleState (mutable HP/items) + AP ---
     var bSnap = bState.snapshot();
@@ -528,8 +551,8 @@ function BattleView(props) {
         // Re-create battle state from scratch
         battleStateRef.current = BattleStateModule.createBattleState(TEST_PARTY, wave0);
         bumpState();
-        // Reset all transient UI state
-        setPhase(PHASES.TURN_ACTIVE);
+        // Reset all transient UI state — back to INTRO
+        setPhase(PHASES.INTRO);
         setTurnLoopRunning(false);
         setApState(BattleEngagement.initAPState(TEST_PARTY.concat(wave0), ENGAGEMENT.AP_MAX));
         turnLoop.reset();
@@ -550,6 +573,15 @@ function BattleView(props) {
         defenseActiveRef.current = false;
         defenseInputResolveRef.current = null;
         DefenseTiming.destroy();
+    }
+
+    // ============================================================
+    // START BATTLE — from INTRO phase, roll initiative, begin
+    // ============================================================
+    function handleStartBattle() {
+        if (phase !== PHASES.INTRO) return;
+        setTurnLoopRunning(true);
+        turnLoop.start();
     }
 
     // ============================================================
@@ -1002,6 +1034,10 @@ function BattleView(props) {
     }
 
     function camOut() {
+        // Capture initiator before clearing cam state
+        var camInitiatorId = camExchangeRef.current
+            ? camExchangeRef.current.initiatorId : null;
+
         setPhase(PHASES.ACTION_CAM_OUT);
 
         setTimeout(function() {
@@ -1016,10 +1052,11 @@ function BattleView(props) {
                 return kept;
             });
             camExchangeRef.current = null;
-            setTurnOwnerId(null);
+            setTargetId(null);
 
-            // End the current combatant's turn — turn loop advances
-            endFormationTurn();
+            // Always return to formation. Let formation handle what's next.
+            console.log("[camOut] returning to TURN_ACTIVE, turnOwner=" + camInitiatorId);
+            setPhase(PHASES.TURN_ACTIVE);
         }, ACTION_CAM.transitionOutMs);
     }
 
@@ -1096,11 +1133,13 @@ function BattleView(props) {
                 setItemMenuOpen(false);
                 setSkillMenuOpen(true);
             } else {
-                // AI-controlled party — auto-select first skill
+                // AI-controlled party — auto-select first skill + first living enemy
                 var autoSkill = combatantMap[userId] && combatantMap[userId].skills
                     ? combatantMap[userId].skills[0] : null;
                 if (autoSkill) {
                     selectedSkillRef.current = autoSkill;
+                    var autoTarget = pickFirstLivingEnemy();
+                    if (autoTarget) setTargetId(autoTarget);
                     handleSkillConfirm();
                 }
             }
@@ -1120,6 +1159,7 @@ function BattleView(props) {
                 handleFlee(userId);
             } else if (actionId === "wait") {
                 // Free action — end turn, keep AP, earn more next turn
+                console.log("[handleAction] END pressed, userId=" + userId + " calling endFormationTurn");
                 endFormationTurn();
             }
         }
@@ -1206,12 +1246,21 @@ function BattleView(props) {
     // Single source of truth for "formation turn is over."
     // ============================================================
     function endFormationTurn() {
-        var currentId = turnOwnerId;
+        endFormationTurnFor(turnOwnerId);
+    }
+
+    function endFormationTurnFor(combatantId) {
+        console.log("[endFormationTurn] combatantId=" + combatantId + " turnLoopRunning=" + turnLoopRunning + " phase=" + phase);
         setTurnOwnerId(null);
         setTurnLoopRunning(true);
-        // Turn loop listens for TURN_END and auto-advances
-        if (currentId) {
-            bus.emit(BATTLE_TAGS.TURN_END, { combatantId: currentId });
+        if (combatantId) {
+            console.log("[endFormationTurn] scheduling TURN_END emit for " + combatantId);
+            setTimeout(function() {
+                console.log("[endFormationTurn] emitting TURN_END for " + combatantId);
+                bus.emit(BATTLE_TAGS.TURN_END, { combatantId: combatantId });
+            }, 20);
+        } else {
+            console.warn("[endFormationTurn] no combatantId — TURN_END not emitted");
         }
     }
 
@@ -1511,12 +1560,12 @@ function BattleView(props) {
                     turnIndex={turnLoop.turnIndex}
                     apState={apState}
                     combatantMap={combatantMap}
-                    hidden={isActionCam}
+                    hidden={isActionCam || isIntro}
                 />
 
                 {/* Action menu — right side (flippable) */}
                 <ActionMenu
-                    hidden={isActionCam}
+                    hidden={isActionCam || isIntro}
                     onAction={handleAction}
                     isLeftHanded={isLeftHanded}
                     apState={apState}
@@ -1607,6 +1656,7 @@ function BattleView(props) {
             <DevControls
                 phase={phase}
                 turnLoopRunning={turnLoopRunning}
+                onStart={handleStartBattle}
                 onAdvanceTurn={handleDevAdvanceTurn}
                 onFillAP={handleDevFillAP}
                 onReset={handleDevReset}

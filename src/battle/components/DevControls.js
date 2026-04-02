@@ -1,12 +1,13 @@
 // ============================================================
 // DevControls.js — Battle dev overlay (engagement system)
 //
-// Buttons: Advance Turn, Fill AP, Reset, Exit
+// Buttons: Start (INTRO only), Advance Turn, Fill AP, Reset, Exit
 // Plus phase badge for debugging.
 //
 // Props:
 //   phase            — current BATTLE_PHASES value
 //   turnLoopRunning  — bool, whether turn loop is active
+//   onStart          — fn, start battle (rolls initiative, first turn)
 //   onAdvanceTurn    — fn, manually advance to next turn
 //   onFillAP         — fn, fill all combatant AP to max
 //   onReset          — fn, full battle reset
@@ -24,6 +25,7 @@ var PHASES = BattleConstants.BATTLE_PHASES;
 // PHASE DISPLAY LABELS
 // ============================================================
 var PHASE_LABELS = {};
+PHASE_LABELS[PHASES.INTRO]              = "INTRO";
 PHASE_LABELS[PHASES.INITIATIVE_ROLL]    = "INIT ROLL";
 PHASE_LABELS[PHASES.TURN_ACTIVE]        = "TURN ACTIVE";
 PHASE_LABELS[PHASES.ACTION_CAM_IN]      = "CAM IN";
@@ -43,13 +45,15 @@ var _DEV_CONTROLS = true;
 function DevControls(props) {
     if (!_DEV_CONTROLS) return null;
 
-    var loopLabel = props.turnLoopRunning ? "Pause" : "Resume";
+    var isIntro = props.phase === PHASES.INTRO;
 
     return (
         <div className="battle-dev">
-            <button className="battle-dev__btn" onClick={props.onAdvanceTurn}>
-                Advance
-            </button>
+            {isIntro && (
+                <button className="battle-dev__btn battle-dev__btn--start" onClick={props.onStart}>
+                    Start Battle
+                </button>
+            )}
             <button className="battle-dev__btn" onClick={props.onFillAP}>Fill AP</button>
             <button className="battle-dev__btn" onClick={props.onReset}>Reset</button>
             <button className="battle-dev__btn" onClick={props.onExit}>Exit</button>

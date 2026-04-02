@@ -45,9 +45,8 @@ function useBattleTurnLoop(opts) {
     var setApState       = opts.setApState;
 
     // --- Turn order state ---
-    var [turnOrder, setTurnOrder] = useState(function() {
-        return engagement.rollInitiative(combatants, engagementConfig.INITIATIVE_VARIANCE);
-    });
+    // Starts empty — call start() to roll initiative and begin.
+    var [turnOrder, setTurnOrder] = useState([]);
     var [turnIndex, setTurnIndex] = useState(-1); // -1 = not started
     var [currentTurnId, setCurrentTurnId] = useState(null);
 
@@ -61,9 +60,9 @@ function useBattleTurnLoop(opts) {
     runningRef.current = running;
     apStateRef.current = apState;
 
-    // --- Roll initiative on mount ---
+    // --- Explicit start — called by BattleView when player presses Start ---
     var hasStartedRef = useRef(false);
-    useEffect(function() {
+    var start = useCallback(function() {
         if (hasStartedRef.current) return;
         hasStartedRef.current = true;
 
@@ -75,7 +74,7 @@ function useBattleTurnLoop(opts) {
 
         // Start first turn
         startTurnAt(order, 0);
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [bus, engagement, engagementConfig, combatants]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // --- Core: start a turn at a given index ---
     function startTurnAt(order, idx) {
@@ -154,11 +153,19 @@ function useBattleTurnLoop(opts) {
     // --- Listen for TURN_END on bus to auto-advance ---
     useEffect(function() {
         function onTurnEnd() {
-            if (!runningRef.current) return;
+            console.log("[TurnLoop] TURN_END received, runningRef=" + runningRef.current);
+            if (!runningRef.current) {
+                console.warn("[TurnLoop] BLOCKED — runningRef is false, not advancing");
+                return;
+            }
             // Small delay so state settles before next turn
             setTimeout(function() {
+                console.log("[TurnLoop] setTimeout fired, runningRef=" + runningRef.current);
                 if (runningRef.current) {
+                    console.log("[TurnLoop] advancing to next turn");
                     advance();
+                } else {
+                    console.warn("[TurnLoop] BLOCKED on second check — runningRef went false");
                 }
             }, 50);
         }
@@ -199,6 +206,7 @@ function useBattleTurnLoop(opts) {
         turnOrder: turnOrder,
         turnIndex: turnIndex,
         currentTurnId: currentTurnId,
+        start: start,
         advance: advance,
         reroll: reroll,
         reset: reset,

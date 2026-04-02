@@ -74,7 +74,7 @@ var ACTIONS = [
     { id: "defend",  label: "DEF",  color: "#4ade80", bg: "#0a1a14" },
     { id: "item",    label: "ITEM", color: "#f59e0b", bg: "#1a1408" },
     { id: "flee",    label: "FLEE", color: "#8a7a64", bg: "#141009" },
-    { id: "wait",    label: "WAIT", color: "#a0a0a0", bg: "#111111" },
+    { id: "wait",    label: "END",  color: "#a0a0a0", bg: "#111111" },
 ];
 
 // --- In-Cam Actions removed — engagement system uses formation-only actions ---
@@ -258,6 +258,7 @@ var TEST_WAVES = [
 
 // --- Battle Phases ---
 var BATTLE_PHASES = {
+    INTRO:            "intro",              // pre-battle: loaded in, waiting for start
     INITIATIVE_ROLL:  "initiative_roll",    // rolling initiative at fight/wave start
     TURN_ACTIVE:      "turn_active",        // current combatant's formation turn (spend AP)
     ACTION_CAM_IN:    "action_cam_in",       // sliding combatants to center stage
@@ -314,6 +315,14 @@ var WAVE_TRANSITION = {
     fadeOutMs:      200,        // banner fade-out
     bannerColor:    "#f59e0b",  // amber text
     bannerBg:       "rgba(10, 7, 4, 0.85)",  // dark overlay behind banner
+};
+
+// --- Intro Phase Config ---
+var INTRO = {
+    holdMs:         600,        // brief pause after start press before initiative rolls
+    bannerText:     "BATTLE START",
+    bannerColor:    "#60a5fa",  // blue
+    bannerBg:       "rgba(10, 7, 4, 0.85)",
 };
 
 // --- Results Screen Config ---
@@ -391,6 +400,7 @@ var BattleConstants = {
     TEST_ENEMIES: TEST_ENEMIES,
     TEST_WAVES: TEST_WAVES,
     WAVE_TRANSITION: WAVE_TRANSITION,
+    INTRO: INTRO,
     ACTIONS: ACTIONS,
     BATTLE_PHASES: BATTLE_PHASES,
     BATTLE_ITEMS: BATTLE_ITEMS,
