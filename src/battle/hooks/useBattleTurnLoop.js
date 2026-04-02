@@ -98,29 +98,30 @@ function useBattleTurnLoop(opts) {
         turnIndexRef.current = idx;
         setCurrentTurnId(id);
 
-        // Earn AP for this combatant
+        // Earn AP for this combatant — compute synchronously so ref
+        // is current before TURN_START fires and BattleView reads it.
         var combatant = null;
         for (var i = 0; i < combatants.length; i++) {
             if (combatants[i].id === id) { combatant = combatants[i]; break; }
         }
         var speed = combatant ? combatant.speed : 1;
 
-        setApState(function(prev) {
-            var next = engagement.earnAP(prev, id, speed, engagementConfig);
-            apStateRef.current = next;
-            var earned = engagement.getAP(next, id) - engagement.getAP(prev, id);
-            bus.emit(BATTLE_TAGS.AP_EARNED, {
-                combatantId: id,
-                amount: earned,
-                newTotal: engagement.getAP(next, id),
-            });
-            return next;
+        var prevAP = apStateRef.current;
+        var nextAP = engagement.earnAP(prevAP, id, speed, engagementConfig);
+        apStateRef.current = nextAP;
+        setApState(nextAP);
+
+        var earned = engagement.getAP(nextAP, id) - engagement.getAP(prevAP, id);
+        bus.emit(BATTLE_TAGS.AP_EARNED, {
+            combatantId: id,
+            amount: earned,
+            newTotal: engagement.getAP(nextAP, id),
         });
 
         // Clear defend buffs — they last "until your next turn"
         bState.clearDefendBuffs(id);
 
-        // Emit turn start
+        // Emit turn start — AP ref is already updated
         var isParty = bState.isPartyId(id);
         bus.emit(BATTLE_TAGS.TURN_START, {
             combatantId: id,
