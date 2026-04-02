@@ -74,6 +74,7 @@ var BATTLE_END = BattleConstants.BATTLE_END;
 var COMBO = BattleConstants.COMBO;
 var WAVE_TRANSITION = BattleConstants.WAVE_TRANSITION;
 var DEFENSE_TIMING = BattleConstants.DEFENSE_TIMING;
+var CHOREO_DISTANCES = BattleConstants.CHOREO_DISTANCES;
 
 // ============================================================
 // COMIC PANEL LINES — fairy speech per phase
@@ -95,6 +96,11 @@ var ROOT_VARS = {
     "--battle-actions-w":   LAYOUT.actionsW,
     "--battle-sprite-size": LAYOUT.spriteSize,
     "--battle-scene-bg":    "url(" + PUB + "/images/scenes/waSceneSewer.png)",
+    "--choreo-lunge":       CHOREO_DISTANCES.lungePx + "px",
+    "--choreo-knockback":   CHOREO_DISTANCES.knockbackPx + "px",
+    "--choreo-dodge":       CHOREO_DISTANCES.dodgePx + "px",
+    "--choreo-flinch":      CHOREO_DISTANCES.flinchPx + "px",
+    "--choreo-windup":      CHOREO_DISTANCES.windUpPx + "px",
 };
 
 // ============================================================
@@ -213,8 +219,7 @@ function BattleView(props) {
     var bus = battleBusRef.current;
     useEffect(function() {
         return function() {
-            if (battleBusRef.current) battleBusRef.current.destroy();
-            if (directorRef.current) directorRef.current.destroy();
+            if (directorRef.current) { directorRef.current.destroy(); directorRef.current = null; }
         };
     }, []);
 
@@ -364,6 +369,11 @@ function BattleView(props) {
                 camExchangeRef.current = null;
             },
 
+            // --- Cam exchange tracking (who's in the action cam) ---
+            setCamExchange: function(initiatorId, responderId) {
+                camExchangeRef.current = { initiatorId: initiatorId, responderId: responderId };
+            },
+
             // --- Cam lifecycle helpers ---
             onCamOut: function() {
                 // Preserve KO anims, clear everything else
@@ -479,7 +489,6 @@ function BattleView(props) {
     var isIntro = phase === PHASES.INTRO;
     var showQTE = phase === PHASES.CAM_SWING_QTE;
     var showComic = isActionCam;
-    var showSpark = phase === PHASES.CAM_RESOLVE;
 
     var comicLine = COMIC_LINES[phase] || "...";
 
@@ -698,6 +707,7 @@ function BattleView(props) {
 
     function handleSceneTouchStart(e) {
         if (!defenseActiveRef.current) return;
+        console.log("[Defense] touchStart — defense active");
         var t = e.touches[0];
         defenseTouchStartRef.current = { x: t.clientX, y: t.clientY };
     }
@@ -705,6 +715,7 @@ function BattleView(props) {
     function handleSceneTouchEnd(e) {
         // Defense active — classify tap vs swipe for defense input
         if (defenseActiveRef.current) {
+            console.log("[Defense] touchEnd — defense active, locked:", DefenseTiming.isLocked());
             if (DefenseTiming.isLocked()) return;
 
             var start = defenseTouchStartRef.current;
@@ -1082,11 +1093,6 @@ function BattleView(props) {
                         );
                     })}
 
-                    {/* Clash spark */}
-                    <span className={"battle-spark" + (showSpark ? " battle-spark--visible" : "")}>
-                    {"\u2694\uFE0F"}
-                </span>
-
                     {/* Action cam pixel frame */}
                     <div className={"battle-cam-frame" + (isActionCam ? " battle-cam-frame--visible" : "")} />
 
@@ -1127,29 +1133,8 @@ function BattleView(props) {
                 apState={apState}
             />
 
-            {/* === COUNTER PROMPT — shown after initiator's swing === */}
-            {showCounterPrompt && counterResponderIsParty && (
-                <div className="battle-counter-prompt">
-                    <span className="battle-counter-prompt__label">
-                        {"Counter? (" + ENGAGEMENT.AP_COST_COUNTER + " AP)"}
-                    </span>
-                    <button
-                        className="battle-counter-prompt__btn battle-counter-prompt__btn--yes"
-                        onClick={handleCounterAccept}
-                    >
-                        YES
-                    </button>
-                    <button
-                        className="battle-counter-prompt__btn battle-counter-prompt__btn--no"
-                        onClick={handleCounterDecline}
-                    >
-                        NO
-                    </button>
-                </div>
-            )}
-
-            {/* === BOTTOM OVERLAY — Turn Order + Action Menu === */}
-            <div className="battle-overlay-bottom">
+            {/* === BOTTOM OVERLAY — Turn Order + Decision Slot + Comic === */}
+            <div className={"battle-overlay-bottom" + (showCounterPrompt ? " battle-overlay-bottom--counter" : "")}>
 
                 {/* Turn order strip — initiative queue with AP bars */}
                 <TurnOrderStrip
@@ -1160,16 +1145,70 @@ function BattleView(props) {
                     hidden={isActionCam || isIntro}
                 />
 
-                {/* Action menu — right side (flippable) */}
-                <ActionMenu
-                    hidden={isActionCam || isIntro}
-                    onAction={handleAction}
-                    isLeftHanded={isLeftHanded}
-                    apState={apState}
-                    activeId={activeAtkId}
-                />
+                {/* === RIGHT DECISION SLOT — mutually exclusive === */}
+                {showCounterPrompt && counterResponderIsParty ? (
+                    <div className="battle-counter-prompt">
+                        <span className="battle-counter-prompt__label">
+                            {"Counter? (" + ENGAGEMENT.AP_COST_COUNTER + " AP)"}
+                        </span>
+                        <button
+                            className="battle-counter-prompt__btn battle-counter-prompt__btn--yes"
+                            onClick={handleCounterAccept}
+                        >
+                            YES
+                        </button>
+                        <button
+                            className="battle-counter-prompt__btn battle-counter-prompt__btn--no"
+                            onClick={handleCounterDecline}
+                        >
+                            NO
+                        </button>
+                    </div>
+                ) : itemMenuOpen ? (
+                    <ItemSubmenu
+                        visible={true}
+                        items={(function() {
+                            var c = bState.get(activeAtkId);
+                            return c ? c.items : [];
+                        })()}
+                        onUse={handleItemUse}
+                        onClose={handleItemClose}
+                        isInCam={false}
+                    />
+                ) : skillMenuOpen ? (
+                    <div className="battle-right-slot">
+                        {selectedSkillRef.current && (
+                            <div className="battle-pick-target-prompt">
+                                <span className="battle-pick-target-prompt__text">PICK TARGET</span>
+                            </div>
+                        )}
+                        <SkillSubmenu
+                            visible={true}
+                            skills={(function() {
+                                var cData = combatantMap[activeAtkId];
+                                if (!cData || !cData.skills) return [];
+                                return cData.skills.map(function(sId) {
+                                    return BattleSkills.getSkill(sId);
+                                }).filter(Boolean);
+                            })()}
+                            availableAP={BattleEngagement.getAP(apState, activeAtkId)}
+                            pendingSkillId={selectedSkillRef.current}
+                            onSelect={handleSkillSelect}
+                            onClose={handleSkillClose}
+                            isInCam={false}
+                        />
+                    </div>
+                ) : !isActionCam && !isIntro ? (
+                    <ActionMenu
+                        hidden={false}
+                        onAction={handleAction}
+                        isLeftHanded={isLeftHanded}
+                        apState={apState}
+                        activeId={activeAtkId}
+                    />
+                ) : null}
 
-                {/* Comic panel */}
+                {/* Comic panel — visible during action cam */}
                 <ComicPanel
                     visible={showComic}
                     sprite={null}
@@ -1178,44 +1217,6 @@ function BattleView(props) {
                     isLeftHanded={isLeftHanded}
                 />
             </div>
-
-            {/* === VIEWPORT-LEVEL UI — above all stacking contexts === */}
-
-            {/* Item submenu — formation only */}
-            <ItemSubmenu
-                visible={itemMenuOpen}
-                items={itemMenuOpen ? (function() {
-                    var c = bState.get(activeAtkId);
-                    return c ? c.items : [];
-                })() : []}
-                onUse={handleItemUse}
-                onClose={handleItemClose}
-                isInCam={false}
-            />
-
-            {/* Skill submenu — pick skill, pick target, retap skill to confirm */}
-            <SkillSubmenu
-                visible={skillMenuOpen}
-                skills={skillMenuOpen ? (function() {
-                    var cData = combatantMap[activeAtkId];
-                    if (!cData || !cData.skills) return [];
-                    return cData.skills.map(function(sId) {
-                        return BattleSkills.getSkill(sId);
-                    }).filter(Boolean);
-                })() : []}
-                availableAP={skillMenuOpen ? BattleEngagement.getAP(apState, activeAtkId) : 0}
-                pendingSkillId={selectedSkillRef.current}
-                onSelect={handleSkillSelect}
-                onClose={handleSkillClose}
-                isInCam={false}
-            />
-
-            {/* Pick target prompt — shown when a skill is pending */}
-            {skillMenuOpen && selectedSkillRef.current && (
-                <div className="battle-pick-target-prompt">
-                    <span className="battle-pick-target-prompt__text">PICK TARGET</span>
-                </div>
-            )}
 
             {/* QTE zone */}
             {showQTE && (

@@ -81,11 +81,11 @@ var SELECTION = {
 // Spatial component of choreography — how far things move.
 // Timing lives in battleConstants.js CHOREOGRAPHY.
 var CHOREO_DISTANCES = {
-    lungePx:            30,         // strike lunge toward opponent
-    knockbackPx:        40,         // hit knockback away from opponent
-    dodgePx:            50,         // dodge lateral shift
+    lungePx:            90,         // strike lunge toward opponent
+    knockbackPx:        20,         // hit knockback away from opponent
+    dodgePx:            35,         // dodge lateral shift
     flinchPx:           15,         // minor recoil on attacker (brace feedback)
-    windUpPx:           15,         // lean back before striking
+    windUpPx:           20,         // lean back before striking
     dmgFloatPx:         30,         // damage number drift distance
     dmgScaleOvershoot:  1.3,        // pop scale peak
 };

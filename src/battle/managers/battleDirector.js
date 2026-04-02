@@ -60,7 +60,8 @@ function createSequencer() {
     var queue = [];
 
     function runNext() {
-        if (queue.length === 0) return;
+        if (queue.length === 0) { console.log("[Sequencer] queue empty — idle"); return; }
+        console.log("[Sequencer] running step, remaining:", queue.length);
         var step = queue.shift();
         step(function done() { runNext(); });
     }
@@ -177,6 +178,7 @@ function createBattleDirector(bridge, config) {
     // ============================================================
 
     function advanceToNextTurn() {
+        console.log("[Director] advanceToNextTurn — turnIndex:", turnIndex, "turnOrder:", turnOrder);
         var nextIdx = BattleEngagement.advanceTurn(
             turnOrder, turnIndex,
             function(id) {
@@ -187,11 +189,13 @@ function createBattleDirector(bridge, config) {
 
         if (nextIdx === -1) {
             // Everyone dead — shouldn't happen (wipe check should catch first)
+            console.warn("[Director] advanceTurn returned -1 — no living combatants!");
             return;
         }
 
         turnIndex = nextIdx;
         currentTurnId = turnOrder[turnIndex];
+        console.log("[Director] next turn → idx:", nextIdx, "id:", currentTurnId);
         enqueueTurn(currentTurnId);
     }
 
@@ -200,9 +204,9 @@ function createBattleDirector(bridge, config) {
     // ============================================================
 
     function enqueueTurn(id) {
-        if (destroyed) return;
-
+        if (destroyed) { console.warn("[Director] enqueueTurn blocked — destroyed"); return; }
         var isPlayer = isPlayerCombatant(id);
+        console.log("[Director] enqueueTurn:", id, isPlayer ? "PLAYER" : "ENEMY");
 
         // --- Earn AP ---
         seq.enqueue(function(done) {
@@ -235,6 +239,7 @@ function createBattleDirector(bridge, config) {
     function enqueuePlayerTurn(id) {
         // Show formation UI
         seq.enqueue(function(done) {
+            console.log("[Director] → setPhase TURN_ACTIVE for:", id);
             currentTurnId = id;
             bridge.setTurnOwnerId(id);
             bridge.setPhase(PHASES.TURN_ACTIVE);
@@ -372,9 +377,17 @@ function createBattleDirector(bridge, config) {
     // ============================================================
 
     function enqueueEnemyTurn(id) {
+        // Brief pause so player can see whose turn it is
         seq.enqueue(function(done) {
+            console.log("[Director] → enemy turn for:", id, "— 2s pause");
             currentTurnId = id;
             bridge.setTurnOwnerId(id);
+            bridge.setPhase(PHASES.TURN_ACTIVE);
+            setTimeout(done, 2000);
+        });
+
+        seq.enqueue(function(done) {
+            console.log("[Director] → enemy AI deciding for:", id);
 
             // AI decision — reads director's own apState (never stale)
             var combatantData = bState.get(id);
@@ -415,11 +428,19 @@ function createBattleDirector(bridge, config) {
     // ============================================================
 
     function enqueueExchange(initiatorId, targetId, skill) {
+        var _t0 = 0;
 
         // --- CAM IN ---
         seq.enqueue(function(done) {
+            _t0 = performance.now();
+            console.log("[Cam] === EXCHANGE START ===", initiatorId, "→", targetId, "skill:", skill.id || skill.name);
+            console.log("[Cam] CAM_IN  phase set, waiting", ACTION_CAM.transitionInMs, "ms");
+            bridge.setCamExchange(initiatorId, targetId);
             bridge.setPhase(PHASES.ACTION_CAM_IN);
-            setTimeout(done, ACTION_CAM.transitionInMs);
+            setTimeout(function() {
+                console.log("[Cam] CAM_IN  done  +" + Math.round(performance.now() - _t0) + "ms");
+                done();
+            }, ACTION_CAM.transitionInMs);
         });
 
         // --- INITIATOR SWING ---
@@ -433,9 +454,10 @@ function createBattleDirector(bridge, config) {
 
         // --- CAM OUT ---
         seq.enqueue(function(done) {
+            console.log("[Cam] CAM_OUT phase set, waiting", ACTION_CAM.transitionOutMs, "ms  +" + Math.round(performance.now() - _t0) + "ms");
             bridge.setPhase(PHASES.ACTION_CAM_OUT);
             setTimeout(function() {
-                // Clean up cam state
+                console.log("[Cam] CAM_OUT done → TURN_ACTIVE  +" + Math.round(performance.now() - _t0) + "ms");
                 bridge.setTargetId(null);
                 bridge.setPhase(PHASES.TURN_ACTIVE);
                 done();
@@ -444,7 +466,11 @@ function createBattleDirector(bridge, config) {
 
         // --- BREATHING PAUSE ---
         seq.enqueue(function(done) {
-            setTimeout(done, DIRECTOR_TIMING.breathingPauseMs);
+            console.log("[Cam] BREATHING PAUSE", DIRECTOR_TIMING.breathingPauseMs, "ms");
+            setTimeout(function() {
+                console.log("[Cam] === EXCHANGE END ===  total:", Math.round(performance.now() - _t0) + "ms");
+                done();
+            }, DIRECTOR_TIMING.breathingPauseMs);
         });
     }
 
@@ -457,9 +483,11 @@ function createBattleDirector(bridge, config) {
 
     function enqueueSwingSteps(swingerId, receiverId, skill, isCounter) {
         var swingerIsPlayer = isPlayerCombatant(swingerId);
+        var _label = (isCounter ? "COUNTER " : "") + (swingerIsPlayer ? "PLAYER" : "ENEMY");
 
         // --- Reset per-swing tracking ---
         seq.enqueue(function(done) {
+            console.log("[Cam] SWING RESET (" + _label + ") swinger:", swingerId, "→", receiverId);
             if (swingerIsPlayer) {
                 comboCounter.playerCombo = 0;
             } else {
@@ -474,6 +502,7 @@ function createBattleDirector(bridge, config) {
         // --- SKILL NAME LABEL ---
         seq.enqueue(function(done) {
             var color = swingerIsPlayer ? "#60a5fa" : "#ef4444";
+            console.log("[Cam] SKILL_NAME '" + (skill.name || skill.id) + "' hold:", DIRECTOR_TIMING.skillNameHoldMs + "ms");
             bridge.spawnSkillName(skill.name || skill.id, swingerId, color);
             setTimeout(done, DIRECTOR_TIMING.skillNameHoldMs);
         });
@@ -483,6 +512,8 @@ function createBattleDirector(bridge, config) {
 
             // QTE phase
             seq.enqueue(function(done) {
+                console.log("[Cam] QTE START (" + _label + ") phase → CAM_SWING_QTE");
+                var _qteStart = performance.now();
                 bridge.setPhase(PHASES.CAM_SWING_QTE);
 
                 var diff = ChalkboardModule
@@ -510,14 +541,16 @@ function createBattleDirector(bridge, config) {
                 });
 
                 bridge.activateQTE(qteConfig, function onQTEDone(resultsArray) {
-                    // QTE complete — transition to playback
+                    console.log("[Cam] QTE DONE (" + _label + ") results:", resultsArray.length, "beats, took", Math.round(performance.now() - _qteStart) + "ms → PLAYBACK");
                     bridge.setPhase(PHASES.CAM_SWING_PLAYBACK);
 
                     var ctx = buildPlaybackContext(skill, swingerId, receiverId);
                     ctx.difficulty = diff;
                     ctx.resultsArray = resultsArray;
 
+                    var _pbStart = performance.now();
                     bridge.runOffensePlayback(ctx, function onPlaybackDone() {
+                        console.log("[Cam] OFFENSE PLAYBACK DONE (" + _label + ") took", Math.round(performance.now() - _pbStart) + "ms");
                         done();
                     });
                 });
@@ -527,10 +560,13 @@ function createBattleDirector(bridge, config) {
             // --- ENEMY OFFENSE: Animation-read defense ---
 
             seq.enqueue(function(done) {
+                console.log("[Cam] DEFENSE PLAYBACK START (" + _label + ") phase → CAM_SWING_PLAYBACK");
+                var _pbStart = performance.now();
                 bridge.setPhase(PHASES.CAM_SWING_PLAYBACK);
                 var ctx = buildPlaybackContext(skill, swingerId, receiverId);
 
                 bridge.runDefensePlayback(ctx, function onPlaybackDone() {
+                    console.log("[Cam] DEFENSE PLAYBACK DONE (" + _label + ") took", Math.round(performance.now() - _pbStart) + "ms");
                     done();
                 });
             });
@@ -566,7 +602,8 @@ function createBattleDirector(bridge, config) {
     function makeWipeCheckStep() {
         return function(done) {
             var result = checkWipe();
-            if (!result) { done(); return; }
+            if (!result) { console.log("[Cam] WIPE CHECK → clear"); done(); return; }
+            console.log("[Cam] WIPE CHECK → " + result + " — clearing queue");
 
             // Wipe detected — clear remaining exchange steps
             seq.clear();
@@ -603,13 +640,14 @@ function createBattleDirector(bridge, config) {
         return function(done) {
             // Responder dead?
             var respState = bState.get(responderId);
-            if (!respState || respState.ko) { done(); return; }
+            if (!respState || respState.ko) { console.log("[Cam] COUNTER CHECK → responder dead, skip"); done(); return; }
 
             // Can afford counter?
             var counterCost = ENGAGEMENT.AP_COST_COUNTER;
-            if (!canAfford(responderId, counterCost)) { done(); return; }
+            if (!canAfford(responderId, counterCost)) { console.log("[Cam] COUNTER CHECK → can't afford (" + counterCost + " AP), skip"); done(); return; }
 
             var responderIsPlayer = isPlayerCombatant(responderId);
+            console.log("[Cam] COUNTER CHECK →", responderIsPlayer ? "PLAYER prompt" : "AI auto-counter", "cost:", counterCost);
 
             if (responderIsPlayer) {
                 // Show prompt — wait for player decision
@@ -631,6 +669,7 @@ function createBattleDirector(bridge, config) {
     // Inject counter swing steps at the front of the queue
     // (before cam out that's already enqueued).
     function injectCounterSwing(counterId, targetId, counterCost) {
+        console.log("[Cam] COUNTER INJECT:", counterId, "→", targetId, "cost:", counterCost);
         spendAP(counterId, counterCost);
 
         var counterData = bState.get(counterId);
@@ -726,6 +765,7 @@ function createBattleDirector(bridge, config) {
     function enqueueWaveTransition() {
         // Banner
         seq.enqueue(function(done) {
+            console.log("[Cam] WAVE TRANSITION — banner for", (WAVE_TRANSITION ? WAVE_TRANSITION.bannerMs : 2000) + "ms");
             bridge.setPhase(PHASES.WAVE_TRANSITION);
             setTimeout(done, WAVE_TRANSITION ? WAVE_TRANSITION.bannerMs : 2000);
         });
@@ -733,6 +773,7 @@ function createBattleDirector(bridge, config) {
         // Swap enemies + reset state
         seq.enqueue(function(done) {
             waveIndex += 1;
+            console.log("[Cam] WAVE SWAP → wave", waveIndex);
             currentEnemies = waves[waveIndex] || [];
 
             bState.replaceEnemies(currentEnemies);
@@ -759,12 +800,14 @@ function createBattleDirector(bridge, config) {
                 allCombatants, ENGAGEMENT.INITIATIVE_VARIANCE
             );
             turnIndex = -1;
+            console.log("[Cam] WAVE INITIATIVE rerolled:", turnOrder);
             bridge.onTurnOrderChanged(turnOrder);
             done();
         });
 
         // Breathing pause for player to read the new field
         seq.enqueue(function(done) {
+            console.log("[Cam] WAVE PAUSE", DIRECTOR_TIMING.wavePauseMs + "ms");
             setTimeout(done, DIRECTOR_TIMING.wavePauseMs);
         });
 
@@ -781,6 +824,7 @@ function createBattleDirector(bridge, config) {
 
     function enqueueBattleEnd(outcome) {
         seq.enqueue(function(done) {
+            console.log("[Cam] BATTLE END — outcome:", outcome, "hold:", (BATTLE_END ? BATTLE_END.koHoldMs : 1500) + "ms");
             bridge.setPhase(PHASES.BATTLE_ENDING);
             done();
         });
@@ -793,6 +837,7 @@ function createBattleDirector(bridge, config) {
         // Build and deliver result
         seq.enqueue(function(done) {
             var result = bState.buildResult(outcome);
+            console.log("[Cam] BATTLE RESULT delivered:", outcome);
             bridge.onBattleEnd(result);
             done();
         });
@@ -803,23 +848,27 @@ function createBattleDirector(bridge, config) {
     // ============================================================
 
     function start() {
-        if (destroyed) return;
+        if (destroyed) { console.warn("[Director] start() blocked — destroyed"); return; }
+        console.log("[Director] start() called");
 
         // Init AP — everyone starts at 0
         apState = BattleEngagement.initAPState(
             getAllCombatants(), ENGAGEMENT.AP_MAX
         );
+        console.log("[Director] AP initialized:", Object.keys(apState));
         bridge.onAPChanged(apState);
 
         // Roll initiative
         turnOrder = BattleEngagement.rollInitiative(
             getAllCombatants(), ENGAGEMENT.INITIATIVE_VARIANCE
         );
+        console.log("[Director] Initiative rolled:", turnOrder);
         bridge.onTurnOrderChanged(turnOrder);
 
         // Start first turn
         turnIndex = -1;
         advanceToNextTurn();
+        console.log("[Director] seq.start() — queue should be loaded");
         seq.start();
     }
 

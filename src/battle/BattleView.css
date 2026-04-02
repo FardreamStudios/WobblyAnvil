@@ -23,6 +23,8 @@
     color: #e0d8c8;
     user-select: none;
     -webkit-user-select: none;
+    touch-action: none;
+    overscroll-behavior: none;
     transition: background-size 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94),
     background-position 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
@@ -52,11 +54,19 @@
     z-index: 7;
 }
 
-/* Hide overlay bottom during cam */
+/* Hide overlay bottom during cam — except counter prompt */
 .battle-root--cam .battle-overlay-bottom > * {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.35s ease;
+}
+.battle-root--cam .battle-overlay-bottom > .battle-counter-prompt {
+    opacity: 1;
+    pointer-events: auto;
+}
+/* Lift overlay above stage (z:7) when counter prompt is active */
+.battle-overlay-bottom--counter {
+    z-index: 60 !important;
 }
 
 /* QTE zone — viewport-level, above all stacking contexts */
@@ -223,19 +233,19 @@
 
 /* Strike — lunge toward opponent */
 .normal-cam-char__choreo--strike {
-    transform: translateX(calc(-30px * var(--choreo-dir, 1))) scaleX(1.1);
+    transform: translateX(calc(-1 * var(--choreo-lunge, 90px) * var(--choreo-dir, 1))) scaleX(1.1);
     transition: transform 0.15s cubic-bezier(0.2, 0, 0.8, 1);
 }
 
 /* Hit — knockback away from opponent */
 .normal-cam-char__choreo--hit {
-    transform: translateX(calc(40px * var(--choreo-dir, 1)));
+    transform: translateX(calc(var(--choreo-knockback, 20px) * var(--choreo-dir, 1)));
     transition: transform 0.08s ease-out;
 }
 
 /* Wind-up — lean back + squeeze before striking */
 .normal-cam-char__choreo--wind_up {
-    transform: translateX(calc(15px * var(--choreo-dir, 1))) scaleX(0.92);
+    transform: translateX(calc(var(--choreo-windup, 20px) * var(--choreo-dir, 1))) scaleX(0.92);
     transition: transform 0.2s ease-in;
 }
 
@@ -266,7 +276,7 @@
 
 /* Flinch — minor recoil on attacker (brace-perfect feedback) */
 .normal-cam-char__choreo--flinch {
-    transform: translateX(calc(15px * var(--choreo-dir, 1))) scaleX(0.95);
+    transform: translateX(calc(var(--choreo-flinch, 15px) * var(--choreo-dir, 1))) scaleX(0.95);
     transition: transform 0.08s ease-out;
 }
 
@@ -278,7 +288,7 @@
 }
 
 .normal-cam-char__choreo--dodge {
-    transform: translateX(calc(50px * var(--choreo-dir, 1))) translateY(-10px);
+    transform: translateX(calc(var(--choreo-dodge, 35px) * var(--choreo-dir, 1))) translateY(-10px);
     animation: dodgeAfterimage 200ms steps(3) 1 forwards;
     transition: transform 0.1s cubic-bezier(0.2, 0, 0, 1);
 }
@@ -1141,14 +1151,12 @@
    ============================================================ */
 
 .battle-counter-prompt {
-    position: absolute;
-    bottom: 18vh;
-    left: 50%;
-    transform: translateX(-50%);
+    margin-left: auto;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 2vw;
-    padding: 1.5vh 3vw;
+    gap: 1vh;
+    padding: 1.5vh 2vw;
     background: rgba(10, 7, 4, 0.85);
     border: 1px solid rgba(245, 158, 11, 0.4);
     border-radius: 8px;
@@ -1157,8 +1165,8 @@
 }
 
 @keyframes counterPromptIn {
-    0%   { opacity: 0; transform: translateX(-50%) translateY(10px); }
-    100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    0%   { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 
 .battle-counter-prompt__label {
@@ -1212,13 +1220,12 @@
    ============================================================ */
 
 .battle-item-submenu {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: var(--battle-actions-w, 18vw);
-    height: 100%;
+    margin-left: auto;
+    width: clamp(100px, 18vw, 160px);
+    max-height: 40vh;
     background: rgba(10, 7, 4, 0.95);
-    border-left: 1px solid rgba(245, 158, 11, 0.25);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     z-index: 20;
@@ -1378,13 +1385,12 @@
    ============================================================ */
 
 .battle-skill-submenu {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: var(--battle-actions-w, 18vw);
-    height: 100%;
+    margin-left: auto;
+    width: clamp(100px, 18vw, 160px);
+    max-height: 40vh;
     background: rgba(10, 7, 4, 0.95);
-    border-left: 1px solid rgba(96, 165, 250, 0.25);
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     z-index: 20;
@@ -1565,12 +1571,19 @@
 
 /* --- Pick Target prompt — floats above skill submenu --- */
 .battle-pick-target-prompt {
-    position: absolute;
-    bottom: 14vh;
-    right: 2vw;
+    text-align: center;
+    margin-bottom: 0.5vh;
     z-index: 21;
     pointer-events: none;
     animation: pickTargetFadeIn 0.2s ease-out;
+}
+
+/* Right-slot wrapper — groups skill submenu + pick target as one flex item */
+.battle-right-slot {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
 }
 
 .battle-pick-target-prompt__text {
