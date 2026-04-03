@@ -215,8 +215,8 @@ function engage() {
 
 // Swing — quick attack whoosh (lighter than dodge, plays on wind-up)
 function swing() {
-    _sweep(800, 300, "sawtooth", 0.08, 0.08);
-    _noise(0.06, 0.05, 1500);
+    _sweep(800, 300, "sawtooth", 0.10, 0.14);
+    _noise(0.08, 0.10, 1500);
 }
 
 // ============================================================

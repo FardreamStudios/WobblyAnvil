@@ -4,12 +4,7 @@
 **Last session:** Engagement System Design + Spec Cleanup
 
 ---
-battle bugs
-1. select box is offset from characters, no select sound, clicking/tapping away from any target should deselect. select should be removed on action cam.
-2. crossed swords icon shows up at end of fight. this is not needed at all.
-3. action cam buttons need to be bottom right similar in position to the formation menu buttons. these should be pretty much identical in area to each other.
-4. item/skill menus are semi transparent they should be solid
-5. cannot dodge, new action cam setup may have the "chalkboard not in the action cam screen area.
+
 
 ## 🔲 Battle System — Remaining V1
 

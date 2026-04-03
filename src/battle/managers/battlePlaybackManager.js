@@ -222,11 +222,13 @@ function runDefense(bus, ctx) {
             BattleSFX.swing();
             DefenseTiming.recordStrikeAnchor();
 
-            // Play SFX
-            if (beat.sfx) {
-                if (BattleSFX[beat.sfx]) BattleSFX[beat.sfx]();
-                else BattleSFX.hit();
-            }
+            // Play beat SFX after short delay so swing whoosh registers first
+            setTimeout(function() {
+                if (beat.sfx) {
+                    if (BattleSFX[beat.sfx]) BattleSFX[beat.sfx]();
+                    else BattleSFX.hit();
+                }
+            }, 80);
 
             // Notify BattleView defense window is open — it wires defenseInputResolveRef
             bus.emit(BATTLE_TAGS.BEAT_DEFENSE_WINDOW, {
