@@ -51,10 +51,6 @@ function BattleSprite(props) {
     var PUB = process.env.PUBLIC_URL || "";
     var src = PUB + cfg.sheet;
     var size = LAYOUT.spriteSize;
-    var xform = [];
-    if (cfg.flipX) xform.push("scaleX(-1)");
-    if (cfg.scale && cfg.scale !== 1) xform.push("scale(" + cfg.scale + ")");
-    var transform = xform.length ? xform.join(" ") : undefined;
 
     // Static image (single frame only)
     if (cfg.frames <= 1) {
@@ -66,7 +62,6 @@ function BattleSprite(props) {
                 backgroundRepeat: "no-repeat",
                 backgroundPosition: "center",
                 imageRendering: "auto",
-                transform: transform,
             }} />
         );
     }
@@ -89,7 +84,6 @@ function BattleSprite(props) {
             backgroundRepeat: "no-repeat",
             backgroundSize: (cols * 100) + "% " + (totalRows * 100) + "%",
             imageRendering: "auto",
-            transform: transform,
         }} />
     );
 }
@@ -281,7 +275,16 @@ function BattleCharacter(props) {
         prevTurnOwnerRef.current = showTurnOwner;
     }, [showTurnOwner]);
 
+    var isKO = c.ko || (c.currentHP != null && c.currentHP <= 0);
+
+    // Read anim state early — needed for KO class gating and sprite key
+    var myAnim = props.animState && props.animState[c.id];
+
     var cls = "normal-cam-char";
+    // Only apply persistent hide when choreo ko animation is NOT playing.
+    // During the death anim, choreo--ko handles the fade. After it clears,
+    // this class keeps the character hidden on subsequent re-renders.
+    if (isKO && myAnim !== "ko") cls += " normal-cam-char--ko";
     if (isParty) cls += " normal-cam-char--party";
     if (!isParty) cls += " normal-cam-char--enemy-idle";
     if (isDimmed) cls += " action-cam-char--dimmed";
@@ -331,17 +334,28 @@ function BattleCharacter(props) {
     // --- CHOREO layer: lunge/knockback/dodge transforms ---
     var choreoCls = "normal-cam-char__choreo";
     if (props.flashId === c.id) choreoCls += " normal-cam-char__choreo--flash";
-    var myAnim = props.animState && props.animState[c.id];
+    // myAnim already computed above (needed for KO class gating)
     if (myAnim) {
         choreoCls += " normal-cam-char__choreo--" + myAnim;
     }
     var choreoStyle = { "--choreo-dir": isParty ? "1" : "-1" };
 
+    // --- Scale/flip on __visual layer (not sprite — enemy bob overwrites sprite transforms) ---
+    var activeSpriteKey = (myAnim === "strike" || myAnim === "wind_up") && c.attackSpriteKey
+        ? c.attackSpriteKey : c.spriteKey;
+    var spriteCfg = BATTLE_SPRITES[activeSpriteKey];
+    var visualXform = [];
+    if (spriteCfg && spriteCfg.flipX) visualXform.push("scaleX(-1)");
+    if (spriteCfg && spriteCfg.scale && spriteCfg.scale !== 1) visualXform.push("scale(" + spriteCfg.scale + ")");
+    var visualStyle = { position: "relative" };
+    if (visualXform.length) visualStyle.transform = visualXform.join(" ");
+
     // Click handler — stopPropagation so stage background tap can deselect
     var handleClick = useCallback(function(e) {
         e.stopPropagation();
+        if (isKO) return; // Dead characters are not interactive
         if (props.onClick) props.onClick();
-    }, [props.onClick]);
+    }, [props.onClick, isKO]);
 
     return (
         <div
@@ -351,7 +365,7 @@ function BattleCharacter(props) {
             onClick={handleClick}
         >
             <div className={choreoCls} style={choreoStyle}>
-                <div className="normal-cam-char__visual" style={{ position: "relative" }}>
+                <div className="normal-cam-char__visual" style={visualStyle}>
                     <SelectionBrackets
                         spriteRef={spriteElRef}
                         color={showSelected ? "#4ade80" : "#f0e6c8"}
@@ -364,10 +378,7 @@ function BattleCharacter(props) {
                             color={isParty ? "#f0e6c8" : "#fb923c"}
                         />
                     )}
-                    <BattleSprite spriteKey={
-                        (myAnim === "strike" || myAnim === "wind_up") && c.attackSpriteKey
-                            ? c.attackSpriteKey : c.spriteKey
-                    } frame={
+                    <BattleSprite spriteKey={activeSpriteKey} frame={
                         (myAnim === "strike") && c.attackSpriteKey ? 1
                             : (myAnim === "wind_up") && c.attackSpriteKey ? 0
                                 : null

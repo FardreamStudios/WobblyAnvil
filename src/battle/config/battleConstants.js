@@ -140,6 +140,7 @@ var BATTLE_SPRITES = {
         frameH:   380,
         fps:      1.0,
         cols:     5,
+        flipX:    true,
     },
     fairyCombatKnockdown: {
         sheet:    "/images/anim/battle/npc/waFairyKnockdownSS.png",

@@ -350,6 +350,16 @@
             koDissolve 250ms steps(4) 350ms forwards;
 }
 
+/* Persistent KO state — applied via data, survives re-renders.
+   The choreo--ko animation plays the death sequence once.
+   This class ensures dead characters stay hidden afterward
+   and on wave transitions where choreo state is cleared. */
+.normal-cam-char--ko {
+    opacity: 0;
+    pointer-events: none;
+    transition: none;
+}
+
 /* Enemy idle bob — subtle stepped motion on sprite only */
 @keyframes enemyBob {
     0%, 50%  { transform: translateY(0); }

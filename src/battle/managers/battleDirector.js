@@ -487,9 +487,22 @@ function createBattleDirector(bridge, config) {
                     var skill = BattleSkills.getSkill(action.skillId);
                     if (!skill) return;
 
-                    // Target alive gate (after first action)
+                    // Alive gate (after first action) — check BOTH swinger and target
                     if (actionIndex > 0) {
                         seq.enqueue(function(d) {
+                            // Swinger died (e.g. from player counter) — bail
+                            var swinger = bState.get(id);
+                            if (!swinger || swinger.ko) {
+                                console.log("[Cam] ENEMY CHAIN — swinger dead after action", actionIndex, ", bailing");
+                                seq.clear();
+                                enqueueCamOut();
+                                seq.enqueue(function(dd) {
+                                    setTimeout(dd, DIRECTOR_TIMING.breathingPauseMs);
+                                });
+                                seq.enqueue(function(dd) { advanceToNextTurn(); dd(); });
+                                d();
+                                return;
+                            }
                             var tgt = bState.get(targetId);
                             if (!tgt || tgt.ko) {
                                 console.log("[Cam] ENEMY CHAIN — target dead after action", actionIndex, ", bailing");
@@ -1081,9 +1094,13 @@ function createBattleDirector(bridge, config) {
             done();
         });
 
-        // Reroll initiative
+        // Reroll initiative — exclude KO'd party members
         seq.enqueue(function(done) {
-            var allCombatants = party.concat(currentEnemies);
+            var livingParty = party.filter(function(p) {
+                var s = bState.get(p.id);
+                return s && !s.ko;
+            });
+            var allCombatants = livingParty.concat(currentEnemies);
             turnOrder = BattleEngagement.rollInitiative(
                 allCombatants, ENGAGEMENT.INITIATIVE_VARIANCE
             );

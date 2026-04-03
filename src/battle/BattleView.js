@@ -605,6 +605,7 @@ function BattleView(props) {
     // ============================================================
     function handleStartBattle() {
         if (phase !== PHASES.INTRO) return;
+        BattleSFX.select();
         director.start();
     }
 
@@ -853,6 +854,7 @@ function BattleView(props) {
     }
 
     function handleChainSkillSelect(skillId) {
+        BattleSFX.select();
         // Same skill tapped again — confirm
         if (chainSelectedSkillRef.current === skillId) {
             handleChainSkillConfirm(skillId);
@@ -863,6 +865,7 @@ function BattleView(props) {
     }
 
     function handleChainSkillConfirm(skillId) {
+        BattleSFX.select();
         var sid = skillId || chainSelectedSkillRef.current;
         if (!sid) return;
         chainSelectedSkillRef.current = null;
@@ -871,6 +874,7 @@ function BattleView(props) {
     }
 
     function handleChainSkillClose() {
+        BattleSFX.select();
         setChainSkillMenuOpen(false);
         chainSelectedSkillRef.current = null;
     }
@@ -883,10 +887,12 @@ function BattleView(props) {
     // RESULTS — Continue button exits battle
     // ============================================================
     function handleResultsContinue() {
+        BattleSFX.select();
         if (onExit) onExit(battleResult);
     }
 
     function handleAction(actionId) {
+        BattleSFX.select();
         var userId = activeAtkId;
 
         if (actionId === "attack") {
@@ -928,6 +934,7 @@ function BattleView(props) {
     // resolution, then signals Director that item was used.
     // ============================================================
     function handleItemUse(itemId) {
+        BattleSFX.select();
         var userId = activeAtkId;
         if (!userId) return;
 
@@ -978,6 +985,7 @@ function BattleView(props) {
     }
 
     function handleItemClose() {
+        BattleSFX.select();
         setItemMenuOpen(false);
         // Signal Director — item cancelled
         director.onPlayerItemUsed(false);
@@ -1016,6 +1024,7 @@ function BattleView(props) {
 
     // Player confirms attack after selecting skill + target
     function handleSkillConfirm() {
+        BattleSFX.select();
         var skillId = selectedSkillRef.current;
         if (!skillId) return;
 
@@ -1028,6 +1037,7 @@ function BattleView(props) {
     }
 
     function handleSkillClose() {
+        BattleSFX.select();
         setSkillMenuOpen(false);
         selectedSkillRef.current = null;
     }
