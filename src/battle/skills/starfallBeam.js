@@ -17,10 +17,10 @@
 // DOES NOT OWN: Game state, KO handling, cam lifecycle, turn
 //   order, wave transitions. All go through bridge or director.
 //
-// STATUS: Step 11 — Full beam sequence wired.
-//         Cam enter → aim QTE → beam VFX → damage ticks →
-//         sustain round 1 → gate QTE → sustain round 2 → wind-down → release.
-//         Step 12 (polish) remaining: timing, juice, sound, tuning.
+// STATUS: Step 12 — Sprite anim wired.
+//         Full sequence: cam enter → aim QTE → sprite ignition (0→1) →
+//         beam VFX + frame loop (2↔3) → sustain QTEs → wind-down (1→0) → release.
+//         Remaining polish: screen shake, flash, sound hooks, damage number color.
 // ============================================================
 
 // ============================================================
@@ -46,6 +46,9 @@ var STARFALL = {
     beamTickMs:         120,    // damage tick interval during beam
     beamBaseDamage:     1,      // per-tick base damage (multiplied by aim accuracy)
     windDownMs:         200,    // reverse anim speed
+    ignitionMs:         150,    // time per frame during 0→1 ignition
+    frameLoopMs:        200,    // toggle speed for frames 2↔3 during beam
+    windFrameMs:        150,    // time per frame during 1→0 wind-down
 
     // Sustain QTE configs
     sustainRound1:  { type: "sustain_tap", count: 5,  intervalMs: 280, failEnds: true },
@@ -75,6 +78,7 @@ var _bridge       = null;   // bridge handle from director
 var _casterId     = null;   // who's casting
 var _targetId     = null;   // current target
 var _damageTimer  = null;   // interval handle for damage tick loop
+var _frameTimer   = null;   // interval handle for 2↔3 frame loop
 var _aimMult      = 1.0;    // accuracy multiplier from aim QTE
 var _beamActive   = false;  // is beam VFX currently on
 var _released     = false;  // prevent double-release
@@ -92,6 +96,7 @@ function activate(bridge) {
     _released    = false;
     _beamActive  = false;
     _damageTimer = null;
+    _frameTimer  = null;
     _aimMult     = 1.0;
 
     // Read charge info — director stored casterId and targetId
@@ -160,6 +165,26 @@ function activate(bridge) {
                 // Step 3 — Beam ignition
                 // --------------------------------------------------
                 _beamActive = true;
+
+                // Sprite: switch to beam sheet, play 0→1 ignition
+                bridge.setSpriteKey(_casterId, "fairyCombatBeam");
+                bridge.setSpriteFrame(_casterId, 0);
+                setTimeout(function() {
+                    if (_released) return;
+                    bridge.setSpriteFrame(_casterId, 1);
+                }, STARFALL.ignitionMs);
+                setTimeout(function() {
+                    if (_released) return;
+                    // Start 2↔3 frame loop for sustained beam visual
+                    var toggle = 2;
+                    bridge.setSpriteFrame(_casterId, toggle);
+                    _frameTimer = setInterval(function() {
+                        if (_released || !_bridge) { clearInterval(_frameTimer); _frameTimer = null; return; }
+                        toggle = (toggle === 2) ? 3 : 2;
+                        _bridge.setSpriteFrame(_casterId, toggle);
+                    }, STARFALL.frameLoopMs);
+                }, STARFALL.ignitionMs * 2);
+
                 bridge.startVFX("beam_connect", { from: _casterId, to: _targetId });
                 console.log("[StarfallBeam] Beam ignited — starting damage ticks");
 
@@ -238,10 +263,12 @@ function abort(reason) {
         _beamActive = false;
     }
 
-    // Clear charge shake choreo
+    // Stop frame loop
+    if (_frameTimer) { clearInterval(_frameTimer); _frameTimer = null; }
+    // Clear charge shake choreo + sprite override
     if (_bridge && _casterId) {
         _bridge.clearChoreo(_casterId);
-        _bridge.setSpriteKey(_casterId, "fairyCombatIdle");
+        _bridge.setSpriteKey(_casterId, null); // clear override → back to default
     }
 
     // Null out internal refs
@@ -302,15 +329,32 @@ function _windDown() {
     console.log("[StarfallBeam] Wind-down");
     // Stop damage ticks
     if (_damageTimer) { clearInterval(_damageTimer); _damageTimer = null; }
+    // Stop frame loop
+    if (_frameTimer) { clearInterval(_frameTimer); _frameTimer = null; }
     // Stop beam VFX
     if (_beamActive && _bridge) { _bridge.stopVFX("beam_connect"); _beamActive = false; }
     // Clear charge shake
     if (_bridge && _casterId) { _bridge.clearChoreo(_casterId); }
-    // Pause for visual wind-down, then release
-    setTimeout(function() {
-        if (_released) return;
-        _doRelease();
-    }, STARFALL.windDownMs);
+
+    // Reverse sprite: current → 1 → 0 → back to idle
+    if (_bridge && _casterId) {
+        _bridge.setSpriteFrame(_casterId, 1);
+        setTimeout(function() {
+            if (_released || !_bridge) return;
+            _bridge.setSpriteFrame(_casterId, 0);
+            setTimeout(function() {
+                if (_released || !_bridge) return;
+                _bridge.setSpriteKey(_casterId, null); // clear override → back to idle
+                _doRelease();
+            }, STARFALL.windFrameMs);
+        }, STARFALL.windFrameMs);
+    } else {
+        // Fallback — no bridge, just release
+        setTimeout(function() {
+            if (_released) return;
+            _doRelease();
+        }, STARFALL.windDownMs);
+    }
 }
 
 // ============================================================
@@ -326,12 +370,17 @@ function _doRelease() {
         clearInterval(_damageTimer);
         _damageTimer = null;
     }
+    if (_frameTimer) {
+        clearInterval(_frameTimer);
+        _frameTimer = null;
+    }
     if (_beamActive && _bridge) {
         _bridge.stopVFX("beam_connect");
         _beamActive = false;
     }
     if (_bridge && _casterId) {
         _bridge.clearChoreo(_casterId);
+        _bridge.setSpriteKey(_casterId, null); // clear override → back to default
     }
 
     // Hand control back to director

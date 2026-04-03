@@ -158,10 +158,13 @@ function createBattleDirector(bridge, config) {
     // Used when declaring a delayed/special skill.
     function pushTurnBack(id, slots) {
         var idx = turnOrder.indexOf(id);
+        console.log("[Director] pushTurnBack — id:", id, "slots:", slots, "currentIdx:", idx, "turnIndex:", turnIndex, "orderBefore:", turnOrder.slice());
         if (idx === -1) return;
         turnOrder.splice(idx, 1);
+        console.log("[Director] pushTurnBack — after remove:", turnOrder.slice());
         var newIdx = Math.min(idx + slots, turnOrder.length);
         turnOrder.splice(newIdx, 0, id);
+        console.log("[Director] pushTurnBack — after insert at", newIdx, ":", turnOrder.slice());
         bridge.onTurnOrderChanged(turnOrder);
     }
 
@@ -276,6 +279,7 @@ function createBattleDirector(bridge, config) {
             if (aborted) return Promise.resolve();
             return new Promise(function(resolve) {
                 bridge.setCamExchange(attackerId, tid, opts);
+                bridge.setTargetId(tid);  // sync React state so BattleCharacter shows the target
                 bridge.setPhase(PHASES.ACTION_CAM_IN);
                 BattleSFX.engage();
                 setTimeout(resolve, ACTION_CAM.transitionInMs);
@@ -305,8 +309,8 @@ function createBattleDirector(bridge, config) {
         //
         // setChoreo / clearChoreo go through the existing bus
         // events that BattleView already subscribes to.
-        // setSpriteKey / setSpriteFrame are stubs — wired when
-        // visual features are built (build order steps 7–9).
+        // setSpriteKey / setSpriteFrame route through the View
+        // Bridge to update spriteOverrides state in BattleView.
         // --------------------------------------------------
 
         function setChoreo(id, cls) {
@@ -321,14 +325,12 @@ function createBattleDirector(bridge, config) {
 
         function setSpriteKey(id, key) {
             if (aborted) return;
-            // STUB — needs View Bridge callback (build order step 7+)
-            console.warn("[SkillBridge] setSpriteKey stub:", id, key);
+            bridge.setSpriteKey(id, key);
         }
 
         function setSpriteFrame(id, frame) {
             if (aborted) return;
-            // STUB — needs View Bridge callback (build order step 7+)
-            console.warn("[SkillBridge] setSpriteFrame stub:", id, frame);
+            bridge.setSpriteFrame(id, frame);
         }
 
         // --------------------------------------------------
@@ -459,7 +461,7 @@ function createBattleDirector(bridge, config) {
     // ============================================================
 
     function advanceToNextTurn() {
-        console.log("[Director] advanceToNextTurn — turnIndex:", turnIndex, "turnOrder:", turnOrder);
+        console.log("[Director] advanceToNextTurn — turnIndex:", turnIndex, "turnOrder:", turnOrder.slice(), "order[turnIndex]:", turnOrder[turnIndex]);
         var nextIdx = BattleEngagement.advanceTurn(
             turnOrder, turnIndex,
             function(id) {
@@ -467,6 +469,8 @@ function createBattleDirector(bridge, config) {
                 return !s || !s.ko;
             }
         );
+
+        console.log("[Director] advanceTurn returned nextIdx:", nextIdx, "→ id:", turnOrder[nextIdx]);
 
         if (nextIdx === -1) {
             // Everyone dead — shouldn't happen (wipe check should catch first)
@@ -486,6 +490,8 @@ function createBattleDirector(bridge, config) {
 
     function enqueueTurn(id) {
         if (destroyed) { console.warn("[Director] enqueueTurn blocked — destroyed"); return; }
+
+        console.log("[Director] enqueueTurn:", id, "isCharging:", bState.isCharging(id), "turnIndex:", turnIndex, "turnOrder:", turnOrder.slice());
 
         // --- Special skill takeover: charging combatant's turn has arrived ---
         if (bState.isCharging(id)) {
@@ -784,14 +790,27 @@ function createBattleDirector(bridge, config) {
             // --- Special skill: declare charge, push back, end turn ---
             if (skill.skillType === "special" && typeof skill.activate === "function") {
                 console.log("[Director] SPECIAL SKILL DECLARE:", skill.id || skillId, "caster:", id, "target:", targetId);
+                console.log("[Director] DECLARE — turnIndex BEFORE:", turnIndex, "turnOrder BEFORE:", turnOrder.slice());
                 var delaySlots = skill.delaySlots || 1;
 
                 // Set charging flags on combatant state
                 bState.beginCharging(id, skillId, targetId);
                 bridge.bumpState();
 
+                // Save caster's old position before push
+                var casterOldIdx = turnOrder.indexOf(id);
+
                 // Push caster back in turn order
                 pushTurnBack(id, delaySlots);
+
+                // Adjust turnIndex — after push, the combatant that slid into
+                // the caster's old slot should go next. advanceTurn starts at
+                // turnIndex+1, so set turnIndex to (oldIdx - 1) with wrap.
+                // This ensures advanceTurn lands on the combatant at oldIdx.
+                var len = turnOrder.length;
+                console.log("[Director] DECLARE — casterOldIdx:", casterOldIdx, "turnIndex BEFORE adjust:", turnIndex);
+                turnIndex = (casterOldIdx - 1 + len) % len;
+                console.log("[Director] DECLARE — turnIndex AFTER adjust:", turnIndex, "turnOrder NOW:", turnOrder.slice());
 
                 // Apply charge_shake choreo for visual feedback
                 bus.emit("ANIM_SET", { combatantId: id, animName: "charge_shake" });
@@ -799,7 +818,11 @@ function createBattleDirector(bridge, config) {
                 // End turn — next in line goes. When turn order reaches
                 // this combatant's new position, enqueueTurn will detect
                 // the charging flag and call skill.activate(bridge).
-                seq.enqueue(function(d) { advanceToNextTurn(); d(); });
+                seq.enqueue(function(d) {
+                    console.log("[Director] DECLARE — advanceToNextTurn step running. turnIndex:", turnIndex, "turnOrder:", turnOrder.slice());
+                    advanceToNextTurn();
+                    d();
+                });
                 done();
                 return;
             }

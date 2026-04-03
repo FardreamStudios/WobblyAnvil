@@ -168,6 +168,15 @@ var BATTLE_SPRITES = {
         cols:     2,
         flipX:    true,
     },
+    fairyCombatBeam: {
+        sheet:    "/images/anim/battle/npc/waFairyBigAttackSS.png",
+        frames:   4,
+        frameW:   380,
+        frameH:   380,
+        fps:      0,       // manual frame control — driven by skill sequence
+        cols:     4,
+        flipX:    true,
+    },
 };
 
 // --- Combat Test Data (dev/prototype only) ---

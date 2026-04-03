@@ -390,6 +390,11 @@ function BattleCharacter(props) {
     // --- Scale/flip on __visual layer (not sprite — enemy bob overwrites sprite transforms) ---
     var activeSpriteKey = (myAnim === "strike" || myAnim === "wind_up") && c.attackSpriteKey
         ? c.attackSpriteKey : c.spriteKey;
+
+    // Sprite override from special skills (e.g. beam sequence swaps spritesheet)
+    var spriteOverride = props.spriteOverride;
+    if (spriteOverride) { activeSpriteKey = spriteOverride.key; }
+
     var spriteCfg = BATTLE_SPRITES[activeSpriteKey];
     var visualXform = [];
     if (spriteCfg && spriteCfg.flipX) visualXform.push("scaleX(-1)");
@@ -426,9 +431,10 @@ function BattleCharacter(props) {
                         />
                     )}
                     <BattleSprite spriteKey={activeSpriteKey} frame={
-                        (myAnim === "strike") && c.attackSpriteKey ? 1
-                            : (myAnim === "wind_up") && c.attackSpriteKey ? 0
-                                : null
+                        spriteOverride ? spriteOverride.frame
+                            : (myAnim === "strike") && c.attackSpriteKey ? 1
+                                : (myAnim === "wind_up") && c.attackSpriteKey ? 0
+                                    : null
                     } spriteRef={spriteElRef} />
                 </div>
                 <div className={"normal-cam-char__info" + (inActionCam ? " action-cam-char__info--hidden" : "")}>

@@ -248,6 +248,10 @@ function BattleView(props) {
     var selectedSkillRef = useRef(null);
     var [battleResult, setBattleResult] = useState(null);
 
+    // --- Sprite override map (special skills swap spritesheets) ---
+    // Shape: { "fairy": { key: "fairyCombatBeam", frame: 0 } }
+    var [spriteOverrides, setSpriteOverrides] = useState({});
+
     // --- Sprite animation frames now self-managed by BattleSprite ---
 
     // --- Refs for combatant elements ---
@@ -314,6 +318,24 @@ function BattleView(props) {
             // --- Fire-and-forget visuals ---
             spawnDamageNumber:  function(id, val, color) { spawnDmgAt(id, val, color); },
             spawnSkillName:     function(name, id, color) { spawnSkillName(name, id, color); },
+
+            // --- Sprite overrides (special skill anim control) ---
+            setSpriteKey:       function(id, key) {
+                setSpriteOverrides(function(prev) {
+                    var next = Object.assign({}, prev);
+                    if (key === null) { delete next[id]; return next; }
+                    next[id] = { key: key, frame: (prev[id] && prev[id].frame) || 0 };
+                    return next;
+                });
+            },
+            setSpriteFrame:     function(id, frame) {
+                setSpriteOverrides(function(prev) {
+                    if (!prev[id]) return prev;
+                    var next = Object.assign({}, prev);
+                    next[id] = Object.assign({}, prev[id], { frame: frame });
+                    return next;
+                });
+            },
 
             // --- VFX (beam connector, etc.) ---
             startVFX: function(vfxId, opts) {
@@ -638,7 +660,8 @@ function BattleView(props) {
         var cam = camExchangeRef.current;
         if (!cam) return;
 
-        var swinger = cam.getSwingerId();
+        var swinger = cam.getSwingerId ? cam.getSwingerId() : cam.initiatorId;
+        if (!swinger) return;
         var swingerIsEnemy = !isPartyId(swinger);
 
         // Pick the right sync anim class based on faction
@@ -678,8 +701,9 @@ function BattleView(props) {
         var cam = camExchangeRef.current;
         if (!cam) return;
 
-        var swinger = cam.getSwingerId();
-        var receiver = cam.getReceiverId();
+        var swinger = cam.getSwingerId ? cam.getSwingerId() : cam.initiatorId;
+        var receiver = cam.getReceiverId ? cam.getReceiverId() : cam.responderId;
+        if (!swinger || !receiver) return;
 
         var skill = cam.skill;
         var beat = skill && skill.beats && skill.beats[index]
@@ -1136,6 +1160,7 @@ function BattleView(props) {
                                 onClick={function() { if (!isCinematic) selectTarget(e.id); }}
                                 flashId={flashId}
                                 animState={animState}
+                                spriteOverride={spriteOverrides[e.id] || null}
                                 isLeftHanded={isLeftHanded}
                                 slotX={slot.x}
                                 slotY={slot.y}
@@ -1164,6 +1189,7 @@ function BattleView(props) {
                                 onClick={function() { if (!isCinematic) selectTarget(p.id); }}
                                 flashId={flashId}
                                 animState={animState}
+                                spriteOverride={spriteOverrides[p.id] || null}
                                 isLeftHanded={isLeftHanded}
                                 slotX={slot.x}
                                 slotY={slot.y}
