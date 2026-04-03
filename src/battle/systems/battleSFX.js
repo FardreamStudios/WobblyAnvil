@@ -206,6 +206,19 @@ function invalid() {
     _tone(120, "square", 0.06, 0.10, 0.04);
 }
 
+// Engage — subtle bass whomp for action cam zoom-in (not obnoxious on repeat)
+function engage() {
+    _sweep(200, 50, "sine", 0.18, 0.18);
+    _tone(80, "square", 0.10, 0.10);
+    _noise(0.10, 0.10, 200);
+}
+
+// Swing — quick attack whoosh (lighter than dodge, plays on wind-up)
+function swing() {
+    _sweep(800, 300, "sawtooth", 0.08, 0.08);
+    _noise(0.06, 0.05, 1500);
+}
+
 // ============================================================
 // API
 // ============================================================
@@ -230,6 +243,8 @@ var BattleSFX = {
     select: select,
     turnStart: turnStart,
     invalid: invalid,
+    engage: engage,
+    swing: swing,
 };
 
 export default BattleSFX;

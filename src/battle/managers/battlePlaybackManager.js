@@ -71,6 +71,7 @@ function runOffense(bus, ctx) {
         bus.emit(BATTLE_TAGS.ANIM_SET, { combatantId: swingerId, animName: "wind_up" });
 
         setTimeout(function() {
+            BattleSFX.swing();
             if (tier === "miss") {
                 // --- WHIFF: short lunge, no damage ---
                 bus.emit(BATTLE_TAGS.ANIM_SET, { combatantId: swingerId, animName: "strike" });
@@ -218,6 +219,7 @@ function runDefense(bus, ctx) {
         setTimeout(function() {
             // --- STRIKE: lunge forward, record anchor ---
             bus.emit(BATTLE_TAGS.ANIM_SET, { combatantId: swingerId, animName: "strike" });
+            BattleSFX.swing();
             DefenseTiming.recordStrikeAnchor();
 
             // Play SFX

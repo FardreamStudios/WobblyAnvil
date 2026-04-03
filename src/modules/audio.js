@@ -52,6 +52,36 @@ var FORGE_LOOP = [
     [PHASE_2C, EIGHTH], [0, SIXTEENTH], [PHASE_2C, EIGHTH], [0, SIXTEENTH], [PHASE_2C, EIGHTH], [0, SIXTEENTH],
 ];
 
+// --- Battle Loop Chord Data ---
+// Tense minor drone — Dm/Am oscillation with rhythmic pulse
+var BATTLE_D  = [147, 175, 220];   // D minor triad (D3, F3, A3)
+var BATTLE_A  = [110, 165, 220];   // A minor triad (A2, E3, A3)
+var BATTLE_Bb = [117, 175, 233];   // Bb major (Bb2, F3, Bb3)
+var BATTLE_C  = [131, 165, 262];   // C major (C3, E3, C4)
+
+var BATTLE_LOOP = [
+    // Bar 1 — Dm pulse
+    [BATTLE_D, EIGHTH], [0, SIXTEENTH], [BATTLE_D, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_D, EIGHTH], [0, SIXTEENTH], [BATTLE_D, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_D, EIGHTH], [0, SIXTEENTH], [BATTLE_D, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_D, EIGHTH], [0, SIXTEENTH], [BATTLE_D, EIGHTH], [0, SIXTEENTH],
+    // Bar 2 — Am pulse
+    [BATTLE_A, EIGHTH], [0, SIXTEENTH], [BATTLE_A, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_A, EIGHTH], [0, SIXTEENTH], [BATTLE_A, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_A, EIGHTH], [0, SIXTEENTH], [BATTLE_A, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_A, EIGHTH], [0, SIXTEENTH], [BATTLE_A, EIGHTH], [0, SIXTEENTH],
+    // Bar 3 — Bb tension
+    [BATTLE_Bb, EIGHTH], [0, SIXTEENTH], [BATTLE_Bb, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_Bb, EIGHTH], [0, SIXTEENTH], [BATTLE_Bb, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_C, EIGHTH], [0, SIXTEENTH], [BATTLE_C, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_C, EIGHTH], [0, SIXTEENTH], [BATTLE_C, EIGHTH], [0, SIXTEENTH],
+    // Bar 4 — resolve back to Dm
+    [BATTLE_D, EIGHTH], [0, SIXTEENTH], [BATTLE_D, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_A, EIGHTH], [0, SIXTEENTH], [BATTLE_A, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_D, EIGHTH], [0, SIXTEENTH], [BATTLE_D, EIGHTH], [0, SIXTEENTH],
+    [BATTLE_D, EIGHTH], [0, EIGHTH],
+];
+
 // ============================================================
 // useAudio Hook — returns the AudioSystem API object
 // ============================================================
@@ -213,8 +243,9 @@ function useAudio() {
                 if (mode === "forge") {
                     loopMusic("forge", FORGE_LOOP, 0.12);
                 }
-                // "battle" mode: music already stopped by stopMusic() above.
-                // Battle will own its own music in V2.
+                if (mode === "battle") {
+                    loopMusic("battle", BATTLE_LOOP, 0.08);
+                }
             }, 500);
         }
 

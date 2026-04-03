@@ -356,6 +356,7 @@ function createBattleDirector(bridge, config) {
                     console.log("[Cam] === PLAYER CAM SESSION START ===", id, "→", targetId);
                     bridge.setCamExchange(id, targetId);
                     bridge.setPhase(PHASES.ACTION_CAM_IN);
+                    BattleSFX.engage();
                     setTimeout(d, ACTION_CAM.transitionInMs);
                 });
 
@@ -475,6 +476,7 @@ function createBattleDirector(bridge, config) {
                 console.log("[Cam] === ENEMY CHAIN START ===", id, "→", targetId, actions.length, "action(s)");
                 bridge.setCamExchange(id, targetId);
                 bridge.setPhase(PHASES.ACTION_CAM_IN);
+                BattleSFX.engage();
                 setTimeout(d, ACTION_CAM.transitionInMs);
             });
 
@@ -578,6 +580,7 @@ function createBattleDirector(bridge, config) {
             console.log("[Cam] CAM_IN  phase set, waiting", ACTION_CAM.transitionInMs, "ms");
             bridge.setCamExchange(initiatorId, targetId);
             bridge.setPhase(PHASES.ACTION_CAM_IN);
+            BattleSFX.engage();
             setTimeout(function() {
                 console.log("[Cam] CAM_IN  done  +" + Math.round(performance.now() - _t0) + "ms");
                 done();
