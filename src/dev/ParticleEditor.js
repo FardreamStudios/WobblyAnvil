@@ -62,18 +62,20 @@ var DEF_PCFG={
     spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,
     vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,
     ditherAmount:0,ditherDepth:2,glow:false,glowIntensity:8,
+    ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false,
 };
 
 // ============================================
 // STARTER TEMPLATES
 // ============================================
 var STARTERS=[
-    {name:"campfire_sparks",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.3},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:40,max:100},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.3,max:0.9},colorStart:"#ffee88",colorMid:"#ffaa00",colorEnd:"#ff2200",colorMidPoint:0.3,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"rampDown",opacityCurveInt:1,gravity:-60,spread:30,direction:270,shape:"square",waveFreq:1,damping:0.5,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:6},
-    {name:"smoke_puff",size:{min:3,max:8},sizeOverLifetime:{start:0.5,end:1.5},sizeCurve:"easeOut",sizeCurveInt:1,scaleX:1.2,scaleY:1,speed:{min:10,max:30},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:1,max:2.5},colorStart:"#999999",colorMid:"#666666",colorEnd:"#333333",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:-15,spread:40,direction:270,shape:"circle",waveFreq:1,damping:1,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:360,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0.3,ditherDepth:3,glow:false,glowIntensity:8},
-    {name:"forge_embers",size:{min:1,max:2},sizeOverLifetime:{start:1,end:0},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:60,max:150},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.2,max:0.6},colorStart:"#ffffff",colorMid:"#ffaa00",colorEnd:"#ff4400",colorMidPoint:0.4,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"none",opacityCurveInt:1,gravity:-20,spread:90,direction:270,shape:"triangle",waveFreq:1,damping:0.3,faceVelocity:true,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:4},
-    {name:"anvil_strike",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.2},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1.5,scaleY:0.5,speed:{min:80,max:200},speedCurve:"easeIn",speedCurveInt:1,lifetime:{min:0.15,max:0.5},colorStart:"#ffffff",colorMid:"#ffdd44",colorEnd:"#ff6600",colorMidPoint:0.25,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:50,spread:180,direction:270,shape:"square",waveFreq:1,damping:2,faceVelocity:true,radialBurst:true,biasX:0,biasY:-60,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"line",spawnWidth:60,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:10},
-    {name:"magic_wisp",size:{min:2,max:4},sizeOverLifetime:{start:0.8,end:1.2},sizeCurve:"waveCurve",sizeCurveInt:1,scaleX:2,scaleY:0.6,speed:{min:15,max:40},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:0.8,max:1.8},colorStart:"#88ffff",colorMid:"#4488ff",colorEnd:"#8844ff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"pulse",opacityCurveInt:1,gravity:-10,spread:60,direction:270,shape:"wave",waveFreq:2,damping:0.8,faceVelocity:true,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"circle",spawnWidth:40,spawnHeight:40,spawnRadius:15,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0.15,ditherDepth:2,glow:true,glowIntensity:12},
-    {name:"basic_circle",size:{min:20,max:20},sizeOverLifetime:{start:1,end:1},sizeCurve:"none",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:0,max:0},speedCurve:"none",speedCurveInt:1,lifetime:{min:2,max:2},colorStart:"#ffffff",colorMid:"#ffffff",colorEnd:"#ffffff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:false,opacityCurve:"none",opacityCurveInt:1,gravity:0,spread:0,direction:270,shape:"circle",waveFreq:1,damping:0,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:false,glowIntensity:8},
+    {name:"campfire_sparks",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.3},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:40,max:100},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.3,max:0.9},colorStart:"#ffee88",colorMid:"#ffaa00",colorEnd:"#ff2200",colorMidPoint:0.3,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"rampDown",opacityCurveInt:1,gravity:-60,spread:30,direction:270,shape:"square",waveFreq:1,damping:0.5,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:6,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
+    {name:"smoke_puff",size:{min:3,max:8},sizeOverLifetime:{start:0.5,end:1.5},sizeCurve:"easeOut",sizeCurveInt:1,scaleX:1.2,scaleY:1,speed:{min:10,max:30},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:1,max:2.5},colorStart:"#999999",colorMid:"#666666",colorEnd:"#333333",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:-15,spread:40,direction:270,shape:"circle",waveFreq:1,damping:1,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:360,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0.3,ditherDepth:3,glow:false,glowIntensity:8,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
+    {name:"forge_embers",size:{min:1,max:2},sizeOverLifetime:{start:1,end:0},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:60,max:150},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.2,max:0.6},colorStart:"#ffffff",colorMid:"#ffaa00",colorEnd:"#ff4400",colorMidPoint:0.4,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"none",opacityCurveInt:1,gravity:-20,spread:90,direction:270,shape:"triangle",waveFreq:1,damping:0.3,faceVelocity:true,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:4,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
+    {name:"anvil_strike",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.2},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1.5,scaleY:0.5,speed:{min:80,max:200},speedCurve:"easeIn",speedCurveInt:1,lifetime:{min:0.15,max:0.5},colorStart:"#ffffff",colorMid:"#ffdd44",colorEnd:"#ff6600",colorMidPoint:0.25,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:50,spread:180,direction:270,shape:"square",waveFreq:1,damping:2,faceVelocity:true,radialBurst:true,biasX:0,biasY:-60,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"line",spawnWidth:60,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:10,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
+    {name:"magic_wisp",size:{min:2,max:4},sizeOverLifetime:{start:0.8,end:1.2},sizeCurve:"waveCurve",sizeCurveInt:1,scaleX:2,scaleY:0.6,speed:{min:15,max:40},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:0.8,max:1.8},colorStart:"#88ffff",colorMid:"#4488ff",colorEnd:"#8844ff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"pulse",opacityCurveInt:1,gravity:-10,spread:60,direction:270,shape:"wave",waveFreq:2,damping:0.8,faceVelocity:true,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"circle",spawnWidth:40,spawnHeight:40,spawnRadius:15,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0.15,ditherDepth:2,glow:true,glowIntensity:12,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
+    {name:"basic_circle",size:{min:20,max:20},sizeOverLifetime:{start:1,end:1},sizeCurve:"none",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:0,max:0},speedCurve:"none",speedCurveInt:1,lifetime:{min:2,max:2},colorStart:"#ffffff",colorMid:"#ffffff",colorEnd:"#ffffff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:false,opacityCurve:"none",opacityCurveInt:1,gravity:0,spread:0,direction:270,shape:"circle",waveFreq:1,damping:0,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:false,glowIntensity:8,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
+    {name:"beam_ribbon",size:{min:2,max:3},sizeOverLifetime:{start:1,end:1},sizeCurve:"none",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:200,max:250},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.8,max:1.2},colorStart:"#ffffff",colorMid:"#66ddff",colorEnd:"#0066ff",colorMidPoint:0.3,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"rampDown",opacityCurveInt:1,gravity:0,spread:4,direction:0,shape:"circle",waveFreq:1,damping:0,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:12,ribbon:true,ribbonWidth:24,ribbonWidthEnd:3,ribbonAdditive:true},
 ];
 
 // ============================================
@@ -141,6 +143,11 @@ var P_DEFS=[
     {type:"sublabel",label:"Glow",group:"effects"},
     {key:"glow",label:"Glow",type:"toggle",group:"effects"},
     {key:"glowIntensity",label:"Size",type:"slider",min:2,max:30,step:1,group:"effects",showIf:"glow"},
+    {type:"sublabel",label:"Ribbon",group:"effects"},
+    {key:"ribbon",label:"Ribbon Mode",type:"toggle",group:"effects"},
+    {key:"ribbonWidth",label:"Width Start",type:"slider",min:1,max:100,step:1,group:"effects",showIf:"ribbon"},
+    {key:"ribbonWidthEnd",label:"Width End",type:"slider",min:0,max:100,step:1,group:"effects",showIf:"ribbon"},
+    {key:"ribbonAdditive",label:"Additive Blend",type:"toggle",group:"effects",showIf:"ribbon"},
 ];
 
 // ============================================
@@ -227,6 +234,74 @@ function drawP(ctx,p,cfg){
     if(cfg.faceVelocity)ctx.rotate(Math.atan2(p.vy,p.vx));else if(cfg.rotation)ctx.rotate(p.rot);
     if(cfg.glow){ctx.shadowColor="rgba("+col.r+","+col.g+","+col.b+","+(alpha*0.6).toFixed(2)+")";ctx.shadowBlur=cfg.glowIntensity||8;}
     DS(ctx,w,h);ctx.shadowColor="transparent";ctx.shadowBlur=0;ctx.restore();
+}
+// ============================================
+// RIBBON RENDERER
+// ============================================
+function drawRibbon(ctx,parts,cfg){
+    if(parts.length<2)return;
+    // Sort by age: oldest first (lowest life = oldest)
+    var sorted=parts.slice().sort(function(a,b){return a.life-b.life;});
+    var wStart=cfg.ribbonWidth||20;
+    var wEnd=cfg.ribbonWidthEnd||2;
+    var additive=cfg.ribbonAdditive||false;
+    var prevBlend=ctx.globalCompositeOperation;
+    if(additive)ctx.globalCompositeOperation="lighter";
+    // Draw glow pass first if enabled
+    if(cfg.glow){
+        for(var g=0;g<sorted.length-1;g++){
+            var gp0=sorted[g],gp1=sorted[g+1];
+            var gt0=1-gp0.life/gp0.maxLife,gt1=1-gp1.life/gp1.maxLife;
+            var gc0=colAt(gt0,cfg),gc1=colAt(gt1,cfg);
+            var ga0=cfg.fadeOut?(gp0.life/gp0.maxLife):1;var ga1=cfg.fadeOut?(gp1.life/gp1.maxLife):1;
+            ga0=evalCurve(cfg.opacityCurve||"none",ga0,cfg.opacityCurveInt);
+            ga1=evalCurve(cfg.opacityCurve||"none",ga1,cfg.opacityCurveInt);
+            var gw0=lerp(wEnd,wStart,gp0.life/gp0.maxLife)+(cfg.glowIntensity||8)*2;
+            var gw1=lerp(wEnd,wStart,gp1.life/gp1.maxLife)+(cfg.glowIntensity||8)*2;
+            var gdx=gp1.x-gp0.x,gdy=gp1.y-gp0.y;
+            var glen=Math.sqrt(gdx*gdx+gdy*gdy);if(glen<0.5)continue;
+            var gnx=-gdy/glen,gny=gdx/glen;
+            ctx.beginPath();
+            ctx.moveTo(gp0.x+gnx*gw0/2,gp0.y+gny*gw0/2);
+            ctx.lineTo(gp1.x+gnx*gw1/2,gp1.y+gny*gw1/2);
+            ctx.lineTo(gp1.x-gnx*gw1/2,gp1.y-gny*gw1/2);
+            ctx.lineTo(gp0.x-gnx*gw0/2,gp0.y-gny*gw0/2);
+            ctx.closePath();
+            var glowA=Math.min(ga0,ga1)*0.15;
+            var mc=lc(gc0,gc1,0.5);
+            ctx.fillStyle="rgba("+mc.r+","+mc.g+","+mc.b+","+glowA.toFixed(3)+")";
+            ctx.fill();
+        }
+    }
+    // Main ribbon quads
+    for(var i=0;i<sorted.length-1;i++){
+        var p0=sorted[i],p1=sorted[i+1];
+        var t0=1-p0.life/p0.maxLife,t1=1-p1.life/p1.maxLife;
+        var c0=colAt(t0,cfg),c1=colAt(t1,cfg);
+        var a0=cfg.fadeOut?(p0.life/p0.maxLife):1;var a1=cfg.fadeOut?(p1.life/p1.maxLife):1;
+        a0=evalCurve(cfg.opacityCurve||"none",a0,cfg.opacityCurveInt);
+        a1=evalCurve(cfg.opacityCurve||"none",a1,cfg.opacityCurveInt);
+        // Width based on particle life ratio (newest=wStart, oldest=wEnd)
+        var w0=lerp(wEnd,wStart,p0.life/p0.maxLife);
+        var w1=lerp(wEnd,wStart,p1.life/p1.maxLife);
+        // Normal perpendicular to segment
+        var dx=p1.x-p0.x,dy=p1.y-p0.y;
+        var len=Math.sqrt(dx*dx+dy*dy);if(len<0.5)continue;
+        var nx=-dy/len,ny=dx/len;
+        // Draw quad between p0 and p1
+        ctx.beginPath();
+        ctx.moveTo(p0.x+nx*w0/2,p0.y+ny*w0/2);
+        ctx.lineTo(p1.x+nx*w1/2,p1.y+ny*w1/2);
+        ctx.lineTo(p1.x-nx*w1/2,p1.y-ny*w1/2);
+        ctx.lineTo(p0.x-nx*w0/2,p0.y-ny*w0/2);
+        ctx.closePath();
+        // Use midpoint color and alpha
+        var alpha=Math.min(a0,a1);
+        var midC=lc(c0,c1,0.5);
+        ctx.fillStyle="rgba("+midC.r+","+midC.g+","+midC.b+","+alpha.toFixed(3)+")";
+        ctx.fill();
+    }
+    ctx.globalCompositeOperation=prevBlend;
 }
 function drawGrid(ctx,w,h){
     ctx.strokeStyle=GRID_COL;ctx.lineWidth=1;var cx=w/2,cy=h/2;
@@ -390,7 +465,7 @@ function ParticleEditor(){
                 }
             }
             if(!pausedR.current){for(var j=parts.length-1;j>=0;j--){updP(parts[j],dt,cfg);if(!parts[j].alive)parts.splice(j,1);}}
-            for(var k=0;k<parts.length;k++)drawP(ctx,parts[k],cfg);
+            if(cfg.ribbon){drawRibbon(ctx,parts,cfg);}else{for(var k=0;k<parts.length;k++)drawP(ctx,parts[k],cfg);}
             totalP+=parts.length;
         }
         if(showHR.current){for(var h=0;h<allEm.length;h++){var e=allEm[h];var sc=e.pcfg.spawnShape||"point",isSel2=e.id===sid;
@@ -413,7 +488,7 @@ function ParticleEditor(){
     function onCM(e){e.preventDefault();}
 
     // ---- EXPORT ----
-    function cfgExp(cfg){return{name:cfg.name,size:cfg.size,sizeOverLifetime:cfg.sizeOverLifetime,sizeCurve:cfg.sizeCurve,sizeCurveInt:cfg.sizeCurveInt,scaleX:cfg.scaleX,scaleY:cfg.scaleY,speed:cfg.speed,speedCurve:cfg.speedCurve,speedCurveInt:cfg.speedCurveInt,lifetime:cfg.lifetime,colorStart:cfg.colorStart,colorMid:cfg.colorMid,colorEnd:cfg.colorEnd,colorMidPoint:cfg.colorMidPoint,colorCurve:cfg.colorCurve,colorCurveInt:cfg.colorCurveInt,fadeOut:cfg.fadeOut,opacityCurve:cfg.opacityCurve,opacityCurveInt:cfg.opacityCurveInt,gravity:cfg.gravity,spread:cfg.spread,direction:cfg.direction,shape:cfg.shape,waveFreq:cfg.waveFreq,damping:cfg.damping,faceVelocity:cfg.faceVelocity,radialBurst:cfg.radialBurst,biasX:cfg.biasX,biasY:cfg.biasY,rotation:cfg.rotation,rotStart:cfg.rotStart,rotRandom:cfg.rotRandom,rotSpeed:cfg.rotSpeed,spawnShape:cfg.spawnShape,spawnWidth:cfg.spawnWidth,spawnHeight:cfg.spawnHeight,spawnRadius:cfg.spawnRadius,spawnAngle:cfg.spawnAngle,vortex:cfg.vortex,vortexWidth:cfg.vortexWidth,vortexHeight:cfg.vortexHeight,vortexSpeed:cfg.vortexSpeed,vortexPhaseRand:cfg.vortexPhaseRand,ditherAmount:cfg.ditherAmount,ditherDepth:cfg.ditherDepth,glow:cfg.glow,glowIntensity:cfg.glowIntensity};}
+    function cfgExp(cfg){return{name:cfg.name,size:cfg.size,sizeOverLifetime:cfg.sizeOverLifetime,sizeCurve:cfg.sizeCurve,sizeCurveInt:cfg.sizeCurveInt,scaleX:cfg.scaleX,scaleY:cfg.scaleY,speed:cfg.speed,speedCurve:cfg.speedCurve,speedCurveInt:cfg.speedCurveInt,lifetime:cfg.lifetime,colorStart:cfg.colorStart,colorMid:cfg.colorMid,colorEnd:cfg.colorEnd,colorMidPoint:cfg.colorMidPoint,colorCurve:cfg.colorCurve,colorCurveInt:cfg.colorCurveInt,fadeOut:cfg.fadeOut,opacityCurve:cfg.opacityCurve,opacityCurveInt:cfg.opacityCurveInt,gravity:cfg.gravity,spread:cfg.spread,direction:cfg.direction,shape:cfg.shape,waveFreq:cfg.waveFreq,damping:cfg.damping,faceVelocity:cfg.faceVelocity,radialBurst:cfg.radialBurst,biasX:cfg.biasX,biasY:cfg.biasY,rotation:cfg.rotation,rotStart:cfg.rotStart,rotRandom:cfg.rotRandom,rotSpeed:cfg.rotSpeed,spawnShape:cfg.spawnShape,spawnWidth:cfg.spawnWidth,spawnHeight:cfg.spawnHeight,spawnRadius:cfg.spawnRadius,spawnAngle:cfg.spawnAngle,vortex:cfg.vortex,vortexWidth:cfg.vortexWidth,vortexHeight:cfg.vortexHeight,vortexSpeed:cfg.vortexSpeed,vortexPhaseRand:cfg.vortexPhaseRand,ditherAmount:cfg.ditherAmount,ditherDepth:cfg.ditherDepth,glow:cfg.glow,glowIntensity:cfg.glowIntensity,ribbon:cfg.ribbon,ribbonWidth:cfg.ribbonWidth,ribbonWidthEnd:cfg.ribbonWidthEnd,ribbonAdditive:cfg.ribbonAdditive};}
     function expScene(){var sc={systemDuration:sysDur,systemMode:sysMode,templates:tpls.map(cfgExp),emitters:ems.map(function(em){return{id:em.id,position:{x:em.x,y:em.y},type:em.type,burstSub:em.burstSub,spawnRate:em.spawnRate,burstCount:em.burstCount,burstSpawnRate:em.burstSpawnRate,activations:em.activations,actDelay:em.actDelay,startTime:em.startTime,emitterDuration:em.emDuration,config:cfgExp(em.pcfg)};})};setExpJSON(JSON.stringify(sc,null,2));setShowExp(true);}
     function expSel(){if(!selEm)return;var o=cfgExp(selEm.pcfg);Object.assign(o,{position:{x:selEm.x,y:selEm.y},type:selEm.type,burstSub:selEm.burstSub,spawnRate:selEm.spawnRate,burstCount:selEm.burstCount,burstSpawnRate:selEm.burstSpawnRate,activations:selEm.activations,actDelay:selEm.actDelay,startTime:selEm.startTime,emitterDuration:selEm.emDuration});setExpJSON(JSON.stringify(o,null,2));setShowExp(true);}
     function clearScene(){setEms([]);setSelId(null);setShowExp(false);}

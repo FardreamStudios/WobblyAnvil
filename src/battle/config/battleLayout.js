@@ -56,7 +56,8 @@ var BATTLE_SLOTS = {
 var ACTION_CAM_SLOTS = {
     centerX:    480,            // horizontal center of stage (960/2)
     centerY:    310,            // slightly below vertical center for visual weight
-    gap:        80,             // half-distance between attacker and target
+    gap:        80,             // half-distance between attacker and target (melee)
+    rangedGap:  180,            // half-distance for ranged skills (attacker further back)
 };
 
 // --- Overlay Sizing (viewport units for UI anchored to screen edges) ---

@@ -110,6 +110,12 @@ function createBattleDirector(bridge, config) {
     var pendingCounterDone   = null; // counter prompt step
     var pendingCamChainDone  = null; // in-cam chain prompt step
 
+    // Special skill takeover state (see SpecialSkillSystemSpec.md)
+    var activeSkill         = null;   // skill controller object (has activate/abort/onTick)
+    var activeSkillBridge   = null;   // skill bridge instance (disabled on abort)
+    var activeSkillCasterId = null;   // combatant currently executing a special skill
+    var pendingSkillDone    = null;   // sequencer done() callback parked during takeover
+
     // In-cam chaining state (player multi-action cam session)
     var camSession = {
         active:      false,
@@ -142,6 +148,271 @@ function createBattleDirector(bridge, config) {
             if (all[i].id === id) return all[i];
         }
         return null;
+    }
+
+    // ============================================================
+    // TURN ORDER MANIPULATION
+    // ============================================================
+
+    // Push a combatant N slots back in turn order.
+    // Used when declaring a delayed/special skill.
+    function pushTurnBack(id, slots) {
+        var idx = turnOrder.indexOf(id);
+        if (idx === -1) return;
+        turnOrder.splice(idx, 1);
+        var newIdx = Math.min(idx + slots, turnOrder.length);
+        turnOrder.splice(newIdx, 0, id);
+        bridge.onTurnOrderChanged(turnOrder);
+    }
+
+    // ============================================================
+    // SKILL BRIDGE FACTORY (SpecialSkillSystemSpec §3)
+    //
+    // Builds a controlled facade the director passes to a special
+    // skill on ACTIVATE.  Every method guards against use after
+    // ABORT (no-ops silently).  The director calls _abort() to
+    // disable the bridge and _isAborted() to query it.
+    //
+    // Promise-returning methods (enterCam, exitCam, runQTE) let
+    // the skill await them in its own async sequence.
+    // ============================================================
+
+    function createSkillBridge(casterId, targetId) {
+        var aborted = false;
+
+        // --------------------------------------------------
+        // Combat State
+        // --------------------------------------------------
+
+        function getTarget(id) {
+            if (aborted) return null;
+            var c = bState.get(id);
+            return c ? Object.assign({}, c) : null;
+        }
+
+        function isAlive(id) {
+            if (aborted) return false;
+            var c = bState.get(id);
+            return c ? !c.ko : false;
+        }
+
+        function skillDealDamage(tid, amount) {
+            if (aborted) return { newHP: 0, isKO: false };
+            var result = bState.applyDamage(tid, amount);
+            bridge.spawnDamageNumber(tid, String(result.damage), "#f59e0b");
+            bridge.bumpState();
+
+            // Wipe check — if triggered, schedule abort on next
+            // microtask so the skill's current call stack finishes
+            // before the director takes over.
+            var wipe = checkWipe();
+            if (wipe) {
+                aborted = true;
+                var reason = wipe === "ko" ? "casterKO" : "waveEnd";
+                Promise.resolve().then(function() {
+                    abortActiveSkill(reason);
+                });
+            }
+
+            return { newHP: result.newHP, isKO: result.ko };
+        }
+
+        function skillSpawnDamageNumber(id, val, color) {
+            if (aborted) return;
+            bridge.spawnDamageNumber(id, val, color);
+        }
+
+        // Whitelist of flags the skill is allowed to touch
+        var ALLOWED_FLAGS = { canDefend: true, canAct: true };
+
+        function setFlag(id, flag, val) {
+            if (aborted) return;
+            if (!ALLOWED_FLAGS[flag]) {
+                console.warn("[SkillBridge] setFlag blocked — not whitelisted:", flag);
+                return;
+            }
+            var c = bState.get(id);
+            if (c) c[flag] = val;
+        }
+
+        function getFlag(id, flag) {
+            var c = bState.get(id);
+            return c ? c[flag] : undefined;
+        }
+
+        function skillBumpState() {
+            if (aborted) return;
+            bridge.bumpState();
+        }
+
+        // --------------------------------------------------
+        // Turn Order
+        // --------------------------------------------------
+
+        function skillPushTurnBack(id, slots) {
+            if (aborted) return;
+            pushTurnBack(id, slots);
+        }
+
+        function skillGetCurrentTurnId() {
+            return currentTurnId;
+        }
+
+        function getNextTarget(side) {
+            if (aborted) return null;
+            var ids = side === "enemy" ? bState.getEnemyIds() : bState.getPartyIds();
+            for (var i = 0; i < ids.length; i++) {
+                var c = bState.get(ids[i]);
+                if (c && !c.ko) return ids[i];
+            }
+            return null;
+        }
+
+        // --------------------------------------------------
+        // Action Cam (promise-based)
+        // --------------------------------------------------
+
+        function enterCam(attackerId, tid, opts) {
+            if (aborted) return Promise.resolve();
+            return new Promise(function(resolve) {
+                bridge.setCamExchange(attackerId, tid);
+                bridge.setPhase(PHASES.ACTION_CAM_IN);
+                BattleSFX.engage();
+                setTimeout(resolve, ACTION_CAM.transitionInMs);
+            });
+        }
+
+        function exitCam() {
+            if (aborted) return Promise.resolve();
+            return new Promise(function(resolve) {
+                bridge.setPhase(PHASES.CAM_EXIT_SLIDE);
+                setTimeout(function() {
+                    bridge.onCamOut();
+                    bridge.setPhase(PHASES.ACTION_CAM_OUT);
+                    setTimeout(resolve, ACTION_CAM.transitionOutMs);
+                }, ACTION_CAM.exitSlideMs);
+            });
+        }
+
+        function showSkillName(text) {
+            if (aborted) return;
+            var color = isPlayerCombatant(casterId) ? "#60a5fa" : "#ef4444";
+            bridge.spawnSkillName(text, casterId, color);
+        }
+
+        // --------------------------------------------------
+        // Sprite & Anim
+        //
+        // setChoreo / clearChoreo go through the existing bus
+        // events that BattleView already subscribes to.
+        // setSpriteKey / setSpriteFrame are stubs — wired when
+        // visual features are built (build order steps 7–9).
+        // --------------------------------------------------
+
+        function setChoreo(id, cls) {
+            if (aborted) return;
+            bus.emit("ANIM_SET", { combatantId: id, animName: cls });
+        }
+
+        function clearChoreo(id) {
+            if (aborted) return;
+            bus.emit("ANIM_CLEAR", { combatantId: id });
+        }
+
+        function setSpriteKey(id, key) {
+            if (aborted) return;
+            // STUB — needs View Bridge callback (build order step 7+)
+            console.warn("[SkillBridge] setSpriteKey stub:", id, key);
+        }
+
+        function setSpriteFrame(id, frame) {
+            if (aborted) return;
+            // STUB — needs View Bridge callback (build order step 7+)
+            console.warn("[SkillBridge] setSpriteFrame stub:", id, frame);
+        }
+
+        // --------------------------------------------------
+        // QTE (promise-based)
+        // --------------------------------------------------
+
+        function runQTE(config) {
+            if (aborted) return Promise.resolve({ accuracy: 0, succeeded: false });
+            return new Promise(function(resolve) {
+                bridge.setPhase(PHASES.CAM_SWING_QTE);
+                bridge.activateQTE(config, function(resultsArray) {
+                    bridge.setPhase(PHASES.CAM_SWING_PLAYBACK);
+                    resolve(resultsArray);
+                });
+            });
+        }
+
+        // --------------------------------------------------
+        // VFX — stubs, wired at build order step 9
+        // --------------------------------------------------
+
+        function startVFX(id, opts) {
+            if (aborted) return;
+            console.warn("[SkillBridge] startVFX stub:", id, opts);
+        }
+
+        function stopVFX(id) {
+            if (aborted) return;
+            console.warn("[SkillBridge] stopVFX stub:", id);
+        }
+
+        // --------------------------------------------------
+        // Lifecycle
+        // --------------------------------------------------
+
+        function release() {
+            if (aborted) return;
+            releaseSkill();
+        }
+
+        // --------------------------------------------------
+        // Bridge object
+        // --------------------------------------------------
+
+        return {
+            // Combat State
+            getTarget:          getTarget,
+            isAlive:            isAlive,
+            dealDamage:         skillDealDamage,
+            spawnDamageNumber:  skillSpawnDamageNumber,
+            setFlag:            setFlag,
+            getFlag:            getFlag,
+            bumpState:          skillBumpState,
+
+            // Turn Order
+            pushTurnBack:       skillPushTurnBack,
+            getCurrentTurnId:   skillGetCurrentTurnId,
+            getNextTarget:      getNextTarget,
+
+            // Action Cam
+            enterCam:           enterCam,
+            exitCam:            exitCam,
+            showSkillName:      showSkillName,
+
+            // Sprite & Anim
+            setChoreo:          setChoreo,
+            clearChoreo:        clearChoreo,
+            setSpriteKey:       setSpriteKey,
+            setSpriteFrame:     setSpriteFrame,
+
+            // QTE
+            runQTE:             runQTE,
+
+            // VFX
+            startVFX:           startVFX,
+            stopVFX:            stopVFX,
+
+            // Lifecycle
+            release:            release,
+
+            // Internal — director only
+            _abort:             function() { aborted = true; },
+            _isAborted:         function() { return aborted; },
+        };
     }
 
     // ============================================================
@@ -215,6 +486,14 @@ function createBattleDirector(bridge, config) {
 
     function enqueueTurn(id) {
         if (destroyed) { console.warn("[Director] enqueueTurn blocked — destroyed"); return; }
+
+        // --- Special skill takeover: charging combatant's turn has arrived ---
+        if (bState.isCharging(id)) {
+            console.log("[Director] enqueueTurn:", id, "→ CHARGING — activating special skill");
+            enqueueSpecialSkillActivation(id);
+            return;
+        }
+
         var isPlayer = isPlayerCombatant(id);
         console.log("[Director] enqueueTurn:", id, isPlayer ? "PLAYER" : "ENEMY");
 
@@ -235,6 +514,170 @@ function createBattleDirector(bridge, config) {
         } else {
             enqueueEnemyTurn(id);
         }
+    }
+
+    // ============================================================
+    // SPECIAL SKILL TAKEOVER (SpecialSkillSystemSpec §5)
+    //
+    // When a charging combatant's turn arrives, the director
+    // builds a skill bridge, parks the sequencer, and hands
+    // control to the skill's activate() method.
+    //
+    // The sequencer stays parked until releaseSkill() (RESUME)
+    // or abortActiveSkill() (ABORT) is called.
+    // ============================================================
+
+    function enqueueSpecialSkillActivation(id) {
+        // Single step — parks until skill calls bridge.release()
+        seq.enqueue(function(done) {
+            var chargeInfo = bState.get(id).chargingSkill;
+            if (!chargeInfo) {
+                console.warn("[Director] enqueueSpecialSkillActivation — no chargingSkill on:", id);
+                advanceToNextTurn();
+                done();
+                return;
+            }
+
+            var skill = BattleSkills.getSkill(chargeInfo.skillId);
+            if (!skill || typeof skill.activate !== "function") {
+                console.warn("[Director] enqueueSpecialSkillActivation — skill missing activate():", chargeInfo.skillId);
+                bState.clearCharging(id);
+                bridge.bumpState();
+                advanceToNextTurn();
+                done();
+                return;
+            }
+
+            // Build the skill bridge
+            var skillBridge = createSkillBridge(id, chargeInfo.targetId);
+
+            // Store takeover state
+            activeSkill         = skill;
+            activeSkillBridge   = skillBridge;
+            activeSkillCasterId = id;
+            pendingSkillDone    = done;  // parked — skill owns control now
+
+            currentTurnId = id;
+            bridge.setTurnOwnerId(id);
+
+            console.log("[Director] SPECIAL SKILL ACTIVATE:", skill.id || chargeInfo.skillId, "caster:", id);
+            skill.activate(skillBridge);
+            // Sequencer is now parked. Skill runs async via bridge.
+        });
+    }
+
+    // ----------------------------------------------------------
+    // RESUME — skill calls bridge.release() when done
+    // ----------------------------------------------------------
+
+    function releaseSkill() {
+        if (!activeSkill) {
+            console.warn("[Director] releaseSkill called with no active skill");
+            return;
+        }
+
+        var casterId = activeSkillCasterId;
+        console.log("[Director] SPECIAL SKILL RESUME — caster:", casterId);
+
+        // Clear charging flags on combatant
+        bState.clearCharging(casterId);
+        bridge.bumpState();
+
+        // Clear internal takeover state
+        var doneFn = pendingSkillDone;
+        activeSkill         = null;
+        activeSkillBridge   = null;
+        activeSkillCasterId = null;
+        pendingSkillDone    = null;
+
+        // Enqueue post-release cleanup:
+        // cam out (if skill entered cam) → wipe check → advance
+
+        // Cam out — safe to call even if cam isn't active,
+        // the phases just no-op visually
+        enqueueCamOut({ setTurnActive: false, clearTarget: true });
+
+        // Breathing pause
+        seq.enqueue(function(d) {
+            setTimeout(d, DIRECTOR_TIMING.breathingPauseMs);
+        });
+
+        // Wipe check + advance
+        seq.enqueue(function(d) {
+            var wipe = checkWipe();
+            if (wipe) {
+                seq.clear();
+                if (wipe === "ko") { enqueueBattleEnd("ko"); }
+                else if (wipe === "victory") { enqueueBattleEnd("victory"); }
+                else if (wipe === "waveComplete") { enqueueWaveTransition(); }
+            } else {
+                advanceToNextTurn();
+            }
+            d();
+        });
+
+        // Unpark the sequencer — runs the steps we just enqueued
+        if (doneFn) doneFn();
+    }
+
+    // ----------------------------------------------------------
+    // ABORT — director forcefully ends the skill
+    //
+    // Reasons: "casterKO", "waveEnd", "flee"
+    // Called from wipe checks or external events.
+    // ----------------------------------------------------------
+
+    function abortActiveSkill(reason) {
+        if (!activeSkill) return;
+
+        var casterId = activeSkillCasterId;
+        console.log("[Director] SPECIAL SKILL ABORT — reason:", reason, "caster:", casterId);
+
+        // 1. Disable the bridge (all future calls no-op)
+        if (activeSkillBridge) activeSkillBridge._abort();
+
+        // 2. Tell the skill to clean up its own visual state
+        if (typeof activeSkill.abort === "function") {
+            activeSkill.abort(reason);
+        }
+
+        // 3. Clear charging flags
+        bState.clearCharging(casterId);
+        bridge.bumpState();
+
+        // 4. Clear internal takeover state
+        var doneFn = pendingSkillDone;
+        activeSkill         = null;
+        activeSkillBridge   = null;
+        activeSkillCasterId = null;
+        pendingSkillDone    = null;
+
+        // 5. Enqueue cleanup based on abort reason
+        enqueueCamOut({ setTurnActive: false, clearTarget: true });
+
+        if (reason === "casterKO") {
+            // Director handles KO anim + continue
+            seq.enqueue(function(d) {
+                var wipe = checkWipe();
+                if (wipe === "ko") { seq.clear(); enqueueBattleEnd("ko"); }
+                else { advanceToNextTurn(); }
+                d();
+            });
+        } else if (reason === "waveEnd") {
+            seq.enqueue(function(d) {
+                var wipe = checkWipe();
+                if (wipe === "victory") { seq.clear(); enqueueBattleEnd("victory"); }
+                else if (wipe === "waveComplete") { seq.clear(); enqueueWaveTransition(); }
+                else { advanceToNextTurn(); }
+                d();
+            });
+        } else {
+            // Generic — just advance
+            seq.enqueue(function(d) { advanceToNextTurn(); d(); });
+        }
+
+        // 6. Unpark the sequencer
+        if (doneFn) doneFn();
     }
 
     // ============================================================
@@ -337,6 +780,29 @@ function createBattleDirector(bridge, config) {
             if (!tgt || tgt.ko) { rejectAction(done); return; }
 
             spendAP(id, apCost);
+
+            // --- Special skill: declare charge, push back, end turn ---
+            if (skill.skillType === "special" && typeof skill.activate === "function") {
+                console.log("[Director] SPECIAL SKILL DECLARE:", skill.id || skillId, "caster:", id, "target:", targetId);
+                var delaySlots = skill.delaySlots || 1;
+
+                // Set charging flags on combatant state
+                bState.beginCharging(id, skillId, targetId);
+                bridge.bumpState();
+
+                // Push caster back in turn order
+                pushTurnBack(id, delaySlots);
+
+                // Apply charge_shake choreo for visual feedback
+                bus.emit("ANIM_SET", { combatantId: id, animName: "charge_shake" });
+
+                // End turn — next in line goes. When turn order reaches
+                // this combatant's new position, enqueueTurn will detect
+                // the charging flag and call skill.activate(bridge).
+                seq.enqueue(function(d) { advanceToNextTurn(); d(); });
+                done();
+                return;
+            }
 
             var maxCamActions = ENGAGEMENT.MAX_ENGAGEMENT_ACTIONS || 1;
 
@@ -1225,6 +1691,12 @@ function createBattleDirector(bridge, config) {
         pendingPlayerDone = null;
         pendingCounterDone = null;
         pendingCamChainDone = null;
+        // Special skill takeover cleanup
+        if (activeSkillBridge) activeSkillBridge._abort();
+        activeSkill = null;
+        activeSkillBridge = null;
+        activeSkillCasterId = null;
+        pendingSkillDone = null;
         camSession.active = false;
         camSession.actionsUsed = 0;
         camSession.initiatorId = null;
@@ -1240,6 +1712,12 @@ function createBattleDirector(bridge, config) {
         pendingPlayerDone = null;
         pendingCounterDone = null;
         pendingCamChainDone = null;
+        // Special skill takeover cleanup
+        if (activeSkillBridge) activeSkillBridge._abort();
+        activeSkill = null;
+        activeSkillBridge = null;
+        activeSkillCasterId = null;
+        pendingSkillDone = null;
     }
 
     // ============================================================
