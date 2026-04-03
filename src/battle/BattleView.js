@@ -52,6 +52,7 @@ import BATTLE_TAGS from "./battleTags.js";
 import PlaybackManager from "./managers/battlePlaybackManager.js";
 import BattleDirectorModule from "./managers/battleDirector.js";
 import BattleHelpers from "./systems/battleHelpers.js";
+import BeamVFX from "./components/BeamVFX.js";
 import "./BattleView.css";
 
 var QTERunner = QTERunnerModule.QTERunner;
@@ -161,6 +162,7 @@ function BattleView(props) {
     var [skillNameLabel, setSkillNameLabel] = useState(null);
     var skillNameTimerRef = useRef(null);
     var skillNameKeyRef = useRef(0);
+    var [activeVFX, setActiveVFX] = useState(null);  // { id, fromId, toId } or null
     var [qteConfig, setQteConfig] = useState(null);
     var qteKeyRef = useRef(0);
     var qteResolveRef = useRef(null);
@@ -313,6 +315,16 @@ function BattleView(props) {
             spawnDamageNumber:  function(id, val, color) { spawnDmgAt(id, val, color); },
             spawnSkillName:     function(name, id, color) { spawnSkillName(name, id, color); },
 
+            // --- VFX (beam connector, etc.) ---
+            startVFX: function(vfxId, opts) {
+                setActiveVFX({ id: vfxId, fromId: opts && opts.from, toId: opts && opts.to });
+            },
+            stopVFX: function(vfxId) {
+                setActiveVFX(function(prev) {
+                    return (prev && prev.id === vfxId) ? null : prev;
+                });
+            },
+
             // --- Async: QTE ---
             activateQTE:        function(config, onComplete) { activateQTE(config, onComplete); },
 
@@ -362,12 +374,17 @@ function BattleView(props) {
                 setDamageNumbers([]);
                 setShakeLevel(null);
                 setFlashId(null);
+                setActiveVFX(null);
                 camExchangeRef.current = null;
             },
 
             // --- Cam exchange tracking (who's in the action cam) ---
-            setCamExchange: function(initiatorId, responderId) {
-                camExchangeRef.current = { initiatorId: initiatorId, responderId: responderId };
+            setCamExchange: function(initiatorId, responderId, opts) {
+                camExchangeRef.current = {
+                    initiatorId: initiatorId,
+                    responderId: responderId,
+                    slot: (opts && opts.slot) || null,
+                };
             },
 
             // --- Cam lifecycle helpers ---
@@ -383,6 +400,7 @@ function BattleView(props) {
                     return kept;
                 });
                 camExchangeRef.current = null;
+                setActiveVFX(null);
             },
 
             // --- Battle end ---
@@ -538,7 +556,9 @@ function BattleView(props) {
         if (cam && (combatantId === cam.initiatorId || combatantId === cam.responderId)) {
             var cx = ACTION_CAM_SLOTS.centerX;
             var cy = ACTION_CAM_SLOTS.centerY;
-            var gap = ACTION_CAM_SLOTS.gap;
+            var gap = (cam.slot === "ranged" && ACTION_CAM_SLOTS.rangedGap)
+                ? ACTION_CAM_SLOTS.rangedGap
+                : ACTION_CAM_SLOTS.gap;
             var isCombatantParty = isPartyId(combatantId);
             var destX = isCombatantParty
                 ? (isLeftHanded ? (cx - gap) : (cx + gap))
@@ -1172,6 +1192,14 @@ function BattleView(props) {
                         >
                             {skillNameLabel.text}
                         </div>
+                    )}
+
+                    {/* Beam VFX connector */}
+                    {activeVFX && activeVFX.id === "beam_connect" && (
+                        <BeamVFX
+                            from={stagePos(activeVFX.fromId)}
+                            to={stagePos(activeVFX.toId)}
+                        />
                     )}
                 </div>
             </div>

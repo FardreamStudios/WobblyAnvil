@@ -17,8 +17,10 @@
 // DOES NOT OWN: Game state, KO handling, cam lifecycle, turn
 //   order, wave transitions. All go through bridge or director.
 //
-// STATUS: Skeleton — proves declare → charge → activate → release.
-//         Full beam sequence (cam, QTE, VFX) added in steps 7–11.
+// STATUS: Step 11 — Full beam sequence wired.
+//         Cam enter → aim QTE → beam VFX → damage ticks →
+//         sustain round 1 → gate QTE → sustain round 2 → wind-down → release.
+//         Step 12 (polish) remaining: timing, juice, sound, tuning.
 // ============================================================
 
 // ============================================================
@@ -29,14 +31,37 @@ var STARFALL = {
     // Sequence timing
     chargeHoldMs:       800,    // hold in charge pose before cam (skeleton: before release)
     skillNameHoldMs:    1200,   // how long name banner stays up
-    aimQteParams:       null,   // filled in step 8 — circle QTE config
+    aimQteParams:       {                   // single-ring aim QTE — fast, tight
+        type:             "circle_timing",
+        rings:            1,
+        speeds:           [1.8],
+        delays:           [0],
+        shrinkDurationMs: 600,
+        zoneBonus:        0.20,
+        targetRadius:     24,
+        ringStartRadius:  70,
+        label:            "AIM!",
+        beats:            [{ check: "ring", damage: 0, atkAnim: null, tgtReact: null, shake: null, sfx: null }],
+    },
     beamTickMs:         120,    // damage tick interval during beam
     beamBaseDamage:     1,      // per-tick base damage (multiplied by aim accuracy)
     windDownMs:         200,    // reverse anim speed
 
-    // Sustain QTE configs (filled in step 10)
-    sustainRound1:      { count: 5,  intervalMs: 280, failEnds: true },
-    sustainRound2:      { count: 10, intervalMs: 240, failEnds: true },
+    // Sustain QTE configs
+    sustainRound1:  { type: "sustain_tap", count: 5,  intervalMs: 280, failEnds: true },
+    sustainRound2:  { type: "sustain_tap", count: 10, intervalMs: 240, failEnds: true },
+    gateQteParams:  {                   // circle ring between sustain rounds
+        type:             "circle_timing",
+        rings:            1,
+        speeds:           [2.0],
+        delays:           [0],
+        shrinkDurationMs: 500,
+        zoneBonus:        0.15,
+        targetRadius:     22,
+        ringStartRadius:  70,
+        label:            "HOLD!",
+        beats:            [{ check: "ring", damage: 0, atkAnim: null, tgtReact: null, shake: null, sfx: null }],
+    },
 };
 
 // ============================================================
@@ -96,25 +121,96 @@ function activate(bridge) {
     }
 
     // ----------------------------------------------------------
-    // Step 2 — Charge hold (skeleton: brief delay then release)
+    // Step 2 — Enter cam + aim QTE
     //
-    // In the full build, this is where we:
-    //   - Enter cam (step 8: bridge.enterCam)
-    //   - Show skill name
-    //   - Run aim QTE (step 8: bridge.runQTE)
-    //   - Ignite beam (step 9: bridge.startVFX)
-    //   - Run sustain QTEs + damage ticks (steps 10–11)
-    //   - Wind down
-    //
-    // For now: hold in charge pose, then release to prove
-    // the full lifecycle works end-to-end.
+    // Sequence: enter cam (ranged slot) → skill name banner →
+    // wait for name display → aim QTE → store accuracy.
+    // Beam VFX + sustain QTEs added in steps 9–11.
     // ----------------------------------------------------------
 
-    setTimeout(function() {
-        if (_released) return;  // abort may have fired during hold
-        console.log("[StarfallBeam] Charge hold complete — releasing");
-        _doRelease();
-    }, STARFALL.chargeHoldMs);
+    bridge.enterCam(_casterId, _targetId, { slot: "ranged" }).then(function() {
+        if (_released) return;
+
+        // Show skill name banner
+        bridge.showSkillName("STARFALL BEAM");
+        console.log("[StarfallBeam] Skill name shown, holding", STARFALL.skillNameHoldMs, "ms");
+
+        setTimeout(function() {
+            if (_released) return;
+
+            // Run aim QTE — single fast ring
+            console.log("[StarfallBeam] Starting aim QTE");
+            bridge.runQTE(STARFALL.aimQteParams).then(function(results) {
+                if (_released) return;
+
+                // Extract accuracy from QTE result
+                // Shape may vary — handle defensively, tune during testing
+                var accuracy = 0.5;
+                if (results && results.length > 0) {
+                    var r = results[0];
+                    if (r.accuracy != null) { accuracy = r.accuracy; }
+                    else if (r.tier === "perfect") { accuracy = 1.0; }
+                    else if (r.tier === "good")    { accuracy = 0.75; }
+                    else if (r.tier === "miss")    { accuracy = 0.25; }
+                }
+                _aimMult = accuracy;
+                console.log("[StarfallBeam] Aim QTE complete — accuracy:", _aimMult);
+
+                // --------------------------------------------------
+                // Step 3 — Beam ignition
+                // --------------------------------------------------
+                _beamActive = true;
+                bridge.startVFX("beam_connect", { from: _casterId, to: _targetId });
+                console.log("[StarfallBeam] Beam ignited — starting damage ticks");
+
+                // Start damage tick loop
+                _damageTimer = setInterval(function() {
+                    if (_released || !_bridge) {
+                        clearInterval(_damageTimer);
+                        _damageTimer = null;
+                        return;
+                    }
+                    var dmg = Math.max(1, Math.round(STARFALL.beamBaseDamage * _aimMult));
+                    _bridge.dealDamage(_targetId, dmg);
+                }, STARFALL.beamTickMs);
+
+                // --------------------------------------------------
+                // Step 4 — Sustain QTE round 1
+                // --------------------------------------------------
+                bridge.runQTE(STARFALL.sustainRound1).then(function(r1) {
+                    if (_released) return;
+                    if (!_isQteSuccess(r1)) {
+                        console.log("[StarfallBeam] Round 1 failed — wind down");
+                        _windDown();
+                        return;
+                    }
+                    console.log("[StarfallBeam] Round 1 passed — gate QTE");
+
+                    // --------------------------------------------------
+                    // Step 5 — Gate QTE (circle ring between rounds)
+                    // --------------------------------------------------
+                    bridge.runQTE(STARFALL.gateQteParams).then(function(gateR) {
+                        if (_released) return;
+                        if (!_isQteSuccess(gateR)) {
+                            console.log("[StarfallBeam] Gate failed — wind down");
+                            _windDown();
+                            return;
+                        }
+                        console.log("[StarfallBeam] Gate passed — round 2");
+
+                        // --------------------------------------------------
+                        // Step 6 — Sustain QTE round 2
+                        // --------------------------------------------------
+                        bridge.runQTE(STARFALL.sustainRound2).then(function(r2) {
+                            if (_released) return;
+                            console.log("[StarfallBeam] Round 2 done (success:", _isQteSuccess(r2), ") — wind down");
+                            _windDown();
+                        });
+                    });
+                });
+            });
+        }, STARFALL.skillNameHoldMs);
+    });
 }
 
 // ============================================================
@@ -183,6 +279,38 @@ function onTick(event, payload) {
 
     // "casterDamaged" — could interrupt charge in future.
     // V1: no interruption, skill continues.
+}
+
+// ============================================================
+// INTERNAL — QTE result checker (handles both sustain_tap and
+// circle_timing result formats)
+// ============================================================
+
+function _isQteSuccess(results) {
+    if (!results || results.length === 0) return false;
+    var r = results[0];
+    if (r.succeeded != null) return r.succeeded;
+    if (r.tier === "perfect" || r.tier === "good") return true;
+    return false;
+}
+
+// ============================================================
+// INTERNAL — Beam wind-down (stop VFX, pause, then release)
+// ============================================================
+
+function _windDown() {
+    console.log("[StarfallBeam] Wind-down");
+    // Stop damage ticks
+    if (_damageTimer) { clearInterval(_damageTimer); _damageTimer = null; }
+    // Stop beam VFX
+    if (_beamActive && _bridge) { _bridge.stopVFX("beam_connect"); _beamActive = false; }
+    // Clear charge shake
+    if (_bridge && _casterId) { _bridge.clearChoreo(_casterId); }
+    // Pause for visual wind-down, then release
+    setTimeout(function() {
+        if (_released) return;
+        _doRelease();
+    }, STARFALL.windDownMs);
 }
 
 // ============================================================

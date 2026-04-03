@@ -36,6 +36,7 @@
 import CircleTimingQTEModule from "../../modules/circleTimingQTE.js";
 import ChalkboardModule from "./Chalkboard.js";
 import BattleSFX from "../systems/battleSFX.js";
+import SustainTapQTE from "./SustainTapQTE.js";
 
 var CircleTimingQTE = CircleTimingQTEModule.CircleTimingQTE;
 var Chalkboard = ChalkboardModule.Chalkboard;
@@ -60,6 +61,7 @@ function _playCheckSFX(tier) {
 var PLUGIN_REGISTRY = {
     circle_timing: { component: CircleTimingQTE },
     chalkboard:    { component: Chalkboard },
+    sustain_tap:   { component: SustainTapQTE },
     // future: bar_sweep, rhythm, etc.
 };
 

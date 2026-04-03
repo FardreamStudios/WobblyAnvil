@@ -275,7 +275,7 @@ function createBattleDirector(bridge, config) {
         function enterCam(attackerId, tid, opts) {
             if (aborted) return Promise.resolve();
             return new Promise(function(resolve) {
-                bridge.setCamExchange(attackerId, tid);
+                bridge.setCamExchange(attackerId, tid, opts);
                 bridge.setPhase(PHASES.ACTION_CAM_IN);
                 BattleSFX.engage();
                 setTimeout(resolve, ACTION_CAM.transitionInMs);
@@ -347,17 +347,17 @@ function createBattleDirector(bridge, config) {
         }
 
         // --------------------------------------------------
-        // VFX — stubs, wired at build order step 9
+        // VFX — routed to View Bridge
         // --------------------------------------------------
 
         function startVFX(id, opts) {
             if (aborted) return;
-            console.warn("[SkillBridge] startVFX stub:", id, opts);
+            bridge.startVFX(id, opts);
         }
 
         function stopVFX(id) {
             if (aborted) return;
-            console.warn("[SkillBridge] stopVFX stub:", id);
+            bridge.stopVFX(id);
         }
 
         // --------------------------------------------------

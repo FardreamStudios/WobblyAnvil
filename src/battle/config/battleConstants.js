@@ -199,7 +199,7 @@ var TEST_PARTY = [
         speed: 65,
         attackPower: 6,
         defensePower: 5,
-        skills: ["basic_attack", "fairy_barrage"],
+        skills: ["basic_attack", "fairy_barrage", "starfall_beam"],
         items: [
             { id: "health_potion", name: "Health Potion", icon: "\u2764\uFE0F", description: "Restores 25 HP",              effect: { type: "heal", value: 25 }, qty: 1 },
             { id: "smoke_bomb",    name: "Smoke Bomb",    icon: "\uD83D\uDCA8", description: "-3 attack on enemy, 2 turns", effect: { type: "debuff_enemy", stat: "attackPower", value: 3, turns: 2 }, qty: 1 },

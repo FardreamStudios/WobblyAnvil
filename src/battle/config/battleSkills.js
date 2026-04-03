@@ -6,7 +6,11 @@
 // battleConstants.js — this file is pure data tables.
 //
 // Each skill = QTE ring config + beats array (1 ring = 1 beat).
+// Special skills (skillType "special") use the takeover protocol
+// instead — see SpecialSkillSystemSpec.md.
 // ============================================================
+
+import StarfallBeam from "../skills/starfallBeam.js";
 
 // --- Player Skills ---
 var PLAYER_SKILLS = {
@@ -96,6 +100,8 @@ var PLAYER_SKILLS = {
             { check: "ring", damage: 10, atkAnim: "strike", tgtReact: "hit",    shake: "heavy",  sfx: "impact", finisher: true },
         ],
     },
+
+    starfall_beam: StarfallBeam,
 };
 
 // --- Enemy Skills ---
@@ -245,6 +251,9 @@ var BEAT_DEFAULTS = {
 // Call on each skill at load time. Returns { valid, warnings[] }.
 // BattleView can render a warning badge if warnings exist.
 function validateSkill(skill) {
+    // Special skills use takeover protocol — no rings/beats to validate
+    if (skill.skillType === "special") return { valid: true, warnings: [] };
+
     var warnings = [];
     if (!skill.id)   warnings.push("Skill missing 'id'");
     if (!skill.beats) warnings.push(skill.id + ": missing 'beats' array");

@@ -62,20 +62,22 @@ var DEF_PCFG={
     spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,
     vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,
     ditherAmount:0,ditherDepth:2,glow:false,glowIntensity:8,
-    ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false,
+    ribbon:false,ribbonLength:300,ribbonWidth:30,ribbonWidthEnd:4,
+    ribbonWobbleFreq:3,ribbonWobbleAmp:6,ribbonWobbleSpeed:4,
+    ribbonAdditive:true,ribbonSegments:40,
 };
 
 // ============================================
 // STARTER TEMPLATES
 // ============================================
 var STARTERS=[
-    {name:"campfire_sparks",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.3},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:40,max:100},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.3,max:0.9},colorStart:"#ffee88",colorMid:"#ffaa00",colorEnd:"#ff2200",colorMidPoint:0.3,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"rampDown",opacityCurveInt:1,gravity:-60,spread:30,direction:270,shape:"square",waveFreq:1,damping:0.5,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:6,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
-    {name:"smoke_puff",size:{min:3,max:8},sizeOverLifetime:{start:0.5,end:1.5},sizeCurve:"easeOut",sizeCurveInt:1,scaleX:1.2,scaleY:1,speed:{min:10,max:30},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:1,max:2.5},colorStart:"#999999",colorMid:"#666666",colorEnd:"#333333",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:-15,spread:40,direction:270,shape:"circle",waveFreq:1,damping:1,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:360,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0.3,ditherDepth:3,glow:false,glowIntensity:8,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
-    {name:"forge_embers",size:{min:1,max:2},sizeOverLifetime:{start:1,end:0},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:60,max:150},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.2,max:0.6},colorStart:"#ffffff",colorMid:"#ffaa00",colorEnd:"#ff4400",colorMidPoint:0.4,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"none",opacityCurveInt:1,gravity:-20,spread:90,direction:270,shape:"triangle",waveFreq:1,damping:0.3,faceVelocity:true,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:4,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
-    {name:"anvil_strike",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.2},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1.5,scaleY:0.5,speed:{min:80,max:200},speedCurve:"easeIn",speedCurveInt:1,lifetime:{min:0.15,max:0.5},colorStart:"#ffffff",colorMid:"#ffdd44",colorEnd:"#ff6600",colorMidPoint:0.25,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:50,spread:180,direction:270,shape:"square",waveFreq:1,damping:2,faceVelocity:true,radialBurst:true,biasX:0,biasY:-60,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"line",spawnWidth:60,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:10,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
-    {name:"magic_wisp",size:{min:2,max:4},sizeOverLifetime:{start:0.8,end:1.2},sizeCurve:"waveCurve",sizeCurveInt:1,scaleX:2,scaleY:0.6,speed:{min:15,max:40},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:0.8,max:1.8},colorStart:"#88ffff",colorMid:"#4488ff",colorEnd:"#8844ff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"pulse",opacityCurveInt:1,gravity:-10,spread:60,direction:270,shape:"wave",waveFreq:2,damping:0.8,faceVelocity:true,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"circle",spawnWidth:40,spawnHeight:40,spawnRadius:15,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0.15,ditherDepth:2,glow:true,glowIntensity:12,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
-    {name:"basic_circle",size:{min:20,max:20},sizeOverLifetime:{start:1,end:1},sizeCurve:"none",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:0,max:0},speedCurve:"none",speedCurveInt:1,lifetime:{min:2,max:2},colorStart:"#ffffff",colorMid:"#ffffff",colorEnd:"#ffffff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:false,opacityCurve:"none",opacityCurveInt:1,gravity:0,spread:0,direction:270,shape:"circle",waveFreq:1,damping:0,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:false,glowIntensity:8,ribbon:false,ribbonWidth:20,ribbonWidthEnd:2,ribbonAdditive:false},
-    {name:"beam_ribbon",size:{min:2,max:3},sizeOverLifetime:{start:1,end:1},sizeCurve:"none",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:200,max:250},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.8,max:1.2},colorStart:"#ffffff",colorMid:"#66ddff",colorEnd:"#0066ff",colorMidPoint:0.3,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"rampDown",opacityCurveInt:1,gravity:0,spread:4,direction:0,shape:"circle",waveFreq:1,damping:0,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:12,ribbon:true,ribbonWidth:24,ribbonWidthEnd:3,ribbonAdditive:true},
+    {name:"campfire_sparks",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.3},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:40,max:100},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.3,max:0.9},colorStart:"#ffee88",colorMid:"#ffaa00",colorEnd:"#ff2200",colorMidPoint:0.3,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"rampDown",opacityCurveInt:1,gravity:-60,spread:30,direction:270,shape:"square",waveFreq:1,damping:0.5,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:6,ribbon:false,ribbonLength:300,ribbonWidth:30,ribbonWidthEnd:4,ribbonWobbleFreq:3,ribbonWobbleAmp:6,ribbonWobbleSpeed:4,ribbonAdditive:true,ribbonSegments:40},
+    {name:"smoke_puff",size:{min:3,max:8},sizeOverLifetime:{start:0.5,end:1.5},sizeCurve:"easeOut",sizeCurveInt:1,scaleX:1.2,scaleY:1,speed:{min:10,max:30},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:1,max:2.5},colorStart:"#999999",colorMid:"#666666",colorEnd:"#333333",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:-15,spread:40,direction:270,shape:"circle",waveFreq:1,damping:1,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:360,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0.3,ditherDepth:3,glow:false,glowIntensity:8,ribbon:false,ribbonLength:300,ribbonWidth:30,ribbonWidthEnd:4,ribbonWobbleFreq:3,ribbonWobbleAmp:6,ribbonWobbleSpeed:4,ribbonAdditive:true,ribbonSegments:40},
+    {name:"forge_embers",size:{min:1,max:2},sizeOverLifetime:{start:1,end:0},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:60,max:150},speedCurve:"none",speedCurveInt:1,lifetime:{min:0.2,max:0.6},colorStart:"#ffffff",colorMid:"#ffaa00",colorEnd:"#ff4400",colorMidPoint:0.4,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"none",opacityCurveInt:1,gravity:-20,spread:90,direction:270,shape:"triangle",waveFreq:1,damping:0.3,faceVelocity:true,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:4,ribbon:false,ribbonLength:300,ribbonWidth:30,ribbonWidthEnd:4,ribbonWobbleFreq:3,ribbonWobbleAmp:6,ribbonWobbleSpeed:4,ribbonAdditive:true,ribbonSegments:40},
+    {name:"anvil_strike",size:{min:1,max:3},sizeOverLifetime:{start:1,end:0.2},sizeCurve:"easeIn",sizeCurveInt:1,scaleX:1.5,scaleY:0.5,speed:{min:80,max:200},speedCurve:"easeIn",speedCurveInt:1,lifetime:{min:0.15,max:0.5},colorStart:"#ffffff",colorMid:"#ffdd44",colorEnd:"#ff6600",colorMidPoint:0.25,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"quickOut",opacityCurveInt:1,gravity:50,spread:180,direction:270,shape:"square",waveFreq:1,damping:2,faceVelocity:true,radialBurst:true,biasX:0,biasY:-60,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"line",spawnWidth:60,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:10,ribbon:false,ribbonLength:300,ribbonWidth:30,ribbonWidthEnd:4,ribbonWobbleFreq:3,ribbonWobbleAmp:6,ribbonWobbleSpeed:4,ribbonAdditive:true,ribbonSegments:40},
+    {name:"magic_wisp",size:{min:2,max:4},sizeOverLifetime:{start:0.8,end:1.2},sizeCurve:"waveCurve",sizeCurveInt:1,scaleX:2,scaleY:0.6,speed:{min:15,max:40},speedCurve:"easeOut",speedCurveInt:1,lifetime:{min:0.8,max:1.8},colorStart:"#88ffff",colorMid:"#4488ff",colorEnd:"#8844ff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"pulse",opacityCurveInt:1,gravity:-10,spread:60,direction:270,shape:"wave",waveFreq:2,damping:0.8,faceVelocity:true,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"circle",spawnWidth:40,spawnHeight:40,spawnRadius:15,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0.15,ditherDepth:2,glow:true,glowIntensity:12,ribbon:false,ribbonLength:300,ribbonWidth:30,ribbonWidthEnd:4,ribbonWobbleFreq:3,ribbonWobbleAmp:6,ribbonWobbleSpeed:4,ribbonAdditive:true,ribbonSegments:40},
+    {name:"basic_circle",size:{min:20,max:20},sizeOverLifetime:{start:1,end:1},sizeCurve:"none",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:0,max:0},speedCurve:"none",speedCurveInt:1,lifetime:{min:2,max:2},colorStart:"#ffffff",colorMid:"#ffffff",colorEnd:"#ffffff",colorMidPoint:0.5,colorCurve:"none",colorCurveInt:1,fadeOut:false,opacityCurve:"none",opacityCurveInt:1,gravity:0,spread:0,direction:270,shape:"circle",waveFreq:1,damping:0,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:false,glowIntensity:8,ribbon:false,ribbonLength:300,ribbonWidth:30,ribbonWidthEnd:4,ribbonWobbleFreq:3,ribbonWobbleAmp:6,ribbonWobbleSpeed:4,ribbonAdditive:true,ribbonSegments:40},
+    {name:"beam_ribbon",size:{min:2,max:3},sizeOverLifetime:{start:1,end:1},sizeCurve:"none",sizeCurveInt:1,scaleX:1,scaleY:1,speed:{min:0,max:0},speedCurve:"none",speedCurveInt:1,lifetime:{min:2,max:2},colorStart:"#ffffff",colorMid:"#66ddff",colorEnd:"#0066ff",colorMidPoint:0.3,colorCurve:"none",colorCurveInt:1,fadeOut:true,opacityCurve:"none",opacityCurveInt:1,gravity:0,spread:0,direction:0,shape:"circle",waveFreq:1,damping:0,faceVelocity:false,radialBurst:false,biasX:0,biasY:0,rotation:false,rotStart:0,rotRandom:0,rotSpeed:0,spawnShape:"point",spawnWidth:40,spawnHeight:40,spawnRadius:20,spawnAngle:0,vortex:false,vortexWidth:30,vortexHeight:10,vortexSpeed:2,vortexPhaseRand:true,ditherAmount:0,ditherDepth:2,glow:true,glowIntensity:15,ribbon:true,ribbonLength:350,ribbonWidth:30,ribbonWidthEnd:4,ribbonWobbleFreq:3,ribbonWobbleAmp:8,ribbonWobbleSpeed:4,ribbonAdditive:true,ribbonSegments:50},
 ];
 
 // ============================================
@@ -145,8 +147,13 @@ var P_DEFS=[
     {key:"glowIntensity",label:"Size",type:"slider",min:2,max:30,step:1,group:"effects",showIf:"glow"},
     {type:"sublabel",label:"Ribbon",group:"effects"},
     {key:"ribbon",label:"Ribbon Mode",type:"toggle",group:"effects"},
+    {key:"ribbonLength",label:"Length",type:"slider",min:10,max:800,step:5,group:"effects",showIf:"ribbon"},
     {key:"ribbonWidth",label:"Width Start",type:"slider",min:1,max:100,step:1,group:"effects",showIf:"ribbon"},
     {key:"ribbonWidthEnd",label:"Width End",type:"slider",min:0,max:100,step:1,group:"effects",showIf:"ribbon"},
+    {key:"ribbonSegments",label:"Segments",type:"slider",min:4,max:80,step:2,group:"effects",showIf:"ribbon"},
+    {key:"ribbonWobbleFreq",label:"Wobble Freq",type:"slider",min:0,max:20,step:0.5,group:"effects",showIf:"ribbon"},
+    {key:"ribbonWobbleAmp",label:"Wobble Amp",type:"slider",min:0,max:40,step:1,group:"effects",showIf:"ribbon"},
+    {key:"ribbonWobbleSpeed",label:"Wobble Speed",type:"slider",min:0,max:20,step:0.5,group:"effects",showIf:"ribbon"},
     {key:"ribbonAdditive",label:"Additive Blend",type:"toggle",group:"effects",showIf:"ribbon"},
 ];
 
@@ -236,71 +243,181 @@ function drawP(ctx,p,cfg){
     DS(ctx,w,h);ctx.shadowColor="transparent";ctx.shadowBlur=0;ctx.restore();
 }
 // ============================================
-// RIBBON RENDERER
+// RIBBON BEAM RENDERER — Catmull-Rom spline
 // ============================================
-function drawRibbon(ctx,parts,cfg){
-    if(parts.length<2)return;
-    // Sort by age: oldest first (lowest life = oldest)
-    var sorted=parts.slice().sort(function(a,b){return a.life-b.life;});
-    var wStart=cfg.ribbonWidth||20;
-    var wEnd=cfg.ribbonWidthEnd||2;
+var _ribbonTime=0;
+// Catmull-Rom: evaluate point on spline between p1 and p2
+// using p0 (before) and p3 (after) as tangent guides
+function catmullRom(p0,p1,p2,p3,t){
+    var t2=t*t,t3=t2*t;
+    return 0.5*((2*p1)+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t2+(-p0+3*p1-3*p2+p3)*t3);
+}
+function drawRibbonBeam(ctx,emX,emY,cfg,dt){
+    _ribbonTime+=dt;
+    var len=cfg.ribbonLength!=null?cfg.ribbonLength:300;
+    var wStart=cfg.ribbonWidth!=null?cfg.ribbonWidth:30;
+    var wEnd=cfg.ribbonWidthEnd!=null?cfg.ribbonWidthEnd:4;
+    var ctrlCount=cfg.ribbonSegments!=null?cfg.ribbonSegments:40;
+    var wFreq=cfg.ribbonWobbleFreq!=null?cfg.ribbonWobbleFreq:3;
+    var wAmp=cfg.ribbonWobbleAmp!=null?cfg.ribbonWobbleAmp:6;
+    var wSpd=cfg.ribbonWobbleSpeed!=null?cfg.ribbonWobbleSpeed:4;
     var additive=cfg.ribbonAdditive||false;
+    var dir=d2r(cfg.direction!=null?cfg.direction:0);
+    var dirX=Math.cos(dir),dirY=Math.sin(dir);
+    var perpX=-dirY,perpY=dirX;
+    // Build control points (coarse, few points with wobble)
+    var ctrl=[];
+    for(var i=0;i<=ctrlCount;i++){
+        var t=i/ctrlCount;
+        var dist=t*len;
+        var bx=emX+dirX*dist;
+        var by=emY+dirY*dist;
+        var wobble=Math.sin(t*wFreq*Math.PI*2-_ribbonTime*wSpd)*wAmp*(1-t*0.5);
+        bx+=perpX*wobble;
+        by+=perpY*wobble;
+        var w=lerp(wStart,wEnd,t);
+        ctrl.push({x:bx,y:by,w:w,t:t});
+    }
+    // Interpolate to get smooth dense points
+    var subDiv=3;
+    var smooth=[];
+    var useSpline=wAmp>0.1;
+    if(useSpline){
+        for(var c=0;c<ctrl.length-1;c++){
+            var i0=Math.max(0,c-1);
+            var i1=c;
+            var i2=Math.min(ctrl.length-1,c+1);
+            var i3=Math.min(ctrl.length-1,c+2);
+            var cp0=ctrl[i0],cp1=ctrl[i1],cp2=ctrl[i2],cp3=ctrl[i3];
+            for(var s=0;s<subDiv;s++){
+                var st=s/subDiv;
+                var sx=catmullRom(cp0.x,cp1.x,cp2.x,cp3.x,st);
+                var sy=catmullRom(cp0.y,cp1.y,cp2.y,cp3.y,st);
+                // Linear lerp for width and t — no overshoot
+                var sw=lerp(cp1.w,cp2.w,st);
+                var sn=lerp(cp1.t,cp2.t,st);
+                smooth.push({x:sx,y:sy,w:Math.max(0,sw),t:Math.max(0,Math.min(1,sn))});
+            }
+        }
+        var last=ctrl[ctrl.length-1];
+        smooth.push({x:last.x,y:last.y,w:last.w,t:last.t});
+    } else {
+        // No wobble — just use control points directly, no spline needed
+        smooth=ctrl;
+    }
+    // Compute normals and edge points for each smooth point
+    var topEdge=[],botEdge=[];
+    for(var p=0;p<smooth.length;p++){
+        var prev=p>0?smooth[p-1]:smooth[p];
+        var next=p<smooth.length-1?smooth[p+1]:smooth[p];
+        var dx=next.x-prev.x,dy=next.y-prev.y;
+        var nl=Math.sqrt(dx*dx+dy*dy);
+        var nx,ny;
+        if(nl<0.01){nx=perpX;ny=perpY;}else{nx=-dy/nl;ny=dx/nl;}
+        var hw=smooth[p].w/2;
+        topEdge.push({x:smooth[p].x+nx*hw,y:smooth[p].y+ny*hw});
+        botEdge.push({x:smooth[p].x-nx*hw,y:smooth[p].y-ny*hw});
+    }
     var prevBlend=ctx.globalCompositeOperation;
     if(additive)ctx.globalCompositeOperation="lighter";
-    // Draw glow pass first if enabled
+    // --- GLOW PASS: one big path, wider ---
     if(cfg.glow){
-        for(var g=0;g<sorted.length-1;g++){
-            var gp0=sorted[g],gp1=sorted[g+1];
-            var gt0=1-gp0.life/gp0.maxLife,gt1=1-gp1.life/gp1.maxLife;
-            var gc0=colAt(gt0,cfg),gc1=colAt(gt1,cfg);
-            var ga0=cfg.fadeOut?(gp0.life/gp0.maxLife):1;var ga1=cfg.fadeOut?(gp1.life/gp1.maxLife):1;
-            ga0=evalCurve(cfg.opacityCurve||"none",ga0,cfg.opacityCurveInt);
-            ga1=evalCurve(cfg.opacityCurve||"none",ga1,cfg.opacityCurveInt);
-            var gw0=lerp(wEnd,wStart,gp0.life/gp0.maxLife)+(cfg.glowIntensity||8)*2;
-            var gw1=lerp(wEnd,wStart,gp1.life/gp1.maxLife)+(cfg.glowIntensity||8)*2;
-            var gdx=gp1.x-gp0.x,gdy=gp1.y-gp0.y;
-            var glen=Math.sqrt(gdx*gdx+gdy*gdy);if(glen<0.5)continue;
-            var gnx=-gdy/glen,gny=gdx/glen;
+        var gi=cfg.glowIntensity||8;
+        var glowTop=[],glowBot=[];
+        for(var g=0;g<smooth.length;g++){
+            var gPrev=g>0?smooth[g-1]:smooth[g];
+            var gNext=g<smooth.length-1?smooth[g+1]:smooth[g];
+            var gdx=gNext.x-gPrev.x,gdy=gNext.y-gPrev.y;
+            var gnl=Math.sqrt(gdx*gdx+gdy*gdy);
+            var gnx,gny;
+            if(gnl<0.01){gnx=perpX;gny=perpY;}else{gnx=-gdy/gnl;gny=gdx/gnl;}
+            var ghw=(smooth[g].w+gi*2.5)/2;
+            glowTop.push({x:smooth[g].x+gnx*ghw,y:smooth[g].y+gny*ghw});
+            glowBot.push({x:smooth[g].x-gnx*ghw,y:smooth[g].y-gny*ghw});
+        }
+        // Draw as gradient — use multiple alpha steps
+        for(var gl=0;gl<3;gl++){
+            var glScale=1+gl*0.5;
+            var glAlpha=(0.08-gl*0.02);
             ctx.beginPath();
-            ctx.moveTo(gp0.x+gnx*gw0/2,gp0.y+gny*gw0/2);
-            ctx.lineTo(gp1.x+gnx*gw1/2,gp1.y+gny*gw1/2);
-            ctx.lineTo(gp1.x-gnx*gw1/2,gp1.y-gny*gw1/2);
-            ctx.lineTo(gp0.x-gnx*gw0/2,gp0.y-gny*gw0/2);
+            for(var gt=0;gt<smooth.length;gt++){
+                var gPt=smooth[gt];
+                var gPrevN=gt>0?smooth[gt-1]:gPt;
+                var gNextN=gt<smooth.length-1?smooth[gt+1]:gPt;
+                var gddx=gNextN.x-gPrevN.x,gddy=gNextN.y-gPrevN.y;
+                var gnnl=Math.sqrt(gddx*gddx+gddy*gddy);
+                var gnnx,gnny;
+                if(gnnl<0.01){gnnx=perpX;gnny=perpY;}else{gnnx=-gddy/gnnl;gnny=gddx/gnnl;}
+                var gghw=(gPt.w+gi*glScale*2)/2;
+                var gx=gPt.x+gnnx*gghw,gy=gPt.y+gnny*gghw;
+                if(gt===0)ctx.moveTo(gx,gy);else ctx.lineTo(gx,gy);
+            }
+            for(var gb2=smooth.length-1;gb2>=0;gb2--){
+                var gbPt=smooth[gb2];
+                var gbPrev=gb2>0?smooth[gb2-1]:gbPt;
+                var gbNext=gb2<smooth.length-1?smooth[gb2+1]:gbPt;
+                var gbdx=gbNext.x-gbPrev.x,gbdy=gbNext.y-gbPrev.y;
+                var gbnl=Math.sqrt(gbdx*gbdx+gbdy*gbdy);
+                var gbnx,gbny;
+                if(gbnl<0.01){gbnx=perpX;gbny=perpY;}else{gbnx=-gbdy/gbnl;gbny=gbdx/gbnl;}
+                var gbhw=(gbPt.w+gi*glScale*2)/2;
+                ctx.lineTo(gbPt.x-gbnx*gbhw,gbPt.y-gbny*gbhw);
+            }
             ctx.closePath();
-            var glowA=Math.min(ga0,ga1)*0.15;
-            var mc=lc(gc0,gc1,0.5);
-            ctx.fillStyle="rgba("+mc.r+","+mc.g+","+mc.b+","+glowA.toFixed(3)+")";
+            var gCol=colAt(0.3,cfg);
+            ctx.fillStyle="rgba("+gCol.r+","+gCol.g+","+gCol.b+","+glAlpha.toFixed(3)+")";
             ctx.fill();
         }
     }
-    // Main ribbon quads
-    for(var i=0;i<sorted.length-1;i++){
-        var p0=sorted[i],p1=sorted[i+1];
-        var t0=1-p0.life/p0.maxLife,t1=1-p1.life/p1.maxLife;
-        var c0=colAt(t0,cfg),c1=colAt(t1,cfg);
-        var a0=cfg.fadeOut?(p0.life/p0.maxLife):1;var a1=cfg.fadeOut?(p1.life/p1.maxLife):1;
-        a0=evalCurve(cfg.opacityCurve||"none",a0,cfg.opacityCurveInt);
-        a1=evalCurve(cfg.opacityCurve||"none",a1,cfg.opacityCurveInt);
-        // Width based on particle life ratio (newest=wStart, oldest=wEnd)
-        var w0=lerp(wEnd,wStart,p0.life/p0.maxLife);
-        var w1=lerp(wEnd,wStart,p1.life/p1.maxLife);
-        // Normal perpendicular to segment
-        var dx=p1.x-p0.x,dy=p1.y-p0.y;
-        var len=Math.sqrt(dx*dx+dy*dy);if(len<0.5)continue;
-        var nx=-dy/len,ny=dx/len;
-        // Draw quad between p0 and p1
+    // --- MAIN BEAM: single path, top edge forward then bottom edge back ---
+    // Use gradient via multiple horizontal slices for color variation
+    // Simplest smooth approach: draw in bands by t-range
+    var bandCount=8;
+    for(var b=0;b<bandCount;b++){
+        var bStart=Math.floor(b/bandCount*smooth.length);
+        var bEnd=Math.floor((b+1)/bandCount*smooth.length);
+        if(bEnd>=smooth.length)bEnd=smooth.length-1;
+        if(bStart>=bEnd)continue;
+        var bMidT=smooth[Math.floor((bStart+bEnd)/2)].t;
+        var bCol=colAt(bMidT,cfg);
+        var bAlpha=cfg.fadeOut?Math.max(0,1-bMidT*0.8):1;
         ctx.beginPath();
-        ctx.moveTo(p0.x+nx*w0/2,p0.y+ny*w0/2);
-        ctx.lineTo(p1.x+nx*w1/2,p1.y+ny*w1/2);
-        ctx.lineTo(p1.x-nx*w1/2,p1.y-ny*w1/2);
-        ctx.lineTo(p0.x-nx*w0/2,p0.y-ny*w0/2);
+        ctx.moveTo(topEdge[bStart].x,topEdge[bStart].y);
+        for(var bt=bStart+1;bt<=bEnd;bt++)ctx.lineTo(topEdge[bt].x,topEdge[bt].y);
+        for(var bb=bEnd;bb>=bStart;bb--)ctx.lineTo(botEdge[bb].x,botEdge[bb].y);
         ctx.closePath();
-        // Use midpoint color and alpha
-        var alpha=Math.min(a0,a1);
-        var midC=lc(c0,c1,0.5);
-        ctx.fillStyle="rgba("+midC.r+","+midC.g+","+midC.b+","+alpha.toFixed(3)+")";
+        ctx.fillStyle="rgba("+bCol.r+","+bCol.g+","+bCol.b+","+bAlpha.toFixed(3)+")";
         ctx.fill();
     }
+    // --- BRIGHT CORE: narrower single path, white ---
+    ctx.beginPath();
+    for(var ct=0;ct<smooth.length;ct++){
+        var cPt=smooth[ct];
+        var cPrev=ct>0?smooth[ct-1]:cPt;
+        var cNext=ct<smooth.length-1?smooth[ct+1]:cPt;
+        var cdx2=cNext.x-cPrev.x,cdy2=cNext.y-cPrev.y;
+        var cnl=Math.sqrt(cdx2*cdx2+cdy2*cdy2);
+        var cnx2,cny2;
+        if(cnl<0.01){cnx2=perpX;cny2=perpY;}else{cnx2=-cdy2/cnl;cny2=cdx2/cnl;}
+        var chw=cPt.w*0.2;
+        var cx2=cPt.x+cnx2*chw,cy2=cPt.y+cny2*chw;
+        if(ct===0)ctx.moveTo(cx2,cy2);else ctx.lineTo(cx2,cy2);
+    }
+    for(var cb=smooth.length-1;cb>=0;cb--){
+        var cbPt=smooth[cb];
+        var cbPrev=cb>0?smooth[cb-1]:cbPt;
+        var cbNext=cb<smooth.length-1?smooth[cb+1]:cbPt;
+        var cbdx=cbNext.x-cbPrev.x,cbdy=cbNext.y-cbPrev.y;
+        var cbnl=Math.sqrt(cbdx*cbdx+cbdy*cbdy);
+        var cbnx,cbny;
+        if(cbnl<0.01){cbnx=perpX;cbny=perpY;}else{cbnx=-cbdy/cbnl;cbny=cbdx/cbnl;}
+        var cbhw=cbPt.w*0.2;
+        ctx.lineTo(cbPt.x-cbnx*cbhw,cbPt.y-cbny*cbhw);
+    }
+    ctx.closePath();
+    var coreAlpha=cfg.fadeOut?0.6:0.8;
+    ctx.fillStyle="rgba(255,255,255,"+coreAlpha.toFixed(2)+")";
+    ctx.fill();
     ctx.globalCompositeOperation=prevBlend;
 }
 function drawGrid(ctx,w,h){
@@ -465,7 +582,8 @@ function ParticleEditor(){
                 }
             }
             if(!pausedR.current){for(var j=parts.length-1;j>=0;j--){updP(parts[j],dt,cfg);if(!parts[j].alive)parts.splice(j,1);}}
-            if(cfg.ribbon){drawRibbon(ctx,parts,cfg);}else{for(var k=0;k<parts.length;k++)drawP(ctx,parts[k],cfg);}
+            if(cfg.ribbon){drawRibbonBeam(ctx,em.x,em.y,cfg,pausedR.current?0:dt);}
+            for(var k=0;k<parts.length;k++)drawP(ctx,parts[k],cfg);
             totalP+=parts.length;
         }
         if(showHR.current){for(var h=0;h<allEm.length;h++){var e=allEm[h];var sc=e.pcfg.spawnShape||"point",isSel2=e.id===sid;
@@ -488,7 +606,7 @@ function ParticleEditor(){
     function onCM(e){e.preventDefault();}
 
     // ---- EXPORT ----
-    function cfgExp(cfg){return{name:cfg.name,size:cfg.size,sizeOverLifetime:cfg.sizeOverLifetime,sizeCurve:cfg.sizeCurve,sizeCurveInt:cfg.sizeCurveInt,scaleX:cfg.scaleX,scaleY:cfg.scaleY,speed:cfg.speed,speedCurve:cfg.speedCurve,speedCurveInt:cfg.speedCurveInt,lifetime:cfg.lifetime,colorStart:cfg.colorStart,colorMid:cfg.colorMid,colorEnd:cfg.colorEnd,colorMidPoint:cfg.colorMidPoint,colorCurve:cfg.colorCurve,colorCurveInt:cfg.colorCurveInt,fadeOut:cfg.fadeOut,opacityCurve:cfg.opacityCurve,opacityCurveInt:cfg.opacityCurveInt,gravity:cfg.gravity,spread:cfg.spread,direction:cfg.direction,shape:cfg.shape,waveFreq:cfg.waveFreq,damping:cfg.damping,faceVelocity:cfg.faceVelocity,radialBurst:cfg.radialBurst,biasX:cfg.biasX,biasY:cfg.biasY,rotation:cfg.rotation,rotStart:cfg.rotStart,rotRandom:cfg.rotRandom,rotSpeed:cfg.rotSpeed,spawnShape:cfg.spawnShape,spawnWidth:cfg.spawnWidth,spawnHeight:cfg.spawnHeight,spawnRadius:cfg.spawnRadius,spawnAngle:cfg.spawnAngle,vortex:cfg.vortex,vortexWidth:cfg.vortexWidth,vortexHeight:cfg.vortexHeight,vortexSpeed:cfg.vortexSpeed,vortexPhaseRand:cfg.vortexPhaseRand,ditherAmount:cfg.ditherAmount,ditherDepth:cfg.ditherDepth,glow:cfg.glow,glowIntensity:cfg.glowIntensity,ribbon:cfg.ribbon,ribbonWidth:cfg.ribbonWidth,ribbonWidthEnd:cfg.ribbonWidthEnd,ribbonAdditive:cfg.ribbonAdditive};}
+    function cfgExp(cfg){return{name:cfg.name,size:cfg.size,sizeOverLifetime:cfg.sizeOverLifetime,sizeCurve:cfg.sizeCurve,sizeCurveInt:cfg.sizeCurveInt,scaleX:cfg.scaleX,scaleY:cfg.scaleY,speed:cfg.speed,speedCurve:cfg.speedCurve,speedCurveInt:cfg.speedCurveInt,lifetime:cfg.lifetime,colorStart:cfg.colorStart,colorMid:cfg.colorMid,colorEnd:cfg.colorEnd,colorMidPoint:cfg.colorMidPoint,colorCurve:cfg.colorCurve,colorCurveInt:cfg.colorCurveInt,fadeOut:cfg.fadeOut,opacityCurve:cfg.opacityCurve,opacityCurveInt:cfg.opacityCurveInt,gravity:cfg.gravity,spread:cfg.spread,direction:cfg.direction,shape:cfg.shape,waveFreq:cfg.waveFreq,damping:cfg.damping,faceVelocity:cfg.faceVelocity,radialBurst:cfg.radialBurst,biasX:cfg.biasX,biasY:cfg.biasY,rotation:cfg.rotation,rotStart:cfg.rotStart,rotRandom:cfg.rotRandom,rotSpeed:cfg.rotSpeed,spawnShape:cfg.spawnShape,spawnWidth:cfg.spawnWidth,spawnHeight:cfg.spawnHeight,spawnRadius:cfg.spawnRadius,spawnAngle:cfg.spawnAngle,vortex:cfg.vortex,vortexWidth:cfg.vortexWidth,vortexHeight:cfg.vortexHeight,vortexSpeed:cfg.vortexSpeed,vortexPhaseRand:cfg.vortexPhaseRand,ditherAmount:cfg.ditherAmount,ditherDepth:cfg.ditherDepth,glow:cfg.glow,glowIntensity:cfg.glowIntensity,ribbon:cfg.ribbon,ribbonLength:cfg.ribbonLength,ribbonWidth:cfg.ribbonWidth,ribbonWidthEnd:cfg.ribbonWidthEnd,ribbonWobbleFreq:cfg.ribbonWobbleFreq,ribbonWobbleAmp:cfg.ribbonWobbleAmp,ribbonWobbleSpeed:cfg.ribbonWobbleSpeed,ribbonAdditive:cfg.ribbonAdditive,ribbonSegments:cfg.ribbonSegments};}
     function expScene(){var sc={systemDuration:sysDur,systemMode:sysMode,templates:tpls.map(cfgExp),emitters:ems.map(function(em){return{id:em.id,position:{x:em.x,y:em.y},type:em.type,burstSub:em.burstSub,spawnRate:em.spawnRate,burstCount:em.burstCount,burstSpawnRate:em.burstSpawnRate,activations:em.activations,actDelay:em.actDelay,startTime:em.startTime,emitterDuration:em.emDuration,config:cfgExp(em.pcfg)};})};setExpJSON(JSON.stringify(sc,null,2));setShowExp(true);}
     function expSel(){if(!selEm)return;var o=cfgExp(selEm.pcfg);Object.assign(o,{position:{x:selEm.x,y:selEm.y},type:selEm.type,burstSub:selEm.burstSub,spawnRate:selEm.spawnRate,burstCount:selEm.burstCount,burstSpawnRate:selEm.burstSpawnRate,activations:selEm.activations,actDelay:selEm.actDelay,startTime:selEm.startTime,emitterDuration:selEm.emDuration});setExpJSON(JSON.stringify(o,null,2));setShowExp(true);}
     function clearScene(){setEms([]);setSelId(null);setShowExp(false);}
