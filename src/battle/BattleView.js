@@ -492,7 +492,9 @@ function BattleView(props) {
     var isActionCam = phase === PHASES.ACTION_CAM_IN || phase === PHASES.CAM_SWING_QTE
         || phase === PHASES.CAM_SWING_PLAYBACK || phase === PHASES.CAM_RESOLVE
         || phase === PHASES.CAM_COUNTER_PROMPT || phase === PHASES.CAM_CHAIN_PROMPT
-        || phase === PHASES.ACTION_CAM_OUT;
+        || phase === PHASES.CAM_EXIT_SLIDE;
+    // isCinematic: broader flag — keeps blackout/overlay hidden during zoom-out
+    var isCinematic = isActionCam || phase === PHASES.ACTION_CAM_OUT;
     var isIntro = phase === PHASES.INTRO;
     var showQTE = phase === PHASES.CAM_SWING_QTE;
     var showComic = isActionCam;
@@ -749,8 +751,7 @@ function BattleView(props) {
             return;
         }
         // Not in action cam — tap empty space
-        if (!isActionCam) {
-            // Check if touch landed on a combatant (has closest battle character parent)
+        if (!isCinematic) {
             var touchTarget = e.target;
             var hitCombatant = touchTarget && touchTarget.closest && touchTarget.closest(".normal-cam-char");
             if (hitCombatant) {
@@ -779,7 +780,7 @@ function BattleView(props) {
             return;
         }
         // Not in action cam — tap empty space
-        if (!isActionCam) {
+        if (!isCinematic) {
             var hitCombatant = e.target && e.target.closest && e.target.closest(".normal-cam-char");
             if (hitCombatant) {
                 console.log("[sceneClick] hit combatant — skipping deselect");
@@ -1079,7 +1080,7 @@ function BattleView(props) {
     });
 
     return (
-        <div className={"battle-root" + (isActionCam ? " battle-root--cam" : "")} style={rootStyle}>
+        <div className={"battle-root" + (isCinematic ? " battle-root--cam" : "")} style={rootStyle}>
 
             {/* === STAGE — fixed-ratio character arena, centered === */}
             <div
@@ -1112,7 +1113,7 @@ function BattleView(props) {
                                 sceneRect={isActionCam ? sceneRect : null}
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(e.id)}
-                                onClick={function() { if (!isActionCam) selectTarget(e.id); }}
+                                onClick={function() { if (!isCinematic) selectTarget(e.id); }}
                                 spriteFrame={spriteFrame}
                                 flashId={flashId}
                                 animState={animState}
@@ -1141,7 +1142,7 @@ function BattleView(props) {
                                 sceneRect={isActionCam ? sceneRect : null}
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(p.id)}
-                                onClick={function() { if (!isActionCam) selectTarget(p.id); }}
+                                onClick={function() { if (!isCinematic) selectTarget(p.id); }}
                                 spriteFrame={spriteFrame}
                                 flashId={flashId}
                                 animState={animState}
@@ -1201,7 +1202,7 @@ function BattleView(props) {
                     turnIndex={director.getTurnIndex()}
                     apState={apState}
                     combatantMap={combatantMap}
-                    hidden={isActionCam || isIntro}
+                    hidden={isCinematic || isIntro}
                 />
 
                 {/* === RIGHT DECISION SLOT — mutually exclusive === */}
@@ -1296,13 +1297,14 @@ function BattleView(props) {
                             isInCam={false}
                         />
                     </div>
-                ) : !isActionCam && !isIntro ? (
+                ) : !isCinematic && !isIntro ? (
                     <ActionMenu
                         hidden={false}
                         onAction={handleAction}
                         isLeftHanded={isLeftHanded}
                         apState={apState}
                         activeId={activeAtkId}
+                        isPlayerTurn={!!activeAtkId && bState.isPartyId(activeAtkId)}
                     />
                 ) : null}
 
@@ -1329,7 +1331,7 @@ function BattleView(props) {
             )}
 
             {/* === CINEMATIC BLACKOUT === */}
-            <div className={"battle-blackout" + (isActionCam ? " battle-blackout--active" : "")} />
+            <div className={"battle-blackout" + (isCinematic ? " battle-blackout--active" : "")} />
 
             {/* === WAVE TRANSITION BANNER === */}
             {phase === PHASES.WAVE_TRANSITION && (

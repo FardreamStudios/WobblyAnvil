@@ -368,15 +368,7 @@ function createBattleDirector(bridge, config) {
                 seq.enqueue(makePlayerChainStep());
 
                 // Cam out (reached when chain ends)
-                seq.enqueue(function(d) {
-                    console.log("[Cam] === PLAYER CAM SESSION END === cam out");
-                    bridge.setPhase(PHASES.ACTION_CAM_OUT);
-                    setTimeout(function() {
-                        bridge.setTargetId(null);
-                        bridge.setPhase(PHASES.TURN_ACTIVE);
-                        d();
-                    }, ACTION_CAM.transitionOutMs);
-                });
+                enqueueCamOut();
 
                 // Breathing pause
                 seq.enqueue(function(d) {
@@ -501,14 +493,7 @@ function createBattleDirector(bridge, config) {
                                 console.log("[Cam] ENEMY CHAIN — target dead after action", actionIndex, ", bailing");
                                 seq.clear();
                                 // Cam out → breathing pause → advance
-                                seq.enqueue(function(dd) {
-                                    bridge.setPhase(PHASES.ACTION_CAM_OUT);
-                                    setTimeout(function() {
-                                        bridge.setTargetId(null);
-                                        bridge.setPhase(PHASES.TURN_ACTIVE);
-                                        dd();
-                                    }, ACTION_CAM.transitionOutMs);
-                                });
+                                enqueueCamOut();
                                 seq.enqueue(function(dd) {
                                     setTimeout(dd, DIRECTOR_TIMING.breathingPauseMs);
                                 });
@@ -531,15 +516,7 @@ function createBattleDirector(bridge, config) {
             }
 
             // --- CAM OUT (once after all actions) ---
-            seq.enqueue(function(d) {
-                console.log("[Cam] === ENEMY CHAIN END === cam out");
-                bridge.setPhase(PHASES.ACTION_CAM_OUT);
-                setTimeout(function() {
-                    bridge.setTargetId(null);
-                    bridge.setPhase(PHASES.TURN_ACTIVE);
-                    d();
-                }, ACTION_CAM.transitionOutMs);
-            });
+            enqueueCamOut();
 
             // --- BREATHING PAUSE ---
             seq.enqueue(function(d) {
@@ -550,6 +527,36 @@ function createBattleDirector(bridge, config) {
             seq.enqueue(function(d) { advanceToNextTurn(); d(); });
 
             done();
+        });
+    }
+
+    // ============================================================
+    // CAM OUT HELPER — exit slide → zoom out → optional TURN_ACTIVE
+    // opts.setTurnActive (default true) — set phase to TURN_ACTIVE after zoom
+    // opts.clearTarget   (default true) — clear targetId after zoom
+    // ============================================================
+
+    function enqueueCamOut(opts) {
+        var setTurnActive = !opts || opts.setTurnActive !== false;
+        var clearTarget   = !opts || opts.clearTarget !== false;
+
+        // Step 1: horizontal slide off-screen
+        seq.enqueue(function(done) {
+            bridge.setPhase(PHASES.CAM_EXIT_SLIDE);
+            setTimeout(function() {
+                bridge.onCamOut();
+                done();
+            }, ACTION_CAM.exitSlideMs);
+        });
+
+        // Step 2: camera zooms back to formation
+        seq.enqueue(function(done) {
+            bridge.setPhase(PHASES.ACTION_CAM_OUT);
+            setTimeout(function() {
+                if (clearTarget) bridge.setTargetId(null);
+                if (setTurnActive) bridge.setPhase(PHASES.TURN_ACTIVE);
+                done();
+            }, ACTION_CAM.transitionOutMs);
         });
     }
 
@@ -587,16 +594,7 @@ function createBattleDirector(bridge, config) {
         seq.enqueue(makeCounterCheckStep(initiatorId, targetId));
 
         // --- CAM OUT ---
-        seq.enqueue(function(done) {
-            console.log("[Cam] CAM_OUT phase set, waiting", ACTION_CAM.transitionOutMs, "ms  +" + Math.round(performance.now() - _t0) + "ms");
-            bridge.setPhase(PHASES.ACTION_CAM_OUT);
-            setTimeout(function() {
-                console.log("[Cam] CAM_OUT done → TURN_ACTIVE  +" + Math.round(performance.now() - _t0) + "ms");
-                bridge.setTargetId(null);
-                bridge.setPhase(PHASES.TURN_ACTIVE);
-                done();
-            }, ACTION_CAM.transitionOutMs);
-        });
+        enqueueCamOut();
 
         // --- BREATHING PAUSE ---
         seq.enqueue(function(done) {
@@ -748,13 +746,7 @@ function createBattleDirector(bridge, config) {
                 enqueueBattleEnd("victory");
             } else if (result === "waveComplete") {
                 // Cam out first, then wave transition
-                seq.enqueue(function(d) {
-                    bridge.setPhase(PHASES.ACTION_CAM_OUT);
-                    setTimeout(function() {
-                        bridge.setTargetId(null);
-                        d();
-                    }, ACTION_CAM.transitionOutMs);
-                });
+                enqueueCamOut({ setTurnActive: false });
                 enqueueWaveTransition();
             }
 

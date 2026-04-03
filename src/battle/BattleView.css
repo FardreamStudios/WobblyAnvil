@@ -673,7 +673,12 @@
     font-size: 14px;
     letter-spacing: 2px;
     text-transform: uppercase;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.6);
+    color: #e0d8c8;
+    background: #000;
+    border: 2px solid rgba(224, 216, 200, 0.25);
+    border-radius: 3px;
+    padding: 4px 12px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
     animation: skillNamePop 2000ms ease-out forwards;
 }
 
@@ -800,17 +805,15 @@
 /* --- Action Menu (bottom-right overlay, 2x2 grid) --- */
 .battle-actions {
     width: clamp(100px, 18vw, 160px);
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 0.6vh 0.6vw;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4vh;
     padding: 1vh 1.2vw;
     transition: opacity 0.4s ease;
-    align-content: center;
     margin-left: auto;
-    background: rgba(10, 7, 4, 0.7);
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: #000;
+    border-radius: 4px;
+    border: 2px solid rgba(224, 216, 200, 0.25);
 }
 
 .battle-actions--hidden {
@@ -818,10 +821,28 @@
     pointer-events: none;
 }
 
+.battle-actions__ap-header {
+    font-family: monospace;
+    font-size: clamp(8px, 1.3vw, 11px);
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: #e0d8c8;
+    text-align: center;
+    padding-bottom: 0.4vh;
+    border-bottom: 1px solid rgba(224, 216, 200, 0.15);
+}
+
+.battle-actions__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 0.5vh 0.5vw;
+}
+
 .battle-action-btn {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
+    background: transparent;
+    border: 1px solid rgba(224, 216, 200, 0.2);
+    border-radius: 3px;
     color: #e0d8c8;
     font-size: clamp(9px, 1.5vw, 12px);
     font-weight: bold;
@@ -835,11 +856,11 @@
     align-items: center;
     justify-content: center;
     gap: 1px;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, opacity 0.2s ease;
+    transition: background 0.1s ease, transform 0.1s ease, opacity 0.2s ease;
 }
 
 .battle-action-btn:active {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(224, 216, 200, 0.1);
     transform: scale(0.95);
 }
 
@@ -1169,19 +1190,20 @@
     margin-left: auto;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.6vh 0.6vw;
+    gap: 0.5vh 0.5vw;
     padding: 1vh 1.2vw;
-    background: rgba(10, 7, 4, 0.85);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 8px;
+    background: #000;
+    border: 2px solid rgba(224, 216, 200, 0.25);
+    border-radius: 4px;
     z-index: 60;
     width: clamp(100px, 18vw, 160px);
 }
 
 .battle-counter-prompt__btn {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
+    background: transparent;
+    border: 1px solid rgba(224, 216, 200, 0.2);
+    border-radius: 3px;
+    color: #e0d8c8;
     font-size: clamp(9px, 1.5vw, 12px);
     font-weight: bold;
     letter-spacing: 1px;
@@ -1194,29 +1216,28 @@
     align-items: center;
     justify-content: center;
     gap: 1px;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    transition: background 0.1s ease, transform 0.1s ease;
 }
 
 .battle-counter-prompt__btn:active {
+    background: rgba(224, 216, 200, 0.1);
     transform: scale(0.95);
 }
 
 .battle-counter-prompt__btn--counter {
-    color: #4ade80;
-    border-color: rgba(74, 222, 128, 0.25);
+    color: #e0d8c8;
 }
 
 .battle-counter-prompt__btn--counter:active {
-    background: rgba(74, 222, 128, 0.15);
+    background: rgba(224, 216, 200, 0.1);
 }
 
 .battle-counter-prompt__btn--pass {
     color: #8a7a64;
-    border-color: rgba(138, 122, 100, 0.2);
 }
 
 .battle-counter-prompt__btn--pass:active {
-    background: rgba(138, 122, 100, 0.15);
+    background: rgba(138, 122, 100, 0.1);
 }
 
 .battle-counter-prompt__btn-label {
@@ -1239,9 +1260,9 @@
     margin-left: auto;
     width: clamp(100px, 18vw, 160px);
     max-height: 40vh;
-    background: rgba(10, 7, 4, 0.95);
-    border: 1px solid rgba(245, 158, 11, 0.25);
-    border-radius: 8px;
+    background: #000;
+    border: 2px solid rgba(224, 216, 200, 0.25);
+    border-radius: 4px;
     display: flex;
     flex-direction: column;
     z-index: 20;
@@ -1251,17 +1272,18 @@
 
 .battle-item-submenu--in-cam {
     position: fixed;
-    bottom: auto;
-    right: auto;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: clamp(200px, 40vw, 320px);
+    bottom: 3vh;
+    right: 3vw;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: clamp(120px, 22vw, 200px);
     height: auto;
     max-height: 50vh;
-    border: 2px solid rgba(245, 158, 11, 0.4);
-    border-radius: 8px;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    border: 2px solid rgba(224, 216, 200, 0.3);
+    border-radius: 4px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    animation: itemSubmenuFadeIn 0.2s ease-out;
 }
 
 @keyframes itemSubmenuSlideIn {
@@ -1269,13 +1291,9 @@
     100% { opacity: 1; transform: translateX(0); }
 }
 
-.battle-item-submenu--in-cam {
-    animation: itemSubmenuFadeIn 0.2s ease-out;
-}
-
 @keyframes itemSubmenuFadeIn {
-    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
-    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    0%   { opacity: 0; }
+    100% { opacity: 1; }
 }
 
 .battle-item-submenu__header {
@@ -1283,7 +1301,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.8vh 1vw;
-    border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+    border-bottom: 1px solid rgba(224, 216, 200, 0.15);
     flex-shrink: 0;
 }
 
@@ -1291,14 +1309,14 @@
     font-size: clamp(8px, 1.3vw, 11px);
     font-weight: bold;
     letter-spacing: 2px;
-    color: #f59e0b;
+    color: #e0d8c8;
     text-transform: uppercase;
 }
 
 .battle-item-submenu__close {
     background: none;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
+    border: 1px solid rgba(224, 216, 200, 0.2);
+    border-radius: 3px;
     color: #8a7a64;
     font-size: clamp(10px, 1.5vw, 14px);
     cursor: pointer;
@@ -1308,8 +1326,8 @@
 }
 
 .battle-item-submenu__close:hover {
-    color: #f59e0b;
-    border-color: rgba(245, 158, 11, 0.3);
+    color: #e0d8c8;
+    border-color: rgba(224, 216, 200, 0.4);
 }
 
 .battle-item-submenu__list {
@@ -1334,9 +1352,9 @@
     align-items: center;
     gap: 0.6vw;
     padding: 0.6vh 0.6vw;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 5px;
+    background: transparent;
+    border: 1px solid rgba(224, 216, 200, 0.1);
+    border-radius: 3px;
     cursor: pointer;
     transition: background 0.12s ease, border-color 0.12s ease;
     font-family: monospace;
@@ -1345,8 +1363,8 @@
 }
 
 .battle-item-submenu__row:hover {
-    background: rgba(245, 158, 11, 0.08);
-    border-color: rgba(245, 158, 11, 0.2);
+    background: rgba(224, 216, 200, 0.06);
+    border-color: rgba(224, 216, 200, 0.2);
 }
 
 .battle-item-submenu__row:active {
@@ -1359,8 +1377,8 @@
 }
 
 .battle-item-submenu__row--empty:hover {
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.06);
+    background: transparent;
+    border-color: rgba(224, 216, 200, 0.1);
 }
 
 .battle-item-submenu__icon {
@@ -1373,7 +1391,7 @@
 .battle-item-submenu__name {
     font-size: clamp(8px, 1.2vw, 11px);
     font-weight: bold;
-    color: #f0e6c8;
+    color: #e0d8c8;
     letter-spacing: 0.5px;
     flex-shrink: 0;
 }
@@ -1389,7 +1407,7 @@
 
 .battle-item-submenu__qty {
     font-size: clamp(8px, 1.1vw, 10px);
-    color: #f59e0b;
+    color: #8a7a64;
     font-weight: bold;
     flex-shrink: 0;
     min-width: 2vw;
@@ -1404,9 +1422,9 @@
     margin-left: auto;
     width: clamp(100px, 18vw, 160px);
     max-height: 40vh;
-    background: rgba(10, 7, 4, 0.95);
-    border: 1px solid rgba(96, 165, 250, 0.25);
-    border-radius: 8px;
+    background: #000;
+    border: 2px solid rgba(224, 216, 200, 0.25);
+    border-radius: 4px;
     display: flex;
     flex-direction: column;
     z-index: 20;
@@ -1416,17 +1434,17 @@
 
 .battle-skill-submenu--in-cam {
     position: fixed;
-    bottom: auto;
-    right: auto;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: clamp(200px, 40vw, 320px);
+    bottom: 3vh;
+    right: 3vw;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: clamp(120px, 22vw, 200px);
     height: auto;
     max-height: 50vh;
-    border: 2px solid rgba(96, 165, 250, 0.4);
-    border-radius: 8px;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+    border: 2px solid rgba(224, 216, 200, 0.3);
+    border-radius: 4px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
     animation: skillSubmenuFadeIn 0.2s ease-out;
 }
 
@@ -1436,8 +1454,8 @@
 }
 
 @keyframes skillSubmenuFadeIn {
-    0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
-    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    0%   { opacity: 0; }
+    100% { opacity: 1; }
 }
 
 .battle-skill-submenu__header {
@@ -1445,7 +1463,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.8vh 1vw;
-    border-bottom: 1px solid rgba(96, 165, 250, 0.15);
+    border-bottom: 1px solid rgba(224, 216, 200, 0.15);
     flex-shrink: 0;
 }
 
@@ -1453,14 +1471,14 @@
     font-size: clamp(8px, 1.3vw, 11px);
     font-weight: bold;
     letter-spacing: 2px;
-    color: #60a5fa;
+    color: #e0d8c8;
     text-transform: uppercase;
 }
 
 .battle-skill-submenu__ap-label {
     font-size: clamp(8px, 1.2vw, 10px);
     font-family: monospace;
-    color: #f59e0b;
+    color: #e0d8c8;
     letter-spacing: 0.5px;
     margin-left: auto;
     margin-right: 1vw;
@@ -1468,8 +1486,8 @@
 
 .battle-skill-submenu__close {
     background: none;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 4px;
+    border: 1px solid rgba(224, 216, 200, 0.2);
+    border-radius: 3px;
     color: #8a7a64;
     font-size: clamp(10px, 1.5vw, 14px);
     cursor: pointer;
@@ -1479,8 +1497,8 @@
 }
 
 .battle-skill-submenu__close:hover {
-    color: #60a5fa;
-    border-color: rgba(96, 165, 250, 0.3);
+    color: #e0d8c8;
+    border-color: rgba(224, 216, 200, 0.4);
 }
 
 .battle-skill-submenu__list {
@@ -1505,9 +1523,9 @@
     align-items: center;
     gap: 0.6vw;
     padding: 0.8vh 0.6vw;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 5px;
+    background: transparent;
+    border: 1px solid rgba(224, 216, 200, 0.1);
+    border-radius: 3px;
     cursor: pointer;
     transition: background 0.12s ease, border-color 0.12s ease;
     font-family: monospace;
@@ -1516,8 +1534,8 @@
 }
 
 .battle-skill-submenu__row:hover {
-    background: rgba(96, 165, 250, 0.08);
-    border-color: rgba(96, 165, 250, 0.2);
+    background: rgba(224, 216, 200, 0.06);
+    border-color: rgba(224, 216, 200, 0.2);
 }
 
 .battle-skill-submenu__row:active {
@@ -1530,21 +1548,21 @@
 }
 
 .battle-skill-submenu__row--disabled:hover {
-    background: rgba(255, 255, 255, 0.03);
-    border-color: rgba(255, 255, 255, 0.06);
+    background: transparent;
+    border-color: rgba(224, 216, 200, 0.1);
 }
 
 .battle-skill-submenu__name {
     font-size: clamp(8px, 1.2vw, 11px);
     font-weight: bold;
-    color: #f0e6c8;
+    color: #e0d8c8;
     letter-spacing: 0.5px;
     flex: 1;
 }
 
 .battle-skill-submenu__cost {
     font-size: clamp(7px, 1vw, 9px);
-    color: #60a5fa;
+    color: #8a7a64;
     font-weight: bold;
     flex-shrink: 0;
 }
@@ -1559,20 +1577,19 @@
 
 /* --- Pending skill row — highlighted when selected, awaiting confirm --- */
 .battle-skill-submenu__row--pending {
-    background: rgba(96, 165, 250, 0.15);
-    border-color: rgba(96, 165, 250, 0.5);
-    box-shadow: 0 0 6px rgba(96, 165, 250, 0.2);
+    background: rgba(224, 216, 200, 0.1);
+    border-color: rgba(224, 216, 200, 0.4);
 }
 
 .battle-skill-submenu__row--pending:hover {
-    background: rgba(96, 165, 250, 0.22);
-    border-color: rgba(96, 165, 250, 0.6);
+    background: rgba(224, 216, 200, 0.15);
+    border-color: rgba(224, 216, 200, 0.5);
 }
 
 /* --- Confirm hint on pending skill row --- */
 .battle-skill-submenu__confirm {
     font-size: clamp(6px, 0.9vw, 8px);
-    color: #4ade80;
+    color: #e0d8c8;
     font-weight: bold;
     letter-spacing: 1px;
     flex-shrink: 0;
@@ -1602,16 +1619,18 @@
     align-items: stretch;
 }
 
-/* Chain RELENT button — sits below centered in-cam skill submenu */
+/* Chain RELENT button — bottom-right, below in-cam skill submenu */
 .battle-chain-relent-btn {
     position: fixed;
-    left: 50%;
-    top: calc(50% + 28vh);
-    transform: translateX(-50%);
+    bottom: 3vh;
+    right: 3vw;
+    left: auto;
+    top: auto;
+    transform: none;
     z-index: 56;
-    background: rgba(10, 7, 4, 0.9);
-    border: 1px solid rgba(138, 122, 100, 0.3);
-    border-radius: 6px;
+    background: #000;
+    border: 2px solid rgba(224, 216, 200, 0.25);
+    border-radius: 4px;
     color: #8a7a64;
     font-family: monospace;
     font-size: clamp(9px, 1.5vw, 12px);
@@ -1621,12 +1640,12 @@
     padding: 1.2vh 3vw;
     cursor: pointer;
     pointer-events: auto;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    transition: background 0.1s ease, transform 0.1s ease;
 }
 
 .battle-chain-relent-btn:active {
-    background: rgba(138, 122, 100, 0.15);
-    transform: translateX(-50%) scale(0.95);
+    background: rgba(224, 216, 200, 0.1);
+    transform: scale(0.95);
 }
 
 .battle-pick-target-prompt__text {
@@ -1635,11 +1654,11 @@
     font-weight: bold;
     letter-spacing: 2px;
     text-transform: uppercase;
-    color: #60a5fa;
+    color: #e0d8c8;
     padding: 0.6vh 1.5vw;
-    background: rgba(10, 7, 4, 0.85);
-    border: 1px solid rgba(96, 165, 250, 0.4);
-    border-radius: 5px;
+    background: #000;
+    border: 2px solid rgba(224, 216, 200, 0.25);
+    border-radius: 4px;
     animation: pickTargetPulse 2s ease-in-out infinite;
 }
 
@@ -1671,10 +1690,6 @@
 
 .battle-char-ap-fill--party {
     background: #60a5fa;
-}
-
-.battle-char-ap-fill--enemy {
-    background: #fb923c;
 }
 
 /* In-cam ITEM button color */

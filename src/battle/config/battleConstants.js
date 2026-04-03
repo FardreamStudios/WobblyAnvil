@@ -52,6 +52,7 @@ var ENEMY_AI = {
 var ACTION_CAM = {
     transitionInMs:     350,        // zoom-in duration
     transitionOutMs:    350,        // zoom-out duration
+    exitSlideMs:        200,        // horizontal slide off-screen before zoom-out
     dimOpacity:         0.12,       // opacity of inactive combatants
     activeScale:        2.0,        // scale of active combatants in center stage
     sparkHoldMs:        300,        // how long clash spark shows on resolve
@@ -78,11 +79,11 @@ var DEFEND_BUFF = {
 
 // --- Formation-View Action Buttons ---
 var ACTIONS = [
-    { id: "attack",  label: "ATK",  color: "#60a5fa", bg: "#1a1428" },
-    { id: "defend",  label: "DEF",  color: "#4ade80", bg: "#0a1a14" },
-    { id: "item",    label: "ITEM", color: "#f59e0b", bg: "#1a1408" },
-    { id: "flee",    label: "FLEE", color: "#8a7a64", bg: "#141009" },
-    { id: "wait",    label: "END",  color: "#a0a0a0", bg: "#111111" },
+    { id: "attack",  label: "ATK" },
+    { id: "defend",  label: "DEF" },
+    { id: "item",    label: "ITEM" },
+    { id: "flee",    label: "FLEE" },
+    { id: "wait",    label: "END" },
 ];
 
 // --- In-Cam Actions removed — engagement system uses formation-only actions ---
@@ -288,6 +289,7 @@ var BATTLE_PHASES = {
     CAM_COUNTER_PROMPT: "cam_counter_prompt", // responder decides: counter or eat it
     CAM_CHAIN_PROMPT:   "cam_chain_prompt",   // player decides: chain another attack or relent
     ACTION_CAM_OUT:   "action_cam_out",      // sliding back to formation
+    CAM_EXIT_SLIDE:   "cam_exit_slide",      // horizontal slide off-screen before zoom-out
     BATTLE_ENDING:    "battle_ending",       // KO wipe detected — freeze, hold, exit
     WAVE_TRANSITION:  "wave_transition",     // between-wave banner + enemy swap
 };

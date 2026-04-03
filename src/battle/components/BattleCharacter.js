@@ -16,6 +16,7 @@ var ACTION_CAM_SLOTS = BattleConstants.ACTION_CAM_SLOTS;
 var LAYOUT = BattleConstants.LAYOUT;
 var STAGE = BattleConstants.STAGE;
 var BATTLE_SPRITES = BattleConstants.BATTLE_SPRITES;
+var PHASES = BattleConstants.BATTLE_PHASES;
 
 // ============================================================
 // BattleSprite — animated spritesheet or static image
@@ -285,6 +286,13 @@ function BattleCharacter(props) {
             var destX = isParty ? partySide : enemySide;
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
+
+            // Exit slide: push horizontally off-stage from cam position
+            if (props.phase === PHASES.CAM_EXIT_SLIDE) {
+                var exitDir = isParty ? 1 : -1;
+                dx += exitDir * STAGE.designW;
+            }
+
             rootStyle.transform = "translate(" + dx + "px, " + dy + "px)";
             rootStyle.zIndex = 10;
         }
@@ -336,10 +344,10 @@ function BattleCharacter(props) {
                     <div className="battle-hp-bg">
                         <div className={fillCls} style={{ width: hpPct + "%" }} />
                     </div>
-                    {c._ap && (
+                    {c._ap && isParty && (
                         <div className="battle-char-ap-bg">
                             <div
-                                className={"battle-char-ap-fill" + (isParty ? " battle-char-ap-fill--party" : " battle-char-ap-fill--enemy")}
+                                className="battle-char-ap-fill battle-char-ap-fill--party"
                                 style={{ width: (c._ap.max > 0 ? Math.round(c._ap.current / c._ap.max * 100) : 0) + "%" }}
                             />
                         </div>
