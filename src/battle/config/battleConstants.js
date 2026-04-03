@@ -131,6 +131,7 @@ var BATTLE_SPRITES = {
         frameH:   0,
         fps:      0,
         cols:     1,
+        scale:    1.5,
     },
     fairyCombatIdle: {
         sheet:    "/images/anim/battle/npc/waFairyCombatIdleSS.png",
@@ -148,6 +149,24 @@ var BATTLE_SPRITES = {
         fps:      1.0,
         cols:     5,
     },
+    smithCombatIdle: {
+        sheet:    "/images/anim/battle/smith/waSmithCombatIdleSS.png",
+        frames:   5,
+        frameW:   380,
+        frameH:   380,
+        fps:      4,
+        cols:     5,
+        flipX:    true,
+    },
+    smithCombatAttack: {
+        sheet:    "/images/anim/battle/smith/waSmithCombatAttackSS.png",
+        frames:   2,
+        frameW:   380,
+        frameH:   380,
+        fps:      0,       // no auto-cycle — frame controlled by anim state
+        cols:     2,
+        flipX:    true,
+    },
 };
 
 // --- Combat Test Data (dev/prototype only) ---
@@ -156,7 +175,8 @@ var TEST_PARTY = [
     {
         id: "smith",
         name: "Smith",
-        spriteKey: "fairyIdle",
+        spriteKey: "smithCombatIdle",
+        attackSpriteKey: "smithCombatAttack",
         maxHP: 20,
         currentHP: 20,
         speed: 45,

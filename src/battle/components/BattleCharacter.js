@@ -25,14 +25,39 @@ var PHASES = BattleConstants.BATTLE_PHASES;
 
 function BattleSprite(props) {
     var cfg = BATTLE_SPRITES[props.spriteKey];
+
+    // --- Hooks must run unconditionally (Rules of Hooks) ---
+    var [autoFrame, setAutoFrame] = useState(0);
+    var spriteKeyRef = useRef(props.spriteKey);
+
+    // Reset frame on spriteKey change (e.g. idle → attack swap)
+    if (props.spriteKey !== spriteKeyRef.current) {
+        spriteKeyRef.current = props.spriteKey;
+        setAutoFrame(0);
+    }
+
+    useEffect(function() {
+        if (!cfg || cfg.frames <= 1 || !cfg.fps || cfg.fps <= 0) return;
+        var ms = Math.round(1000 / cfg.fps);
+        var totalFrames = cfg.frames;
+        var id = setInterval(function() {
+            setAutoFrame(function(f) { return (f + 1) % totalFrames; });
+        }, ms);
+        return function() { clearInterval(id); };
+    }, [props.spriteKey]);
+
     if (!cfg) return null;
 
     var PUB = process.env.PUBLIC_URL || "";
     var src = PUB + cfg.sheet;
     var size = LAYOUT.spriteSize;
+    var xform = [];
+    if (cfg.flipX) xform.push("scaleX(-1)");
+    if (cfg.scale && cfg.scale !== 1) xform.push("scale(" + cfg.scale + ")");
+    var transform = xform.length ? xform.join(" ") : undefined;
 
-    // Static image (1 frame or fps=0)
-    if (cfg.frames <= 1 || cfg.fps <= 0) {
+    // Static image (single frame only)
+    if (cfg.frames <= 1) {
         return (
             <div ref={props.spriteRef || null} className="normal-cam-char__sprite" style={{
                 width: size, height: size,
@@ -41,6 +66,7 @@ function BattleSprite(props) {
                 backgroundRepeat: "no-repeat",
                 backgroundPosition: "center",
                 imageRendering: "auto",
+                transform: transform,
             }} />
         );
     }
@@ -48,7 +74,7 @@ function BattleSprite(props) {
     // Animated spritesheet — percentage-based positioning
     var frames = cfg.frames;
     var cols = cfg.cols || frames;
-    var frame = props.frame || 0;
+    var frame = (props.frame != null) ? props.frame : autoFrame;
     var col = frame % cols;
     var row = Math.floor(frame / cols);
     var totalRows = Math.ceil(frames / cols);
@@ -63,6 +89,7 @@ function BattleSprite(props) {
             backgroundRepeat: "no-repeat",
             backgroundSize: (cols * 100) + "% " + (totalRows * 100) + "%",
             imageRendering: "auto",
+            transform: transform,
         }} />
     );
 }
@@ -337,7 +364,14 @@ function BattleCharacter(props) {
                             color={isParty ? "#f0e6c8" : "#fb923c"}
                         />
                     )}
-                    <BattleSprite spriteKey={c.spriteKey} frame={props.spriteFrame} spriteRef={spriteElRef} />
+                    <BattleSprite spriteKey={
+                        (myAnim === "strike" || myAnim === "wind_up") && c.attackSpriteKey
+                            ? c.attackSpriteKey : c.spriteKey
+                    } frame={
+                        (myAnim === "strike") && c.attackSpriteKey ? 1
+                            : (myAnim === "wind_up") && c.attackSpriteKey ? 0
+                                : null
+                    } spriteRef={spriteElRef} />
                 </div>
                 <div className={"normal-cam-char__info" + (inActionCam ? " action-cam-char__info--hidden" : "")}>
                     <span className="normal-cam-char__name">{c.name}</span>

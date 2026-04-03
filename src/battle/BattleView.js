@@ -246,17 +246,7 @@ function BattleView(props) {
     var selectedSkillRef = useRef(null);
     var [battleResult, setBattleResult] = useState(null);
 
-    // --- Sprite animation frame ---
-    var [spriteFrame, setSpriteFrame] = useState(0);
-    useEffect(function() {
-        var fps = BATTLE_SPRITES.fairyIdle.fps || 1;
-        var ms = Math.round(1000 / fps);
-        var frames = BATTLE_SPRITES.fairyIdle.frames || 1;
-        var id = setInterval(function() {
-            setSpriteFrame(function(f) { return (f + 1) % frames; });
-        }, ms);
-        return function() { clearInterval(id); };
-    }, []);
+    // --- Sprite animation frames now self-managed by BattleSprite ---
 
     // --- Refs for combatant elements ---
     var combatantRefs = useRef({});
@@ -1114,7 +1104,6 @@ function BattleView(props) {
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(e.id)}
                                 onClick={function() { if (!isCinematic) selectTarget(e.id); }}
-                                spriteFrame={spriteFrame}
                                 flashId={flashId}
                                 animState={animState}
                                 isLeftHanded={isLeftHanded}
@@ -1143,7 +1132,6 @@ function BattleView(props) {
                                 restingRects={restingRectsRef.current}
                                 setRef={makeRefSetter(p.id)}
                                 onClick={function() { if (!isCinematic) selectTarget(p.id); }}
-                                spriteFrame={spriteFrame}
                                 flashId={flashId}
                                 animState={animState}
                                 isLeftHanded={isLeftHanded}

@@ -101,7 +101,7 @@ function createBattleState(partyArray, enemyArray) {
             // Identity (immutable during battle)
             id:            cfg.id,
             name:          cfg.name,
-            spriteKey:     cfg.spriteKey,
+            attackSpriteKey: cfg.attackSpriteKey || null,
             isParty:       isParty,
 
             // Stats (base — buffs applied on read)
