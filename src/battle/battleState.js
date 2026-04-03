@@ -117,6 +117,10 @@ function createBattleState(partyArray, enemyArray) {
             ko:            false,
             items:         items,
             buffs:         [],   // { stat, value, turnsLeft }
+
+            // Special skill flags (see SpecialSkillSystemSpec.md)
+            chargingSkill: null,   // null or { skillId, targetId } while channeling
+            canDefend:     true,   // false during channeling — all incoming attacks deal full damage
         };
     }
 
@@ -316,6 +320,32 @@ function createBattleState(partyArray, enemyArray) {
     }
 
     // ============================================================
+    // SPECIAL SKILL FLAGS
+    // ============================================================
+
+    // Begin channeling — sets chargingSkill and disables defense
+    function beginCharging(combatantId, skillId, targetId) {
+        var c = combatants[combatantId];
+        if (!c) return;
+        c.chargingSkill = { skillId: skillId, targetId: targetId };
+        c.canDefend = false;
+    }
+
+    // Clear all special skill state — called by director on RESUME or ABORT
+    function clearCharging(combatantId) {
+        var c = combatants[combatantId];
+        if (!c) return;
+        c.chargingSkill = null;
+        c.canDefend = true;
+    }
+
+    // Check if a combatant is currently channeling
+    function isCharging(combatantId) {
+        var c = combatants[combatantId];
+        return c ? c.chargingSkill !== null : false;
+    }
+
+    // ============================================================
     // RESULT — Build BattleResult deltas
     // ============================================================
 
@@ -364,6 +394,11 @@ function createBattleState(partyArray, enemyArray) {
         tickBuffs:       tickBuffs,
         clearDefendBuffs: clearDefendBuffs,
         replaceEnemies:  replaceEnemies,
+
+        // Special skill flags
+        beginCharging:   beginCharging,
+        clearCharging:   clearCharging,
+        isCharging:      isCharging,
 
         // Checks
         isPartyWiped:    isPartyWiped,

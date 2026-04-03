@@ -20,31 +20,78 @@ var PHASES = BattleConstants.BATTLE_PHASES;
 
 // ============================================================
 // BattleSprite — animated spritesheet or static image
-// Props: spriteKey (string key into BATTLE_SPRITES), frame
+//
+// Props:
+//   spriteKey    — string key into BATTLE_SPRITES config
+//   frame        — (optional) manual frame override, bypasses autoFrame
+//   spriteRef    — (optional) ref forwarded to the sprite div
+//   onComplete   — (optional) callback fired when "once"/"reverse" anim finishes
+//
+// Sprite config fields (in BATTLE_SPRITES):
+//   playMode     — "loop" (default), "once", "reverse"
+//                   "loop": wraps to loopFrom (or 0) at end, forever
+//                   "once": plays 0→last, holds last frame, fires onComplete
+//                   "reverse": plays last→0, holds frame 0, fires onComplete
+//                   "manual": use fps:0, parent controls via frame prop
+//   loopFrom     — (optional) frame to wrap to instead of 0 in loop mode
 // ============================================================
 
 function BattleSprite(props) {
     var cfg = BATTLE_SPRITES[props.spriteKey];
 
     // --- Hooks must run unconditionally (Rules of Hooks) ---
-    var [autoFrame, setAutoFrame] = useState(0);
+    var initFrame = (cfg && cfg.playMode === "reverse") ? Math.max(0, cfg.frames - 1) : 0;
+    var [autoFrame, setAutoFrame] = useState(initFrame);
     var spriteKeyRef = useRef(props.spriteKey);
+    var completeFiredRef = useRef(false);
 
     // Reset frame on spriteKey change (e.g. idle → attack swap)
     if (props.spriteKey !== spriteKeyRef.current) {
         spriteKeyRef.current = props.spriteKey;
-        setAutoFrame(0);
+        completeFiredRef.current = false;
+        var newCfg = BATTLE_SPRITES[props.spriteKey];
+        var startFrame = (newCfg && newCfg.playMode === "reverse") ? Math.max(0, newCfg.frames - 1) : 0;
+        setAutoFrame(startFrame);
     }
 
     useEffect(function() {
         if (!cfg || cfg.frames <= 1 || !cfg.fps || cfg.fps <= 0) return;
         var ms = Math.round(1000 / cfg.fps);
         var totalFrames = cfg.frames;
+        var mode = cfg.playMode || "loop";
+        var loopStart = cfg.loopFrom || 0;
+
         var id = setInterval(function() {
-            setAutoFrame(function(f) { return (f + 1) % totalFrames; });
+            setAutoFrame(function(f) {
+                if (mode === "once") {
+                    // Play forward, hold last frame
+                    return f < totalFrames - 1 ? f + 1 : f;
+                }
+                if (mode === "reverse") {
+                    // Play backward, hold frame 0
+                    return f > 0 ? f - 1 : f;
+                }
+                // "loop" (default) — wrap to loopFrom at end
+                var next = f + 1;
+                return next >= totalFrames ? loopStart : next;
+            });
         }, ms);
         return function() { clearInterval(id); };
     }, [props.spriteKey]);
+
+    // --- Completion callback for "once" and "reverse" modes ---
+    useEffect(function() {
+        if (!cfg || completeFiredRef.current) return;
+        var mode = cfg.playMode || "loop";
+        if (mode === "once" && autoFrame >= cfg.frames - 1) {
+            completeFiredRef.current = true;
+            if (props.onComplete) props.onComplete();
+        }
+        if (mode === "reverse" && autoFrame <= 0) {
+            completeFiredRef.current = true;
+            if (props.onComplete) props.onComplete();
+        }
+    }, [autoFrame, props.spriteKey]);
 
     if (!cfg) return null;
 

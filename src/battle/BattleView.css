@@ -437,6 +437,20 @@
     animation: combatSyncGlowBlue var(--telegraph-duration, 800ms) ease-in-out 1 forwards;
 }
 
+/* Charge shake — continuous small vertical oscillation while channeling
+   a special skill. Stepped for pixel-art feel. Runs infinite until
+   class is removed by the skill or director on cleanup. */
+@keyframes chargeShake {
+    0%, 100% { transform: translateY(0);    }
+    25%      { transform: translateY(-2px);  }
+    50%      { transform: translateY(1px);   }
+    75%      { transform: translateY(-1px);  }
+}
+
+.normal-cam-char__choreo--charge_shake {
+    animation: chargeShake 200ms steps(4) infinite;
+}
+
 .normal-cam-char:active {
     border-color: rgba(255, 255, 255, 0.15);
 }
