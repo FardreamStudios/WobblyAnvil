@@ -90,6 +90,7 @@ var _frameTimer   = null;   // interval handle for 2↔3 frame loop
 var _aimMult      = 1.0;    // accuracy multiplier from aim QTE
 var _beamActive   = false;  // is beam VFX currently on
 var _released     = false;  // prevent double-release
+var _beamLoopHandle   = null;  // { stop() } for beam drone SFX
 
 // ============================================================
 // ACTIVATE — Director calls this when the caster's turn arrives
@@ -106,6 +107,7 @@ function activate(bridge) {
     _damageTimer = null;
     _frameTimer  = null;
     _aimMult     = 1.0;
+    _beamLoopHandle   = null;
 
     // Read charge info — director stored casterId and targetId
     // when the player declared the skill.
@@ -157,6 +159,9 @@ function activate(bridge) {
                         if (_released) return;
                         bridge.setSpriteFrame(_casterId, 3);
 
+                        // SFX — start beam drone (charge hum already stopped by director)
+                        if (bridge.sfx) { _beamLoopHandle = bridge.sfx.beamLoop(); }
+
                         // Step 4 — Loop frames 2↔3
                         var loopFrame = 3;
                         _frameTimer = setInterval(function() {
@@ -202,6 +207,8 @@ function abort(reason) {
 
     // Stop frame loop
     if (_frameTimer) { clearInterval(_frameTimer); _frameTimer = null; }
+    // Stop SFX loops
+    if (_beamLoopHandle) { _beamLoopHandle.stop(); _beamLoopHandle = null; }
     // Clear charge shake choreo + sprite override
     if (_bridge && _casterId) {
         _bridge.clearChoreo(_casterId);
@@ -352,6 +359,8 @@ function _windDown() {
     if (_frameTimer) { clearInterval(_frameTimer); _frameTimer = null; }
     // Stop beam VFX
     if (_beamActive && _bridge) { _bridge.stopVFX("beam_connect"); _beamActive = false; }
+    // Stop beam SFX loop
+    if (_beamLoopHandle) { _beamLoopHandle.stop(); _beamLoopHandle = null; }
     // Clear charge shake
     if (_bridge && _casterId) { _bridge.clearChoreo(_casterId); }
 
@@ -400,6 +409,8 @@ function _doRelease() {
         _bridge.stopVFX("beam_connect");
         _beamActive = false;
     }
+    // Stop any lingering SFX loops
+    if (_beamLoopHandle) { _beamLoopHandle.stop(); _beamLoopHandle = null; }
     if (_bridge && _casterId) {
         _bridge.clearChoreo(_casterId);
         _bridge.setSpriteKey(_casterId, null); // clear override → back to default

@@ -36,6 +36,8 @@ var ENGAGEMENT = {
     AP_COST_DEFEND:         15,     // formation only
     AP_COST_FLEE:           70,     // formation only, high commitment
     AP_COST_COUNTER:        5,      // in-cam, cheap — encourages counter play
+    AP_COST_DODGE:          2,      // per-beat dodge cost — free brace keeps it fair
+    AP_REWARD_COUNTER_PASS: 5,      // bonus AP for choosing not to counter
     INITIATIVE_VARIANCE:    20,     // random(0, variance) added to speed for turn order roll
     FLEE_BASE_CHANCE:       0.5,    // 50% flat chance V1
     MAX_ENGAGEMENT_ACTIONS: 3,      // max attacks per action cam session (1 = current behavior)

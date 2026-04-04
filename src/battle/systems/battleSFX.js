@@ -220,6 +220,84 @@ function swing() {
 }
 
 // ============================================================
+// Loop Primitive — creates looping oscillator(s), returns
+// { stop() } handle. stop() fades out over fadeMs then
+// disconnects all nodes. Safe to call stop() multiple times.
+// ============================================================
+
+function _loopTone(layers, fadeMs) {
+    if (fadeMs === undefined) fadeMs = 150;
+    try {
+        var ctx = _ensureContext();
+        if (!ctx) return { stop: function() {} };
+
+        var nodes = [];
+        var masterGain = ctx.createGain();
+        masterGain.connect(_sfxGain);
+
+        for (var i = 0; i < layers.length; i++) {
+            var L = layers[i];
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.type = L.type || "sine";
+            osc.frequency.setValueAtTime(L.freq, ctx.currentTime);
+            if (L.detune) osc.detune.setValueAtTime(L.detune, ctx.currentTime);
+            gain.gain.setValueAtTime(L.vol || 0.05, ctx.currentTime);
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start();
+            nodes.push({ osc: osc, gain: gain });
+        }
+
+        var stopped = false;
+        return {
+            stop: function() {
+                if (stopped) return;
+                stopped = true;
+                var now = ctx.currentTime;
+                for (var j = 0; j < nodes.length; j++) {
+                    nodes[j].gain.gain.setValueAtTime(nodes[j].gain.gain.value, now);
+                    nodes[j].gain.gain.linearRampToValueAtTime(0, now + fadeMs / 1000);
+                    nodes[j].osc.stop(now + fadeMs / 1000 + 0.05);
+                }
+            }
+        };
+    } catch (e) {
+        return { stop: function() {} };
+    }
+}
+
+// ============================================================
+// Starfall SFX
+// ============================================================
+
+// Charge Start — ethereal rising sweep (one-shot, plays on declare)
+function chargeStart() {
+    _sweep(300, 900, "sine", 0.35, 0.08);
+    _sweep(350, 1000, "triangle", 0.30, 0.05, 0.05);
+    _tone(600, "sine", 0.20, 0.04, 0.15);
+}
+
+// Charge Loop — quiet magical hum (looping, plays during charge wait)
+// Returns { stop() } handle. Caller must stop on ignition or abort.
+function chargeLoop() {
+    return _loopTone([
+        { freq: 220, type: "sine",     vol: 0.03 },
+        { freq: 331, type: "triangle", vol: 0.02, detune: 5 },
+    ], 200);
+}
+
+// Beam Loop — sustained energy drone (looping, plays during active beam)
+// Returns { stop() } handle. Caller must stop on wind-down or abort.
+function beamLoop() {
+    return _loopTone([
+        { freq: 150, type: "sawtooth", vol: 0.04 },
+        { freq: 301, type: "sine",     vol: 0.03, detune: 8 },
+        { freq: 450, type: "triangle", vol: 0.02 },
+    ], 150);
+}
+
+// ============================================================
 // API
 // ============================================================
 
@@ -245,6 +323,9 @@ var BattleSFX = {
     invalid: invalid,
     engage: engage,
     swing: swing,
+    chargeStart: chargeStart,
+    chargeLoop: chargeLoop,
+    beamLoop: beamLoop,
 };
 
 export default BattleSFX;

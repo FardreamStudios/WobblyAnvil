@@ -29,8 +29,8 @@ var PLAYER_SKILLS = {
         ringStartRadius:  70,
         label:            "ATTACK!",
         beats: [
-            { check: "ring", damage: 6,  atkAnim: "strike", tgtReact: "hit",    shake: "light",  sfx: "hit"    },
-            { check: "ring", damage: 6,  atkAnim: "strike", tgtReact: "hit",    shake: "medium", sfx: "impact" },
+            { check: "ring", damage: 3,  atkAnim: "strike", tgtReact: "hit",    shake: "light",  sfx: "hit"    },
+            { check: "ring", damage: 5,  atkAnim: "strike", tgtReact: "hit",    shake: "medium", sfx: "impact" },
         ],
     },
 

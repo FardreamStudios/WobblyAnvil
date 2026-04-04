@@ -116,6 +116,7 @@ function createBattleDirector(bridge, config) {
     var activeSkillBridge   = null;   // skill bridge instance (disabled on abort)
     var activeSkillCasterId = null;   // combatant currently executing a special skill
     var pendingSkillDone    = null;   // sequencer done() callback parked during takeover
+    var chargingLoopHandle  = null;   // { stop() } for charge hum SFX during declare→activate
 
     // In-cam chaining state (player multi-action cam session)
     var camSession = {
@@ -425,6 +426,9 @@ function createBattleDirector(bridge, config) {
             startVFX:           startVFX,
             stopVFX:            stopVFX,
 
+            // SFX
+            sfx:                BattleSFX,
+
             // Lifecycle
             release:            release,
 
@@ -584,6 +588,10 @@ function createBattleDirector(bridge, config) {
             bridge.setTurnOwnerId(id);
 
             console.log("[Director] SPECIAL SKILL ACTIVATE:", skill.id || chargeInfo.skillId, "caster:", id);
+
+            // Stop charge hum — beam is taking over
+            if (chargingLoopHandle) { chargingLoopHandle.stop(); chargingLoopHandle = null; }
+
             skill.activate(skillBridge);
             // Sequencer is now parked. Skill runs async via bridge.
         });
@@ -658,6 +666,9 @@ function createBattleDirector(bridge, config) {
 
         // 1. Disable the bridge (all future calls no-op)
         if (activeSkillBridge) activeSkillBridge._abort();
+
+        // Stop charge SFX if still running
+        if (chargingLoopHandle) { chargingLoopHandle.stop(); chargingLoopHandle = null; }
 
         // 2. Tell the skill to clean up its own visual state
         if (typeof activeSkill.abort === "function") {
@@ -837,6 +848,11 @@ function createBattleDirector(bridge, config) {
                     bridge.setSpriteKey(id, skill.chargeSpriteKey);
                     bridge.setSpriteFrame(id, skill.chargeFrame || 0);
                 }
+
+                // Charge SFX — one-shot burst + quiet hum loop during formation wait
+                BattleSFX.chargeStart();
+                if (chargingLoopHandle) { chargingLoopHandle.stop(); }
+                chargingLoopHandle = BattleSFX.chargeLoop();
 
                 // End turn — next in line goes. When turn order reaches
                 // this combatant's new position, enqueueTurn will detect
@@ -1743,6 +1759,7 @@ function createBattleDirector(bridge, config) {
         pendingCamChainDone = null;
         // Special skill takeover cleanup
         if (activeSkillBridge) activeSkillBridge._abort();
+        if (chargingLoopHandle) { chargingLoopHandle.stop(); chargingLoopHandle = null; }
         activeSkill = null;
         activeSkillBridge = null;
         activeSkillCasterId = null;
@@ -1765,6 +1782,7 @@ function createBattleDirector(bridge, config) {
         pendingCamChainDone = null;
         // Special skill takeover cleanup
         if (activeSkillBridge) activeSkillBridge._abort();
+        if (chargingLoopHandle) { chargingLoopHandle.stop(); chargingLoopHandle = null; }
         activeSkill = null;
         activeSkillBridge = null;
         activeSkillCasterId = null;

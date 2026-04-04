@@ -849,6 +849,19 @@ function BattleView(props) {
     // defenseInputResolve is set by PlaybackManager via BEAT_DEFENSE_WINDOW bus event
     var defenseInputResolveRef = useRef(null);
     function defenseInputResolve(inputType) {
+        // Dodge (swipe) costs AP — gate it
+        if (inputType === "swipe") {
+            var cam = camExchangeRef.current;
+            var defenderId = cam ? cam.responderId : null;
+            if (defenderId && director && !director.canAfford(defenderId, ENGAGEMENT.AP_COST_DODGE)) {
+                spawnSkillName("No AP!", defenderId, "#ef4444");
+                return; // rejected — player eats the hit
+            }
+            // Spend dodge AP before resolving
+            if (defenderId && director) {
+                director.spendAP(defenderId, ENGAGEMENT.AP_COST_DODGE);
+            }
+        }
         var result = DefenseTiming.checkInput(inputType);
         if (!result) return; // locked or no anchor
         if (defenseInputResolveRef.current) {
