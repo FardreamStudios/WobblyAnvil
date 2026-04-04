@@ -324,7 +324,7 @@ function BattleView(props) {
                 setSpriteOverrides(function(prev) {
                     var next = Object.assign({}, prev);
                     if (key === null) { delete next[id]; return next; }
-                    next[id] = { key: key, frame: (prev[id] && prev[id].frame) || 0 };
+                    next[id] = { key: key, frame: 0 };
                     return next;
                 });
             },
@@ -528,6 +528,7 @@ function BattleView(props) {
     var isIntro = phase === PHASES.INTRO;
     var showQTE = phase === PHASES.CAM_SWING_QTE;
     var showComic = isActionCam;
+    var camSlot = camExchangeRef.current ? camExchangeRef.current.slot : null;
 
     var comicLine = COMIC_LINES[phase] || "...";
 
@@ -575,6 +576,7 @@ function BattleView(props) {
     // so setTimeout callbacks in playback manager get the correct position
     function stagePos(combatantId) {
         var cam = camExchangeRef.current;
+        console.log("[stagePos] id:", combatantId, "cam:", cam ? ("init=" + cam.initiatorId + " resp=" + cam.responderId + " slot=" + cam.slot) : "null");
         if (cam && (combatantId === cam.initiatorId || combatantId === cam.responderId)) {
             var cx = ACTION_CAM_SLOTS.centerX;
             var cy = ACTION_CAM_SLOTS.centerY;
@@ -585,6 +587,7 @@ function BattleView(props) {
             var destX = isCombatantParty
                 ? (isLeftHanded ? (cx - gap) : (cx + gap))
                 : (isLeftHanded ? (cx + gap) : (cx - gap));
+            console.log("[stagePos]", combatantId, "slot:", cam.slot || "default", "gap:", gap, "→", destX, cy);
             return { x: destX, y: cy };
         }
         var slot = slotMapRef.current[combatantId];
@@ -594,12 +597,14 @@ function BattleView(props) {
 
     // Convenience: spawn damage number at a combatant's stage position
     function spawnDmgAt(combatantId, value, color, yOffset) {
+        console.log("[spawnDmgAt] id:", combatantId, "val:", value);
         var pos = stagePos(combatantId);
         spawnDamageNumber(value, pos.x - 10, pos.y - 25 + (yOffset || 0), color);
     }
 
     // Spawn a skill name label above a combatant sprite
     function spawnSkillName(skillName, combatantId, color) {
+        console.log("[spawnSkillName] name:", skillName, "id:", combatantId);
         var pos = stagePos(combatantId);
         clearTimeout(skillNameTimerRef.current);
         var key = ++skillNameKeyRef.current;
@@ -1169,6 +1174,7 @@ function BattleView(props) {
                                 animState={animState}
                                 spriteOverride={spriteOverrides[e.id] || null}
                                 isLeftHanded={isLeftHanded}
+                                camSlot={camSlot}
                                 slotX={slot.x}
                                 slotY={slot.y}
                             />
@@ -1198,6 +1204,7 @@ function BattleView(props) {
                                 animState={animState}
                                 spriteOverride={spriteOverrides[p.id] || null}
                                 isLeftHanded={isLeftHanded}
+                                camSlot={camSlot}
                                 slotX={slot.x}
                                 slotY={slot.y}
                             />

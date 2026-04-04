@@ -24,6 +24,7 @@
 // ============================================================
 
 import BattleConstants from "../config/battleConstants.js";
+import BATTLE_TAGS from "../battleTags.js";
 
 var PHASES         = BattleConstants.BATTLE_PHASES;
 var ENGAGEMENT     = BattleConstants.ENGAGEMENT;
@@ -205,6 +206,21 @@ function createBattleDirector(bridge, config) {
             bridge.spawnDamageNumber(tid, String(result.actual), "#f59e0b");
             bridge.bumpState();
 
+            // --- Hit reactions (match playback manager visual feedback) ---
+            bus.emit(BATTLE_TAGS.FLASH, { combatantId: tid });
+            if (BattleSFX && BattleSFX.hit) BattleSFX.hit();
+            if (result.killed) {
+                bus.emit(BATTLE_TAGS.ANIM_SET, { combatantId: tid, animName: "ko" });
+                bus.emit(BATTLE_TAGS.SHAKE, { level: "ko" });
+                if (BattleSFX && BattleSFX.ko) BattleSFX.ko();
+            } else {
+                bus.emit(BATTLE_TAGS.ANIM_SET, { combatantId: tid, animName: "hit" });
+                bus.emit(BATTLE_TAGS.SHAKE, { level: "light" });
+                setTimeout(function() {
+                    bus.emit(BATTLE_TAGS.ANIM_CLEAR, { combatantId: tid });
+                }, CHOREOGRAPHY.hitMs || 200);
+            }
+
             // Wipe check — if triggered, schedule abort on next
             // microtask so the skill's current call stack finishes
             // before the director takes over.
@@ -316,12 +332,12 @@ function createBattleDirector(bridge, config) {
 
         function setChoreo(id, cls) {
             if (aborted) return;
-            bus.emit("ANIM_SET", { combatantId: id, animName: cls });
+            bus.emit(BATTLE_TAGS.ANIM_SET, { combatantId: id, animName: cls });
         }
 
         function clearChoreo(id) {
             if (aborted) return;
-            bus.emit("ANIM_CLEAR", { combatantId: id });
+            bus.emit(BATTLE_TAGS.ANIM_CLEAR, { combatantId: id });
         }
 
         function setSpriteKey(id, key) {
@@ -814,7 +830,7 @@ function createBattleDirector(bridge, config) {
                 console.log("[Director] DECLARE — turnIndex AFTER adjust:", turnIndex, "turnOrder NOW:", turnOrder.slice());
 
                 // Apply charge_shake choreo for visual feedback
-                bus.emit("ANIM_SET", { combatantId: id, animName: "charge_shake" });
+                bus.emit(BATTLE_TAGS.ANIM_SET, { combatantId: id, animName: "charge_shake" });
 
                 // Swap sprite to charge pose (frame 0 of beam sheet)
                 if (skill.chargeSpriteKey) {
@@ -1279,6 +1295,9 @@ function createBattleDirector(bridge, config) {
             // Responder dead?
             var respState = bState.get(responderId);
             if (!respState || respState.ko) { console.log("[Cam] COUNTER CHECK → responder dead, skip"); done(); return; }
+
+            // Charging a special skill — can't counter
+            if (respState.canDefend === false) { console.log("[Cam] COUNTER CHECK → canDefend=false, skip"); done(); return; }
 
             // Can afford counter?
             var counterCost = ENGAGEMENT.AP_COST_COUNTER;

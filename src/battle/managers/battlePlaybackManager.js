@@ -230,6 +230,17 @@ function runDefense(bus, ctx) {
                 }
             }, 80);
 
+            // If receiver can't defend (e.g. charging a special skill), auto-fail immediately
+            var recCheck = bState.get(receiverId);
+            if (recCheck && recCheck.canDefend === false) {
+                beatResolved = true;
+                _applyDefenseOutcome(
+                    bus, ctx, "fail", DEFENSE_TIMING.failMult,
+                    "no_defend", beat, swingerId, receiverId, dmgColor, isLastBeat, advanceBeat
+                );
+                return;
+            }
+
             // Notify BattleView defense window is open — it wires defenseInputResolveRef
             bus.emit(BATTLE_TAGS.BEAT_DEFENSE_WINDOW, {
                 receiverId: receiverId,

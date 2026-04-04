@@ -328,10 +328,13 @@ function BattleCharacter(props) {
     var myAnim = props.animState && props.animState[c.id];
 
     var cls = "normal-cam-char";
-    // Only apply persistent hide when choreo ko animation is NOT playing.
-    // During the death anim, choreo--ko handles the fade. After it clears,
-    // this class keeps the character hidden on subsequent re-renders.
-    if (isKO && myAnim !== "ko") cls += " normal-cam-char--ko";
+    // Only apply persistent hide when choreo ko animation is NOT playing
+    // AND we're not in the action cam. During action cam, the playback
+    // manager handles KO visibility via anim state — applying this class
+    // early would snap the character invisible before the death anim fires.
+    // After cam out, onCamOut preserves "ko" in animState, so choreo--ko
+    // holds the character hidden via animation fill:forwards.
+    if (isKO && myAnim !== "ko" && !(isAttacker || isTarget)) cls += " normal-cam-char--ko";
     if (isParty) cls += " normal-cam-char--party";
     if (!isParty) cls += " normal-cam-char--enemy-idle";
     if (isDimmed) cls += " action-cam-char--dimmed";
@@ -357,12 +360,15 @@ function BattleCharacter(props) {
         if (cached) {
             var cx = ACTION_CAM_SLOTS.centerX;
             var cy = ACTION_CAM_SLOTS.centerY;
-            var gap = ACTION_CAM_SLOTS.gap;
+            var gap = (props.camSlot === "ranged" && ACTION_CAM_SLOTS.rangedGap)
+                ? ACTION_CAM_SLOTS.rangedGap
+                : ACTION_CAM_SLOTS.gap;
             var partySide = props.isLeftHanded ? (cx - gap) : (cx + gap);
             var enemySide = props.isLeftHanded ? (cx + gap) : (cx - gap);
             var destX = isParty ? partySide : enemySide;
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
+            console.log("[BattleChar cam]", c.id, "gap:", gap, "destX:", destX, "slotX:", props.slotX, "cached.cx:", cached.cx, "dx:", dx);
 
             // Exit slide: push horizontally off-stage from cam position
             if (props.phase === PHASES.CAM_EXIT_SLIDE) {
