@@ -28,41 +28,50 @@
 
 var STARFALL = {
     // Sequence timing
-    chargeHoldMs:       800,    // hold in charge pose before cam (skeleton: before release)
+    chargeHoldMs:       800,    // hold in charge pose before cam
     skillNameHoldMs:    1200,   // how long name banner stays up
-    aimQteParams:       {                   // single-ring aim QTE — fast, tight
-        type:             "circle_timing",
+    ignitionMs:         150,    // time per frame during 0→1→2→3 ignition
+    frameLoopMs:        200,    // toggle speed for frames 2↔3 during beam
+    windFrameMs:        150,    // time per frame during wind-down reverse
+    releaseHoldMs:      1000,   // pause after wind-down before releasing to director
+
+    // Loop structure: 1 round = 1 aim ring + 10 damage rings
+    loopCount:          1,
+    dmgRingsPerLoop:    10,
+    loopPauseMs:        500,    // pause between loops
+
+    // Damage tuning
+    beamBaseDamage:     5,      // base damage per damage ring
+    missDmgMult:        0.25,   // damage multiplier when damage ring is missed
+
+    // Aim ring — sets damage multiplier for the 10 rings that follow
+    aimQte:  {
+        type:             "chalkboard",
         rings:            1,
-        speeds:           [1.8],
-        delays:           [0],
-        shrinkDurationMs: 600,
+        speeds:           [1.4],
+        delays:           [150],
+        shrinkDurationMs: 500,
         zoneBonus:        0.20,
         targetRadius:     24,
         ringStartRadius:  70,
         label:            "AIM!",
         beats:            [{ check: "ring", damage: 0, atkAnim: null, tgtReact: null, shake: null, sfx: null }],
+        _difficulty:      { hitZone: 0.35, perfectZone: 0.15, damageMap: {} },
     },
-    beamTickMs:         120,    // damage tick interval during beam
-    beamBaseDamage:     1,      // per-tick base damage (multiplied by aim accuracy)
-    windDownMs:         200,    // reverse anim speed
-    ignitionMs:         150,    // time per frame during 0→1 ignition
-    frameLoopMs:        200,    // toggle speed for frames 2↔3 during beam
-    windFrameMs:        150,    // time per frame during 1→0 wind-down
 
-    // Sustain QTE configs
-    sustainRound1:  { type: "sustain_tap", count: 5,  intervalMs: 280, failEnds: true },
-    sustainRound2:  { type: "sustain_tap", count: 10, intervalMs: 240, failEnds: true },
-    gateQteParams:  {                   // circle ring between sustain rounds
-        type:             "circle_timing",
+    // Damage ring — bonus damage checks, no fail-out
+    dmgQte:  {
+        type:             "chalkboard",
         rings:            1,
-        speeds:           [2.0],
+        speeds:           [1.0],
         delays:           [0],
-        shrinkDurationMs: 500,
-        zoneBonus:        0.15,
-        targetRadius:     22,
+        shrinkDurationMs: 325,
+        zoneBonus:        0.20,
+        targetRadius:     24,
         ringStartRadius:  70,
-        label:            "HOLD!",
+        label:            "Focus!",
         beats:            [{ check: "ring", damage: 0, atkAnim: null, tgtReact: null, shake: null, sfx: null }],
+        _difficulty:      { hitZone: 0.40, perfectZone: 0.18, damageMap: {} },
     },
 };
 
@@ -134,34 +143,34 @@ function activate(bridge) {
 
         setTimeout(function() {
             if (_released) return;
-            console.log("[StarfallBeam] Starting aim QTE");
 
-            bridge.runQTE(STARFALL.aimQteParams).then(function(results) {
+            // Step 3 — Ignition: play frames 0→1→2→3
+            console.log("[StarfallBeam] Ignition");
+            bridge.setSpriteFrame(_casterId, 0);
+            setTimeout(function() {
                 if (_released) return;
-
-                // CircleTimingQTE returns: { hits, total, details, successRatio }
-                // details[i] has per-ring info: { tier, ... }
-                var accuracy = 0.5;
-                if (results) {
-                    if (results.successRatio != null) {
-                        accuracy = results.successRatio;
-                    } else if (results.details && results.details.length > 0) {
-                        var r = results.details[0];
-                        if (r.tier === "perfect") { accuracy = 1.0; }
-                        else if (r.tier === "good") { accuracy = 0.75; }
-                        else { accuracy = 0.25; }
-                    }
-                }
-                _aimMult = accuracy;
-                console.log("[StarfallBeam] Aim QTE complete — accuracy:", _aimMult, "raw:", JSON.stringify(results));
-
-                // Hold briefly to show result, then release
+                bridge.setSpriteFrame(_casterId, 1);
                 setTimeout(function() {
                     if (_released) return;
-                    console.log("[StarfallBeam] Post-QTE hold complete — releasing");
-                    _doRelease();
-                }, 1000);
-            });
+                    bridge.setSpriteFrame(_casterId, 2);
+                    setTimeout(function() {
+                        if (_released) return;
+                        bridge.setSpriteFrame(_casterId, 3);
+
+                        // Step 4 — Loop frames 2↔3
+                        var loopFrame = 3;
+                        _frameTimer = setInterval(function() {
+                            if (_released) return;
+                            loopFrame = loopFrame === 2 ? 3 : 2;
+                            bridge.setSpriteFrame(_casterId, loopFrame);
+                        }, STARFALL.frameLoopMs);
+
+                        // Step 5 — Run 3 beam loops
+                        _runBeamLoops(bridge);
+
+                    }, STARFALL.ignitionMs);
+                }, STARFALL.ignitionMs);
+            }, STARFALL.ignitionMs);
         }, STARFALL.skillNameHoldMs);
     });
 }
@@ -237,16 +246,98 @@ function onTick(event, payload) {
 }
 
 // ============================================================
-// INTERNAL — QTE result checker (handles both sustain_tap and
-// circle_timing result formats)
+// INTERNAL — 3-loop beam sequence
+//
+// Each loop: 1 aim ring (sets damage multiplier) + 5 damage
+// rings (hit = full dmg, miss = reduced dmg).
+// Loop 1 aim can't fail. Loop 2+ aim miss = cancel skill.
 // ============================================================
 
-function _isQteSuccess(results) {
-    if (!results || results.length === 0) return false;
-    var r = results[0];
-    if (r.succeeded != null) return r.succeeded;
-    if (r.tier === "perfect" || r.tier === "good") return true;
-    return false;
+function _readTier(results) {
+    return (results && results.length > 0) ? results[0].tier : "miss";
+}
+
+function _tierToMult(tier) {
+    if (tier === "perfect") return 1.5;
+    if (tier === "good")    return 1.0;
+    return 0.25;
+}
+
+function _runBeamLoops(bridge) {
+    var loopIndex = 0;
+
+    function runLoop() {
+        if (_released) return;
+        if (loopIndex >= STARFALL.loopCount) {
+            console.log("[StarfallBeam] All loops complete");
+            if (_frameTimer) { clearInterval(_frameTimer); _frameTimer = null; }
+            _windDown();
+            return;
+        }
+
+        var currentLoop = loopIndex;
+        loopIndex++;
+        console.log("[StarfallBeam] Loop", currentLoop + 1, "— aim ring");
+
+        // --- Aim ring ---
+        bridge.runQTE(STARFALL.aimQte).then(function(results) {
+            if (_released) return;
+
+            var tier = _readTier(results);
+            _aimMult = _tierToMult(tier);
+            console.log("[StarfallBeam] Loop", currentLoop + 1, "aim:", tier, "mult:", _aimMult);
+
+            // Loop 2+ : miss aim = cancel
+            if (currentLoop > 0 && tier === "miss") {
+                console.log("[StarfallBeam] Aim miss on loop", currentLoop + 1, "— cancelling");
+                if (_frameTimer) { clearInterval(_frameTimer); _frameTimer = null; }
+                _windDown();
+                return;
+            }
+
+            // --- 5 damage rings ---
+            var dmgIndex = 0;
+
+            function runDmgRing() {
+                if (_released) return;
+                if (dmgIndex >= STARFALL.dmgRingsPerLoop) {
+                    console.log("[StarfallBeam] Loop", currentLoop + 1, "damage rings complete");
+                    // Pause between loops (skip after last)
+                    if (loopIndex < STARFALL.loopCount) {
+                        setTimeout(runLoop, STARFALL.loopPauseMs);
+                    } else {
+                        runLoop();
+                    }
+                    return;
+                }
+
+                bridge.runQTE(STARFALL.dmgQte).then(function(dmgResults) {
+                    if (_released) return;
+                    dmgIndex++;
+
+                    var dmgTier = _readTier(dmgResults);
+                    var dmg;
+                    if (dmgTier === "miss") {
+                        dmg = Math.max(1, Math.round(STARFALL.beamBaseDamage * _aimMult * STARFALL.missDmgMult));
+                    } else {
+                        dmg = Math.max(1, Math.round(STARFALL.beamBaseDamage * _aimMult));
+                    }
+
+                    console.log("[StarfallBeam] Dmg ring", dmgIndex, "→", dmgTier, "dmg:", dmg);
+
+                    if (_targetId && bridge.isAlive(_targetId)) {
+                        bridge.dealDamage(_targetId, dmg);
+                    }
+
+                    runDmgRing();
+                });
+            }
+
+            runDmgRing();
+        });
+    }
+
+    runLoop();
 }
 
 // ============================================================
@@ -273,7 +364,10 @@ function _windDown() {
             setTimeout(function() {
                 if (_released || !_bridge) return;
                 _bridge.setSpriteKey(_casterId, null); // clear override → back to idle
-                _doRelease();
+                setTimeout(function() {
+                    if (_released) return;
+                    _doRelease();
+                }, STARFALL.releaseHoldMs);
             }, STARFALL.windFrameMs);
         }, STARFALL.windFrameMs);
     } else {
@@ -281,7 +375,7 @@ function _windDown() {
         setTimeout(function() {
             if (_released) return;
             _doRelease();
-        }, STARFALL.windDownMs);
+        }, STARFALL.releaseHoldMs);
     }
 }
 

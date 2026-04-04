@@ -202,7 +202,7 @@ function createBattleDirector(bridge, config) {
         function skillDealDamage(tid, amount) {
             if (aborted) return { newHP: 0, isKO: false };
             var result = bState.applyDamage(tid, amount);
-            bridge.spawnDamageNumber(tid, String(result.damage), "#f59e0b");
+            bridge.spawnDamageNumber(tid, String(result.actual), "#f59e0b");
             bridge.bumpState();
 
             // Wipe check — if triggered, schedule abort on next
@@ -217,7 +217,8 @@ function createBattleDirector(bridge, config) {
                 });
             }
 
-            return { newHP: result.newHP, isKO: result.ko };
+            var after = bState.get(tid);
+            return { newHP: after ? after.currentHP : 0, isKO: result.killed };
         }
 
         function skillSpawnDamageNumber(id, val, color) {
@@ -1709,8 +1710,9 @@ function createBattleDirector(bridge, config) {
         bridge.onAPChanged(apState);
     }
 
-    function reset() {
+    function reset(newBState) {
         seq.clear();
+        if (newBState) bState = newBState;
         apState = {};
         turnOrder = [];
         turnIndex = -1;
@@ -1730,6 +1732,7 @@ function createBattleDirector(bridge, config) {
         camSession.actionsUsed = 0;
         camSession.initiatorId = null;
         camSession.targetId = null;
+        destroyed = false;
         bridge.setPhase(PHASES.INTRO);
         bridge.setTurnOwnerId(null);
         bridge.setTargetId(null);

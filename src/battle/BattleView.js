@@ -622,12 +622,13 @@ function BattleView(props) {
         director.fillAllAP();
     }
     function handleDevReset() {
-        director.reset();
         // Re-create battle state from scratch
         waveIndexRef.current = 0;
         setWaveIndex(0);
         var wave0 = TEST_WAVES[0];
-        battleStateRef.current = BattleStateModule.createBattleState(TEST_PARTY, wave0);
+        var newBState = BattleStateModule.createBattleState(TEST_PARTY, wave0);
+        battleStateRef.current = newBState;
+        director.reset(newBState);
         bumpState();
         setQteConfig(null);
         setItemMenuOpen(false);
@@ -639,6 +640,8 @@ function BattleView(props) {
         camExchangeRef.current = null;
         defenseActiveRef.current = false;
         defenseInputResolveRef.current = null;
+        setSpriteOverrides({});
+        setAnimState({});
         DefenseTiming.destroy();
     }
 
