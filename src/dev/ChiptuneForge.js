@@ -176,7 +176,7 @@ function createEngine() {
         tracks.forEach(function (tr) {
             if (tr.muted) return;
             tr.notes.forEach(function (n) {
-                voice(off, tr.sound, n.freq, n.time, n.duration || tr.sound.duration || 0.3, master);
+                voice(off, tr.sound, n.freq, (tr.startTime || 0) + n.time, n.duration || tr.sound.duration || 0.3, master);
             });
         });
         return off.startRendering().then(function (buf) {
@@ -217,22 +217,29 @@ function makeTrack(colorIdx) {
     return {
         id: trackIdCounter, name: "Track " + trackIdCounter,
         colorIdx: colorIdx !== undefined ? colorIdx : (trackIdCounter - 1) % 6,
-        sound: Object.assign({}, PRESETS[0]), notes: [], muted: false, solo: false
+        sound: Object.assign({}, PRESETS[0]), notes: [], muted: false, solo: false,
+        startTime: 0
     };
 }
 
 // --- Collapsible section ---
 function Section(props) {
     var open = props.open, onToggle = props.onToggle, label = props.label, color = props.color;
+    var triColor = open ? (color || C.accent) : C.accentDim;
+    var triGlow = open ? "0 0 6px " + (color || C.accent) + ", 0 0 12px " + (color || "rgba(48,255,96,0.3)") : "0 0 4px " + C.accentDim;
     return (
         <div style={{ borderBottom: "1px solid " + C.border }}>
             <div onClick={onToggle} style={{
-                display: "flex", alignItems: "center", justifyContent: "space-between",
+                display: "flex", alignItems: "center", gap: 8,
                 padding: "8px 12px", cursor: "pointer", userSelect: "none",
                 background: open ? "rgba(48,255,96,0.04)" : "transparent"
             }}>
-                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: color || C.textDim }}>{label}</span>
-                <span style={{ fontSize: 10, color: C.textDim, transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>▼</span>
+                <span style={{
+                    fontSize: 9, color: triColor, transition: "transform 0.2s, color 0.2s, filter 0.2s",
+                    transform: open ? "rotate(90deg)" : "rotate(0)", display: "inline-block",
+                    filter: "drop-shadow(" + triGlow + ")", lineHeight: 1
+                }}>▶</span>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: color || C.textDim, flex: 1 }}>{label}</span>
             </div>
             {open && <div style={{ padding: "4px 12px 12px" }}>{props.children}</div>}
         </div>
@@ -382,7 +389,7 @@ function ChiptuneForge() {
     }
 
     // -- Panel states --
-    var [panels, setPanels] = useState({ presets: false, wave: true, env: false, filter: false, echo: false });
+    var [panels, setPanels] = useState({ presets: false, wave: true, env: false, filter: false, echo: false, keys: true });
     function togglePanel(k) { setPanels(function (p) { var n = Object.assign({}, p); n[k] = !n[k]; return n; }); }
 
     // -- Keyboard --
@@ -399,6 +406,7 @@ function ChiptuneForge() {
     var [isPlaying, setIsPlaying] = useState(false);
     var [playPos, setPlayPos] = useState(0);
     var playRef = useRef(null);
+    var scheduledIds = useRef([]);
     var [bpm, setBpm] = useState(120);
     var [snapDiv, setSnapDiv] = useState(8);
     var [tlDur, setTlDur] = useState(4);
@@ -410,8 +418,18 @@ function ChiptuneForge() {
     // -- Hold preview --
     var [holding, setHolding] = useState(false);
 
-    // -- Tab --
-    var [tab, setTab] = useState("sound");
+    // -- Track block drag (timeline) --
+    var [blockDragIdx, setBlockDragIdx] = useState(-1);
+    var blockDragX0 = useRef(0), blockDragT0 = useRef(0);
+    var blockTlRef = useRef(null);
+
+    function setTrackStartTime(idx, t) {
+        setTracks(function (prev) {
+            var copy = prev.slice();
+            copy[idx] = Object.assign({}, copy[idx], { startTime: Math.max(0, t) });
+            return copy;
+        });
+    }
 
     // -- Note play --
     function handleNoteOn(noteIdx) {
@@ -462,7 +480,8 @@ function ChiptuneForge() {
                 if (tr.muted) return;
                 if (hasSolo && !tr.solo) return;
                 tr.notes.forEach(function (n) {
-                    setTimeout(function () { eng.current.play(tr.sound, n.freq, n.duration); }, n.time * 1000);
+                    var id = setTimeout(function () { eng.current.play(tr.sound, n.freq, n.duration); }, ((tr.startTime || 0) + n.time) * 1000);
+                    scheduledIds.current.push(id);
                 });
             });
         }
@@ -470,7 +489,13 @@ function ChiptuneForge() {
         function tick() {
             var el = (performance.now() - t0) / 1000;
             if (el >= tlDur) {
-                if (loopMode) { t0 = performance.now(); schedule(); }
+                if (loopMode) {
+                    // Clear old timeouts before rescheduling
+                    scheduledIds.current.forEach(function (id) { clearTimeout(id); });
+                    scheduledIds.current = [];
+                    t0 = performance.now();
+                    schedule();
+                }
                 else { setIsPlaying(false); setPlayPos(0); return; }
             }
             setPlayPos((el % tlDur) / tlDur);
@@ -478,7 +503,12 @@ function ChiptuneForge() {
         }
         playRef.current = requestAnimationFrame(tick);
     }
-    function stopPlay() { setIsPlaying(false); setPlayPos(0); if (playRef.current) cancelAnimationFrame(playRef.current); }
+    function stopPlay() {
+        setIsPlaying(false); setPlayPos(0);
+        if (playRef.current) cancelAnimationFrame(playRef.current);
+        scheduledIds.current.forEach(function (id) { clearTimeout(id); });
+        scheduledIds.current = [];
+    }
 
     // -- Hold preview --
     function onHoldDown() { setHolding(true); eng.current.holdStart(sound); }
@@ -505,6 +535,27 @@ function ChiptuneForge() {
         window.addEventListener("mouseup", up);
         return function () { window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up); };
     }, [dragIdx, tlDur, selIdx]);
+
+    // -- Drag track blocks on arrangement timeline --
+    function onBlockDrag(e, idx) {
+        e.preventDefault(); e.stopPropagation();
+        setBlockDragIdx(idx);
+        blockDragX0.current = e.clientX;
+        blockDragT0.current = tracks[idx].startTime || 0;
+    }
+    useEffect(function () {
+        if (blockDragIdx < 0) return;
+        function mv(e) {
+            if (!blockTlRef.current) return;
+            var r = blockTlRef.current.getBoundingClientRect();
+            var nt = Math.max(0, Math.min(tlDur - 0.1, blockDragT0.current + ((e.clientX - blockDragX0.current) / r.width) * tlDur));
+            setTrackStartTime(blockDragIdx, nt);
+        }
+        function up() { setBlockDragIdx(-1); }
+        window.addEventListener("mousemove", mv);
+        window.addEventListener("mouseup", up);
+        return function () { window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up); };
+    }, [blockDragIdx, tlDur]);
 
     function deleteNote(idx) {
         setTracks(function (prev) {
@@ -533,7 +584,7 @@ function ChiptuneForge() {
         var data = {
             bpm: bpm, duration: tlDur, loop: loopMode,
             tracks: tracks.map(function (tr) {
-                return { name: tr.name, sound: tr.sound, muted: tr.muted,
+                return { name: tr.name, sound: tr.sound, muted: tr.muted, startTime: tr.startTime || 0,
                     notes: tr.notes.map(function (n) { return { note: n.note, octave: n.octave, time: parseFloat(n.time.toFixed(4)), duration: n.duration, name: n.name }; })
                 };
             })
@@ -564,15 +615,31 @@ function ChiptuneForge() {
         return arr;
     }, [tracks, selIdx]);
 
+    // -- Track spans for arrangement timeline --
+    var trackSpans = useMemo(function () {
+        return tracks.map(function (tr) {
+            if (tr.notes.length === 0) return { start: tr.startTime || 0, dur: tr.sound.duration || 0.3 };
+            var maxEnd = 0;
+            tr.notes.forEach(function (n) {
+                var end = n.time + (n.duration || tr.sound.duration || 0.3);
+                if (end > maxEnd) maxEnd = end;
+            });
+            return { start: tr.startTime || 0, dur: maxEnd };
+        });
+    }, [tracks]);
+
     var waveOpts = ["square", "triangle", "sawtooth", "sine", "noise"];
     var filtOpts = ["lowpass", "highpass", "bandpass"];
     var whiteKeys = [0,2,4,5,7,9,11,12,14,16,17,19,21,23];
     var blackKeys = [{n:1,p:6.2},{n:3,p:13.5},{n:6,p:34.8},{n:8,p:42},{n:10,p:49.2},{n:1,p:56.4},{n:3,p:63.6},{n:6,p:84.8},{n:8,p:92}];
     var trkColor = TRACK_COLORS[track.colorIdx];
 
+
     // ============================================================
     // RENDER
     // ============================================================
+
+    var WAVE_LABELS = { square: "SQR", triangle: "TRI", sawtooth: "SAW", sine: "SIN", noise: "NSE" };
 
     return (
         <div className="chipforge-root" style={{ background: C.bg, color: C.text, height: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Segoe UI',system-ui,sans-serif", overflow: "hidden" }}>
@@ -589,271 +656,343 @@ function ChiptuneForge() {
                 </div>
             </div>
 
-            {/* ---- TRACK STRIP ---- */}
-            <div style={{ padding: "6px 14px", display: "flex", alignItems: "center", gap: 6, borderBottom: "1px solid " + C.border, flexShrink: 0, overflowX: "auto" }}>
-                {tracks.map(function (tr, i) {
-                    var sel = i === selIdx;
-                    var tc = TRACK_COLORS[tr.colorIdx];
-                    return (
-                        <div key={tr.id} style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
-                            <button onClick={function () { setSelIdx(i); }}
-                                    style={{ padding: "4px 10px", fontSize: 10, fontWeight: 600, letterSpacing: 0.5,
-                                        background: sel ? tc : "transparent", color: sel ? C.bg : tc,
-                                        border: "1px solid " + tc, borderRadius: 3, cursor: "pointer",
-                                        opacity: tr.muted ? 0.35 : 1 }}>
-                                {tr.name}
-                            </button>
-                            <button onClick={function () { toggleMute(i); }} title="Mute"
-                                    style={Object.assign({}, TINY_BTN, { color: tr.muted ? C.red : C.textDim, background: tr.muted ? "rgba(204,48,48,0.15)" : "transparent" })}>M</button>
-                            <button onClick={function () { toggleSolo(i); }} title="Solo"
-                                    style={Object.assign({}, TINY_BTN, { color: tr.solo ? "#ffcc30" : C.textDim, background: tr.solo ? "rgba(255,204,48,0.15)" : "transparent" })}>S</button>
-                            {tracks.length > 1 && (
-                                <button onClick={function () { deleteTrack(i); }} title="Delete" style={Object.assign({}, TINY_BTN, { color: C.textDim })}>×</button>
-                            )}
+            {/* ============================================= */}
+            {/* TOP SECTION — Tracks Left / Timeline Right    */}
+            {/* ============================================= */}
+            <div style={{ display: "flex", flexShrink: 0, borderBottom: "1px solid " + C.border, height: 220, minHeight: 180 }}>
+
+                {/* ---- LEFT: Track List + Selected Info ---- */}
+                <div style={{ width: 240, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: "1px solid " + C.border, background: C.panel }}>
+                    {/* Track list header */}
+                    <div style={{ padding: "6px 10px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid " + C.border }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: 1.5 }}>TRACKS</span>
+                        {tracks.length < 6 && (
+                            <button onClick={addTrack} style={Object.assign({}, TINY_BTN, { color: C.accent, border: "1px solid " + C.accentDim, fontSize: 12, width: 20, height: 20 })}>+</button>
+                        )}
+                    </div>
+
+                    {/* Track rows */}
+                    <div style={{ flex: 1, overflowY: "auto" }}>
+                        {tracks.map(function (tr, i) {
+                            var sel = i === selIdx;
+                            var tc = TRACK_COLORS[tr.colorIdx];
+                            return (
+                                <div key={tr.id} onClick={function () { setSelIdx(i); }}
+                                     style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 10px", cursor: "pointer",
+                                         background: sel ? "rgba(48,255,96,0.06)" : "transparent",
+                                         borderLeft: sel ? "3px solid " + tc : "3px solid transparent",
+                                         opacity: tr.muted ? 0.4 : 1 }}>
+                                    <div style={{ width: 8, height: 8, borderRadius: "50%", background: tc, flexShrink: 0, boxShadow: sel ? "0 0 6px " + tc : "none" }} />
+                                    <span style={{ fontSize: 11, fontWeight: sel ? 700 : 400, color: sel ? tc : C.text, flex: 1, letterSpacing: 0.3 }}>{tr.name}</span>
+                                    <button onClick={function (e) { e.stopPropagation(); toggleMute(i); }} title="Mute"
+                                            style={Object.assign({}, TINY_BTN, { color: tr.muted ? C.red : C.textDim, background: tr.muted ? "rgba(204,48,48,0.15)" : "transparent", width: 16, height: 16, fontSize: 7 })}>M</button>
+                                    <button onClick={function (e) { e.stopPropagation(); toggleSolo(i); }} title="Solo"
+                                            style={Object.assign({}, TINY_BTN, { color: tr.solo ? "#ffcc30" : C.textDim, background: tr.solo ? "rgba(255,204,48,0.15)" : "transparent", width: 16, height: 16, fontSize: 7 })}>S</button>
+                                    {tracks.length > 1 && (
+                                        <button onClick={function (e) { e.stopPropagation(); deleteTrack(i); }} title="Delete"
+                                                style={Object.assign({}, TINY_BTN, { color: C.textDim, width: 16, height: 16, fontSize: 7 })}>×</button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Selected track summary */}
+                    <div style={{ padding: "8px 10px", borderTop: "1px solid " + C.border, background: "rgba(48,255,96,0.03)" }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: trkColor, letterSpacing: 1, marginBottom: 3 }}>{track.name}</div>
+                        <div style={{ fontSize: 9, color: C.textDim, lineHeight: 1.6 }}>
+                            {WAVE_LABELS[sound.wave] || sound.wave} · {Math.round(sound.pitch)}Hz · {sound.duration}s
+                            {sound.delayMix > 0 ? " · echo" : ""}
+                            {sound.vibDepth > 0 ? " · vib" : ""}
                         </div>
-                    );
-                })}
-                {tracks.length < 6 && (
-                    <button onClick={addTrack} style={Object.assign({}, TINY_BTN, { color: C.accent, border: "1px solid " + C.accentDim, fontSize: 12, width: 22, height: 22 })}>+</button>
-                )}
+                        <div style={{ fontSize: 9, color: C.textDim }}>{track.notes.length} notes · start {(track.startTime || 0).toFixed(2)}s</div>
+                    </div>
+                </div>
+
+                {/* ---- RIGHT: Arrangement Timeline ---- */}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+                    {/* Transport bar */}
+                    <div style={{ padding: "5px 10px", display: "flex", alignItems: "center", gap: 6, borderBottom: "1px solid " + C.border, flexShrink: 0, flexWrap: "wrap" }}>
+                        <button onClick={playAll} disabled={isPlaying} style={btnStyle(trkColor)}>▶</button>
+                        <button onClick={stopPlay} style={btnStyle(C.accentDim)}>⏹</button>
+                        <div style={DIVIDER} />
+                        <button onClick={snapToGrid} style={btnStyle(C.accentDim)}>SNAP</button>
+                        <select value={snapDiv} onChange={function(e){ setSnapDiv(parseInt(e.target.value)); }} style={SELECT_STYLE}>
+                            <option value={4}>1/4</option><option value={8}>1/8</option><option value={16}>1/16</option><option value={32}>1/32</option>
+                        </select>
+                        <div style={DIVIDER} />
+                        <span style={{ fontSize: 9, color: C.textDim }}>BPM</span>
+                        <input type="number" value={bpm} min={40} max={300} onChange={function(e){ setBpm(Math.max(40,Math.min(300,parseInt(e.target.value)||120))); }} style={NUM_INPUT} />
+                        <span style={{ fontSize: 9, color: C.textDim }}>DUR</span>
+                        <input type="number" value={tlDur} min={0.5} max={30} step={0.5} onChange={function(e){ setTlDur(Math.max(0.5,Math.min(30,parseFloat(e.target.value)||4))); }} style={NUM_INPUT} />
+                        <span style={{ fontSize: 9, color: C.textDim }}>s</span>
+                        <label style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 9, color: loopMode ? C.accent : C.textDim, cursor: "pointer", userSelect: "none" }}>
+                            <input type="checkbox" checked={loopMode} onChange={function(){ setLoopMode(!loopMode); }} style={{ accentColor: C.accent, cursor: "pointer" }} />LOOP
+                        </label>
+                        <div style={{ flex: 1 }} />
+                        <button onClick={clearTrackNotes} style={Object.assign({}, btnStyle("#441111"), { fontSize: 9 })}>CLEAR</button>
+                    </div>
+
+                    {/* Arrangement timeline — track blocks */}
+                    <div ref={blockTlRef} style={{ flex: 1, position: "relative", background: "#080c08", overflow: "hidden", minHeight: 0 }}>
+                        {/* Beat grid lines */}
+                        {beats.map(function (p, i) {
+                            return <div key={i} style={{ position: "absolute", left: (p*100)+"%", top: 0, bottom: 0, width: 1, background: i===0 ? C.border : "rgba(26,46,26,0.3)", pointerEvents: "none" }} />;
+                        })}
+
+                        {/* Time markers */}
+                        {beats.filter(function(_, i) { return i % 4 === 0; }).map(function (p, i) {
+                            return <span key={i} style={{ position: "absolute", left: (p*100)+"%", top: 2, fontSize: 8, color: "rgba(90,138,101,0.3)", pointerEvents: "none", transform: "translateX(2px)" }}>{(p * tlDur).toFixed(1)}s</span>;
+                        })}
+
+                        {/* Track lane lines */}
+                        {tracks.map(function (tr, i) {
+                            var laneH = 100 / Math.max(tracks.length, 1);
+                            return <div key={"lane-" + tr.id} style={{ position: "absolute", left: 0, right: 0, top: (i * laneH)+"%", height: 1, background: "rgba(26,46,26,0.2)", pointerEvents: "none" }} />;
+                        })}
+
+                        {/* Track blocks */}
+                        {tracks.map(function (tr, i) {
+                            var tc = TRACK_COLORS[tr.colorIdx];
+                            var span = trackSpans[i];
+                            var laneH = 100 / Math.max(tracks.length, 1);
+                            var startP = (span.start / tlDur) * 100;
+                            var widthP = Math.max(2, (span.dur / tlDur) * 100);
+                            var sel = i === selIdx;
+                            if (tr.muted) return null;
+                            var r = parseInt(tc.slice(1,3),16), g = parseInt(tc.slice(3,5),16), b = parseInt(tc.slice(5,7),16);
+                            return (
+                                <div key={"block-" + tr.id}
+                                     onMouseDown={function(e){ onBlockDrag(e, i); setSelIdx(i); }}
+                                     title={tr.name + " — drag to move start time (" + span.start.toFixed(2) + "s)"}
+                                     style={{
+                                         position: "absolute", left: startP+"%", width: widthP+"%",
+                                         top: (i * laneH + laneH * 0.15)+"%", height: (laneH * 0.7)+"%",
+                                         background: sel ? tc : "rgba(" + r + "," + g + "," + b + ",0.4)",
+                                         borderRadius: 3, cursor: "grab", display: "flex", alignItems: "center", paddingLeft: 6,
+                                         border: sel ? "1px solid " + tc : "1px solid rgba(" + r + "," + g + "," + b + ",0.5)",
+                                         boxShadow: sel ? "0 0 8px " + TRACK_GLOWS[tr.colorIdx] : "none",
+                                         opacity: sel ? 1 : 0.7, zIndex: sel ? 5 : 2,
+                                         transition: "opacity 0.15s"
+                                     }}>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: sel ? C.bg : tc, letterSpacing: 0.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        {tr.name} ({tr.notes.length})
+                                    </span>
+                                </div>
+                            );
+                        })}
+
+                        {/* Playhead */}
+                        {isPlaying && (
+                            <div style={{ position: "absolute", left: (playPos*100)+"%", top: 0, bottom: 0, width: 2, background: C.playhead, zIndex: 10, pointerEvents: "none", boxShadow: "0 0 8px rgba(255,64,64,0.5)" }} />
+                        )}
+
+                        {/* Empty state */}
+                        {tracks.every(function (t) { return t.notes.length === 0; }) && (
+                            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(90,138,101,0.15)", fontSize: 11, letterSpacing: 1, pointerEvents: "none" }}>
+                                RECORD NOTES TO SEE TRACKS HERE
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
-            {/* ---- TAB BAR ---- */}
-            <div style={{ display: "flex", flexShrink: 0 }}>
-                {[["sound","SOUND"],["timeline","SEQUENCE"]].map(function (t) {
-                    var a = tab === t[0];
-                    return (
-                        <button key={t[0]} onClick={function(){ setTab(t[0]); }}
-                                style={{ flex: 1, padding: "7px 0", border: "none", borderBottom: a ? "2px solid " + trkColor : "1px solid " + C.border,
-                                    background: a ? C.panel : C.bg, color: a ? trkColor : C.textDim,
-                                    fontSize: 11, fontWeight: 600, letterSpacing: 1, cursor: "pointer" }}>{t[1]}</button>
-                    );
-                })}
-            </div>
+            {/* ============================================= */}
+            {/* BOTTOM SECTION — Sound Design + Keyboard      */}
+            {/* ============================================= */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+                <div style={{ flex: 1, overflow: "auto", background: C.panel }}>
 
-            {/* ---- CONTENT ---- */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                    {/* Sound Designer Panels */}
+                    <Section label="PRESETS" open={panels.presets} onToggle={function(){ togglePanel("presets"); }}>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {PRESETS.map(function (p, i) {
+                                return (
+                                    <button key={i} onClick={function () { loadPreset(p); }}
+                                            style={{ padding: "4px 8px", fontSize: 10, border: "1px solid " + C.border,
+                                                background: "transparent", color: C.textDim, borderRadius: 3, cursor: "pointer" }}>
+                                        {p.name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </Section>
 
-                {/* ====== SOUND TAB ====== */}
-                {tab === "sound" && (
-                    <div style={{ flex: 1, overflow: "auto", background: C.panel }}>
-                        <Section label="PRESETS" open={panels.presets} onToggle={function(){ togglePanel("presets"); }}>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                                {PRESETS.map(function (p, i) {
-                                    return (
-                                        <button key={i} onClick={function () { loadPreset(p); }}
-                                                style={{ padding: "4px 8px", fontSize: 10, border: "1px solid " + C.border,
-                                                    background: "transparent", color: C.textDim, borderRadius: 3, cursor: "pointer" }}>
-                                            {p.name}
-                                        </button>
-                                    );
+                    <Section label="WAVEFORM & PITCH" open={panels.wave} onToggle={function(){ togglePanel("wave"); }} color={trkColor}>
+                        <Tip tip={TIPS.wave}>
+                            <div style={{ display: "flex", gap: 3, marginBottom: 8, width: "100%" }}>
+                                {waveOpts.map(function (w) {
+                                    var a = sound.wave === w;
+                                    return <button key={w} onClick={function(){ updateSound("wave",w); }}
+                                                   style={chipBtnStyle(a, trkColor)}>{w === "sawtooth" ? "saw" : w}</button>;
                                 })}
                             </div>
-                        </Section>
+                        </Tip>
+                        {sound.wave === "square" && <Slider label="Duty" tip={TIPS.duty} value={sound.duty} min={0.05} max={0.5} step={0.01} onChange={function(v){updateSound("duty",v);}} />}
+                        <Slider label="Pitch" tip={TIPS.pitch} value={sound.pitch} min={20} max={2000} step={1} unit="Hz" onChange={function(v){updateSound("pitch",v);}} />
+                        <Slider label="Detune" tip={TIPS.detune} value={sound.detune} min={-100} max={100} step={1} unit="¢" onChange={function(v){updateSound("detune",v);}} />
+                        <Slider label="Sweep" tip={TIPS.sweep} value={sound.pitchSweep} min={-2000} max={2000} step={10} unit="Hz" onChange={function(v){updateSound("pitchSweep",v);}} />
+                        <Slider label="Volume" tip={TIPS.volume} value={sound.gain} min={0} max={1} step={0.01} onChange={function(v){updateSound("gain",v);}} />
+                        <Slider label="Duration" tip={TIPS.duration} value={sound.duration} min={0.02} max={3} step={0.01} unit="s" onChange={function(v){updateSound("duration",v);}} />
+                    </Section>
 
-                        <Section label="WAVEFORM & PITCH" open={panels.wave} onToggle={function(){ togglePanel("wave"); }} color={trkColor}>
-                            <Tip tip={TIPS.wave}>
-                                <div style={{ display: "flex", gap: 3, marginBottom: 8, width: "100%" }}>
-                                    {waveOpts.map(function (w) {
-                                        var a = sound.wave === w;
-                                        return <button key={w} onClick={function(){ updateSound("wave",w); }}
-                                                       style={chipBtnStyle(a, trkColor)}>{w === "sawtooth" ? "saw" : w}</button>;
-                                    })}
-                                </div>
-                            </Tip>
-                            {sound.wave === "square" && <Slider label="Duty" tip={TIPS.duty} value={sound.duty} min={0.05} max={0.5} step={0.01} onChange={function(v){updateSound("duty",v);}} />}
-                            <Slider label="Pitch" tip={TIPS.pitch} value={sound.pitch} min={20} max={2000} step={1} unit="Hz" onChange={function(v){updateSound("pitch",v);}} />
-                            <Slider label="Detune" tip={TIPS.detune} value={sound.detune} min={-100} max={100} step={1} unit="¢" onChange={function(v){updateSound("detune",v);}} />
-                            <Slider label="Sweep" tip={TIPS.sweep} value={sound.pitchSweep} min={-2000} max={2000} step={10} unit="Hz" onChange={function(v){updateSound("pitchSweep",v);}} />
-                            <Slider label="Volume" tip={TIPS.volume} value={sound.gain} min={0} max={1} step={0.01} onChange={function(v){updateSound("gain",v);}} />
-                            <Slider label="Duration" tip={TIPS.duration} value={sound.duration} min={0.02} max={3} step={0.01} unit="s" onChange={function(v){updateSound("duration",v);}} />
-                        </Section>
+                    <Section label="ENVELOPE (ADSR)" open={panels.env} onToggle={function(){ togglePanel("env"); }}>
+                        <ADSRVis a={sound.attack} d={sound.decay} s={sound.sustain} r={sound.release} />
+                        <Slider label="Attack" tip={TIPS.attack} value={sound.attack} min={0.001} max={0.5} step={0.001} unit="s" onChange={function(v){updateSound("attack",v);}} />
+                        <Slider label="Decay" tip={TIPS.decay} value={sound.decay} min={0.01} max={1} step={0.01} unit="s" onChange={function(v){updateSound("decay",v);}} />
+                        <Slider label="Sustain" tip={TIPS.sustain} value={sound.sustain} min={0} max={1} step={0.01} onChange={function(v){updateSound("sustain",v);}} />
+                        <Slider label="Release" tip={TIPS.release} value={sound.release} min={0.01} max={2} step={0.01} unit="s" onChange={function(v){updateSound("release",v);}} />
+                    </Section>
 
-                        <Section label="ENVELOPE (ADSR)" open={panels.env} onToggle={function(){ togglePanel("env"); }}>
-                            <ADSRVis a={sound.attack} d={sound.decay} s={sound.sustain} r={sound.release} />
-                            <Slider label="Attack" tip={TIPS.attack} value={sound.attack} min={0.001} max={0.5} step={0.001} unit="s" onChange={function(v){updateSound("attack",v);}} />
-                            <Slider label="Decay" tip={TIPS.decay} value={sound.decay} min={0.01} max={1} step={0.01} unit="s" onChange={function(v){updateSound("decay",v);}} />
-                            <Slider label="Sustain" tip={TIPS.sustain} value={sound.sustain} min={0} max={1} step={0.01} onChange={function(v){updateSound("sustain",v);}} />
-                            <Slider label="Release" tip={TIPS.release} value={sound.release} min={0.01} max={2} step={0.01} unit="s" onChange={function(v){updateSound("release",v);}} />
-                        </Section>
+                    <Section label="FILTER & VIBRATO" open={panels.filter} onToggle={function(){ togglePanel("filter"); }}>
+                        <Tip tip={TIPS.filterType}>
+                            <div style={{ display: "flex", gap: 3, marginBottom: 8, width: "100%" }}>
+                                {filtOpts.map(function (f) {
+                                    var a = sound.filterType === f;
+                                    return <button key={f} onClick={function(){ updateSound("filterType",f); }} style={chipBtnStyle(a, trkColor)}>{f}</button>;
+                                })}
+                            </div>
+                        </Tip>
+                        <Slider label="Cutoff" tip={TIPS.cutoff} value={sound.filterFreq} min={20} max={10000} step={10} unit="Hz" onChange={function(v){updateSound("filterFreq",v);}} />
+                        <Slider label="Q" tip={TIPS.filterQ} value={sound.filterQ} min={0.1} max={20} step={0.1} onChange={function(v){updateSound("filterQ",v);}} />
+                        <div style={{ height: 8 }} />
+                        <Slider label="Vib Rate" tip={TIPS.vibRate} value={sound.vibRate} min={0} max={30} step={0.5} unit="Hz" onChange={function(v){updateSound("vibRate",v);}} />
+                        <Slider label="Vib Depth" tip={TIPS.vibDepth} value={sound.vibDepth} min={0} max={100} step={1} unit="¢" onChange={function(v){updateSound("vibDepth",v);}} />
+                    </Section>
 
-                        <Section label="FILTER & VIBRATO" open={panels.filter} onToggle={function(){ togglePanel("filter"); }}>
-                            <Tip tip={TIPS.filterType}>
-                                <div style={{ display: "flex", gap: 3, marginBottom: 8, width: "100%" }}>
-                                    {filtOpts.map(function (f) {
-                                        var a = sound.filterType === f;
-                                        return <button key={f} onClick={function(){ updateSound("filterType",f); }} style={chipBtnStyle(a, trkColor)}>{f}</button>;
-                                    })}
-                                </div>
-                            </Tip>
-                            <Slider label="Cutoff" tip={TIPS.cutoff} value={sound.filterFreq} min={20} max={10000} step={10} unit="Hz" onChange={function(v){updateSound("filterFreq",v);}} />
-                            <Slider label="Q" tip={TIPS.filterQ} value={sound.filterQ} min={0.1} max={20} step={0.1} onChange={function(v){updateSound("filterQ",v);}} />
-                            <div style={{ height: 8 }} />
-                            <Slider label="Vib Rate" tip={TIPS.vibRate} value={sound.vibRate} min={0} max={30} step={0.5} unit="Hz" onChange={function(v){updateSound("vibRate",v);}} />
-                            <Slider label="Vib Depth" tip={TIPS.vibDepth} value={sound.vibDepth} min={0} max={100} step={1} unit="¢" onChange={function(v){updateSound("vibDepth",v);}} />
-                        </Section>
+                    <Section label="ECHO / DELAY" open={panels.echo} onToggle={function(){ togglePanel("echo"); }}>
+                        <Slider label="Time" tip={TIPS.delayTime} value={sound.delayTime} min={0} max={1} step={0.01} unit="s" onChange={function(v){updateSound("delayTime",v);}} />
+                        <Slider label="Feedback" tip={TIPS.delayFeedback} value={sound.delayFeedback} min={0} max={0.9} step={0.01} onChange={function(v){updateSound("delayFeedback",v);}} />
+                        <Slider label="Mix" tip={TIPS.delayMix} value={sound.delayMix} min={0} max={1} step={0.01} onChange={function(v){updateSound("delayMix",v);}} />
+                        <Tip tip={TIPS.loop}>
+                            <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, cursor: "pointer", fontSize: 11, color: loopMode ? C.accent : C.textDim, userSelect: "none", width: "100%" }}>
+                                <input type="checkbox" checked={loopMode} onChange={function(){ setLoopMode(!loopMode); }}
+                                       style={{ accentColor: C.accent, cursor: "pointer" }} />
+                                LOOP MODE {loopMode ? "(crossfade)" : ""}
+                            </label>
+                        </Tip>
+                    </Section>
 
-                        <Section label="ECHO / DELAY" open={panels.echo} onToggle={function(){ togglePanel("echo"); }}>
-                            <Slider label="Time" tip={TIPS.delayTime} value={sound.delayTime} min={0} max={1} step={0.01} unit="s" onChange={function(v){updateSound("delayTime",v);}} />
-                            <Slider label="Feedback" tip={TIPS.delayFeedback} value={sound.delayFeedback} min={0} max={0.9} step={0.01} onChange={function(v){updateSound("delayFeedback",v);}} />
-                            <Slider label="Mix" tip={TIPS.delayMix} value={sound.delayMix} min={0} max={1} step={0.01} onChange={function(v){updateSound("delayMix",v);}} />
-                            <Tip tip={TIPS.loop}>
-                                <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, cursor: "pointer", fontSize: 11, color: loopMode ? C.accent : C.textDim, userSelect: "none", width: "100%" }}>
-                                    <input type="checkbox" checked={loopMode} onChange={function(){ setLoopMode(!loopMode); }}
-                                           style={{ accentColor: C.accent, cursor: "pointer" }} />
-                                    LOOP MODE {loopMode ? "(crossfade)" : ""}
-                                </label>
-                            </Tip>
-                        </Section>
-
-                        {/* Preview + Hold */}
-                        <div style={{ padding: "10px 12px", display: "flex", gap: 8 }}>
+                    {/* Keyboard & Record — collapsible */}
+                    <Section label="KEYBOARD & RECORD" open={panels.keys} onToggle={function(){ togglePanel("keys"); }} color={trkColor}>
+                        {/* REC + Preview + Hold */}
+                        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                            {!isRec ? (
+                                <button onClick={startRec} style={Object.assign({}, btnStyle(C.red), { fontWeight: 700, padding: "6px 14px" })}>⏺ REC</button>
+                            ) : (
+                                <button onClick={stopRec} className="chipforge-rec-pulse" style={Object.assign({}, btnStyle(C.red), { fontWeight: 700, padding: "6px 14px" })}>⏹ {recCount}</button>
+                            )}
                             <button onClick={function(){ eng.current.play(sound, sound.pitch, sound.duration || 0.3); }}
-                                    style={Object.assign({}, btnStyle(trkColor), { flex: 1, padding: "8px 0", fontSize: 12, fontWeight: 700, letterSpacing: 1 })}>
+                                    style={Object.assign({}, btnStyle(trkColor), { flex: 1, padding: "6px 0", fontSize: 11, fontWeight: 700, letterSpacing: 1 })}>
                                 ▶ PREVIEW
                             </button>
                             <Tip tip={TIPS.hold} style={{ flex: 1 }}>
                                 <button onMouseDown={onHoldDown} onMouseUp={onHoldUp} onMouseLeave={onHoldUp}
                                         onTouchStart={onHoldDown} onTouchEnd={onHoldUp}
                                         style={Object.assign({}, btnStyle(holding ? C.accent : C.accentDim), {
-                                            width: "100%", padding: "8px 0", fontSize: 12, fontWeight: 700, letterSpacing: 1,
+                                            width: "100%", padding: "6px 0", fontSize: 11, fontWeight: 700, letterSpacing: 1,
                                             boxShadow: holding ? "0 0 16px rgba(48,255,96,0.4)" : "none"
                                         })}>
-                                    {holding ? "◼ RELEASE" : "⟳ HOLD LOOP"}
+                                    {holding ? "◼ RELEASE" : "⟳ HOLD"}
                                 </button>
                             </Tip>
                         </div>
-                    </div>
-                )}
 
-                {/* ====== SEQUENCE TAB ====== */}
-                {tab === "timeline" && (
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-                        {/* Keyboard */}
-                        <div style={{ padding: "8px 12px", borderBottom: "1px solid " + C.border, flexShrink: 0 }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: 1 }}>KEYBOARD</span>
-                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                    <button onClick={function(){ setOctave(Math.max(1,octave-1)); }} style={SM_BTN}>−</button>
-                                    <span style={{ fontSize: 11, color: trkColor, fontWeight: 600, minWidth: 40, textAlign: "center" }}>OCT {octave}</span>
-                                    <button onClick={function(){ setOctave(Math.min(7,octave+1)); }} style={SM_BTN}>+</button>
-                                </div>
-                            </div>
-                            <div style={{ position: "relative", height: 70, userSelect: "none" }}>
-                                <div style={{ display: "flex", height: "100%", gap: 1 }}>
-                                    {whiteKeys.map(function (nv) {
-                                        var ni = nv % 12, act = activeKeys[ni];
-                                        return (
-                                            <div key={nv} onMouseDown={function(){ handleNoteOn(ni); }}
-                                                 onTouchStart={function(e){ e.preventDefault(); handleNoteOn(ni); }}
-                                                 style={{
-                                                     flex: 1, background: act ? C.keyActive : C.keyWhite,
-                                                     border: "1px solid " + (act ? trkColor : C.border), borderRadius: "0 0 3px 3px",
-                                                     cursor: "pointer", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 4
-                                                 }}>
-                                                <span style={{ fontSize: 8, color: act ? trkColor : C.textDim }}>{NOTE_NAMES[ni]}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "55%", pointerEvents: "none" }}>
-                                    {blackKeys.map(function (bk, i) {
-                                        var act = activeKeys[bk.n];
-                                        return (
-                                            <div key={i} onMouseDown={function(){ handleNoteOn(bk.n); }}
-                                                 onTouchStart={function(e){ e.preventDefault(); handleNoteOn(bk.n); }}
-                                                 style={{
-                                                     position: "absolute", left: bk.p + "%", width: "5%", height: "100%",
-                                                     background: act ? trkColor : C.keyBlack,
-                                                     border: "1px solid " + (act ? trkColor : "#1a2a1a"),
-                                                     borderRadius: "0 0 2px 2px", cursor: "pointer", pointerEvents: "auto"
-                                                 }} />
-                                        );
-                                    })}
-                                </div>
+                        {/* Octave selector */}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: 1 }}>KEYBOARD</span>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <button onClick={function(){ setOctave(Math.max(1,octave-1)); }} style={SM_BTN}>−</button>
+                                <span style={{ fontSize: 11, color: trkColor, fontWeight: 600, minWidth: 40, textAlign: "center" }}>OCT {octave}</span>
+                                <button onClick={function(){ setOctave(Math.min(7,octave+1)); }} style={SM_BTN}>+</button>
                             </div>
                         </div>
-
-                        {/* Transport */}
-                        <div style={{ padding: "6px 12px", display: "flex", alignItems: "center", gap: 6, borderBottom: "1px solid " + C.border, flexShrink: 0, flexWrap: "wrap" }}>
-                            {!isRec ? (
-                                <button onClick={startRec} style={Object.assign({}, btnStyle(C.red), { fontWeight: 700, padding: "5px 12px" })}>⏺ REC</button>
-                            ) : (
-                                <button onClick={stopRec} className="chipforge-rec-pulse" style={Object.assign({}, btnStyle(C.red), { fontWeight: 700, padding: "5px 12px" })}>⏹ {recCount}</button>
-                            )}
-                            <div style={DIVIDER} />
-                            <button onClick={playAll} disabled={isPlaying} style={btnStyle(trkColor)}>▶</button>
-                            <button onClick={stopPlay} style={btnStyle(C.accentDim)}>⏹</button>
-                            <div style={DIVIDER} />
-                            <button onClick={snapToGrid} style={btnStyle(C.accentDim)}>SNAP</button>
-                            <select value={snapDiv} onChange={function(e){ setSnapDiv(parseInt(e.target.value)); }} style={SELECT_STYLE}>
-                                <option value={4}>1/4</option><option value={8}>1/8</option><option value={16}>1/16</option><option value={32}>1/32</option>
-                            </select>
-                            <div style={DIVIDER} />
-                            <span style={{ fontSize: 9, color: C.textDim }}>BPM</span>
-                            <input type="number" value={bpm} min={40} max={300} onChange={function(e){ setBpm(Math.max(40,Math.min(300,parseInt(e.target.value)||120))); }} style={NUM_INPUT} />
-                            <span style={{ fontSize: 9, color: C.textDim }}>DUR</span>
-                            <input type="number" value={tlDur} min={0.5} max={30} step={0.5} onChange={function(e){ setTlDur(Math.max(0.5,Math.min(30,parseFloat(e.target.value)||4))); }} style={NUM_INPUT} />
-                            <span style={{ fontSize: 9, color: C.textDim }}>s</span>
-                            <label style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 9, color: loopMode ? C.accent : C.textDim, cursor: "pointer", userSelect: "none" }}>
-                                <input type="checkbox" checked={loopMode} onChange={function(){ setLoopMode(!loopMode); }} style={{ accentColor: C.accent, cursor: "pointer" }} />LOOP
-                            </label>
-                            <div style={{ flex: 1 }} />
-                            <button onClick={clearTrackNotes} style={Object.assign({}, btnStyle("#441111"), { fontSize: 9 })}>CLEAR</button>
-                        </div>
-
-                        {/* Timeline */}
-                        <div style={{ flex: 1, padding: "8px 12px", display: "flex", flexDirection: "column", minHeight: 0 }}>
-                            <div style={{ fontSize: 9, color: C.textDim, letterSpacing: 1, marginBottom: 4, fontWeight: 700 }}>
-                                TIMELINE — {track.notes.length} notes on {track.name}{loopMode ? " — LOOP" : ""}
-                            </div>
-                            <div ref={tlRef} style={{
-                                flex: 1, position: "relative", background: "#080c08", borderRadius: 4,
-                                border: "1px solid " + C.border, overflow: "hidden", cursor: "crosshair", minHeight: 120
-                            }}>
-                                {beats.map(function (p, i) {
-                                    return <div key={i} style={{ position: "absolute", left: (p*100)+"%", top: 0, bottom: 0, width: 1, background: i===0 ? C.border : "rgba(26,46,26,0.4)" }} />;
-                                })}
-                                {["C","D","E","F","G","A","B"].map(function (n, i) {
-                                    return <span key={n} style={{ position: "absolute", left: 3, top: (i/7*85+5)+"%", fontSize: 8, color: "rgba(90,138,101,0.25)", pointerEvents: "none" }}>{n}</span>;
-                                })}
-                                {allNotes.map(function (item, idx) {
-                                    var n = item.n, xP = (n.time / tlDur) * 100, yP = (1-(n.note%12)/12)*80+5;
-                                    var isCurrent = item.isSel;
+                        <div style={{ position: "relative", height: 70, userSelect: "none" }}>
+                            <div style={{ display: "flex", height: "100%", gap: 1 }}>
+                                {whiteKeys.map(function (nv) {
+                                    var ni = nv % 12, act = activeKeys[ni];
                                     return (
-                                        <div key={idx}
-                                             onMouseDown={isCurrent ? function(e){ onNoteDrag(e, item.ni); } : undefined}
-                                             onContextMenu={isCurrent ? function(e){ e.preventDefault(); deleteNote(item.ni); } : function(e){ e.preventDefault(); }}
-                                             title={n.name + " @ " + n.time.toFixed(3) + "s" + (isCurrent ? " — drag/right-click delete" : "")}
+                                        <div key={nv} onMouseDown={function(){ handleNoteOn(ni); }}
+                                             onTouchStart={function(e){ e.preventDefault(); handleNoteOn(ni); }}
                                              style={{
-                                                 position: "absolute", left: xP+"%", top: yP+"%",
-                                                 width: isCurrent ? 20 : 12, height: isCurrent ? 13 : 8,
-                                                 marginLeft: isCurrent ? -10 : -6, marginTop: isCurrent ? -6 : -4,
-                                                 background: item.color, borderRadius: 2,
-                                                 border: isCurrent ? "1px solid " + item.color : "none",
-                                                 cursor: isCurrent ? "grab" : "default",
-                                                 opacity: isCurrent ? 1 : 0.5,
-                                                 display: "flex", alignItems: "center", justifyContent: "center",
-                                                 fontSize: 7, fontWeight: 700, color: C.bg, zIndex: isCurrent ? 3 : 1,
-                                                 boxShadow: "0 0 4px " + item.glow
+                                                 flex: 1, background: act ? C.keyActive : C.keyWhite,
+                                                 border: "1px solid " + (act ? trkColor : C.border), borderRadius: "0 0 3px 3px",
+                                                 cursor: "pointer", display: "flex", alignItems: "flex-end", justifyContent: "center", paddingBottom: 4
                                              }}>
-                                            {isCurrent ? n.name : ""}
+                                            <span style={{ fontSize: 8, color: act ? trkColor : C.textDim }}>{NOTE_NAMES[ni]}</span>
                                         </div>
                                     );
                                 })}
-                                {isPlaying && (
-                                    <div style={{ position: "absolute", left: (playPos*100)+"%", top: 0, bottom: 0, width: 2, background: C.playhead, zIndex: 10, pointerEvents: "none", boxShadow: "0 0 8px rgba(255,64,64,0.5)" }} />
-                                )}
-                                {allNotes.length === 0 && (
-                                    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(90,138,101,0.2)", fontSize: 12, letterSpacing: 1, pointerEvents: "none" }}>
-                                        HIT REC, PLAY SOME NOTES
-                                    </div>
-                                )}
+                            </div>
+                            <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "55%", pointerEvents: "none" }}>
+                                {blackKeys.map(function (bk, i) {
+                                    var act = activeKeys[bk.n];
+                                    return (
+                                        <div key={i} onMouseDown={function(){ handleNoteOn(bk.n); }}
+                                             onTouchStart={function(e){ e.preventDefault(); handleNoteOn(bk.n); }}
+                                             style={{
+                                                 position: "absolute", left: bk.p + "%", width: "5%", height: "100%",
+                                                 background: act ? trkColor : C.keyBlack,
+                                                 border: "1px solid " + (act ? trkColor : "#1a2a1a"),
+                                                 borderRadius: "0 0 2px 2px", cursor: "pointer", pointerEvents: "auto"
+                                             }} />
+                                    );
+                                })}
                             </div>
                         </div>
+                    </Section>
+
+                    {/* Note Timeline (per-track detail view) */}
+                    <div style={{ padding: "8px 12px" }}>
+                        <div style={{ fontSize: 9, color: C.textDim, letterSpacing: 1, marginBottom: 4, fontWeight: 700 }}>
+                            NOTE TIMELINE — {track.notes.length} notes on {track.name}{loopMode ? " — LOOP" : ""}
+                        </div>
+                        <div ref={tlRef} style={{
+                            height: 120, position: "relative", background: "#080c08", borderRadius: 4,
+                            border: "1px solid " + C.border, overflow: "hidden", cursor: "crosshair"
+                        }}>
+                            {beats.map(function (p, i) {
+                                return <div key={i} style={{ position: "absolute", left: (p*100)+"%", top: 0, bottom: 0, width: 1, background: i===0 ? C.border : "rgba(26,46,26,0.4)" }} />;
+                            })}
+                            {["C","D","E","F","G","A","B"].map(function (n, i) {
+                                return <span key={n} style={{ position: "absolute", left: 3, top: (i/7*85+5)+"%", fontSize: 8, color: "rgba(90,138,101,0.25)", pointerEvents: "none" }}>{n}</span>;
+                            })}
+                            {allNotes.map(function (item, idx) {
+                                var n = item.n, xP = (n.time / tlDur) * 100, yP = (1-(n.note%12)/12)*80+5;
+                                var isCurrent = item.isSel;
+                                return (
+                                    <div key={idx}
+                                         onMouseDown={isCurrent ? function(e){ onNoteDrag(e, item.ni); } : undefined}
+                                         onContextMenu={isCurrent ? function(e){ e.preventDefault(); deleteNote(item.ni); } : function(e){ e.preventDefault(); }}
+                                         title={n.name + " @ " + n.time.toFixed(3) + "s" + (isCurrent ? " — drag/right-click delete" : "")}
+                                         style={{
+                                             position: "absolute", left: xP+"%", top: yP+"%",
+                                             width: isCurrent ? 20 : 12, height: isCurrent ? 13 : 8,
+                                             marginLeft: isCurrent ? -10 : -6, marginTop: isCurrent ? -6 : -4,
+                                             background: item.color, borderRadius: 2,
+                                             border: isCurrent ? "1px solid " + item.color : "none",
+                                             cursor: isCurrent ? "grab" : "default",
+                                             opacity: isCurrent ? 1 : 0.5,
+                                             display: "flex", alignItems: "center", justifyContent: "center",
+                                             fontSize: 7, fontWeight: 700, color: C.bg, zIndex: isCurrent ? 3 : 1,
+                                             boxShadow: "0 0 4px " + item.glow
+                                         }}>
+                                        {isCurrent ? n.name : ""}
+                                    </div>
+                                );
+                            })}
+                            {isPlaying && (
+                                <div style={{ position: "absolute", left: (playPos*100)+"%", top: 0, bottom: 0, width: 2, background: C.playhead, zIndex: 10, pointerEvents: "none", boxShadow: "0 0 8px rgba(255,64,64,0.5)" }} />
+                            )}
+                            {allNotes.length === 0 && (
+                                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(90,138,101,0.2)", fontSize: 12, letterSpacing: 1, pointerEvents: "none" }}>
+                                    HIT REC, PLAY SOME NOTES
+                                </div>
+                            )}
+                        </div>
                     </div>
-                )}
+
+                </div>
             </div>
         </div>
     );

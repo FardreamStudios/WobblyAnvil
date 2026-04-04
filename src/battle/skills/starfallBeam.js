@@ -142,6 +142,16 @@ function activate(bridge) {
         if (_released) return;
         console.log("[StarfallBeam] Cam entered — showing skill name");
 
+        // Start charge glow at fairy's hands (chargeOnly = glow ball only)
+        bridge.startVFX("beam_connect", {
+            from: _casterId,
+            to: _targetId,
+            fromOffsetToward: 80,
+            fromOffsetY: 0,
+            chargeOnly: true,
+        });
+        _beamActive = true;
+
         bridge.showSkillName("STARFALL BEAM");
 
         setTimeout(function() {
@@ -251,12 +261,13 @@ function _doIgnition(bridge, onDone) {
                 if (bridge.stopChargeLoop) { bridge.stopChargeLoop(); }
                 if (bridge.sfx) { _beamLoopHandle = bridge.sfx.beamLoop(); }
 
-                // VFX — beam connector from caster to target
+                // VFX — switch from charge glow to full beam
                 bridge.startVFX("beam_connect", {
                     from: _casterId,
                     to: _targetId,
                     fromOffsetToward: 80,
                     fromOffsetY: 0,
+                    chargeOnly: false,
                 });
                 _beamActive = true;
 

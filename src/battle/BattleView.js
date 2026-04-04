@@ -1259,7 +1259,7 @@ function BattleView(props) {
                         if (vo.fromOffsetY) {
                             bFrom = { x: bFrom.x, y: bFrom.y + vo.fromOffsetY };
                         }
-                        return <BeamVFX from={bFrom} to={bTo} />;
+                        return <BeamVFX from={bFrom} to={bTo} chargeOnly={!!vo.chargeOnly} />;
                     })()}
                 </div>
             </div>

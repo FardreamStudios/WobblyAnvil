@@ -672,8 +672,7 @@ function createBattleDirector(bridge, config) {
 
         // Stop charge SFX if still running
         if (chargingLoopHandle) { chargingLoopHandle.stop(); chargingLoopHandle = null; }
-
-        // 2. Tell the skill to clean up its own visual state
+        bridge.stopVFX("beam_connect");
         if (typeof activeSkill.abort === "function") {
             activeSkill.abort(reason);
         }
@@ -856,6 +855,13 @@ function createBattleDirector(bridge, config) {
                 BattleSFX.chargeStart();
                 if (chargingLoopHandle) { chargingLoopHandle.stop(); }
                 chargingLoopHandle = BattleSFX.chargeLoop();
+
+                // Charge glow VFX — pulsing ball at fairy's hands during charge wait
+                bridge.startVFX("beam_connect", {
+                    from: id, to: targetId,
+                    fromOffsetToward: 80, fromOffsetY: 0,
+                    chargeOnly: true,
+                });
 
                 // End turn — next in line goes. When turn order reaches
                 // this combatant's new position, enqueueTurn will detect
@@ -1763,6 +1769,7 @@ function createBattleDirector(bridge, config) {
         // Special skill takeover cleanup
         if (activeSkillBridge) activeSkillBridge._abort();
         if (chargingLoopHandle) { chargingLoopHandle.stop(); chargingLoopHandle = null; }
+        bridge.stopVFX("beam_connect");
         activeSkill = null;
         activeSkillBridge = null;
         activeSkillCasterId = null;
@@ -1786,6 +1793,7 @@ function createBattleDirector(bridge, config) {
         // Special skill takeover cleanup
         if (activeSkillBridge) activeSkillBridge._abort();
         if (chargingLoopHandle) { chargingLoopHandle.stop(); chargingLoopHandle = null; }
+        bridge.stopVFX("beam_connect");
         activeSkill = null;
         activeSkillBridge = null;
         activeSkillCasterId = null;

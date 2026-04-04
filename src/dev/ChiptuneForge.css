@@ -45,3 +45,13 @@
 .chipforge-root *::after {
     box-sizing: border-box;
 }
+
+/* Track block grab cursor */
+.chipforge-root [style*="cursor: grab"]:active {
+    cursor: grabbing !important;
+}
+
+/* Section triangle glow pulse on hover */
+.chipforge-root div[style*="cursor: pointer"]:hover span:first-child {
+    filter: drop-shadow(0 0 8px rgba(48,255,96,0.6)) !important;
+}
