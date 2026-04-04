@@ -226,6 +226,27 @@ function BattleView(props) {
         };
     }, []);
 
+    // --- Sprite preload — force-cache every battle spritesheet on mount.
+    // The HTTP fetch is one half of the solution; the hidden <img> wall
+    // rendered in JSX below (see: <SpriteWarmer />) forces the browser to
+    // also decode and composite them into its render cache, preventing
+    // first-paint stalls when background-image URLs swap mid-action-cam.
+    useEffect(function() {
+        var PUB = process.env.PUBLIC_URL || "";
+        var count = 0;
+        for (var key in BATTLE_SPRITES) {
+            if (BATTLE_SPRITES.hasOwnProperty(key)) {
+                var cfg = BATTLE_SPRITES[key];
+                if (cfg && cfg.sheet) {
+                    var img = new Image();
+                    img.src = PUB + cfg.sheet;
+                    count++;
+                }
+            }
+        }
+        console.log("[BattlePreload] requested", count, "spritesheets");
+    }, []);
+
     // --- Reactive snapshot — bump to trigger re-render after mutations ---
     var [stateVersion, setStateVersion] = useState(0);
     function bumpState() { setStateVersion(function(v) { return v + 1; }); }
@@ -421,17 +442,20 @@ function BattleView(props) {
                     }
                     return kept;
                 });
+                // Capture cam participants BEFORE clearing the ref.
+                // setActiveVFX updater is batched — if we clear the ref first,
+                // the updater reads null and wipes the VFX.
+                var exitingCam = camExchangeRef.current;
+                camExchangeRef.current = null;
                 // Only clear VFX owned by this cam's participants.
                 // Preserves charge glow from a different combatant (e.g. fairy charging).
                 setActiveVFX(function(prev) {
                     if (!prev) return null;
-                    var cam = camExchangeRef.current;
-                    if (cam && prev.fromId !== cam.initiatorId && prev.fromId !== cam.responderId) {
+                    if (exitingCam && prev.fromId !== exitingCam.initiatorId && prev.fromId !== exitingCam.responderId) {
                         return prev;
                     }
                     return null;
                 });
-                camExchangeRef.current = null;
             },
 
             // --- Battle end ---
@@ -1432,6 +1456,30 @@ function BattleView(props) {
 
             {/* === CINEMATIC BLACKOUT === */}
             <div className={"battle-blackout" + (isCinematic ? " battle-blackout--active" : "")} />
+
+            {/* === SPRITE WARMER ===
+                Hidden 1px img wall — forces the browser to fetch, decode,
+                and composite every battle spritesheet into its render cache
+                on battle mount. Without this, the first time a CSS
+                background-image URL is referenced, the browser stalls on
+                decode, painting blank for 1-3 frames. The imgs stay mounted
+                for the duration of battle so the textures stay hot. */}
+            <div style={{
+                position: "absolute",
+                top: "-9999px",
+                left: "-9999px",
+                width: "1px",
+                height: "1px",
+                overflow: "hidden",
+                pointerEvents: "none",
+            }}>
+                {Object.keys(BATTLE_SPRITES).map(function(key) {
+                    var cfg = BATTLE_SPRITES[key];
+                    if (!cfg || !cfg.sheet) return null;
+                    var PUB = process.env.PUBLIC_URL || "";
+                    return <img key={key} src={PUB + cfg.sheet} alt="" aria-hidden="true" />;
+                })}
+            </div>
 
             {/* === WAVE TRANSITION BANNER === */}
             {phase === PHASES.WAVE_TRANSITION && (

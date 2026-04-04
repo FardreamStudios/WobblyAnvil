@@ -117,6 +117,11 @@ function BattleSprite(props) {
     var frames = cfg.frames;
     var cols = cfg.cols || frames;
     var frame = (props.frame != null) ? props.frame : autoFrame;
+    // Defensive clamp — autoFrame may hold a stale value from the previous
+    // sheet (e.g. idle frame 3 when swapping to a 2-frame attack sheet).
+    // Without clamping, out-of-range frames push background-position off the
+    // sheet and the sprite paints blank.
+    frame = Math.max(0, Math.min(frames - 1, frame));
     var col = frame % cols;
     var row = Math.floor(frame / cols);
     var totalRows = Math.ceil(frames / cols);
@@ -368,7 +373,6 @@ function BattleCharacter(props) {
             var destX = isParty ? partySide : enemySide;
             var dx = destX - cached.cx;
             var dy = cy - cached.cy;
-            console.log("[BattleChar cam]", c.id, "gap:", gap, "destX:", destX, "slotX:", props.slotX, "cached.cx:", cached.cx, "dx:", dx);
 
             // Exit slide: push horizontally off-stage from cam position
             if (props.phase === PHASES.CAM_EXIT_SLIDE) {
