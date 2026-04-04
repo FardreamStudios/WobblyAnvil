@@ -4,7 +4,11 @@
 **Last session:** Engagement System Design + Spec Cleanup
 
 ---
-
+bugs
+1. starfall render stops after cam out of other people
+2. starfall sfx needed
+3. chiptune forge needs keyboard functionality to write a new track. add different 16 bit instruments. and properly logging input
+4. still have random moments of characters dissapearing on anim state change
 
 ## 🔲 Battle System — Remaining V1
 
