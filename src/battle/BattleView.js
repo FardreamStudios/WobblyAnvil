@@ -659,6 +659,8 @@ function BattleView(props) {
     function handleQTERingStart(index, durationMs) {
         var cam = camExchangeRef.current;
         if (!cam) return;
+        // Special skill QTEs have no exchange skill — skip choreo sync
+        if (!cam.skill) return;
 
         var swinger = cam.getSwingerId ? cam.getSwingerId() : cam.initiatorId;
         if (!swinger) return;
@@ -700,6 +702,8 @@ function BattleView(props) {
     function handleQTERingResult(index, hit, inputType) {
         var cam = camExchangeRef.current;
         if (!cam) return;
+        // Special skill QTEs have no exchange skill — skill handles its own damage
+        if (!cam.skill) return;
 
         var swinger = cam.getSwingerId ? cam.getSwingerId() : cam.initiatorId;
         var receiver = cam.getReceiverId ? cam.getReceiverId() : cam.responderId;

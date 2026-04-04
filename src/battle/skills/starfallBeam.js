@@ -17,10 +17,9 @@
 // DOES NOT OWN: Game state, KO handling, cam lifecycle, turn
 //   order, wave transitions. All go through bridge or director.
 //
-// STATUS: Step 12 — Sprite anim wired.
-//         Full sequence: cam enter → aim QTE → sprite ignition (0→1) →
-//         beam VFX + frame loop (2↔3) → sustain QTEs → wind-down (1→0) → release.
-//         Remaining polish: screen shake, flash, sound hooks, damage number color.
+// STATUS: Step-by-step rebuild.
+//         Currently: cam enter → skill name → aim QTE → log result → release.
+//         Next: beam VFX + damage ticks.
 // ============================================================
 
 // ============================================================
@@ -112,11 +111,8 @@ function activate(bridge) {
     // Step 1 — Validate target
     // ----------------------------------------------------------
     if (!_targetId || !bridge.isAlive(_targetId)) {
-        // Retarget to next alive enemy
         var newTarget = bridge.getNextTarget("enemy");
         if (!newTarget) {
-            // No targets — release early (wave-end should abort first,
-            // but this is a safety net).
             console.log("[StarfallBeam] No valid targets — releasing");
             _doRelease();
             return;
@@ -126,113 +122,45 @@ function activate(bridge) {
     }
 
     // ----------------------------------------------------------
-    // Step 2 — Enter cam + aim QTE
-    //
-    // Sequence: enter cam (ranged slot) → skill name banner →
-    // wait for name display → aim QTE → store accuracy.
-    // Beam VFX + sustain QTEs added in steps 9–11.
+    // Step 2 — Enter cam → skill name → aim QTE → release
+    // (Director handles cam exit after release)
     // ----------------------------------------------------------
-
+    console.log("[StarfallBeam] Entering cam");
     bridge.enterCam(_casterId, _targetId, { slot: "ranged" }).then(function() {
         if (_released) return;
+        console.log("[StarfallBeam] Cam entered — showing skill name");
 
-        // Show skill name banner
         bridge.showSkillName("STARFALL BEAM");
-        console.log("[StarfallBeam] Skill name shown, holding", STARFALL.skillNameHoldMs, "ms");
 
         setTimeout(function() {
             if (_released) return;
-
-            // Run aim QTE — single fast ring
             console.log("[StarfallBeam] Starting aim QTE");
+
             bridge.runQTE(STARFALL.aimQteParams).then(function(results) {
                 if (_released) return;
 
-                // Extract accuracy from QTE result
-                // Shape may vary — handle defensively, tune during testing
+                // CircleTimingQTE returns: { hits, total, details, successRatio }
+                // details[i] has per-ring info: { tier, ... }
                 var accuracy = 0.5;
-                if (results && results.length > 0) {
-                    var r = results[0];
-                    if (r.accuracy != null) { accuracy = r.accuracy; }
-                    else if (r.tier === "perfect") { accuracy = 1.0; }
-                    else if (r.tier === "good")    { accuracy = 0.75; }
-                    else if (r.tier === "miss")    { accuracy = 0.25; }
+                if (results) {
+                    if (results.successRatio != null) {
+                        accuracy = results.successRatio;
+                    } else if (results.details && results.details.length > 0) {
+                        var r = results.details[0];
+                        if (r.tier === "perfect") { accuracy = 1.0; }
+                        else if (r.tier === "good") { accuracy = 0.75; }
+                        else { accuracy = 0.25; }
+                    }
                 }
                 _aimMult = accuracy;
-                console.log("[StarfallBeam] Aim QTE complete — accuracy:", _aimMult);
+                console.log("[StarfallBeam] Aim QTE complete — accuracy:", _aimMult, "raw:", JSON.stringify(results));
 
-                // --------------------------------------------------
-                // Step 3 — Beam ignition
-                // --------------------------------------------------
-                _beamActive = true;
-
-                // Sprite: switch to beam sheet, play 0→1 ignition
-                bridge.setSpriteKey(_casterId, "fairyCombatBeam");
-                bridge.setSpriteFrame(_casterId, 0);
+                // Hold briefly to show result, then release
                 setTimeout(function() {
                     if (_released) return;
-                    bridge.setSpriteFrame(_casterId, 1);
-                }, STARFALL.ignitionMs);
-                setTimeout(function() {
-                    if (_released) return;
-                    // Start 2↔3 frame loop for sustained beam visual
-                    var toggle = 2;
-                    bridge.setSpriteFrame(_casterId, toggle);
-                    _frameTimer = setInterval(function() {
-                        if (_released || !_bridge) { clearInterval(_frameTimer); _frameTimer = null; return; }
-                        toggle = (toggle === 2) ? 3 : 2;
-                        _bridge.setSpriteFrame(_casterId, toggle);
-                    }, STARFALL.frameLoopMs);
-                }, STARFALL.ignitionMs * 2);
-
-                bridge.startVFX("beam_connect", { from: _casterId, to: _targetId });
-                console.log("[StarfallBeam] Beam ignited — starting damage ticks");
-
-                // Start damage tick loop
-                _damageTimer = setInterval(function() {
-                    if (_released || !_bridge) {
-                        clearInterval(_damageTimer);
-                        _damageTimer = null;
-                        return;
-                    }
-                    var dmg = Math.max(1, Math.round(STARFALL.beamBaseDamage * _aimMult));
-                    _bridge.dealDamage(_targetId, dmg);
-                }, STARFALL.beamTickMs);
-
-                // --------------------------------------------------
-                // Step 4 — Sustain QTE round 1
-                // --------------------------------------------------
-                bridge.runQTE(STARFALL.sustainRound1).then(function(r1) {
-                    if (_released) return;
-                    if (!_isQteSuccess(r1)) {
-                        console.log("[StarfallBeam] Round 1 failed — wind down");
-                        _windDown();
-                        return;
-                    }
-                    console.log("[StarfallBeam] Round 1 passed — gate QTE");
-
-                    // --------------------------------------------------
-                    // Step 5 — Gate QTE (circle ring between rounds)
-                    // --------------------------------------------------
-                    bridge.runQTE(STARFALL.gateQteParams).then(function(gateR) {
-                        if (_released) return;
-                        if (!_isQteSuccess(gateR)) {
-                            console.log("[StarfallBeam] Gate failed — wind down");
-                            _windDown();
-                            return;
-                        }
-                        console.log("[StarfallBeam] Gate passed — round 2");
-
-                        // --------------------------------------------------
-                        // Step 6 — Sustain QTE round 2
-                        // --------------------------------------------------
-                        bridge.runQTE(STARFALL.sustainRound2).then(function(r2) {
-                            if (_released) return;
-                            console.log("[StarfallBeam] Round 2 done (success:", _isQteSuccess(r2), ") — wind down");
-                            _windDown();
-                        });
-                    });
-                });
+                    console.log("[StarfallBeam] Post-QTE hold complete — releasing");
+                    _doRelease();
+                }, 1000);
             });
         }, STARFALL.skillNameHoldMs);
     });
@@ -409,6 +337,8 @@ var StarfallBeam = {
     skillType:       "special",
     delaySlots:      1,
     counterAllowed:  false,
+    chargeSpriteKey: "fairyCombatBeam",
+    chargeFrame:     0,
 
     // --- Controller (called by director during takeover) ---
     activate:        activate,

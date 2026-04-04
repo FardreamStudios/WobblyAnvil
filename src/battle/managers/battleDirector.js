@@ -815,6 +815,12 @@ function createBattleDirector(bridge, config) {
                 // Apply charge_shake choreo for visual feedback
                 bus.emit("ANIM_SET", { combatantId: id, animName: "charge_shake" });
 
+                // Swap sprite to charge pose (frame 0 of beam sheet)
+                if (skill.chargeSpriteKey) {
+                    bridge.setSpriteKey(id, skill.chargeSpriteKey);
+                    bridge.setSpriteFrame(id, skill.chargeFrame || 0);
+                }
+
                 // End turn — next in line goes. When turn order reaches
                 // this combatant's new position, enqueueTurn will detect
                 // the charging flag and call skill.activate(bridge).
