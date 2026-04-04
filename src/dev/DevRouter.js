@@ -12,11 +12,13 @@
 import HUDViewer from "./HUDViewer.js";
 import ParticleEditor from "./ParticleEditor.js";
 import SpriteViewer from "./SpriteViewer.js";
+import ChiptuneForge from "./ChiptuneForge.js";
 
 var DEV_ROUTES = {
     "/dev/hud-viewer": HUDViewer,
     "/dev/particle-editor": ParticleEditor,
     "/dev/sprite-viewer": SpriteViewer,
+    "/dev/chiptune-forge": ChiptuneForge,
 };
 
 function DevRouter() {

@@ -339,7 +339,7 @@ function BattleView(props) {
 
             // --- VFX (beam connector, etc.) ---
             startVFX: function(vfxId, opts) {
-                setActiveVFX({ id: vfxId, fromId: opts && opts.from, toId: opts && opts.to });
+                setActiveVFX({ id: vfxId, fromId: opts && opts.from, toId: opts && opts.to, opts: opts || {} });
             },
             stopVFX: function(vfxId) {
                 setActiveVFX(function(prev) {
@@ -1248,12 +1248,19 @@ function BattleView(props) {
                     )}
 
                     {/* Beam VFX connector */}
-                    {activeVFX && activeVFX.id === "beam_connect" && (
-                        <BeamVFX
-                            from={stagePos(activeVFX.fromId)}
-                            to={stagePos(activeVFX.toId)}
-                        />
-                    )}
+                    {activeVFX && activeVFX.id === "beam_connect" && (function() {
+                        var bFrom = stagePos(activeVFX.fromId);
+                        var bTo   = stagePos(activeVFX.toId);
+                        var vo    = activeVFX.opts || {};
+                        // Apply skill-provided offsets (generic — any VFX can use these)
+                        if (vo.fromOffsetToward) {
+                            bFrom = { x: bFrom.x + (bTo.x > bFrom.x ? vo.fromOffsetToward : -vo.fromOffsetToward), y: bFrom.y };
+                        }
+                        if (vo.fromOffsetY) {
+                            bFrom = { x: bFrom.x, y: bFrom.y + vo.fromOffsetY };
+                        }
+                        return <BeamVFX from={bFrom} to={bTo} />;
+                    })()}
                 </div>
             </div>
 

@@ -43,6 +43,7 @@ var STARFALL = {
     // Damage tuning
     beamBaseDamage:     5,      // base damage per damage ring
     missDmgMult:        0.25,   // damage multiplier when damage ring is missed
+    missFailThreshold:  5,      // total misses across damage rings before beam cancels
 
     // Aim ring — sets damage multiplier for the 10 rings that follow
     aimQte:  {
@@ -146,36 +147,9 @@ function activate(bridge) {
         setTimeout(function() {
             if (_released) return;
 
-            // Step 3 — Ignition: play frames 0→1→2→3
-            console.log("[StarfallBeam] Ignition");
-            bridge.setSpriteFrame(_casterId, 0);
-            setTimeout(function() {
-                if (_released) return;
-                bridge.setSpriteFrame(_casterId, 1);
-                setTimeout(function() {
-                    if (_released) return;
-                    bridge.setSpriteFrame(_casterId, 2);
-                    setTimeout(function() {
-                        if (_released) return;
-                        bridge.setSpriteFrame(_casterId, 3);
-
-                        // SFX — start beam drone (charge hum already stopped by director)
-                        if (bridge.sfx) { _beamLoopHandle = bridge.sfx.beamLoop(); }
-
-                        // Step 4 — Loop frames 2↔3
-                        var loopFrame = 3;
-                        _frameTimer = setInterval(function() {
-                            if (_released) return;
-                            loopFrame = loopFrame === 2 ? 3 : 2;
-                            bridge.setSpriteFrame(_casterId, loopFrame);
-                        }, STARFALL.frameLoopMs);
-
-                        // Step 5 — Run 3 beam loops
-                        _runBeamLoops(bridge);
-
-                    }, STARFALL.ignitionMs);
-                }, STARFALL.ignitionMs);
-            }, STARFALL.ignitionMs);
+            // Step 3 — Aim QTE fires while fairy holds charge pose.
+            // Ignition plays AFTER aim result lands.
+            _runBeamLoops(bridge);
         }, STARFALL.skillNameHoldMs);
     });
 }
@@ -253,6 +227,54 @@ function onTick(event, payload) {
 }
 
 // ============================================================
+// INTERNAL — Ignition sequence (frames 0→1→2→3 + SFX + loop)
+//
+// Plays the beam wind-up animation, starts beam SFX, then
+// begins the 2↔3 frame loop. Calls onDone when ready for
+// damage rings.
+// ============================================================
+
+function _doIgnition(bridge, onDone) {
+    console.log("[StarfallBeam] Ignition");
+    bridge.setSpriteFrame(_casterId, 0);
+    setTimeout(function() {
+        if (_released) return;
+        bridge.setSpriteFrame(_casterId, 1);
+        setTimeout(function() {
+            if (_released) return;
+            bridge.setSpriteFrame(_casterId, 2);
+            setTimeout(function() {
+                if (_released) return;
+                bridge.setSpriteFrame(_casterId, 3);
+
+                // SFX — stop charge hum, start beam drone
+                if (bridge.stopChargeLoop) { bridge.stopChargeLoop(); }
+                if (bridge.sfx) { _beamLoopHandle = bridge.sfx.beamLoop(); }
+
+                // VFX — beam connector from caster to target
+                bridge.startVFX("beam_connect", {
+                    from: _casterId,
+                    to: _targetId,
+                    fromOffsetToward: 80,
+                    fromOffsetY: 0,
+                });
+                _beamActive = true;
+
+                // Frame loop: toggle 2↔3
+                var loopFrame = 3;
+                _frameTimer = setInterval(function() {
+                    if (_released) return;
+                    loopFrame = loopFrame === 2 ? 3 : 2;
+                    bridge.setSpriteFrame(_casterId, loopFrame);
+                }, STARFALL.frameLoopMs);
+
+                onDone();
+            }, STARFALL.ignitionMs);
+        }, STARFALL.ignitionMs);
+    }, STARFALL.ignitionMs);
+}
+
+// ============================================================
 // INTERNAL — 3-loop beam sequence
 //
 // Each loop: 1 aim ring (sets damage multiplier) + 5 damage
@@ -302,45 +324,65 @@ function _runBeamLoops(bridge) {
                 return;
             }
 
-            // --- 5 damage rings ---
-            var dmgIndex = 0;
+            // --- damage rings (with miss fail-out) ---
+            function startDmgRings() {
+                var dmgIndex = 0;
+                var missCount = 0;
 
-            function runDmgRing() {
-                if (_released) return;
-                if (dmgIndex >= STARFALL.dmgRingsPerLoop) {
-                    console.log("[StarfallBeam] Loop", currentLoop + 1, "damage rings complete");
-                    // Pause between loops (skip after last)
-                    if (loopIndex < STARFALL.loopCount) {
-                        setTimeout(runLoop, STARFALL.loopPauseMs);
-                    } else {
-                        runLoop();
+                function runDmgRing() {
+                    if (_released) return;
+                    if (dmgIndex >= STARFALL.dmgRingsPerLoop) {
+                        console.log("[StarfallBeam] Loop", currentLoop + 1, "damage rings complete");
+                        // Pause between loops (skip after last)
+                        if (loopIndex < STARFALL.loopCount) {
+                            setTimeout(runLoop, STARFALL.loopPauseMs);
+                        } else {
+                            runLoop();
+                        }
+                        return;
                     }
-                    return;
+
+                    bridge.runQTE(STARFALL.dmgQte).then(function(dmgResults) {
+                        if (_released) return;
+                        dmgIndex++;
+
+                        var dmgTier = _readTier(dmgResults);
+                        var dmg;
+                        if (dmgTier === "miss") {
+                            missCount++;
+                            dmg = Math.max(1, Math.round(STARFALL.beamBaseDamage * _aimMult * STARFALL.missDmgMult));
+                        } else {
+                            dmg = Math.max(1, Math.round(STARFALL.beamBaseDamage * _aimMult));
+                        }
+
+                        console.log("[StarfallBeam] Dmg ring", dmgIndex, "→", dmgTier, "dmg:", dmg, "misses:", missCount + "/" + STARFALL.missFailThreshold);
+
+                        if (_targetId && bridge.isAlive(_targetId)) {
+                            bridge.dealDamage(_targetId, dmg);
+                        }
+
+                        // Fail-out: too many misses → cancel beam
+                        if (missCount >= STARFALL.missFailThreshold) {
+                            console.log("[StarfallBeam] Miss threshold reached — cancelling beam");
+                            if (_frameTimer) { clearInterval(_frameTimer); _frameTimer = null; }
+                            _windDown();
+                            return;
+                        }
+
+                        runDmgRing();
+                    });
                 }
 
-                bridge.runQTE(STARFALL.dmgQte).then(function(dmgResults) {
-                    if (_released) return;
-                    dmgIndex++;
+                runDmgRing();
+            } // end startDmgRings
 
-                    var dmgTier = _readTier(dmgResults);
-                    var dmg;
-                    if (dmgTier === "miss") {
-                        dmg = Math.max(1, Math.round(STARFALL.beamBaseDamage * _aimMult * STARFALL.missDmgMult));
-                    } else {
-                        dmg = Math.max(1, Math.round(STARFALL.beamBaseDamage * _aimMult));
-                    }
-
-                    console.log("[StarfallBeam] Dmg ring", dmgIndex, "→", dmgTier, "dmg:", dmg);
-
-                    if (_targetId && bridge.isAlive(_targetId)) {
-                        bridge.dealDamage(_targetId, dmg);
-                    }
-
-                    runDmgRing();
-                });
+            // First loop: ignite sprite before damage rings
+            // Later loops: already ignited, go straight to damage
+            if (currentLoop === 0) {
+                _doIgnition(bridge, startDmgRings);
+            } else {
+                startDmgRings();
             }
-
-            runDmgRing();
         });
     }
 

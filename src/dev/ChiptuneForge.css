@@ -1,0 +1,47 @@
+/* ============================================================
+   ChiptuneForge.css — Dev Tool Styles
+   Animations, scrollbar, and base styles for the chiptune
+   audio designer. Dev-only — not included in production.
+   ============================================================ */
+
+/* Record button pulse */
+@keyframes chipforge-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.chipforge-rec-pulse {
+    animation: chipforge-pulse 1s infinite;
+}
+
+/* Scrollbar — green theme */
+.chipforge-root ::-webkit-scrollbar {
+    width: 6px;
+}
+.chipforge-root ::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+.chipforge-root ::-webkit-scrollbar-thumb {
+    background: #1a2e1a;
+    border-radius: 3px;
+}
+.chipforge-root ::-webkit-scrollbar-thumb:hover {
+    background: #2a4e2a;
+}
+
+/* Selection color */
+.chipforge-root ::selection {
+    background: rgba(48, 255, 96, 0.25);
+}
+
+/* Range input styling */
+.chipforge-root input[type=range] {
+    cursor: pointer;
+}
+
+/* Box sizing reset scoped to tool */
+.chipforge-root *,
+.chipforge-root *::before,
+.chipforge-root *::after {
+    box-sizing: border-box;
+}

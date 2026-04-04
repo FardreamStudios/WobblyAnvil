@@ -428,6 +428,9 @@ function createBattleDirector(bridge, config) {
 
             // SFX
             sfx:                BattleSFX,
+            stopChargeLoop:     function() {
+                if (chargingLoopHandle) { chargingLoopHandle.stop(); chargingLoopHandle = null; }
+            },
 
             // Lifecycle
             release:            release,
@@ -589,8 +592,8 @@ function createBattleDirector(bridge, config) {
 
             console.log("[Director] SPECIAL SKILL ACTIVATE:", skill.id || chargeInfo.skillId, "caster:", id);
 
-            // Stop charge hum — beam is taking over
-            if (chargingLoopHandle) { chargingLoopHandle.stop(); chargingLoopHandle = null; }
+            // Charge loop SFX stays running — skill calls bridge.stopChargeLoop()
+            // when it's ready to transition (e.g. after aim QTE, before beam SFX).
 
             skill.activate(skillBridge);
             // Sequencer is now parked. Skill runs async via bridge.
@@ -1812,6 +1815,10 @@ function createBattleDirector(bridge, config) {
         getTurnIndex:               getTurnIndex,
         getCurrentTurnId:           getCurrentTurnId,
         getWaveIndex:               getWaveIndex,
+
+        // AP management (view needs for dodge gate)
+        canAfford:                  canAfford,
+        spendAP:                    spendAP,
 
         // Dev
         fillAllAP:                  fillAllAP,
