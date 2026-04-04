@@ -1643,14 +1643,9 @@
     align-items: stretch;
 }
 
-/* Chain RELENT button — bottom-right, below in-cam skill submenu */
+/* Chain RELENT button — below in-cam skill submenu, flows in flex column */
 .battle-chain-relent-btn {
-    position: fixed;
-    bottom: 3vh;
-    right: 3vw;
-    left: auto;
-    top: auto;
-    transform: none;
+    margin-top: 0.8vh;
     z-index: 56;
     background: #000;
     border: 2px solid rgba(224, 216, 200, 0.25);

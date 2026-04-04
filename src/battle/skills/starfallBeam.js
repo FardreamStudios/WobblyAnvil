@@ -366,7 +366,7 @@ function _runBeamLoops(bridge) {
                             dmg = Math.max(1, Math.round(STARFALL.beamBaseDamage * _aimMult));
                         }
 
-                        console.log("[StarfallBeam] Dmg ring", dmgIndex, "→", dmgTier, "dmg:", dmg, "misses:", missCount + "/" + STARFALL.missFailThreshold);
+                        console.log("[StarfallBeam] === DMG RING", dmgIndex, "of", STARFALL.dmgRingsPerLoop, "| tier:", dmgTier, "| dmg:", dmg, "| missCount:", missCount, "| threshold:", STARFALL.missFailThreshold, "| released:", _released);
 
                         if (_targetId && bridge.isAlive(_targetId)) {
                             bridge.dealDamage(_targetId, dmg);
@@ -374,7 +374,7 @@ function _runBeamLoops(bridge) {
 
                         // Fail-out: too many misses → cancel beam
                         if (missCount >= STARFALL.missFailThreshold) {
-                            console.log("[StarfallBeam] Miss threshold reached — cancelling beam");
+                            console.log("[StarfallBeam] FAIL-OUT TRIGGERED — missCount:", missCount, "threshold:", STARFALL.missFailThreshold, "_released:", _released, "_bridge:", !!_bridge);
                             if (_frameTimer) { clearInterval(_frameTimer); _frameTimer = null; }
                             _windDown();
                             return;
@@ -405,7 +405,7 @@ function _runBeamLoops(bridge) {
 // ============================================================
 
 function _windDown() {
-    console.log("[StarfallBeam] Wind-down");
+    console.log("[StarfallBeam] Wind-down — _released:", _released, "_bridge:", !!_bridge, "_beamActive:", _beamActive);
     // Stop damage ticks
     if (_damageTimer) { clearInterval(_damageTimer); _damageTimer = null; }
     // Stop frame loop
@@ -446,6 +446,7 @@ function _windDown() {
 // ============================================================
 
 function _doRelease() {
+    console.log("[StarfallBeam] _doRelease called — _released:", _released);
     if (_released) return;
     _released = true;
 

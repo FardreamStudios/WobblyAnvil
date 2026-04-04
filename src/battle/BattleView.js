@@ -421,8 +421,17 @@ function BattleView(props) {
                     }
                     return kept;
                 });
+                // Only clear VFX owned by this cam's participants.
+                // Preserves charge glow from a different combatant (e.g. fairy charging).
+                setActiveVFX(function(prev) {
+                    if (!prev) return null;
+                    var cam = camExchangeRef.current;
+                    if (cam && prev.fromId !== cam.initiatorId && prev.fromId !== cam.responderId) {
+                        return prev;
+                    }
+                    return null;
+                });
                 camExchangeRef.current = null;
-                setActiveVFX(null);
             },
 
             // --- Battle end ---
@@ -1249,6 +1258,11 @@ function BattleView(props) {
 
                     {/* Beam VFX connector */}
                     {activeVFX && activeVFX.id === "beam_connect" && (function() {
+                        // Hide VFX if its owner isn't part of the current action cam
+                        var cam = camExchangeRef.current;
+                        if (cam && activeVFX.fromId !== cam.initiatorId && activeVFX.fromId !== cam.responderId) {
+                            return null;
+                        }
                         var bFrom = stagePos(activeVFX.fromId);
                         var bTo   = stagePos(activeVFX.toId);
                         var vo    = activeVFX.opts || {};
