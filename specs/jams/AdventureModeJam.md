@@ -1,5 +1,16 @@
 # Wobbly Anvil — Adventure Mode Design Jam
 
+## Updates from Worldbuilding Jam
+
+This doc is the original structural brief. It remains mostly accurate, but a follow-up jam (`WorldbuildingJam.md`) locked in character, cast, and signature verb decisions that touch a few sections below. Read both docs in sequence. The following points in this doc are now partially stale or answered — `WorldbuildingJam.md` is the authoritative source on each:
+
+- **Early-game ramp (Open Question #5) is now answered.** Early decrees are narratively small because the king is auditioning an untested prodigy. The ramp is a feature, not a scaling problem.
+- **Weapon Identity — the six archetypes are starting shapes, not enduring identities.** Late-reign weapons become alchemical workings that may not resemble any of the six archetypes by the end.
+- **The Forging Vocabulary is material interactions, not recipes.** Players learn how ingredients react with each other, not how to assemble fixed patterns. This is driven by the prodigy's signature verb: Combine + Break-and-Rebuild.
+- **The party is not fully static.** One party member — the fairy (secretly Hephaestus) — is permanent across every reign. The rest rotate per reign as originally described. This partially answers Open Question #7.
+- **The forge has a resident NPC the original doc does not mention.** The fairy is a grubby, mean, short-tempered permanent companion who lives at the forge, comes with you on adventures as mage/healer, and is secretly Hephaestus. She is the thread that welds the forge half and adventure half of the game together.
+- **Forge upgrades are reframed as hers, not the prodigy's.** She has collected them across many smiths over many generations. Each new prodigy inherits access. This reframes meta-progression from "your empire" to "her patient work across time."
+
 ## Purpose of this doc
 
 This is a design brief, not a spec. It captures where we landed after a brainstorm on Adventure Mode and flags the open questions for the next conversation. No code, no implementation. Pure design.
@@ -222,16 +233,3 @@ Putting it all together:
 - **Replayability** — different loadouts, different decree rewards, different kings, different weapons
 - **Discovery** — new upgrades, new materials, new techniques, new legendary traits
 - **Emotional stakes** — your weapon has history, and losing it hurts
-
----
-
-## Next Conversation Starting Point
-
-Pick up by resolving the open questions above, especially:
-
-1. Weapon persistence on death (legacy pattern or clean slate?)
-2. One weapon vs. arsenal
-3. Tempering mechanic — how does it feel different from forging?
-4. Early-game ramp — how do first runs feel meaningful?
-
-Once those are nailed, we can start thinking about concrete upgrade categories and the forging vocabulary in more detail.
