@@ -56,10 +56,12 @@ import FairyChatSystem from "./fairy/fairyChatSystem.js";
 import BattleViewModule from "./battle/BattleView.js";
 import BattleTransitionModule from "./battle/BattleTransition.js";
 import BattleConstants from "./battle/config/battleConstants.js";
+import AdventureGameModeModule from "./adventure/AdventureGameMode.js";
 
 var BattleView = BattleViewModule.BattleView;
 var BattleTransition = BattleTransitionModule.BattleTransition;
 var BATTLE_TRANSITION = BattleConstants.BATTLE_TRANSITION;
+var AdventureGameMode = AdventureGameModeModule.AdventureGameMode;
 
 // --- Destructure Constants ---
 var PHASES = GameConstants.PHASES;
@@ -160,8 +162,8 @@ export default function App() {
     try { return localStorage.getItem("wa_fairy_enabled") !== "false"; } catch(e) { return true; }
   });
 
-  // --- Adventure mode (null | "transition" | "battle_mounting" | "battle" | "transition_out" | "exiting") ---
-  var [adventureMode, setAdventureMode] = useState(null);
+  // --- Adventure mode (boolean — true when AdventureGameMode is live) ---
+  var [adventureActive, setAdventureActive] = useState(false);
 
   // --- Fairy Chat VM (bus-driven, no App.js logic) ---
   var chatVM = useFairyChatVM(GameplayEventBus);
@@ -473,8 +475,7 @@ export default function App() {
   forgeVMRef.current = forgeVM;
 
   // --- Ambient Audio Layer ---
-  var isBattleActive = adventureMode === "transition" || adventureMode === "battle" || adventureMode === "battle_mounting" || adventureMode === "transition_out" || adventureMode === "exiting";
-  var ambient = useAmbientAudio({ isForging: isForging, muted: false, sfxVol: sfxVol, suspended: isBattleActive });
+  var ambient = useAmbientAudio({ isForging: isForging, muted: false, sfxVol: sfxVol, suspended: adventureActive });
 
   // --- Input Router ---
   var input = useInputRouter({
@@ -540,70 +541,19 @@ export default function App() {
   if (gameOver) return <ScaleWrapper key="sw"><GameOverScreen day={day} gold={gold} totalGoldEarned={totalGoldEarned} onReset={resetGame} leaderboardEntries={leaderboard.entries} copied={leaderboard.copied} runStats={GameplayAnalyticsSubSystem.getStats()} onCopyScore={function(name) { leaderboard.copyScore(name, { day: day, gold: gold, totalGoldEarned: totalGoldEarned, reputation: reputation, level: level }, GameplayAnalyticsSubSystem.getStats()); }} /></ScaleWrapper>;
 
   // ============================================================
-  // ADVENTURE BATTLE — Full-screen takeover with pixel dissolve
+  // ADVENTURE MODE — Full-screen takeover (campaign → map → battle → event)
   // ============================================================
-  if (adventureMode === "transition") {
+  if (adventureActive) {
     return (
-        <BattleTransition
-            config={BATTLE_TRANSITION}
+        <AdventureGameMode
             sfx={sfx}
-            onMidpoint={function() { setAdventureMode("battle_mounting"); }}
-            onComplete={function() { setAdventureMode("battle"); }}
-        />
-    );
-  }
-  if (adventureMode === "battle_mounting") {
-    return (
-        <>
-          <BattleView
-              handedness={handedness}
-              onExit={function() { setAdventureMode("transition_out"); }}
-              zoneName="Back Alley"
-              waveLabel="Wave 1/2"
-          />
-          <BattleTransition
-              config={BATTLE_TRANSITION}
-              sfx={sfx}
-              onMidpoint={function() {}}
-              onComplete={function() { setAdventureMode("battle"); }}
-          />
-        </>
-    );
-  }
-  if (adventureMode === "battle") {
-    return (
-        <BattleView
             handedness={handedness}
-            onExit={function() { setAdventureMode("transition_out"); }}
-            zoneName="Back Alley"
-            waveLabel="Wave 1/2"
-        />
-    );
-  }
-  if (adventureMode === "transition_out") {
-    return (
-        <>
-          <BattleTransition
-              config={Object.assign({}, BATTLE_TRANSITION, { flashText: null, fanfareDelayMs: -1 })}
-              reverse={true}
-              onMidpoint={function() { sfx.setMode("idle"); setAdventureMode("exiting"); }}
-              onComplete={function() { setAdventureMode(null); setScreen("menu"); }}
-          />
-        </>
-    );
-  }
-  if (adventureMode === "exiting") {
-    return (
-        <BattleTransition
-            config={Object.assign({}, BATTLE_TRANSITION, { flashText: null, fanfareDelayMs: -1 })}
-            reverse={true}
-            onMidpoint={function() {}}
-            onComplete={function() { setAdventureMode(null); setScreen("menu"); }}
+            onExit={function() { setAdventureActive(false); setScreen("menu"); }}
         />
     );
   }
 
-  if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu audioReady={audioReady} onAudioWarmup={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setAudioReady(true); }} onStart={function() { setScreen("game"); }} onEnterAdventure={function() { sfx.setMode("battle"); setAdventureMode("transition"); }} sfx={sfx} leaderboardEntries={leaderboard.entries} /></ScaleWrapper>;
+  if (screen === "menu") return <ScaleWrapper key="sw"><MainMenu audioReady={audioReady} onAudioWarmup={function() { sfx.warmup(); sfx.setSfxVol(sfxVol); sfx.setMusicVol(musicVol); ambient.startAmbient(); setTimeout(function() { GameplayEventBus.emit(EVENT_TAGS.FX_FANFARE, {}); }, 80); setAudioReady(true); }} onStart={function() { setScreen("game"); }} onEnterAdventure={function() { setAdventureActive(true); }} sfx={sfx} leaderboardEntries={leaderboard.entries} /></ScaleWrapper>;
 
   // ============================================================
   // FAIRY CHAT OVERLAY (shared by mobile + desktop)
